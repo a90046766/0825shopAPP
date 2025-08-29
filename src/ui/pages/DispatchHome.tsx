@@ -47,6 +47,7 @@ export default function PageDispatchHome() {
           <Link to="/notifications" className="rounded-xl border bg-white p-4 shadow-card">通知中心</Link>
           <Link to="/payroll" className="rounded-xl border bg-white p-4 shadow-card">薪資</Link>
           <Link to="/me" className="rounded-xl border bg-white p-4 shadow-card">個人設定</Link>
+          <Link to="/shop" className="rounded-xl border bg-white p-4 shadow-card">購物車</Link>
         </div>
       </div>
     </div>

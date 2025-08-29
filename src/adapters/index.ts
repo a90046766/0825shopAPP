@@ -1,16 +1,19 @@
 import { checkSupabaseConnection } from '../utils/supabase'
 
-// 修改預設行為：優先使用 Supabase，只有在連線失敗時才回退本地
+// 修改預設行為：優先使用 Supabase。若設定嚴格模式，連線失敗時不回退本地，直接拋錯
 const RAW = String(import.meta.env.VITE_USE_SUPABASE || '').toLowerCase()
+const RAW_STRICT = String(import.meta.env.VITE_STRICT_SUPABASE || '').toLowerCase()
 const WANT_SUPABASE = RAW === '1' || RAW === 'true' || RAW === '' // 空字串也預設為 true
 const HAS_SUPABASE_KEYS = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
 const USE_SUPABASE = WANT_SUPABASE && HAS_SUPABASE_KEYS
+const STRICT = RAW_STRICT === '1' || RAW_STRICT === 'true'
 
 export async function loadAdapters() {
   console.log('🔧 載入 Adapters...')
   console.log('VITE_USE_SUPABASE:', import.meta.env.VITE_USE_SUPABASE)
   console.log('HAS_SUPABASE_KEYS:', HAS_SUPABASE_KEYS)
   console.log('USE_SUPABASE:', USE_SUPABASE)
+  console.log('STRICT_SUPABASE:', STRICT)
 
   if (USE_SUPABASE) {
     try {
@@ -19,17 +22,19 @@ export async function loadAdapters() {
       // 先檢查連線狀態
       const isConnected = await checkSupabaseConnection()
       if (!isConnected) {
-        console.warn('❌ Supabase 連線失敗，回退至本地模式')
+        const msg = '❌ Supabase 連線失敗' + (STRICT ? '（嚴格模式）' : '，回退至本地模式')
+        console.warn(msg)
+        if (STRICT) throw new Error('SUPABASE_CONNECTION_FAILED')
         return await import('./local/_exports')
       }
 
       console.log('✅ Supabase 連線成功，載入雲端 adapters...')
       const a = await import('./supabase/_exports')
       
-      // 連線探測 + 首次種子，失敗則自動回退至本地模式
+      // 連線探測 + 首次種子。嚴格模式：失敗直接拋錯；一般模式：回退本地
       try {
         console.log('🔍 測試 Supabase 資料存取...')
-        const list = await a.productRepo.list()
+        const list = STRICT ? await a.productRepo.list() : await a.productRepo.list().catch(()=>[] as any)
         console.log('📦 產品列表載入成功，數量:', list?.length || 0)
         
         if (!list || list.length === 0) {
@@ -56,19 +61,20 @@ export async function loadAdapters() {
         return a
       } catch (error) {
         console.error('❌ Supabase 初始化失敗:', error)
-        // 任一 API 失敗 → 回退本地
+        if (STRICT) throw error
         console.log('🔄 回退至本地模式...')
         return await import('./local/_exports')
       }
     } catch (error) {
       console.error('❌ Supabase adapter 載入失敗:', error)
-      // import 失敗 → 回退本地
+      if (STRICT) throw error
       console.log('🔄 回退至本地模式...')
       return await import('./local/_exports')
     }
   }
   
   // 只有在明確設定 VITE_USE_SUPABASE=false 時才使用本地模式
+  if (STRICT) throw new Error('STRICT_SUPABASE_ENABLED_NO_FALLBACK')
   console.log('💾 使用本地模式（僅在開發測試時使用）')
   return await import('./local/_exports')
 }

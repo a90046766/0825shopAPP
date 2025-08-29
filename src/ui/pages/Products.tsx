@@ -12,6 +12,12 @@ export default function ProductsPage() {
   const [img, setImg] = useState<string | null>(null)
   const [cats, setCats] = useState<Array<{id:string;name:string}>>([])
   const [catMngOpen, setCatMngOpen] = useState(false)
+  const PRESET_CATEGORIES = [
+    '專業清洗服務',
+    '家電購買服務',
+    '二手家電服務',
+    '居家清潔/消毒服務'
+  ]
   const load = async () => { if(!repos) return; setRows(await repos.productRepo.list()) }
   useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a) })() }, [])
   useEffect(() => { if(repos){ load(); (async()=>{ try{ const meta = await import('../../adapters/supabase/product_meta'); const list = await meta.productMeta.listCategories(true); setCats(list.map(c=>({id:c.id,name:c.name}))) } catch {} })() } }, [repos])
@@ -35,7 +41,7 @@ export default function ProductsPage() {
             region: '', // 新增地區欄位
             imageUrls:[], 
             safeStock:0, 
-            category:'service',
+            category:'',
             defaultQuantity: 1
           })} className="rounded-lg bg-brand-500 px-3 py-1 text-white">新增</button>
           {rows.length===0 && (
@@ -51,6 +57,42 @@ export default function ProductsPage() {
               } catch(e:any){ alert(e?.message||'建立失敗') }
             }} className="rounded-lg bg-gray-900 px-3 py-1 text-white">建立預設產品</button>
           )}
+          <button onClick={async()=>{
+            // 匯入 Excel / CSV（最小實作：讀 CSV）
+            const input = document.createElement('input')
+            input.type = 'file'
+            input.accept = '.csv'
+            input.onchange = async () => {
+              const file = input.files?.[0]
+              if (!file) return
+              const text = await file.text()
+              const lines = text.split(/\r?\n/).filter(Boolean)
+              const headers = lines.shift()?.split(',')||[]
+              for (const line of lines) {
+                const cols = line.split(',')
+                const row: any = {}
+                headers.forEach((h, i) => row[h.trim()] = cols[i])
+                try {
+                  await repos.productRepo.upsert({
+                    id: '',
+                    name: row.name,
+                    unitPrice: Number(row.unitPrice||row.price||0),
+                    groupPrice: row.groupPrice? Number(row.groupPrice): undefined,
+                    groupMinQty: Number(row.groupMinQty||0),
+                    description: row.description||'',
+                    content: row.content||'',
+                    region: row.region||'',
+                    imageUrls: [],
+                    safeStock: row.safeStock? Number(row.safeStock): undefined,
+                    defaultQuantity: row.defaultQuantity? Number(row.defaultQuantity): 1,
+                  } as any)
+                } catch {}
+              }
+              await load()
+              alert('匯入完成')
+            }
+            input.click()
+          }} className="rounded-lg bg-emerald-600 px-3 py-1 text-white">匯入</button>
         </div>
       </div>
       
@@ -107,14 +149,42 @@ export default function ProductsPage() {
                   <option value="used">used（二手：唯一件）</option>
                 </select>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1">區塊：
-                  <select className="w-full rounded border px-2 py-1" value={edit.categoryId||''} onChange={e=>setEdit({...edit,categoryId:e.target.value})}>
-                    <option value="">（未指定）</option>
-                    {cats.map(c=> <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <button onClick={()=>setCatMngOpen(true)} className="rounded bg-gray-100 px-2 py-1 text-xs">+</button>
+              <div>
+                區塊：
+                <select
+                  className="w-full rounded border px-2 py-1"
+                  value={(() => {
+                    const found = cats.find(c => c.id === edit.categoryId)
+                    return found ? found.name : ''
+                  })()}
+                  onChange={async (e) => {
+                    const val = e.target.value
+                    if (val === '__add__') { setCatMngOpen(true); return }
+                    // 確保分類存在，不在就自動建立
+                    const ensureCategory = async (name: string) => {
+                      let current = cats.find(c => c.name === name)
+                      if (!current) {
+                        try {
+                          const meta = await import('../../adapters/supabase/product_meta')
+                          await meta.productMeta.upsertCategory({ name, sortOrder: 0, active: true })
+                          const list = await meta.productMeta.listCategories(true)
+                          const mapped = list.map((c:any)=>({id:c.id,name:c.name}))
+                          setCats(mapped)
+                          current = mapped.find((c:any)=>c.name===name) || current
+                        } catch {}
+                      }
+                      return current?.id || ''
+                    }
+                    const id = await ensureCategory(val)
+                    setEdit({ ...edit, categoryId: id })
+                  }}
+                >
+                  <option value="">（未指定）</option>
+                  {PRESET_CATEGORIES.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                  <option value="__add__">新增</option>
+                </select>
               </div>
               <div>名稱：<input className="w-full rounded border px-2 py-1" value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})} /></div>
               <div>單價：<input type="number" className="w-full rounded border px-2 py-1" value={edit.unitPrice} onChange={e=>setEdit({...edit,unitPrice:Number(e.target.value)})} /></div>

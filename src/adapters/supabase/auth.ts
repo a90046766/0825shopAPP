@@ -17,7 +17,7 @@ class SupabaseAuthRepo implements AuthRepo {
 
   async login(email: string, password: string): Promise<User> {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim().toLowerCase(),
       password
     })
 
@@ -33,7 +33,7 @@ class SupabaseAuthRepo implements AuthRepo {
     const { data: staffData, error: staffError } = await supabase
       .from('staff')
       .select('*')
-      .eq('email', email)
+      .eq('email', email.trim().toLowerCase())
       .single()
 
     if (staffError || !staffData) {
@@ -85,12 +85,15 @@ class SupabaseAuthRepo implements AuthRepo {
     role: 'support' | 'sales' // 只允許客服和業務
     password?: string // 設為可選，預設使用 a123123
   }): Promise<User> {
-    const password = staffData.password || 'a123123a' // 預設密碼（至少8位）
+    const password = staffData.password && staffData.password.trim()
+      ? staffData.password.trim()
+      : 'a123123' // 預設密碼，依你習慣
     
     // 1. 在 Supabase Auth 中建立用戶
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: staffData.email,
-      password: password
+      email: staffData.email.trim().toLowerCase(),
+      password: password,
+      options: { emailRedirectTo: undefined }
     })
 
     if (authError) {
@@ -108,7 +111,7 @@ class SupabaseAuthRepo implements AuthRepo {
       .insert({
         id: authData.user.id,
         name: staffData.name,
-        email: staffData.email,
+        email: staffData.email.trim().toLowerCase(),
         phone: staffData.phone,
         role: staffData.role,
         status: 'active',
@@ -125,7 +128,7 @@ class SupabaseAuthRepo implements AuthRepo {
 
     return {
       id: authData.user.id,
-      email: staffData.email,
+      email: staffData.email.trim().toLowerCase(),
       name: staffData.name,
       role: staffData.role,
       phone: staffData.phone,

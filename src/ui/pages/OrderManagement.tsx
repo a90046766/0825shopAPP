@@ -93,6 +93,52 @@ export default function OrderManagementPage() {
         <div className="flex items-center gap-2">
           <input placeholder="搜尋ID/客戶" className="rounded border px-2 py-1 text-sm" value={q} onChange={e=>setQ(e.target.value)} />
           {can(user,'orders.create') && <button onClick={()=>setCreating(true)} className="rounded-lg bg-brand-500 px-3 py-1 text-white">新建訂單</button>}
+          <button onClick={async()=>{
+            const input = document.createElement('input')
+            input.type = 'file'
+            input.accept = '.csv'
+            input.onchange = async () => {
+              const file = input.files?.[0]
+              if (!file) return
+              const text = await file.text()
+              const lines = text.split(/\r?\n/).filter(Boolean)
+              const headers = lines.shift()?.split(',')||[]
+              const a = await import('../../adapters')
+              const { orderRepo } = await a.loadAdapters()
+              for (const line of lines) {
+                const cols = line.split(',')
+                const row: any = {}
+                headers.forEach((h, i) => row[h.trim()] = cols[i])
+                try {
+                  await orderRepo.create({
+                    id: '',
+                    memberId: undefined,
+                    customerName: row.customerName,
+                    customerPhone: row.customerPhone,
+                    customerAddress: row.customerAddress,
+                    preferredDate: row.preferredDate,
+                    preferredTimeStart: row.preferredTimeStart||'09:00',
+                    preferredTimeEnd: row.preferredTimeEnd||'18:00',
+                    referrerCode: row.referrerCode||'',
+                    paymentMethod: 'cash',
+                    paymentStatus: 'unpaid',
+                    pointsUsed: 0,
+                    pointsDeductAmount: 0,
+                    serviceItems: [],
+                    assignedTechnicians: [],
+                    signatures: {},
+                    status: 'confirmed',
+                    platform: '日',
+                    photos: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  } as any)
+                } catch {}
+              }
+              alert('訂單匯入完成')
+            }
+            input.click()
+          }} className="rounded-lg bg-emerald-600 px-3 py-1 text-white">匯入</button>
         </div>
       </div>
 

@@ -49,7 +49,7 @@ export const productMeta = {
     return (data || []).map(fromModeRow)
   },
   async listCategories(activeOnly = true): Promise<ProductCategory[]> {
-    let q = supabase.from('product_categories').select('*')
+    let q = supabase.from('product_categories').select('id,name,sort_order,active,updated_at')
     if (activeOnly) q = q.eq('active', true)
     const { data, error } = await q.order('sort_order', { ascending: true }).order('name', { ascending: true })
     if (error) throw error

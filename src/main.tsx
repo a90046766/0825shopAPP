@@ -33,14 +33,26 @@ import ReportsPage from './ui/pages/Reports'
 import ReportCenterPage from './ui/pages/ReportCenter'
 import UsedItemsPage from './ui/pages/UsedItems'
 import QuotesPage from './ui/pages/Quotes'
+import ShopPage from './ui/pages/Shop'
 
 // 權限保護
 import { loadAdapters } from './adapters/index'
-import { authRepo as staticAuthRepo } from './adapters/local/auth'
 import { can } from './utils/permissions'
 
+function getCurrentUserFromStorage(): any {
+  try {
+    const supa = localStorage.getItem('supabase-auth-user')
+    if (supa) return JSON.parse(supa)
+  } catch {}
+  try {
+    const local = localStorage.getItem('local-auth-user')
+    if (local) return JSON.parse(local)
+  } catch {}
+  return null
+}
+
 function PrivateRoute({ children, permission }: { children: React.ReactNode; permission?: string }) {
-  const user = staticAuthRepo?.getCurrentUser?.()
+  const user = getCurrentUserFromStorage()
   
   if (!user) {
     return <Navigate to="/login" replace />
@@ -83,6 +95,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         {/* 私有路由 */}
         <Route path="/" element={<Navigate to="/dispatch" replace />} />
         <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
+          <Route path="/shop" element={<PrivateRoute><ShopPage /></PrivateRoute>} />
           <Route path="/dispatch" element={<PrivateRoute><PageDispatchHome /></PrivateRoute>} />
           <Route path="/orders/:id" element={<PrivateRoute permission="orders.read"><PageOrderDetail /></PrivateRoute>} />
           <Route path="/approvals" element={<PrivateRoute permission="admin"><ApprovalsPage /></PrivateRoute>} />

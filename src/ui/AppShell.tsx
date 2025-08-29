@@ -83,11 +83,9 @@ function DesktopNav() {
   const Item = ({ to, label, badge, disabled }: { to: string; label: string; badge?: number; disabled?: boolean }) => (
     <Link to={to} className={`relative flex items-center justify-between rounded-lg px-3 py-2 text-sm ${active(to)} ${disabled ? 'pointer-events-none opacity-40' : ''}`}>
       <span className="truncate">{label}</span>
-      {/* 通知中心：紅點 */}
-      {to==='/notifications' && unreadCount>0 && (<span className="h-2 w-2 rounded-full bg-rose-500" />)}
-      {/* 其他項目：紅色數字標籤 */}
-      {badge && badge>0 && to!=='/notifications' && (
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-xs font-medium text-white ml-1">
+      {/* 只保留紅色數量徽章（包含通知/其他） */}
+      {badge && badge>0 && (
+        <span className="flex h-5 min-w-[1.25rem] px-1 items-center justify-center rounded-full bg-rose-500 text-xs font-medium text-white ml-2">
           {badge > 99 ? '99+' : badge}
         </span>
       )}
@@ -98,6 +96,7 @@ function DesktopNav() {
   { to: '/dispatch', label: '派工總覽', perm: 'dashboard.view' },
   { to: '/orders', label: '訂單管理', perm: 'orders.list' },
   { to: '/reservations', label: '預約訂單', perm: 'orders.list' },
+  { to: '/shop', label: '購物車', perm: 'dashboard.view' },
   { to: '/products', label: '產品管理', perm: 'products.manage' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/notifications', label: '通知中心', perm: 'notifications.read' },
@@ -163,6 +162,7 @@ function DesktopNav() {
       : to==='/schedule' ? (counts.schedule||0)
       : to==='/reservations' ? (counts.reservations||0)
       : to==='/report-center' ? (counts.reports||0)
+      : to==='/notifications' ? (unreadCount||0)
       : 0
     return <Item key={to} to={to} label={label} badge={badge} disabled={!allowed} />
   }

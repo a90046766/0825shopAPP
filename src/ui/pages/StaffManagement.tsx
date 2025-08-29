@@ -31,9 +31,17 @@ export default function StaffManagementPage() {
   const loadStaffList = async () => {
     setLoading(true)
     try {
-      const adapters = await import('../../adapters')
-      const { authRepo } = await adapters.loadAdapters()
-      const staff = await authRepo.getStaffList()
+      // 優先走雲端（Supabase），失敗再回退本地
+      let staff: any[] = []
+      try {
+        const { authRepo: supaAuth } = await import('../../adapters/supabase/auth')
+        staff = await supaAuth.getStaffList()
+      } catch {}
+      if (!Array.isArray(staff) || staff.length === 0) {
+        const adapters = await import('../../adapters')
+        const { authRepo } = await adapters.loadAdapters()
+        staff = await authRepo.getStaffList()
+      }
       setStaffList(staff)
     } catch (error) {
       toast.error('載入員工列表失敗')
@@ -56,12 +64,26 @@ export default function StaffManagementPage() {
 
     setLoading(true)
     try {
-      const adapters = await import('../../adapters')
-      const { authRepo } = await adapters.loadAdapters()
-      await authRepo.createStaffAccount({
-        ...formData,
-        password: password
-      })
+      // 優先在 Supabase Auth 建立帳號與 staff 記錄
+      let ok = false
+      try {
+        const { authRepo: supaAuth } = await import('../../adapters/supabase/auth')
+        await supaAuth.createStaffAccount({
+          ...formData,
+          email: formData.email.trim().toLowerCase(),
+          password
+        })
+        ok = true
+      } catch {}
+      if (!ok) {
+        const adapters = await import('../../adapters')
+        const { authRepo } = await adapters.loadAdapters()
+        await authRepo.createStaffAccount({
+          ...formData,
+          email: formData.email.trim().toLowerCase(),
+          password
+        })
+      }
       
       toast.success('客服帳號建立成功！')
       setShowAddModal(false)
@@ -81,8 +103,18 @@ export default function StaffManagementPage() {
 
     setLoading(true)
     try {
-      const adapters = await import('../../adapters')
-      const { authRepo } = await adapters.loadAdapters()
+      // 優先嘗試雲端更新，失敗再回退
+      let ok = false
+      try {
+        const { authRepo: supaAuth } = await import('../../adapters/supabase/auth')
+        await supaAuth.updateStaff(selectedStaff.id, updateData)
+        ok = true
+      } catch {}
+      if (!ok) {
+        const adapters = await import('../../adapters')
+        const { authRepo } = await adapters.loadAdapters()
+        await authRepo.updateStaff(selectedStaff.id, updateData)
+      }
       
       // 準備更新資料
       const updateData: any = {
@@ -117,9 +149,18 @@ export default function StaffManagementPage() {
 
     setLoading(true)
     try {
-      const adapters = await import('../../adapters')
-      const { authRepo } = await adapters.loadAdapters()
-      await authRepo.deleteStaff(staffId)
+      // 優先雲端刪除，再回退本地
+      let ok = false
+      try {
+        const { authRepo: supaAuth } = await import('../../adapters/supabase/auth')
+        await supaAuth.deleteStaff(staffId)
+        ok = true
+      } catch {}
+      if (!ok) {
+        const adapters = await import('../../adapters')
+        const { authRepo } = await adapters.loadAdapters()
+        await authRepo.deleteStaff(staffId)
+      }
       
       toast.success('客服帳號刪除成功！')
       loadStaffList()

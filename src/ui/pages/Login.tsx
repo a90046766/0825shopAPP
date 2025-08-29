@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { authRepo } from '../../adapters/local/auth'
+import { loadAdapters } from '../../adapters'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -11,12 +11,14 @@ export default function LoginPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // 檢查是否有記住的帳號
-    const remembered = authRepo.getRememberedEmail()
-    if (remembered) {
-      setEmail(remembered)
-      setRemember(true)
-    }
+    // 檢查是否有記住的帳號（統一使用本地儲存鍵）
+    try {
+      const remembered = localStorage.getItem('remember-login-email')
+      if (remembered) {
+        setEmail(remembered)
+        setRemember(true)
+      }
+    } catch {}
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,14 +29,13 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const u = await authRepo.login(email, password)
+      // 嚴格雲端：透過 adapters 取得當前 authRepo（Supabase）
+      const a = await loadAdapters()
+      const u = await a.authRepo.login(email, password)
       
       // 處理記住帳號
-      if (remember) {
-        authRepo.rememberEmail(email)
-      } else {
-        authRepo.forgetEmail()
-      }
+      if (remember) localStorage.setItem('remember-login-email', email)
+      else localStorage.removeItem('remember-login-email')
 
       if (!u.passwordSet) navigate('/reset-password')
       else navigate('/dispatch')
