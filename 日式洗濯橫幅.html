@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日式洗濯研究所專業橫幅</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: #f8f9fa;
+        }
+        
+        .banner {
+            width: 990px;
+            height: 200px;
+            background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.12);
+            border-radius: 12px;
+            border: 3px solid #1976d2;
+        }
+        
+        /* 微妙的紋理背景 */
+        .banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cg fill='%231976d2' fill-opacity='0.02'%3E%3Ccircle cx='3' cy='3' r='1'/%3E%3Ccircle cx='13' cy='13' r='1'/%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+        
+        /* 藍色裝飾圓形背景 */
+        .blue-circles {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 160px;
+            height: 160px;
+            border: 3px solid #1976d2;
+            border-radius: 50%;
+            opacity: 0.08;
+        }
+        
+        .blue-circles::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 120px;
+            height: 120px;
+            border: 2px solid #1976d2;
+            border-radius: 50%;
+            opacity: 0.15;
+        }
+        
+        .content {
+            position: relative;
+            z-index: 10;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            padding: 0 40px;
+        }
+        
+        /* LOGO區域 - 使用您的真實LOGO圖片 */
+        .brand-logo {
+            width: 130px;
+            height: 130px;
+            margin-right: 40px;
+            flex-shrink: 0;
+            position: relative;
+            background: #f8f9fa;
+            border-radius: 50%;
+            padding: 5px;
+            box-shadow: 0 8px 25px rgba(25,118,210,0.15);
+            border: 2px solid #e3f2fd;
+        }
+        
+        .logo-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+        
+        /* 主要內容區 */
+        .main-content {
+            flex: 1;
+            color: #2c3e50;
+        }
+        
+        .company-name {
+            font-size: 58px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            margin: 0;
+            letter-spacing: 12px;
+            line-height: 1.1;
+            font-family: '標楷體', 'DFKai-SB', 'Times New Roman', serif;
+            font-style: normal;
+            position: relative;
+        }
+        
+        .company-name::after {
+            content: attr(data-text);
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            color: rgba(44,62,80,0.1);
+            z-index: -1;
+        }
+        
+        .tagline {
+            font-size: 18px;
+            color: #1976d2;
+            margin: 15px 0 12px 0;
+            font-weight: 600;
+            letter-spacing: 3px;
+        }
+        
+        .services-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 15px;
+        }
+        
+        .service-badge {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            color: #1976d2;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 2px solid #1976d2;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(25,118,210,0.1);
+        }
+        
+        .service-badge:hover {
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(25,118,210,0.3);
+        }
+        
+        /* 右側服務展示區 */
+        .services-showcase {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .service-item {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border: 3px solid #1976d2;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(25,118,210,0.1);
+        }
+        
+        .service-item:hover {
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 8px 25px rgba(25,118,210,0.4);
+        }
+        
+        /* 專業認證標章 */
+        .certification {
+            background: linear-gradient(135deg, #ffd54f 0%, #ffca28 100%);
+            color: #333333;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 800;
+            box-shadow: 0 6px 20px rgba(255,213,79,0.4);
+            letter-spacing: 2px;
+            border: 2px solid #ffc107;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+        }
+        
+        /* 底部藍色線條裝飾 */
+        .bottom-decoration {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(90deg, #1976d2 0%, #42a5f5 50%, #1976d2 100%);
+        }
+        
+        /* 左側藍色裝飾線 */
+        .left-accent {
+            position: absolute;
+            top: 30px;
+            left: 0;
+            width: 8px;
+            height: 60px;
+            background: linear-gradient(to bottom, #1976d2, #42a5f5);
+            border-radius: 0 4px 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="banner">
+        <div class="blue-circles"></div>
+        <div class="bottom-decoration"></div>
+        <div class="left-accent"></div>
+        
+        <div class="content">
+            <!-- 品牌LOGO區 - 使用您的真實LOGO圖片 -->
+            <div class="brand-logo">
+                <img src="LOGO-06.jpg" alt="日式洗濯研究所" class="logo-image">
+            </div>
+            
+            <!-- 主要內容 -->
+            <div class="main-content">
+                <h1 class="company-name" data-text="日式洗濯">日式洗濯</h1>
+                <p class="tagline">專業清潔 • 品質保證 • 匠心服務</p>
+                <div class="services-row">
+                    <span class="service-badge">環保清潔</span>
+                    <span class="service-badge">快速到府</span>
+                    <span class="service-badge">專業技術</span>
+                    <span class="service-badge">品質保證</span>
+                </div>
+            </div>
+            
+            <!-- 右側服務展示 -->
+            <div class="services-showcase">
+                <div class="certification">專業認證</div>
+                <div class="service-grid">
+                    <div class="service-item" title="居家清潔">🏠</div>
+                    <div class="service-item" title="空調清洗">❄️</div>
+                    <div class="service-item" title="深度清潔">🧽</div>
+                    <div class="service-item" title="衣物護理">👔</div>
+                    <div class="service-item" title="地毯清潔">🛏️</div>
+                    <div class="service-item" title="品質保證">✨</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

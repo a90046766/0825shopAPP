@@ -1,0 +1,39 @@
+{
+  "name": "new-cleansystem",
+  "private": true,
+  "version": "1.1.2",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 3000 --host",
+    "build": "vite build",
+    "preview": "vite preview",
+    "backup-local-data": "node scripts/backup-local-data.js",
+    "sync-local-to-supabase": "node scripts/sync-to-supabase.js",
+    "reset-supabase": "npx supabase db reset --linked",
+    "deploy-supabase": "npx supabase db push",
+    "safe-update:add-columns": "node scripts/production-safe-updates.js add-columns",
+    "safe-update:update-data": "node scripts/production-safe-updates.js update-data",
+    "safe-update:add-categories": "node scripts/production-safe-updates.js add-categories",
+    "safe-update:add-functions": "node scripts/production-safe-updates.js add-functions",
+    "safe-update:enhance-documents": "node scripts/production-safe-updates.js enhance-documents",
+    "check": "node scripts/check-system.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.55.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "lucide-react": "^0.542.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^6.23.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.4.7",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.0"
+  }
+}

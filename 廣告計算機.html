@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>廣告效益計算機 - 專業版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .calculators {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .calculator-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .calculator-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .card-title {
+            font-size: 1.4rem;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .card-subtitle {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 5px;
+            color: #34495e;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .calculate-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .calculate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .result {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .result-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        .example {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            border-left: 4px solid #28a745;
+        }
+
+        .example-title {
+            font-weight: bold;
+            color: #155724;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .example-content {
+            font-size: 0.85rem;
+            color: #495057;
+            line-height: 1.4;
+        }
+
+        .formula {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .formula-title {
+            font-weight: bold;
+            color: #1565c0;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .formula-content {
+            font-family: 'Courier New', monospace;
+            color: #1976d2;
+            font-weight: bold;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            color: #856404;
+            font-size: 0.85rem;
+        }
+
+        .threshold-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .threshold-item:last-child {
+            border-bottom: none;
+        }
+
+        .threshold-label {
+            font-weight: 600;
+            color: #495057;
+            flex: 1;
+        }
+
+        .threshold-value {
+            font-weight: bold;
+            color: #28a745;
+            font-size: 1.1rem;
+            text-align: right;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .calculators {
+                grid-template-columns: 1fr;
+            }
+            
+            .calculator-card {
+                padding: 20px;
+            }
+            
+            .threshold-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .threshold-value {
+                text-align: left;
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 廣告效益計算機</h1>
+            <p>專業的廣告投資分析工具 - 精準計算ROI、ROAS、毛利率</p>
+        </div>
+
+        <div class="calculators">
+            <!-- ROI 計算器 -->
+            <div class="calculator-card">
+                <div class="card-header">
+                    <div class="card-title">📈 投資回報率 (ROI)</div>
+                    <div class="card-subtitle">Return on Investment</div>
+                </div>
+
+                <div class="formula">
+                    <div class="formula-title">計算公式：</div>
+                    <div class="formula-content">ROI = 總利潤 ÷ 總成本 × 100%</div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">產品成本 ($)</label>
+                    <input type="number" class="input-field" id="roi-cost" placeholder="例如：60" min="0" step="0.01">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">售價 ($)</label>
+                    <input type="number" class="input-field" id="roi-price" placeholder="例如：120" min="0" step="0.01">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">銷售數量</label>
+                    <input type="number" class="input-field" id="roi-quantity" placeholder="例如：10" min="0">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">廣告花費 ($)</label>
+                    <input type="number" class="input-field" id="roi-ad-cost" placeholder="例如：400" min="0" step="0.01">
+                </div>
+
+                <button class="calculate-btn" onclick="calculateROI()">計算 ROI</button>
+
+                <div class="result" id="roi-result" style="display: none;">
+                    <div class="result-value" id="roi-value">--</div>
+                    <div class="result-label">投資回報率</div>
+                </div>
+
+                <div class="example">
+                    <div class="example-title">📝 計算範例：</div>
+                    <div class="example-content">
+                        產品成本$60，售價$120，售出10件，廣告花費$400<br>
+                        銷售收入 = $120 × 10 = $1,200<br>
+                        總成本 = ($60 × 10) + $400 = $1,000<br>
+                        總利潤 = $1,200 - $1,000 = $200<br>
+                        <strong>ROI = $200 ÷ $1,000 × 100% = 20%</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROAS 計算器 -->
+            <div class="calculator-card">
+                <div class="card-header">
+                    <div class="card-title">🎯 廣告支出回報率 (ROAS)</div>
+                    <div class="card-subtitle">Return on Ad Spend</div>
+                </div>
+
+                <div class="formula">
+                    <div class="formula-title">計算公式：</div>
+                    <div class="formula-content">ROAS = 總收入 ÷ 廣告花費 × 100%</div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">總收入/銷售收入 ($)</label>
+                    <input type="number" class="input-field" id="roas-revenue" placeholder="例如：1200" min="0" step="0.01">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">廣告花費 ($)</label>
+                    <input type="number" class="input-field" id="roas-ad-cost" placeholder="例如：400" min="0" step="0.01">
+                </div>
+
+                <button class="calculate-btn" onclick="calculateROAS()">計算 ROAS</button>
+
+                <div class="result" id="roas-result" style="display: none;">
+                    <div class="result-value" id="roas-value">--</div>
+                    <div class="result-label">廣告支出回報率</div>
+                </div>
+
+                <div class="example">
+                    <div class="example-title">📝 計算範例：</div>
+                    <div class="example-content">
+                        產品成本$60，售價$120，售出10件，廣告花費$400<br>
+                        銷售收入 = $120 × 10 = $1,200<br>
+                        <strong>ROAS = $1,200 ÷ $400 × 100% = 300%</strong><br>
+                        <em>即每花$1廣告費，可獲得$3收入</em>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 毛利率計算器 -->
+            <div class="calculator-card">
+                <div class="card-header">
+                    <div class="card-title">💰 毛利率</div>
+                    <div class="card-subtitle">Gross Profit Margin</div>
+                </div>
+
+                <div class="formula">
+                    <div class="formula-title">計算公式：</div>
+                    <div class="formula-content">毛利率 = (銷售收入 - 銷售成本) ÷ 銷售收入 × 100%</div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">銷售收入 ($)</label>
+                    <input type="number" class="input-field" id="margin-revenue" placeholder="例如：500" min="0" step="0.01">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">銷售成本 ($)</label>
+                    <input type="number" class="input-field" id="margin-cost" placeholder="例如：350" min="0" step="0.01">
+                </div>
+
+                <button class="calculate-btn" onclick="calculateMargin()">計算毛利率</button>
+
+                <div class="result" id="margin-result" style="display: none;">
+                    <div class="result-value" id="margin-value">--</div>
+                    <div class="result-label">毛利率</div>
+                </div>
+
+                <div class="example">
+                    <div class="example-title">📝 計算範例：</div>
+                    <div class="example-content">
+                        一件衣服賣$500，銷售成本$350<br>
+                        (銷售成本 = 會根據售出產品數量等比例增加的成本，如：材料、包裝、進貨成本)<br>
+                        毛利額 = $500 - $350 = $150<br>
+                        <strong>毛利率 = $150 ÷ $500 × 100% = 30%</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROAS獲利門檻計算器 -->
+            <div class="calculator-card">
+                <div class="card-header">
+                    <div class="card-title">🚪 ROAS 獲利門檻</div>
+                    <div class="card-subtitle">Break-even ROAS</div>
+                </div>
+
+                <div class="formula">
+                    <div class="formula-title">計算公式：</div>
+                    <div class="formula-content">最低ROAS = 銷售收入 ÷ 毛利額 × 100%</div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">銷售收入 ($)</label>
+                    <input type="number" class="input-field" id="breakeven-revenue" placeholder="例如：500" min="0" step="0.01">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">毛利額 ($)</label>
+                    <input type="number" class="input-field" id="breakeven-margin" placeholder="例如：150" min="0" step="0.01">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">或直接輸入毛利率 (%)</label>
+                    <input type="number" class="input-field" id="breakeven-margin-rate" placeholder="例如：30" min="0" max="100" step="0.01">
+                </div>
+
+                <button class="calculate-btn" onclick="calculateBreakevenROAS()">計算最低ROAS</button>
+
+                <div class="result" id="breakeven-result" style="display: none;">
+                    <div class="result-value" id="breakeven-value">--</div>
+                    <div class="result-label">最低獲利ROAS</div>
+                </div>
+
+                <div class="example">
+                    <div class="example-title">📝 計算範例：</div>
+                    <div class="example-content">
+                        延續上述範例：毛利率30%，毛利額$150<br>
+                        若要把毛利額全投廣告且不虧錢：<br>
+                        <strong>最低ROAS = $500 ÷ $150 × 100% = 333%</strong><br>
+                        <em>即ROAS至少要333%才能不虧錢，要獲利就必須超過這個數字</em>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    💡 <strong>提示：</strong> 這是假設把全部毛利都投入廣告的最低門檻。實際營運還有其他固定成本（房租、人力等），所以實際需要的ROAS會更高。
+                </div>
+            </div>
+
+            <!-- 真實獲利門檻計算器 -->
+            <div class="calculator-card" style="border: 3px solid #28a745;">
+                <div class="card-header" style="border-bottom-color: #28a745;">
+                    <div class="card-title" style="color: #28a745;">💰 真實獲利門檻</div>
+                    <div class="card-subtitle">實際營業額獲利計算</div>
+                </div>
+
+                <div class="formula">
+                    <div class="formula-title">計算邏輯：</div>
+                    <div class="formula-content">獲利門檻營業額 = 固定成本 ÷ 毛利率</div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">毛利率 (%)</label>
+                    <input type="number" class="input-field" id="profit-margin-rate" placeholder="例如：30" min="0" max="100" step="0.01">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">每月固定成本 ($)</label>
+                    <input type="number" class="input-field" id="profit-fixed-cost" placeholder="房租+人力+水電+其他固定費用" min="0" step="0.01">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">目標利潤 ($)</label>
+                    <input type="number" class="input-field" id="profit-target" placeholder="希望每月賺多少錢？" min="0" step="0.01">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">廣告預算佔營業額比例 (%)</label>
+                    <input type="number" class="input-field" id="profit-ad-ratio" placeholder="例如：20" min="0" max="100" step="0.01">
+                </div>
+
+                <button class="calculate-btn" onclick="calculateProfitThreshold()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">計算獲利門檻</button>
+
+                <div class="result" id="profit-result" style="display: none;">
+                    <div class="result-container" style="text-align: left; padding: 20px; background: #f8f9fa; border-radius: 10px; margin-bottom: 15px;">
+                        <div style="font-size: 1.2rem; font-weight: bold; color: #28a745; margin-bottom: 15px; text-align: center;">🎯 您的獲利門檻分析</div>
+                        
+                        <div class="threshold-item">
+                            <span class="threshold-label">💸 最低營業額（打平）:</span>
+                            <span class="threshold-value" id="profit-breakeven">--</span>
+                        </div>
+                        
+                        <div class="threshold-item">
+                            <span class="threshold-label">🎯 目標營業額（含利潤）:</span>
+                            <span class="threshold-value" id="profit-target-revenue">--</span>
+                        </div>
+                        
+                        <div class="threshold-item">
+                            <span class="threshold-label">📊 需要的廣告預算:</span>
+                            <span class="threshold-value" id="profit-ad-budget">--</span>
+                        </div>
+                        
+                        <div class="threshold-item">
+                            <span class="threshold-label">🚀 對應ROAS門檻:</span>
+                            <span class="threshold-value" id="profit-roas-threshold">--</span>
+                        </div>
+                        
+                        <div style="margin-top: 15px; padding: 10px; background: #d4edda; border-radius: 5px; border-left: 4px solid #28a745;">
+                            <div style="font-weight: bold; color: #155724; margin-bottom: 5px;">📈 獲利建議：</div>
+                            <div id="profit-suggestion" style="font-size: 0.9rem; color: #155724;">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="example">
+                    <div class="example-title">📝 計算範例：</div>
+                    <div class="example-content">
+                        毛利率30%，固定成本$50,000，目標利潤$20,000，廣告預算佔20%<br>
+                        <strong>最低營業額 = $50,000 ÷ 30% = $166,667</strong><br>
+                        <strong>目標營業額 = ($50,000 + $20,000) ÷ 30% = $233,333</strong><br>
+                        <strong>廣告預算 = $233,333 × 20% = $46,667</strong><br>
+                        <strong>ROAS門檻 = $233,333 ÷ $46,667 = 500%</strong>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    🔥 <strong>重要提醒：</strong> 這是考慮真實營運成本的獲利門檻！必須達到這個營業額才能真正開始賺錢，低於這個數字就是虧錢。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function calculateROI() {
+            const cost = parseFloat(document.getElementById('roi-cost').value) || 0;
+            const price = parseFloat(document.getElementById('roi-price').value) || 0;
+            const quantity = parseInt(document.getElementById('roi-quantity').value) || 0;
+            const adCost = parseFloat(document.getElementById('roi-ad-cost').value) || 0;
+
+            if (cost === 0 || price === 0 || quantity === 0) {
+                alert('請填寫完整的資料');
+                return;
+            }
+
+            const revenue = price * quantity;
+            const totalCost = (cost * quantity) + adCost;
+            const profit = revenue - totalCost;
+            const roi = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+
+            document.getElementById('roi-value').textContent = roi.toFixed(2) + '%';
+            document.getElementById('roi-result').style.display = 'block';
+
+            // 改變顏色根據結果
+            const resultValue = document.getElementById('roi-value');
+            if (roi > 0) {
+                resultValue.style.color = '#28a745';
+            } else if (roi < 0) {
+                resultValue.style.color = '#dc3545';
+            } else {
+                resultValue.style.color = '#ffc107';
+            }
+        }
+
+        function calculateROAS() {
+            const revenue = parseFloat(document.getElementById('roas-revenue').value) || 0;
+            const adCost = parseFloat(document.getElementById('roas-ad-cost').value) || 0;
+
+            if (revenue === 0 || adCost === 0) {
+                alert('請填寫完整的資料');
+                return;
+            }
+
+            const roas = (revenue / adCost) * 100;
+
+            document.getElementById('roas-value').textContent = roas.toFixed(2) + '%';
+            document.getElementById('roas-result').style.display = 'block';
+
+            // 改變顏色根據結果
+            const resultValue = document.getElementById('roas-value');
+            if (roas >= 300) {
+                resultValue.style.color = '#28a745';
+            } else if (roas >= 200) {
+                resultValue.style.color = '#ffc107';
+            } else {
+                resultValue.style.color = '#dc3545';
+            }
+        }
+
+        function calculateMargin() {
+            const revenue = parseFloat(document.getElementById('margin-revenue').value) || 0;
+            const cost = parseFloat(document.getElementById('margin-cost').value) || 0;
+
+            if (revenue === 0) {
+                alert('請填寫銷售收入');
+                return;
+            }
+
+            const margin = ((revenue - cost) / revenue) * 100;
+
+            document.getElementById('margin-value').textContent = margin.toFixed(2) + '%';
+            document.getElementById('margin-result').style.display = 'block';
+
+            // 改變顏色根據結果
+            const resultValue = document.getElementById('margin-value');
+            if (margin >= 30) {
+                resultValue.style.color = '#28a745';
+            } else if (margin >= 15) {
+                resultValue.style.color = '#ffc107';
+            } else if (margin >= 0) {
+                resultValue.style.color = '#fd7e14';
+            } else {
+                resultValue.style.color = '#dc3545';
+            }
+        }
+
+        function calculateBreakevenROAS() {
+            const revenue = parseFloat(document.getElementById('breakeven-revenue').value) || 0;
+            let margin = parseFloat(document.getElementById('breakeven-margin').value) || 0;
+            const marginRate = parseFloat(document.getElementById('breakeven-margin-rate').value) || 0;
+
+            // 如果填寫了毛利率，則用毛利率計算毛利額
+            if (marginRate > 0 && revenue > 0) {
+                margin = revenue * (marginRate / 100);
+                document.getElementById('breakeven-margin').value = margin.toFixed(2);
+            }
+
+            if (revenue === 0 || margin === 0) {
+                alert('請填寫完整的資料（銷售收入和毛利額，或銷售收入和毛利率）');
+                return;
+            }
+
+            const breakevenROAS = (revenue / margin) * 100;
+
+            document.getElementById('breakeven-value').textContent = breakevenROAS.toFixed(0) + '%';
+            document.getElementById('breakeven-result').style.display = 'block';
+
+            // 改變顏色 - 這是門檻值，通常用橙色警示
+            document.getElementById('breakeven-value').style.color = '#fd7e14';
+        }
+
+        function calculateProfitThreshold() {
+            const marginRate = parseFloat(document.getElementById('profit-margin-rate').value) || 0;
+            const fixedCost = parseFloat(document.getElementById('profit-fixed-cost').value) || 0;
+            const targetProfit = parseFloat(document.getElementById('profit-target').value) || 0;
+            const adRatio = parseFloat(document.getElementById('profit-ad-ratio').value) || 0;
+
+            if (marginRate === 0 || fixedCost === 0) {
+                alert('請至少填寫毛利率和固定成本');
+                return;
+            }
+
+            // 計算最低營業額（打平）
+            const breakEvenRevenue = fixedCost / (marginRate / 100);
+            
+            // 計算目標營業額（含利潤）
+            const targetRevenue = (fixedCost + targetProfit) / (marginRate / 100);
+            
+            // 計算廣告預算
+            const adBudget = adRatio > 0 ? targetRevenue * (adRatio / 100) : 0;
+            
+            // 計算對應ROAS門檻
+            const roasThreshold = adBudget > 0 ? (targetRevenue / adBudget) * 100 : 0;
+
+            // 顯示結果
+            document.getElementById('profit-breakeven').textContent = '$' + breakEvenRevenue.toLocaleString('en-US', {maximumFractionDigits: 0});
+            document.getElementById('profit-target-revenue').textContent = '$' + targetRevenue.toLocaleString('en-US', {maximumFractionDigits: 0});
+            
+            if (adBudget > 0) {
+                document.getElementById('profit-ad-budget').textContent = '$' + adBudget.toLocaleString('en-US', {maximumFractionDigits: 0});
+                document.getElementById('profit-roas-threshold').textContent = roasThreshold.toFixed(0) + '%';
+            } else {
+                document.getElementById('profit-ad-budget').textContent = '未設定廣告預算';
+                document.getElementById('profit-roas-threshold').textContent = 'N/A';
+            }
+
+            // 生成建議
+            let suggestion = '';
+            if (targetProfit === 0) {
+                suggestion = `您需要達到 $${breakEvenRevenue.toLocaleString('en-US', {maximumFractionDigits: 0})} 的營業額才能打平所有成本。建議設定目標利潤來計算真正的獲利門檻。`;
+            } else {
+                suggestion = `要達到每月 $${targetProfit.toLocaleString('en-US', {maximumFractionDigits: 0})} 的利潤，您需要營業額達到 $${targetRevenue.toLocaleString('en-US', {maximumFractionDigits: 0})}。`;
+                
+                if (adRatio > 0 && roasThreshold > 0) {
+                    if (roasThreshold < 200) {
+                        suggestion += ` 您的ROAS門檻是${roasThreshold.toFixed(0)}%，相對容易達成！`;
+                    } else if (roasThreshold < 400) {
+                        suggestion += ` 您的ROAS門檻是${roasThreshold.toFixed(0)}%，需要優化廣告效率。`;
+                    } else {
+                        suggestion += ` 您的ROAS門檻是${roasThreshold.toFixed(0)}%，建議降低廣告佔比或提高毛利率。`;
+                    }
+                }
+            }
+
+            document.getElementById('profit-suggestion').textContent = suggestion;
+            document.getElementById('profit-result').style.display = 'block';
+        }
+
+        // 自動計算功能 - 當輸入改變時自動更新
+        document.addEventListener('input', function(e) {
+            if (e.target.matches('#breakeven-margin-rate')) {
+                const revenue = parseFloat(document.getElementById('breakeven-revenue').value) || 0;
+                const marginRate = parseFloat(e.target.value) || 0;
+                if (revenue > 0 && marginRate > 0) {
+                    const margin = revenue * (marginRate / 100);
+                    document.getElementById('breakeven-margin').value = margin.toFixed(2);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

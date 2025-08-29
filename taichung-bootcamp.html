@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>日式洗濯｜教學保證班（台中）</title>
+    <meta name="description" content="冷氣・洗衣機・抽油煙機 教學保證班（台中）。兩天一夜｜小班四人｜不會就退費。分離式冷氣拆解完整流程、直立式洗衣機拆洗/除菌/復位。" />
+    <meta property="og:title" content="日式洗濯｜教學保證班（台中）" />
+    <meta property="og:description" content="兩天一夜｜小班四人｜不會就退費。分離式冷氣拆解完整流程、直立式洗衣機拆洗/除菌/復位。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_TW" />
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      
+      body { 
+        margin: 0; 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', Arial, sans-serif; 
+        color: #111827; 
+        background: #ffffff; 
+      }
+      
+      a { color: inherit; text-decoration: none; }
+      
+      .container { 
+        width: 100%; 
+        max-width: 1080px; 
+        margin: 0 auto; 
+        padding: 0 16px; 
+      }
+      
+      .btn { 
+        display: inline-block; 
+        padding: 12px 20px; 
+        border-radius: 8px; 
+        background: #3b82f6; 
+        color: #fff; 
+        font-weight: 600;
+        transition: all 0.2s ease;
+      }
+      
+      .btn:hover { 
+        background: #2563eb; 
+        transform: translateY(-1px);
+      }
+      
+      .btn--light { 
+        background: #f3f4f6; 
+        color: #111827; 
+      }
+      
+      .btn--light:hover {
+        background: #e5e7eb;
+      }
+      
+      .hero { 
+        padding: 56px 0 32px; 
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+      }
+      
+      .hero h1 { 
+        margin: 0 0 12px; 
+        font-size: 28px; 
+        line-height: 1.25; 
+        font-weight: 700;
+      }
+      
+      .hero p { 
+        margin: 6px 0; 
+        opacity: 0.9;
+      }
+      
+      .badges { 
+        display: flex; 
+        flex-wrap: wrap; 
+        gap: 8px; 
+        margin: 16px 0 20px; 
+      }
+      
+      .badge { 
+        background: rgba(255,255,255,0.2); 
+        color: white; 
+        padding: 6px 10px; 
+        border-radius: 999px; 
+        font-size: 12px; 
+        font-weight: 700; 
+      }
+      
+      .section { 
+        padding: 28px 0; 
+      }
+      
+      .section h2 { 
+        margin: 0 0 12px; 
+        font-size: 22px; 
+      }
+      
+      .grid { 
+        display: grid; 
+        gap: 16px; 
+      }
+      
+      @media (min-width: 768px) { 
+        .grid--2 { grid-template-columns: 1fr 1fr; } 
+      }
+      
+      .card { 
+        border: 1px solid #e5e7eb; 
+        border-radius: 12px; 
+        padding: 16px; 
+        background: white;
+        transition: all 0.2s ease;
+      }
+      
+      .card:hover { 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+      }
+      
+      .card--disabled { 
+        position: relative; 
+        opacity: 0.7;
+        background: #f9fafb;
+      }
+      
+      .ribbon { 
+        position: absolute; 
+        top: 16px; 
+        right: -45px; 
+        transform: rotate(45deg); 
+        background: #dc2626; 
+        color: #fff; 
+        padding: 8px 55px; 
+        font-weight: 800; 
+        font-size: 13px; 
+        box-shadow: 0 3px 8px rgba(220, 38, 38, 0.4); 
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
+      .card h3 {
+        margin: 8px 0 0;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      
+      .price { 
+        font-size: 24px; 
+        font-weight: 800; 
+        margin: 8px 0 12px; 
+        color: #3b82f6;
+      }
+      
+      ul { 
+        padding-left: 18px; 
+      }
+      
+      li { 
+        margin: 6px 0; 
+      }
+      
+      .muted { 
+        color: #6b7280; 
+      }
+      
+      .map { 
+        border: 0; 
+        width: 100%; 
+        height: 280px; 
+        border-radius: 12px; 
+      }
+      
+      .footer { 
+        padding: 24px 0 48px; 
+        border-top: 1px solid #e5e7eb; 
+        color: #6b7280; 
+        font-size: 14px; 
+      }
+      
+      .form { 
+        border: 1px solid #e5e7eb; 
+        border-radius: 12px; 
+        padding: 16px; 
+        background: #fafafa; 
+      }
+      
+      .field { 
+        margin-bottom: 12px; 
+      }
+      
+      .label { 
+        display: block; 
+        font-weight: 600; 
+        margin-bottom: 6px; 
+      }
+      
+      .input, .select, .textarea { 
+        width: 100%; 
+        padding: 10px 12px; 
+        border: 1px solid #d1d5db; 
+        border-radius: 8px; 
+        font-size: 16px; 
+      }
+      
+      .input:focus, .select:focus, .textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+      
+      .textarea { 
+        min-height: 96px; 
+        resize: vertical; 
+      }
+      
+      .success { 
+        display: none; 
+        padding: 12px 14px; 
+        border-radius: 8px; 
+        background: #ecfdf5; 
+        color: #065f46; 
+        border: 1px solid #a7f3d0; 
+        margin-bottom: 12px; 
+      }
+      
+      .success.is-visible { 
+        display: block; 
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap: wrap;">
+          <div>
+            <div style="margin-bottom: 8px;">
+              <span style="font-size: 18px; font-weight: 600; opacity: 0.9;">日式洗濯</span>
+            </div>
+            <h1>冷氣・洗衣機・抽油煙機 教學保證班（台中）</h1>
+            <p>兩天一夜｜小班四人｜不會就退費。結業可獨立上手，現場演練＋工具實操，學完就能接案。</p>
+            <div class="badges">
+              <span class="badge">不會就退費</span>
+              <span class="badge">小班 4 人</span>
+              <span class="badge">2 天含 1 晚住宿＋兩午餐</span>
+              <span class="badge">台中訓練教育中心</span>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap: wrap;">
+              <a class="btn" href="#form">立即報名</a>
+              <a class="btn btn--light" href="#plan">看課程方案</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="plan" class="section">
+        <div class="container">
+          <h2>課程方案</h2>
+          <div class="grid grid--2">
+            <div class="card">
+              <h3 style="margin:8px 0 0;">一般／基礎 保證班</h3>
+              <div class="price">NT$16,000</div>
+              <ul>
+                <li>分離式冷氣拆解完整流程</li>
+                <li>直立式洗衣機（拆洗/除菌/復位）</li>
+              </ul>
+              <div style="margin-top:12px;">
+                <a class="btn" href="#form">報名一般班</a>
+              </div>
+              <p class="muted" style="margin-top:10px;">小班 4 人開課；一班 2 天含 1 晚住宿＋兩午餐。</p>
+            </div>
+
+            <div class="card">
+              <h3 style="margin:8px 0 0;">進階／特殊機種 保證班</h3>
+              <div class="price">NT$18,000</div>
+              <ul>
+                <li>吊隱／富士通／三菱 拆裝洗</li>
+                <li>故障判斷與常見排除</li>
+                <li>現場風險與客訴處理</li>
+                <li>估價／報價／售後流程</li>
+              </ul>
+              <div style="margin-top:12px;">
+                <a class="btn" href="#form">報名進階班</a>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 style="margin:8px 0 0;">滾筒保證班</h3>
+              <div class="price">NT$9,900／天</div>
+              <ul>
+                <li>學會 1–2 個品牌的滾筒拆裝洗</li>
+                <li>需有直立式洗衣機清洗經驗</li>
+                <li>兩人成班；兩人同行各減一千</li>
+                <li>含午餐</li>
+              </ul>
+              <div style="margin-top:12px;">
+                <a class="btn" href="#form">報名滾筒保證班</a>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 style="margin:8px 0 0;">冷氣特殊機種保證班</h3>
+              <div class="price">NT$9,900／天</div>
+              <ul>
+                <li>富士通／三菱重工 拆裝洗</li>
+                <li>需有分離式冷氣清洗經驗</li>
+                <li>兩人成班；兩人同行各減一千</li>
+                <li>含午餐</li>
+              </ul>
+              <div style="margin-top:12px;">
+                <a class="btn" href="#form">報名冷氣特殊機種保證班</a>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 style="margin:8px 0 0;">一般／隱藏式抽油煙機 保證班</h3>
+              <div class="price">NT$7,000</div>
+              <ul>
+                <li>抽油煙機基礎保養</li>
+                <li>工具／藥劑安全與 SOP</li>
+                <li>兩人成班；兩人同行各減一千</li>
+              </ul>
+              <div style="margin-top:12px;">
+                <a class="btn" href="#form">報名抽油煙機保證班</a>
+              </div>
+            </div>
+
+            <div class="card card--disabled">
+              <span class="ribbon">暫不開放報名</span>
+              <h3 style="margin:8px 0 0;">高級班</h3>
+              <ul>
+                <li>滾筒洗衣機（拆裝洗）</li>
+                <li>冷媒回收／真空／加注觀念</li>
+                <li>高階工具運用與校正</li>
+                <li>實戰案例演練與 QA</li>
+              </ul>
+              <div style="margin-top:12px;">
+                <a class="btn btn--light" aria-disabled="true" tabindex="-1">暫不開放報名</a>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 style="margin:8px 0 12px;">地點與地圖</h3>
+              <p style="margin: 6px 0 12px;">地址：台中市潭子區豐興路一段</p>
+              <iframe class="map" loading="lazy" allowfullscreen
+                src="https://www.google.com/maps?q=%E5%8F%B0%E4%B8%AD%E5%B8%82%E6%BD%98%E5%AD%90%E5%8D%80%E8%B1%90%E8%88%88%E8%B7%AF%E4%B8%80%E6%AE%B592%E5%B7%B72-2%E8%99%9F&hl=zh-TW&z=16&output=embed"></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" style="background: #f9fafb;">
+        <div class="container">
+          <h2>教學現場</h2>
+          <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px; text-align: center; color: #6b7280;">
+            <p style="margin: 0; font-size: 18px;">📸 照片輪播區塊</p>
+            <p style="margin: 8px 0 0; font-size: 14px;">（預留空間，稍後新增教學現場照片）</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <h2>學員評價</h2>
+          <div class="grid grid--2" style="gap: 20px;">
+            <div class="card">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <span style="color: #fbbf24; font-size: 18px;">⭐⭐⭐⭐⭐</span>
+                <span style="font-weight: 600;">陳先生</span>
+              </div>
+              <p style="margin: 0; line-height: 1.6;">"講師教學很仔細，從零基礎到能獨立作業，兩天的課程安排得很紮實。現在已經開始接案了，真的很感謝！"</p>
+            </div>
+            
+            <div class="card">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <span style="color: #fbbf24; font-size: 18px;">⭐⭐⭐⭐⭐</span>
+                <span style="font-weight: 600;">李小姐</span>
+              </div>
+              <p style="margin: 0; line-height: 1.6;">"小班制教學真的差很多，每個步驟都能親自操作。工具和藥劑的使用方法都學得很清楚，推薦給想轉職的朋友。"</p>
+            </div>
+            
+            <div class="card">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <span style="color: #fbbf24; font-size: 18px;">⭐⭐⭐⭐⭐</span>
+                <span style="font-weight: 600;">王大哥</span>
+              </div>
+              <p style="margin: 0; line-height: 1.6;">"課程內容很實用，不只是理論，更多是實際操作。講師經驗豐富，會分享很多現場會遇到的狀況和解決方法。"</p>
+            </div>
+            
+            <div class="card">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <span style="color: #fbbf24; font-size: 18px;">⭐⭐⭐⭐⭐</span>
+                <span style="font-weight: 600;">張小姐</span>
+              </div>
+              <p style="margin: 0; line-height: 1.6;">"住宿和餐食都安排得很好，讓外地學員很方便。兩天的密集訓練後，真的有信心開始接案。感謝老師的耐心指導！"</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" style="background: #f9fafb;">
+        <div class="container">
+          <h2>常見問題 FAQ</h2>
+          <div class="grid grid--2" style="gap: 20px;">
+            <div class="card">
+              <h4 style="margin: 0 0 12px; color: #1f2937; font-size: 18px;">我沒有相關背景可以學會嗎？</h4>
+              <p style="margin: 0; line-height: 1.6; color: #4b5563;">可以。從零開始的學員不少，小班制＋講師一對一指導，確保每個步驟都能親手操作。</p>
+            </div>
+            
+            <div class="card">
+              <h4 style="margin: 0 0 12px; color: #1f2937; font-size: 18px;">住宿與餐食包含哪些？</h4>
+              <p style="margin: 0; line-height: 1.6; color: #4b5563;">學費含一晚住宿（雙人房或同等級）、兩天午餐；其餘餐食可自理或團體加購。</p>
+            </div>
+            
+            <div class="card">
+              <h4 style="margin: 0 0 12px; color: #1f2937; font-size: 18px;">帶什麼來？需要自備工具嗎？</h4>
+              <p style="margin: 0; line-height: 1.6; color: #4b5563;">現場提供全套教學用工具與耗材，個人物品建議穿著耐髒服裝與包鞋。</p>
+            </div>
+            
+            <div class="card">
+              <h4 style="margin: 0 0 12px; color: #1f2937; font-size: 18px;">高級班費用？冷媒回收如何安排？</h4>
+              <p style="margin: 0; line-height: 1.6; color: #4b5563;">高級班採個別評估與彈性排程，請透過下方表單或 LINE 洽詢，我們會回覆明細與開課日。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="form" class="section">
+        <div class="container">
+          <h2 style="margin-bottom: 8px;">報名與諮詢</h2>
+          <p class="muted" style="margin-top:0;">填寫下列表單或點擊下方 LINE / 電話立即聯繫。我們會在 1 個工作日內回覆。</p>
+          <div id="form-success" class="success">送出成功！我們已收到您的資料，將盡快與您聯繫。</div>
+          <form class="form" name="報名與諮詢" method="POST" data-netlify="true" netlify-honeypot="_gotcha" action="/?success=1#form">
+            <input type="hidden" name="form-name" value="報名與諮詢" />
+            <input type="hidden" name="來源頁" value="onepage-taichung" />
+            <div class="field" style="display:none;">
+              <label>不要填寫這個欄位<input class="input" name="_gotcha" /></label>
+            </div>
+            <div class="grid grid--2">
+              <div class="field">
+                <label class="label" for="name">姓名</label>
+                <input class="input" id="name" name="姓名" type="text" required />
+              </div>
+              <div class="field">
+                <label class="label" for="phone">電話</label>
+                <input class="input" id="phone" name="電話" type="tel" required />
+              </div>
+            </div>
+            <div class="grid grid--2">
+              <div class="field">
+                <label class="label" for="email">Email</label>
+                <input class="input" id="email" name="Email" type="email" required />
+              </div>
+              <div class="field">
+                <label class="label" for="line">LINE ID（選填）</label>
+                <input class="input" id="line" name="LINE ID" type="text" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="label" for="course">欲報名課程</label>
+              <select class="select" id="course" name="欲報名課程" required>
+                <option value="一般／基礎 保證班（NT$16,000）" selected>一般／基礎 保證班（NT$16,000）</option>
+                <option value="進階／特殊機種 保證班（NT$18,000）">進階／特殊機種 保證班（NT$18,000）</option>
+                <option value="滾筒保證班（NT$9,900／天）">滾筒保證班（NT$9,900／天）</option>
+                <option value="冷氣特殊機種保證班（NT$9,900／天）">冷氣特殊機種保證班（NT$9,900／天）</option>
+                <option value="一般／隱藏式抽油煙機 保證班（NT$7,000）">一般／隱藏式抽油煙機 保證班（NT$7,000）</option>
+                <option value="高級班（暫不開放報名）" disabled>高級班（暫不開放報名）</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="label" for="session">報名梯次</label>
+              <select class="select" id="session" name="報名梯次" required></select>
+              <p class="muted" style="font-size:12px; margin-top:6px;">預設為每月 13–14 與 27–28；可於頁尾腳本調整。</p>
+            </div>
+            <div class="field">
+              <label class="label" for="month">預計月份（選填）</label>
+              <input class="input" id="month" name="預計月份" type="text" placeholder="例如：9 月或 10 月" />
+            </div>
+            <div class="field">
+              <label class="label" for="note">備註</label>
+              <textarea class="textarea" id="note" name="備註" placeholder="想了解的重點、時段偏好等"></textarea>
+            </div>
+            <div class="field" style="display:flex; align-items:center; gap:8px;">
+              <input id="agree" name="同意教學保證與退費條款" type="checkbox" required />
+              <label for="agree" class="muted">我同意 <a href="#" onclick="toggleTerms(); return false;" style="color: #3b82f6; text-decoration: underline;">保證學會與退費條款</a></label>
+            </div>
+            
+            <div id="terms-content" style="display: none; margin-top: 12px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; line-height: 1.6;">
+              <h4 style="margin: 0 0 12px; color: #1f2937; font-size: 16px;">📋 保證學會與退費條款</h4>
+              
+              <div style="margin-bottom: 16px;">
+                <strong style="color: #059669;">✅ 學會保證</strong>
+                <ul style="margin: 8px 0; padding-left: 20px;">
+                  <li>全勤參與兩日完整課程與實作</li>
+                  <li>通過結訓檢核，能獨立完成基本作業流程</li>
+                  <li>若未達標準，提供以下保障方案</li>
+                </ul>
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <strong style="color: #dc2626;">🔄 未學會保障</strong>
+                <ul style="margin: 8px 0; padding-left: 20px;">
+                  <li><strong>方案一</strong>：全額退費（於結訓後 7 日內申請）</li>
+                  <li><strong>方案二</strong>：免費重修一次（限同課程，6 個月內使用）</li>
+                  <li>學員可自由選擇其中一種方案</li>
+                </ul>
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <strong style="color: #7c3aed;">📞 售後支援</strong>
+                <ul style="margin: 8px 0; padding-left: 20px;">
+                  <li>課後 30 天群組答疑與技術支援</li>
+                  <li>提供工具採購</li>
+                  <li>可預約跟跑實習（依講師時間安排）</li>
+                </ul>
+              </div>
+              
+              <div style="margin-bottom: 0;">
+                <strong style="color: #6b7280;">⚠️ 注意事項</strong>
+                <ul style="margin: 8px 0 0; padding-left: 20px;">
+                  <li>保證條款適用於全勤學員，請假/遲到超過兩小時不適用</li>
+                  <li>重修名額依當期開課狀況安排，恕不保證特定日期</li>
+                  <li>本條款最終解釋權歸日式洗濯台中教育訓練中心所有</li>
+                </ul>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+              <button class="btn" type="submit">送出報名</button>
+            </div>
+            <p class="muted" style="margin-top:10px; font-size: 12px;">表單送出後將寄送通知到管理信箱。</p>
+            
+            <div style="margin-top: 20px; padding: 16px; background: #f3f4f6; border-radius: 8px;">
+              <h4 style="margin: 0 0 8px; font-size: 16px;">其他聯繫方式</h4>
+              <div style="display: grid; gap: 4px; font-size: 14px;">
+                <div>📞 電話：(02) 7756-2269</div>
+                <div>💬 官方 LINE：@942clean</div>
+                <div>🌐 官網：<a href="https://www.942clean.com.tw" target="_blank" style="color: #3b82f6;">www.942clean.com.tw</a></div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <div style="display:grid; gap:24px; margin-bottom:24px;">
+          <div>
+            <h3 style="margin:0 0 12px; font-size:18px; font-weight:700; color:#fff;">聯繫我們</h3>
+            <div style="display:grid; gap:8px;">
+              <div><strong>日式洗濯</strong></div>
+              <div>📞 電話：(02) 7756-2269</div>
+              <div>💬 官方 LINE：@942clean</div>
+              <div>🌐 官網：<a href="https://www.942clean.com.tw" target="_blank" style="color:#60a5fa; text-decoration:underline;">www.942clean.com.tw</a></div>
+              <div>📘 Facebook：<a href="https://www.facebook.com/people/%E6%97%A5%E5%BC%8F%E6%B4%97%E6%BF%AF%E7%A0%94%E7%A9%B6%E6%89%80/100085711518507/" target="_blank" style="color:#60a5fa; text-decoration:underline;">日式洗濯研究所</a></div>
+              <div style="margin-top:8px; color:#9ca3af;">地點：台中市潭子區豐興路一段</div>
+            </div>
+          </div>
+        </div>
+        <div style="border-top:1px solid #374151; padding-top:16px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>日式洗濯 台中教育訓練中心</div>
+          <div>© All rights reserved.</div>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      // ---- 可調整區：梯次規則與顯示月數 ----
+      var batchDays = [
+        [13, 14],
+        [27, 28]
+      ];
+      var monthsToShow = 3; // 生成未來幾個月的梯次
+
+      (function() {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('success') === '1') {
+          var el = document.getElementById('form-success');
+          if (el) { el.classList.add('is-visible'); }
+        }
+
+        // 生成梯次選單
+        var sessionSelect = document.getElementById('session');
+        if (sessionSelect) {
+          var now = new Date();
+          var year = now.getFullYear();
+          var month = now.getMonth(); // 0-11
+
+          for (var i = 0; i < monthsToShow; i++) {
+            var m = new Date(year, month + i, 1);
+            var y = m.getFullYear();
+            var mm = m.getMonth() + 1; // 1-12
+
+            batchDays.forEach(function(range) {
+              var d1 = new Date(y, mm - 1, range[0]);
+              var d2 = new Date(y, mm - 1, range[1]);
+              var label = y + ' 年 ' + mm + ' 月 ' + range[0] + '–' + range[1] + ' 日';
+              var value = y + '-' + String(mm).padStart(2,'0') + '-' + String(range[0]).padStart(2,'0') + '_' + y + '-' + String(mm).padStart(2,'0') + '-' + String(range[1]).padStart(2,'0');
+
+              // 僅加入未來或當期尚未開始的梯次
+              var today = new Date();
+              if (d2 >= new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+                var opt = document.createElement('option');
+                opt.value = label + '（' + value + '）';
+                opt.textContent = label;
+                sessionSelect.appendChild(opt);
+              }
+            });
+          }
+
+          // 若沒有任何未來梯次，顯示提示
+          if (sessionSelect.options.length === 0) {
+            var opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = '目前無可選梯次，請改由備註告知期望日期';
+            sessionSelect.appendChild(opt);
+            sessionSelect.required = false;
+          }
+        }
+      })();
+      
+      // 切換條款顯示
+      function toggleTerms() {
+        var content = document.getElementById('terms-content');
+        if (content.style.display === 'none' || content.style.display === '') {
+          content.style.display = 'block';
+        } else {
+          content.style.display = 'none';
+        }
+      }
+    </script>
+  </body>
+  </html>

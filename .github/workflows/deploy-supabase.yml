@@ -1,0 +1,35 @@
+name: Deploy Supabase
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/deploy-supabase.yml'
+  workflow_dispatch:
+
+jobs:
+  db-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: supabase
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Push migrations via DB URL (no link)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euxo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then echo "SUPABASE_DB_URL secret is missing"; exit 1; fi
+          supabase db push --db-url "$SUPABASE_DB_URL"
+
+
