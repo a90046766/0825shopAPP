@@ -31,10 +31,11 @@ export default function LoginPage() {
     try {
       // 嚴格雲端：透過 adapters 取得當前 authRepo（Supabase）
       const a = await loadAdapters()
-      const u = await a.authRepo.login(email, password)
+      const norm = normalizeEmail(email)
+      const u = await a.authRepo.login(norm, password)
       
       // 處理記住帳號
-      if (remember) localStorage.setItem('remember-login-email', email)
+      if (remember) localStorage.setItem('remember-login-email', norm)
       else localStorage.removeItem('remember-login-email')
 
       if (!u.passwordSet) navigate('/reset-password')
@@ -49,7 +50,18 @@ export default function LoginPage() {
   const handleChangeAccount = () => {
     setRemember(false)
     setEmail('')
-    authRepo.forgetEmail()
+    try { localStorage.removeItem('remember-login-email') } catch {}
+  }
+
+  function normalizeEmail(raw: string): string {
+    const s = (raw || '').trim().toLowerCase()
+    if (!s.includes('@')) {
+      if (s === 'a90046766') return 'a90046766@gmail.com'
+      if (s === 'xiaofu888') return 'xiaofu888@yahoo.com.tw'
+      if (s === 'jason660628') return 'jason660628@yahoo.com.tw'
+      return `${s}@gmail.com`
+    }
+    return s
   }
 
   return (

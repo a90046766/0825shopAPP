@@ -1,17 +1,28 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { authRepo } from '../adapters/local/auth'
 import { can } from '../utils/permissions'
 import { notificationRepo } from '../adapters/local/notifications'
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../adapters'
 import QiuBaoVoiceAssistant from './components/QiuBao'
 
+function getCurrentUser(): any {
+  try {
+    const s = localStorage.getItem('supabase-auth-user')
+    if (s) return JSON.parse(s)
+  } catch {}
+  try {
+    const l = localStorage.getItem('local-auth-user')
+    if (l) return JSON.parse(l)
+  } catch {}
+  return null
+}
+
 function AppBar() {
   const title = { '/dispatch': '派工', '/me': '個人', '/notifications': '通知', '/schedule': '排班', '/customers': '客戶', '/payroll': '薪資', '/reports': '回報', '/report-center': '回報' } as Record<string,string>
   const loc = useLocation()
   const navigate = useNavigate()
   const t = title[loc.pathname] || '訂單內容'
-  const u = authRepo.getCurrentUser()
+  const u = getCurrentUser()
   const isTechnician = u?.role === 'technician'
   
   return (
@@ -40,7 +51,7 @@ function TabBar() {
   const loc = useLocation()
   const active = (p: string) => (loc.pathname.startsWith(p) ? 'text-brand-500' : 'text-gray-400')
   const [unreadCount, setUnreadCount] = useState(0)
-  const user = authRepo.getCurrentUser()
+  const user = getCurrentUser()
 
   useEffect(() => {
     const user = authRepo.getCurrentUser()
@@ -72,7 +83,7 @@ function DesktopNav() {
   const loc = useLocation()
   const active = (p: string) => (loc.pathname.startsWith(p) ? 'bg-brand-50 text-brand-700 ring-1 ring-brand-200' : 'text-gray-700 hover:bg-gray-50')
   const [unreadCount, setUnreadCount] = useState(0)
-  const user = authRepo.getCurrentUser()
+  const user = getCurrentUser()
   useEffect(() => {
     if (!user) return
     notificationRepo.listForUser(user).then(({ unreadIds }) => {

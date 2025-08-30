@@ -26,7 +26,10 @@ function toStaffRow(p: Partial<Staff>): any {
 
 class SupabaseStaffRepo implements StaffRepo {
   async list(): Promise<Staff[]> {
-    const { data, error } = await supabase.from('staff').select('*').order('updated_at', { ascending: false })
+    const { data, error } = await supabase
+      .from('staff')
+      .select('id,name,short_name,email,phone,role,status,points,ref_code,updated_at')
+      .order('updated_at', { ascending: false })
     if (error) throw error
     return (data || []).map(fromStaffRow)
   }
@@ -35,7 +38,11 @@ class SupabaseStaffRepo implements StaffRepo {
     const now = new Date().toISOString()
     // 以 email 唯一化
     const email = (staff.email || '').toLowerCase()
-    const { data: existed } = await supabase.from('staff').select('*').eq('email', email).maybeSingle()
+    const { data: existed } = await supabase
+      .from('staff')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle()
     if (existed) {
       const { data, error } = await supabase
         .from('staff')

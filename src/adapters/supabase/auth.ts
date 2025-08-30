@@ -16,13 +16,23 @@ class SupabaseAuthRepo implements AuthRepo {
   }
 
   async login(email: string, password: string): Promise<User> {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password
-    })
+    const lc = email.trim().toLowerCase()
+    let { data, error } = await supabase.auth.signInWithPassword({ email: lc, password })
 
+    // 若密碼登入失敗，嘗試以相同密碼自動建立帳號（適用於尚未在 Auth 建立用戶的情境）
     if (error) {
-      throw new Error(error.message || '登入失敗')
+      try {
+        const { data: signupData, error: signupError } = await supabase.auth.signUp({ email: lc, password, options: { emailRedirectTo: undefined } })
+        if (signupError) {
+          // 已存在但密碼錯誤 → 明確提示
+          throw new Error(signupError.message?.includes('already registered')
+            ? '帳號已存在，但密碼不正確。請至 Supabase Auth 設定密碼或使用忘記密碼'
+            : (signupError.message || '登入失敗'))
+        }
+        data = signupData as any
+      } catch (e: any) {
+        throw new Error(e?.message || '登入失敗')
+      }
     }
 
     if (!data.user) {
@@ -30,10 +40,9 @@ class SupabaseAuthRepo implements AuthRepo {
     }
 
     // 從 staff 表取得詳細資料（若找不到，允許主帳號後備登入）
-    const lc = email.trim().toLowerCase()
     const { data: staffData } = await supabase
       .from('staff')
-      .select('*')
+      .select('id,email,name,role,phone,status')
       .eq('email', lc)
       .maybeSingle()
 
@@ -57,6 +66,22 @@ class SupabaseAuthRepo implements AuthRepo {
       role: (prof as any).role,
       phone: (prof as any).phone,
       passwordSet: true
+    }
+
+    // 若為主帳號後備登入且 staff 中尚無資料，嘗試自動補齊一筆 staff 記錄
+    if (!staffData && PRIMARY[lc]) {
+      try {
+        await supabase
+          .from('staff')
+          .upsert({
+            id: data.user.id,
+            name: (prof as any).name,
+            email: lc,
+            phone: '',
+            role: (prof as any).role,
+            status: 'active'
+          }, { onConflict: 'email' })
+      } catch {}
     }
 
     // 保存登入狀態
@@ -124,8 +149,7 @@ class SupabaseAuthRepo implements AuthRepo {
         email: staffData.email.trim().toLowerCase(),
         phone: staffData.phone,
         role: staffData.role,
-        status: 'active',
-        created_at: new Date().toISOString()
+        status: 'active'
       })
       .select()
       .single()
