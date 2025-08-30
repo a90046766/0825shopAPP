@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getActivePercent } from '../../utils/promotions'
 import { Link } from 'react-router-dom'
-import { authRepo } from '../../adapters/local/auth'
 import { can } from '../../utils/permissions'
 import { loadAdapters } from '../../adapters'
 import { 
@@ -18,7 +17,8 @@ import {
 export default function OrderManagementPage() {
   const [rows, setRows] = useState<any[]>([])
   const [repos, setRepos] = useState<any>(null)
-  const user = authRepo.getCurrentUser()
+  const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
+  const user = getCurrentUser()
   const [q, setQ] = useState('')
   const [statusTab, setStatusTab] = useState<'all'|'pending'|'completed'|'closed'>('all')
   const [pf, setPf] = useState<Record<string, boolean>>({})
