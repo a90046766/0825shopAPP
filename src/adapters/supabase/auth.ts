@@ -39,14 +39,14 @@ class SupabaseAuthRepo implements AuthRepo {
       throw new Error('登入失敗：無法取得使用者資料')
     }
 
-    // 從 staff 表取得詳細資料（若找不到，允許主帳號後備登入）
+    // 從 staff 表取得詳細資料
     const { data: staffData } = await supabase
       .from('staff')
       .select('id,email,name,role,phone,status')
       .eq('email', lc)
       .maybeSingle()
 
-    // 主帳號後備名單（允許無 staff 記錄登入）
+    // 主帳號後備名單（永遠優先）
     const PRIMARY: Record<string, { name: string; role: 'admin' | 'support' | 'technician' }> = {
       'a90046766@gmail.com': { name: '洗濯', role: 'admin' },
       'xiaofu888@yahoo.com.tw': { name: '洗小濯', role: 'support' },
@@ -57,28 +57,44 @@ class SupabaseAuthRepo implements AuthRepo {
       throw new Error('找不到對應的員工資料')
     }
 
-    const prof = staffData || PRIMARY[lc]
+    // 以主帳號資訊為最優先（避免被錯誤 staff 資料覆蓋）
+    const displayName = PRIMARY[lc]?.name ?? staffData?.name ?? data.user.email ?? ''
+    const role = (PRIMARY[lc]?.role ?? (staffData?.role as any) ?? 'support') as User['role']
 
     this.currentUser = {
       id: data.user.id,
       email: data.user.email!,
-      name: (prof as any).name,
-      role: (prof as any).role,
-      phone: (prof as any).phone,
+      name: displayName,
+      role,
+      phone: (staffData as any)?.phone,
       passwordSet: true
     }
 
-    // 若為主帳號後備登入且 staff 中尚無資料，嘗試自動補齊一筆 staff 記錄
-    if (!staffData && PRIMARY[lc]) {
+    // 若為主帳號且 staff 中尚無資料，或需要校正角色，嘗試自動補齊/校正一筆 staff 記錄
+    if (PRIMARY[lc]) {
       try {
         await supabase
           .from('staff')
           .upsert({
             id: data.user.id,
-            name: (prof as any).name,
+            name: PRIMARY[lc].name,
+            email: lc,
+            phone: (staffData as any)?.phone || '',
+            role: PRIMARY[lc].role,
+            status: 'active'
+          }, { onConflict: 'email' })
+      } catch {}
+    } else if (!staffData) {
+      // 非主帳號但缺 staff → 最少補上基本資料（support）
+      try {
+        await supabase
+          .from('staff')
+          .upsert({
+            id: data.user.id,
+            name: data.user.email || '',
             email: lc,
             phone: '',
-            role: (prof as any).role,
+            role: 'support',
             status: 'active'
           }, { onConflict: 'email' })
       } catch {}
