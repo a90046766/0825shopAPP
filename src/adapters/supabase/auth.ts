@@ -90,7 +90,6 @@ class SupabaseAuthRepo implements AuthRepo {
         await supabase
           .from('staff')
           .upsert({
-            id: data.user.id,
             name: data.user.email || '',
             email: lc,
             phone: '',
@@ -133,52 +132,39 @@ class SupabaseAuthRepo implements AuthRepo {
     name: string
     email: string
     phone: string
-    role: 'support' | 'sales' // 只允許客服和業務
-    password?: string // 設為可選，預設使用 a123123
+    role: 'support' | 'sales'
+    password?: string
   }): Promise<User> {
-    const password = staffData.password && staffData.password.trim()
-      ? staffData.password.trim()
-      : 'a123123' // 預設密碼，依你習慣
-    
-    // 1. 在 Supabase Auth 中建立用戶
+    const lc = staffData.email.trim().toLowerCase()
+    const password = staffData.password && staffData.password.trim() ? staffData.password.trim() : 'a123123'
+
+    // 1) 先嘗試註冊 Auth 用戶；若回傳 422（已存在），視為成功繼續
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: staffData.email.trim().toLowerCase(),
-      password: password,
+      email: lc,
+      password,
       options: { emailRedirectTo: undefined }
     })
-
-    if (authError) {
-      console.error('Auth signup error:', authError)
+    if (authError && !String(authError.message || '').toLowerCase().includes('already')) {
       throw new Error(`建立用戶失敗: ${authError.message}`)
     }
 
-    if (!authData.user) {
-      throw new Error('無法建立用戶')
-    }
-
-    // 2. 在 staff 表中新增員工資料
-    const { data: staffInsertData, error: staffError } = await supabase
+    // 2) 在 staff 表建立或更新資料（不使用 select() 以避免 500）
+    const { error: staffError } = await supabase
       .from('staff')
-      .insert({
-        id: authData.user.id,
+      .upsert({
         name: staffData.name,
-        email: staffData.email.trim().toLowerCase(),
+        email: lc,
         phone: staffData.phone,
         role: staffData.role,
         status: 'active'
-      })
-      .select()
-      .single()
-
+      }, { onConflict: 'email' })
     if (staffError) {
-      // 如果 staff 表插入失敗，記錄錯誤但不刪除 auth 用戶（需要管理員權限）
-      console.error('Staff table insert failed:', staffError)
       throw new Error(staffError.message || '建立員工資料失敗')
     }
 
     return {
-      id: authData.user.id,
-      email: staffData.email.trim().toLowerCase(),
+      id: authData?.user?.id || lc,
+      email: lc,
       name: staffData.name,
       role: staffData.role,
       phone: staffData.phone,
@@ -190,14 +176,14 @@ class SupabaseAuthRepo implements AuthRepo {
   async getStaffList(): Promise<User[]> {
     const { data, error } = await supabase
       .from('staff')
-      .select('*')
+      .select('id,email,name,role,phone,status,updated_at')
       .order('updated_at', { ascending: false })
 
     if (error) {
       throw new Error(error.message || '取得員工列表失敗')
     }
 
-    return data.map(staff => ({
+    return (data || []).map((staff: any) => ({
       id: staff.id,
       email: staff.email,
       name: staff.name,
@@ -211,17 +197,15 @@ class SupabaseAuthRepo implements AuthRepo {
   async updateStaff(staffId: string, updates: Partial<{
     name: string
     phone: string
-    role: 'support' | 'sales' // 只允許客服和業務
+    role: 'support' | 'sales'
     status: 'active' | 'inactive'
-    password?: string // 新增密碼更新支援
+    password?: string
   }>): Promise<void> {
     // 如果有密碼更新，記錄但不執行（需要管理員權限）
     if (updates.password) {
       console.warn('密碼更新需要管理員權限，請在 Supabase Dashboard 中手動更新')
-      // 注意：密碼更新需要 service role key，這裡暫時跳過
     }
 
-    // 更新 staff 表資料（排除密碼欄位）
     const { password, ...staffUpdates } = updates
     const { error } = await supabase
       .from('staff')
@@ -238,7 +222,6 @@ class SupabaseAuthRepo implements AuthRepo {
 
   // 刪除員工帳號
   async deleteStaff(staffId: string): Promise<void> {
-    // 1. 從 staff 表刪除
     const { error: staffError } = await supabase
       .from('staff')
       .delete()
@@ -248,8 +231,7 @@ class SupabaseAuthRepo implements AuthRepo {
       throw new Error(staffError.message || '刪除員工資料失敗')
     }
 
-    // 2. 記錄需要手動刪除 auth 用戶
-    console.warn('員工資料已刪除，請在 Supabase Dashboard 中手動刪除對應的 Auth 用戶')
+    console.warn('員工資料已刪除，如需移除 Auth 用戶請於 Supabase Dashboard 操作')
   }
 }
 

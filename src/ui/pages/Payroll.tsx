@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Button, Card, Badge, Modal, Select, Input, Textarea } from '../kit'
 import { loadAdapters } from '../../adapters'
-import { authRepo } from '../../adapters/local/auth'
 import { can } from '../../utils/permissions'
 import { PayrollRecord, User } from '../../core/repository'
 
 export default function Payroll() {
-  const user = authRepo.getCurrentUser()
+  const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
+  const user = getCurrentUser()
   const [payrollRepo, setPayrollRepo] = useState<any>(null)
   const [staffRepo, setStaffRepo] = useState<any>(null)
   const [technicianRepo, setTechnicianRepo] = useState<any>(null)
@@ -21,7 +21,6 @@ export default function Payroll() {
 
   useEffect(() => {
     if (!user || !can(user, 'payroll.view')) return
-    
     loadAdapters().then(adapters => {
       setPayrollRepo(adapters.payrollRepo)
       setStaffRepo(adapters.staffRepo)
@@ -37,7 +36,6 @@ export default function Payroll() {
 
   const loadData = async () => {
     if (!payrollRepo || !staffRepo || !technicianRepo) return
-    
     try {
       setLoading(true)
       const [payrollData, staffData, techData] = await Promise.all([
@@ -45,8 +43,6 @@ export default function Payroll() {
         staffRepo.list(),
         technicianRepo.list()
       ])
-      
-      // 過濾當前月份的記錄
       const monthRecords = payrollData.filter((r: any) => r.month === month)
       setRecords(monthRecords)
       setStaffList([...staffData, ...techData])
@@ -64,7 +60,6 @@ export default function Payroll() {
       setEditingRecord(record)
       setShowEditModal(true)
     } else {
-      // 創建新記錄
       const staff = staffList.find(s => s.email === staffEmail)
       if (staff) {
         const newRecord: Partial<PayrollRecord> = {
@@ -92,28 +87,15 @@ export default function Payroll() {
     const base = record.baseSalary || 0
     const allowances = record.allowances || {}
     const deductions = record.deductions || {}
-    
-    const totalAllowances = (allowances.fuel || 0) + (allowances.overtime || 0) + 
-                           (allowances.holiday || 0) + (allowances.duty || 0)
-    const totalDeductions = (deductions.leave || 0) + (deductions.tardiness || 0) + 
-                           (deductions.complaints || 0) + (deductions.repairCost || 0)
-    
+    const totalAllowances = (allowances.fuel || 0) + (allowances.overtime || 0) + (allowances.holiday || 0) + (allowances.duty || 0)
+    const totalDeductions = (deductions.leave || 0) + (deductions.tardiness || 0) + (deductions.complaints || 0) + (deductions.repairCost || 0)
     const bonus = record.bonus || 0
     const pointsValue = record.pointsMode === 'include' ? (record.points || 0) * 100 : 0
-    
-    return {
-      base,
-      totalAllowances,
-      totalDeductions,
-      bonus,
-      pointsValue,
-      net: base + totalAllowances - totalDeductions + bonus + pointsValue
-    }
+    return { base, totalAllowances, totalDeductions, bonus, pointsValue, net: base + totalAllowances - totalDeductions + bonus + pointsValue }
   }
 
   const getIssuanceDate = (month: string, platform: string) => {
     const date = new Date(month + '-01')
-    
     switch (platform) {
       case '同':
       case '日':
@@ -146,7 +128,6 @@ export default function Payroll() {
 
   const confirmSave = async () => {
     if (!editingRecord) return
-    
     const { confirmTwice } = await import('../kit')
     if (await confirmTwice('確定要儲存薪資資料嗎？', '儲存後將無法撤銷，確定繼續？')) {
       await saveRecord(editingRecord)
@@ -166,17 +147,8 @@ export default function Payroll() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">薪資管理</h1>
         <div className="flex items-center space-x-4">
-          <Input
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="w-40"
-          />
-          {can(user, 'admin') && (
-            <Button onClick={() => setShowBulkEditModal(true)}>
-              快速編輯
-            </Button>
-          )}
+          <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-40" />
+          {can(user, 'admin') && (<Button onClick={() => setShowBulkEditModal(true)}>快速編輯</Button>)}
         </div>
       </div>
 
