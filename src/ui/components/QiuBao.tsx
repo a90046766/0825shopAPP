@@ -1,6 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { authRepo } from '../../adapters/local/auth'
 import { loadAdapters } from '../../adapters'
 
 interface QiuBaoProps {
@@ -118,6 +117,12 @@ export function QiuBaoVoiceAssistant() {
   const navigate = useNavigate()
   const [repos, setRepos] = useState<any>(null)
 
+  const getCurrentUser = () => {
+    try { const s = localStorage.getItem('supabase-auth-user'); if (s) return JSON.parse(s) } catch {}
+    try { const l = localStorage.getItem('local-auth-user'); if (l) return JSON.parse(l) } catch {}
+    return null
+  }
+
   useEffect(() => {
     // 延遲顯示球寶
     const timer = setTimeout(() => setIsVisible(true), 2000)
@@ -149,7 +154,7 @@ export function QiuBaoVoiceAssistant() {
   // 智能回應系統
   const processCommand = async (text: string) => {
     const lowerText = text.toLowerCase()
-    const user = authRepo.getCurrentUser()
+    const user = getCurrentUser()
     
     // 訂單相關命令
     if (lowerText.includes('訂單') || lowerText.includes('工單')) {
@@ -220,10 +225,10 @@ export function QiuBaoVoiceAssistant() {
     // 幫助
     if (lowerText.includes('幫助') || lowerText.includes('功能') || lowerText.includes('能做什麼')) {
       return `我可以幫您：
- 查看訂單和排班 
- 導航到各個功能頁面 
- 提供工作建議 
- 為您加油打氣 
+查看訂單和排班 
+導航到各個功能頁面 
+提供工作建議 
+為您加油打氣 
 試試說「查看今天訂單」或「打開排班表」吧！`
     }
 
