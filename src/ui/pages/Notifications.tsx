@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../../adapters'
-import { authRepo } from '../../adapters/local/auth'
 import { can } from '../../utils/permissions'
 
 export default function NotificationsPage() {
@@ -9,8 +8,13 @@ export default function NotificationsPage() {
   const [compose, setCompose] = useState<any>({ title:'', body:'', target:'member', targetUserEmail:'', subset:'' })
 
   const [repos, setRepos] = useState<any>(null)
+  const getCurrentUser = () => {
+    try { const s = localStorage.getItem('supabase-auth-user'); if (s) return JSON.parse(s) } catch {}
+    try { const l = localStorage.getItem('local-auth-user'); if (l) return JSON.parse(l) } catch {}
+    return null
+  }
   const load = async () => {
-    const user = authRepo.getCurrentUser()
+    const user = getCurrentUser()
     if (!user || !repos) return
     const { items, unreadIds } = await (repos as any).notificationRepo.listForUser(user)
     setItems(items)
@@ -21,7 +25,7 @@ export default function NotificationsPage() {
   useEffect(() => { load() }, [repos])
 
   const markRead = async (id: string) => {
-    const user = authRepo.getCurrentUser()
+    const user = getCurrentUser()
     if (!user) return
     await (repos as any).notificationRepo.markRead(user, id)
     await load()
@@ -29,7 +33,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-3">
-      {(() => { const u = authRepo.getCurrentUser(); return can(u,'notifications.send') })() && (
+      {(() => { const u = getCurrentUser(); return can(u,'notifications.send') })() && (
       <div className="rounded-2xl bg-white p-4 shadow-card">
         <div className="mb-2 text-base font-semibold flex items-center gap-2">
           📢 發送通知
@@ -49,7 +53,7 @@ export default function NotificationsPage() {
             <textarea className="rounded border px-2 py-1" placeholder="多位 Email，逗號或換行分隔" value={compose.subset} onChange={e=>setCompose({...compose,subset:e.target.value})} />
           )}
           <div className="text-right">
-            <button onClick={async()=>{ const user=authRepo.getCurrentUser(); if(!user || !repos) return; if(compose.target==='subset'){ const emails=(compose.subset||'').split(/[,\n]/).map((s:string)=>s.trim()).filter(Boolean); for (const em of emails){ await (repos as any).notificationRepo.push({ title:compose.title, body:compose.body, level:'info', target:'user', targetUserEmail: em }); } } else { const payload:any = { title:compose.title, body:compose.body, level:'info', target:compose.target }; if(compose.target==='user') payload.targetUserEmail = compose.targetUserEmail; await (repos as any).notificationRepo.push(payload); } setCompose({ title:'', body:'', target:'member', targetUserEmail:'', subset:'' }); const { items, unreadIds } = await (repos as any).notificationRepo.listForUser(user); setItems(items); setUnread(unreadIds) }} className="rounded-lg bg-brand-500 px-3 py-1 text-white flex items-center gap-1">
+            <button onClick={async()=>{ const user=getCurrentUser(); if(!user || !repos) return; if(compose.target==='subset'){ const emails=(compose.subset||'').split(/[\,\n]/).map((s:string)=>s.trim()).filter(Boolean); for (const em of emails){ await (repos as any).notificationRepo.push({ title:compose.title, body:compose.body, level:'info', target:'user', targetUserEmail: em }); } } else { const payload:any = { title:compose.title, body:compose.body, level:'info', target:compose.target }; if(compose.target==='user') payload.targetUserEmail = compose.targetUserEmail; await (repos as any).notificationRepo.push(payload); } setCompose({ title:'', body:'', target:'member', targetUserEmail:'', subset:'' }); const { items, unreadIds } = await (repos as any).notificationRepo.listForUser(user); setItems(items); setUnread(unreadIds) }} className="rounded-lg bg-brand-500 px-3 py-1 text-white flex items-center gap-1">
               📤 發送
             </button>
           </div>
