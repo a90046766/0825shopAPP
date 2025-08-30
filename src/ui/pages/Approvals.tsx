@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, Badge, Modal, Textarea, Select } from '../kit'
 import { loadAdapters } from '../../adapters'
-import { authRepo } from '../../adapters/local/auth'
 import { can } from '../../utils/permissions'
 import { 
   MemberApplication, 
@@ -13,7 +12,8 @@ import {
 
 export default function Approvals() {
   const navigate = useNavigate()
-  const user = authRepo.getCurrentUser()
+  const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
+  const user = getCurrentUser()
   const [memberApplicationRepo, setMemberApplicationRepo] = useState<any>(null)
   const [technicianApplicationRepo, setTechnicianApplicationRepo] = useState<any>(null)
   const [staffApplicationRepo, setStaffApplicationRepo] = useState<any>(null)
@@ -36,18 +36,17 @@ export default function Approvals() {
       navigate('/')
       return
     }
-    
     loadAdapters().then(adapters => {
       setMemberApplicationRepo(adapters.memberApplicationRepo)
       setTechnicianApplicationRepo(adapters.technicianApplicationRepo)
       setStaffApplicationRepo(adapters.staffApplicationRepo)
-      loadApplications()
     })
   }, [user])
 
+  useEffect(() => { loadApplications() }, [memberApplicationRepo, technicianApplicationRepo, staffApplicationRepo])
+
   const loadApplications = async () => {
     if (!memberApplicationRepo || !technicianApplicationRepo || !staffApplicationRepo) return
-    
     try {
       setLoading(true)
       const [members, technicians, staff] = await Promise.all([
@@ -55,7 +54,6 @@ export default function Approvals() {
         technicianApplicationRepo.listPending(),
         staffApplicationRepo.listPending()
       ])
-      
       setMemberApplications(members)
       setTechnicianApplications(technicians)
       setStaffApplications(staff)
@@ -75,10 +73,8 @@ export default function Approvals() {
 
   const submitReview = async () => {
     if (!selectedApplication || !user) return
-    
     try {
       const { type, app } = selectedApplication
-      
       if (reviewAction === 'approve') {
         if (type === 'member') {
           await memberApplicationRepo.approve(app.id)
@@ -96,7 +92,6 @@ export default function Approvals() {
           await staffApplicationRepo.reject(app.id)
         }
       }
-      
       setShowReviewModal(false)
       setSelectedApplication(null)
       loadApplications()
