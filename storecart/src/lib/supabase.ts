@@ -12,7 +12,10 @@ export function getSupabase() {
   }
 
   if (!supabase) {
-    supabase = createClient(supabaseUrl, supabaseAnonKey)
+    // 使用專屬 storage key，避免與主站 GoTrue 衝突
+    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { storageKey: 'sb-storecart-auth' }
+    })
   }
 
   return supabase

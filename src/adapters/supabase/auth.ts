@@ -29,24 +29,34 @@ class SupabaseAuthRepo implements AuthRepo {
       throw new Error('登入失敗：無法取得使用者資料')
     }
 
-    // 從 staff 表取得詳細資料
-    const { data: staffData, error: staffError } = await supabase
+    // 從 staff 表取得詳細資料（若找不到，允許主帳號後備登入）
+    const lc = email.trim().toLowerCase()
+    const { data: staffData } = await supabase
       .from('staff')
       .select('*')
-      .eq('email', email.trim().toLowerCase())
-      .single()
+      .eq('email', lc)
+      .maybeSingle()
 
-    if (staffError || !staffData) {
+    // 主帳號後備名單（允許無 staff 記錄登入）
+    const PRIMARY: Record<string, { name: string; role: 'admin' | 'support' | 'technician' }> = {
+      'a90046766@gmail.com': { name: '洗濯', role: 'admin' },
+      'xiaofu888@yahoo.com.tw': { name: '洗小濯', role: 'support' },
+      'jason660628@yahoo.com.tw': { name: '楊小飛', role: 'technician' },
+    }
+
+    if (!staffData && !PRIMARY[lc]) {
       throw new Error('找不到對應的員工資料')
     }
+
+    const prof = staffData || PRIMARY[lc]
 
     this.currentUser = {
       id: data.user.id,
       email: data.user.email!,
-      name: staffData.name,
-      role: staffData.role,
-      phone: staffData.phone,
-      passwordSet: true // Supabase 用戶已設定密碼
+      name: (prof as any).name,
+      role: (prof as any).role,
+      phone: (prof as any).phone,
+      passwordSet: true
     }
 
     // 保存登入狀態

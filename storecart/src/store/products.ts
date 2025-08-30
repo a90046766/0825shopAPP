@@ -295,13 +295,26 @@ export const useProductsStore = create<ProductsState>()(
         const supabase = getSupabase()
         if (!supabase) return
 
-        // 載入分類
-        const { data: categories, error: categoriesError } = await supabase
-          .from('product_categories')
-          .select('*')
-          .order('sort_order', { ascending: true })
-        
-        if (categoriesError) throw categoriesError
+        // 預設分類（後備）
+        const PRESET = [
+          { id: 'svc', name: '專業清洗服務', sort_order: 0, active: true },
+          { id: 'new', name: '家電購買服務', sort_order: 1, active: true },
+          { id: 'used', name: '二手家電服務', sort_order: 2, active: true },
+          { id: 'home', name: '居家清潔/消毒服務', sort_order: 3, active: true },
+        ]
+
+        // 載入分類（若出錯則使用預設）
+        let categories: any[] = []
+        try {
+          const { data, error } = await supabase
+            .from('product_categories')
+            .select('id,name,sort_order,active')
+            .order('sort_order', { ascending: true })
+          if (error) throw error
+          categories = data || []
+        } catch {
+          categories = PRESET
+        }
 
         // 載入產品
         const { data: products, error: productsError } = await supabase
@@ -312,25 +325,30 @@ export const useProductsStore = create<ProductsState>()(
         if (productsError) throw productsError
 
         // 轉換資料格式
-        const formattedProducts: Product[] = (products || []).map(p => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          price: p.price,
-          originalPrice: p.original_price,
-          groupBuyPrice: p.group_buy_price,
-          category: p.category,
-          subcategory: p.subcategory,
-          image: p.image,
-          content: p.content,
-          region: p.region,
-          defaultQuantity: p.default_quantity,
-          safeStock: p.safe_stock,
-          currentStock: p.current_stock,
-          visible_in_cart: p.visible_in_cart,
-          created_at: p.created_at,
-          updated_at: p.updated_at,
-        }))
+        const formattedProducts: Product[] = (products || []).map((p: any) => {
+          const imageFromArray = Array.isArray(p.image_urls) && p.image_urls.length > 0 ? p.image_urls[0] : undefined
+          return {
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            // 我們的 schema 使用 unit_price/group_price；storecart 使用 price/groupBuyPrice
+            price: p.price ?? p.unit_price ?? 0,
+            originalPrice: p.original_price ?? undefined,
+            groupBuyPrice: p.group_buy_price ?? p.group_price ?? undefined,
+            // 分類：先用文字欄位，之後可依 category_id 對應名稱
+            category: p.category || '',
+            subcategory: p.subcategory,
+            image: p.image || imageFromArray,
+            content: p.content,
+            region: p.region,
+            defaultQuantity: p.default_quantity ?? p.defaultQuantity ?? 1,
+            safeStock: p.safe_stock ?? 0,
+            currentStock: p.current_stock ?? 999,
+            visible_in_cart: typeof p.visible_in_cart === 'boolean' ? p.visible_in_cart : true,
+            created_at: p.created_at ?? new Date().toISOString(),
+            updated_at: p.updated_at ?? new Date().toISOString(),
+          }
+        })
 
         set({ 
           products: formattedProducts,
