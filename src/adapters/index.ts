@@ -25,6 +25,7 @@ export async function loadAdapters() {
         const msg = '❌ Supabase 連線失敗' + (STRICT ? '（嚴格模式）' : '，回退至本地模式')
         console.warn(msg)
         if (STRICT) throw new Error('SUPABASE_CONNECTION_FAILED')
+        try { localStorage.setItem('adapter-mode', 'local') } catch {}
         return await import('./local/_exports')
       }
 
@@ -56,19 +57,21 @@ export async function loadAdapters() {
         } catch (techError) {
           console.warn('⚠️ 技師資料初始化失敗:', techError)
         }
-        
+        try { localStorage.setItem('adapter-mode', 'supabase') } catch {}
         console.log('✅ Supabase 模式初始化完成')
         return a
       } catch (error) {
         console.error('❌ Supabase 初始化失敗:', error)
         if (STRICT) throw error
         console.log('🔄 回退至本地模式...')
+        try { localStorage.setItem('adapter-mode', 'local') } catch {}
         return await import('./local/_exports')
       }
     } catch (error) {
       console.error('❌ Supabase adapter 載入失敗:', error)
       if (STRICT) throw error
       console.log('🔄 回退至本地模式...')
+      try { localStorage.setItem('adapter-mode', 'local') } catch {}
       return await import('./local/_exports')
     }
   }
@@ -76,6 +79,7 @@ export async function loadAdapters() {
   // 只有在明確設定 VITE_USE_SUPABASE=false 時才使用本地模式
   if (STRICT) throw new Error('STRICT_SUPABASE_ENABLED_NO_FALLBACK')
   console.log('💾 使用本地模式（僅在開發測試時使用）')
+  try { localStorage.setItem('adapter-mode', 'local') } catch {}
   return await import('./local/_exports')
 }
 
