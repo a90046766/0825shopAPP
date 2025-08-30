@@ -1,5 +1,4 @@
-import { orderRepo } from '../adapters/local/orders'
-import { technicianRepo } from '../adapters/local/technicians'
+import { loadAdapters } from '../adapters'
 import type { Technician } from '../core/repository'
 
 export interface TechnicianMonthlyPayroll {
@@ -25,13 +24,14 @@ function getMonthFromString(s?: string): string | null {
 }
 
 export async function computeMonthlyPayroll(month: string): Promise<TechnicianMonthlyPayroll[]> {
-  const allOrders = await orderRepo.list()
+  const a = await loadAdapters()
+  const allOrders = await a.orderRepo.list()
   const completedInMonth = allOrders.filter(o => {
     if (o.status !== 'completed') return false
     const m = getMonthFromString(o.workCompletedAt) || getMonthFromString(o.createdAt)
     return m === month
   })
-  const technicians = await technicianRepo.list()
+  const technicians = await a.technicianRepo.list()
   const emailToTech: Record<string, Technician> = {}
   const nameToTech: Record<string, Technician> = {}
   const codeToTech: Record<string, Technician> = {}
