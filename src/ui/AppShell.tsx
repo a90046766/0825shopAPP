@@ -33,9 +33,12 @@ function AppBar() {
         <span>{u?.name || ''}</span>
         {isTechnician && (
           <button 
-            onClick={() => {
-              authRepo.logout()
-              navigate('/login')
+            onClick={async () => {
+              try {
+                const a = await loadAdapters()
+                await a.authRepo.logout()
+                navigate('/login')
+              } catch {}
             }}
             className="rounded bg-white/20 px-2 py-1 text-white hover:bg-white/30"
           >
@@ -54,7 +57,7 @@ function TabBar() {
   const user = getCurrentUser()
 
   useEffect(() => {
-    const user = authRepo.getCurrentUser()
+    const user = getCurrentUser()
     if (!user) return
     notificationRepo.listForUser(user).then(({ unreadIds }) => {
       const count = Object.values(unreadIds).filter(Boolean).length
@@ -211,7 +214,7 @@ export default function AppShell() {
   useEffect(() => {
     const check = () => {
       try {
-        const user = authRepo.getCurrentUser()
+        const user = getCurrentUser()
         const ua = navigator.userAgent.toLowerCase()
         // 更嚴謹的行動裝置判斷：UA / UA-CH / coarse 指標
         // 並將視窗寬度門檻降到 600，避免桌面雙窗被誤攔
@@ -248,7 +251,7 @@ export default function AppShell() {
   }
 
   // 角色導向版型：技師保留行動版，其餘採用桌面左側選單
-  const user = authRepo.getCurrentUser()
+  const user = getCurrentUser()
   if (user?.role === 'technician') {
     // 技師：隱藏左側選單，保留上方 AppBar，移除底部 TabBar
     return (
@@ -269,8 +272,14 @@ export default function AppShell() {
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/80 px-4 py-3 backdrop-blur">
           <div className="text-base font-semibold text-gray-800">洗濯派工系統 <span className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[10px]">v1.1.2</span></div>
           <div className="flex items-center gap-3">
-            <div className="text-sm text-gray-700">{authRepo.getCurrentUser()?.name || ''}</div>
-            <button onClick={()=>{ authRepo.logout().then(()=>{ window.location.href='/login' }) }} className="rounded bg-gray-100 px-3 py-1 text-sm text-gray-700">登出</button>
+            <div className="text-sm text-gray-700">{getCurrentUser()?.name || ''}</div>
+            <button onClick={async ()=>{ 
+              try {
+                const a = await loadAdapters()
+                await a.authRepo.logout()
+                window.location.href='/login'
+              } catch {}
+            }} className="rounded bg-gray-100 px-3 py-1 text-sm text-gray-700">登出</button>
           </div>
         </div>
         <QuoteBar />
