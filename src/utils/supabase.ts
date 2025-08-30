@@ -8,7 +8,19 @@ if (!url || !key) {
   console.warn('Supabase 環境變數未設定，將使用本地模式')
 }
 
-export const supabase = createClient(url || 'https://dummy.supabase.co', key || 'dummy-key')
+// 強制帶上 apikey 與 Authorization，避免偶發遺失標頭導致 401/500
+export const supabase = createClient(url || 'https://dummy.supabase.co', key || 'dummy-key', {
+  auth: {
+    storageKey: 'sb-0825shopapp-auth',
+    autoRefreshToken: true,
+    persistSession: true
+  },
+  global: {
+    headers: key
+      ? { apikey: key, Authorization: `Bearer ${key}` }
+      : {}
+  }
+})
 
 // 健康檢查函數
 export const checkSupabaseConnection = async () => {

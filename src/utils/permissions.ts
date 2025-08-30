@@ -22,6 +22,7 @@ export type Permission =
   | 'reservations.manage'
   | 'reports.thread'
   | 'bulletin.manage'
+  | 'shop.manage'
 
 // 角色權限矩陣
 const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
@@ -63,11 +64,16 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
   ],
   sales: [
     'dashboard.view',
-    'customers.manage',
-    'promotions.manage', 'documents.manage', 'models.manage',
-    'notifications.read',
-    'schedule.view',
-    'reports.view'
+    // 訂單：允許建立「預約訂單」
+    'orders.create', 'reservations.manage',
+    // 庫存：可查看/購買
+    'inventory.manage', 'inventory.purchase',
+    // 排班：僅客服排班權限，不看技師班表
+    'support.schedule.view', 'support.schedule.edit', 'schedule.view',
+    // 回報與薪資
+    'reports.view', 'payroll.view',
+    // 檔案/機型/個人
+    'documents.manage', 'models.manage'
   ],
   technician: [
     'dashboard.view',

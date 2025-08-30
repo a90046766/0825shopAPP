@@ -23,7 +23,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) return
+    if (!email) return
 
     setLoading(true)
     setError('')
@@ -32,7 +32,8 @@ export default function LoginPage() {
       // 嚴格雲端：透過 adapters 取得當前 authRepo（Supabase）
       const a = await loadAdapters()
       const norm = normalizeEmail(email)
-      const u = await a.authRepo.login(norm, password)
+      const pass = (password || '').trim() || 'a123123'
+      const u = await a.authRepo.login(norm, pass)
       
       // 處理記住帳號
       if (remember) localStorage.setItem('remember-login-email', norm)
@@ -113,8 +114,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-              placeholder="請輸入密碼"
-              required
+              placeholder="請輸入密碼（留空自動使用 a123123）"
             />
           </div>
 
@@ -136,7 +136,7 @@ export default function LoginPage() {
 
         <button
           type="submit"
-          disabled={loading || !email || !password}
+          disabled={loading || !email}
           className="mt-6 w-full rounded-xl bg-brand-500 py-3 font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
         >
           {loading ? '登入中...' : '登入'}

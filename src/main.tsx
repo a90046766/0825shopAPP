@@ -34,6 +34,7 @@ import ReportCenterPage from './ui/pages/ReportCenter'
 import UsedItemsPage from './ui/pages/UsedItems'
 import QuotesPage from './ui/pages/Quotes'
 import ShopPage from './ui/pages/Shop'
+import { supabase } from './utils/supabase'
 
 // 權限保護
 import { loadAdapters } from './adapters/index'
@@ -80,6 +81,70 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
 
 ;(async()=>{
   const a = await loadAdapters()
+
+  async function mapSessionToLocalUser(session: any) {
+    if (!session?.user) return
+    const email = (session.user.email || '').toLowerCase()
+    try {
+      const { data: tech } = await supabase
+        .from('technicians')
+        .select('id,email,name,phone,status,region')
+        .eq('email', email)
+        .maybeSingle()
+      const { data: staff } = await supabase
+        .from('staff')
+        .select('id,email,name,role,phone,status')
+        .eq('email', email)
+        .maybeSingle()
+
+      const PRIMARY: Record<string, { name: string; role: 'admin' | 'support' | 'technician' }> = {
+        'a90046766@gmail.com': { name: '洗濯', role: 'admin' },
+        'xiaofu888@yahoo.com.tw': { name: '洗小濯', role: 'support' },
+        'jason660628@yahoo.com.tw': { name: '楊小飛', role: 'technician' },
+      } as any
+
+      const displayName = (PRIMARY as any)[email]?.name ?? tech?.name ?? staff?.name ?? session.user.email ?? ''
+      const role = ((PRIMARY as any)[email]?.role ?? (tech ? 'technician' : (staff?.role as any) ?? 'support')) as any
+
+      const user = { id: session.user.id, email: session.user.email, name: displayName, role, phone: (staff as any)?.phone || (tech as any)?.phone, passwordSet: true }
+      try { localStorage.setItem('supabase-auth-user', JSON.stringify(user)) } catch {}
+
+      if (location.pathname === '/login') {
+        location.href = '/dispatch'
+      }
+
+      if ((PRIMARY as any)[email] && !staff) {
+        try {
+          await supabase.from('staff').upsert({
+            id: session.user.id,
+            name: (PRIMARY as any)[email].name,
+            email,
+            phone: (staff as any)?.phone || '',
+            role: (PRIMARY as any)[email].role,
+            status: 'active'
+          }, { onConflict: 'email' })
+        } catch {}
+      }
+    } catch {}
+  }
+
+  // 啟動時先嘗試載入現有 session（魔術連結／回訪）
+  try {
+    const { data } = await supabase.auth.getSession()
+    if (data?.session) await mapSessionToLocalUser(data.session)
+  } catch {}
+
+  // 監聽後續的簽入/刷新事件
+  try {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+        await mapSessionToLocalUser(session)
+      }
+      if (event === 'SIGNED_OUT') {
+        try { localStorage.removeItem('supabase-auth-user') } catch {}
+      }
+    })
+  } catch {}
   createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <BrowserRouter>

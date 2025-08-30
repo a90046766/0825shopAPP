@@ -103,6 +103,11 @@ export default function QiuBao({ className = '', showVoice = false, onVoiceClick
 
 // 語音AI助手功能
 export function QiuBaoVoiceAssistant() {
+  return null
+}
+
+/*
+export function QiuBaoVoiceAssistant_Legacy() {
   const [isVisible, setIsVisible] = useState(false)
   const [messages, setMessages] = useState<string[]>([])
 
@@ -162,3 +167,4 @@ export function QiuBaoVoiceAssistant() {
     </>
   )
 }
+*/

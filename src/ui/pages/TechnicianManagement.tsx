@@ -1,18 +1,41 @@
 import { useEffect, useState } from 'react'
-import { technicianRepo } from '../../adapters/local/technicians'
-import { authRepo } from '../../adapters/local/auth'
+import { useEffect, useState } from 'react'
+import { loadAdapters } from '../../adapters'
+import { Navigate } from 'react-router-dom'
 import { Navigate } from 'react-router-dom'
 
 export default function TechnicianManagementPage() {
-  const user = authRepo.getCurrentUser()
+  const [user, setUser] = useState<any>(null)
+  const [repo, setRepo] = useState<any>(null)
   if (user && user.role==='technician') return <Navigate to="/dispatch" replace />
   const [rows, setRows] = useState<any[]>([])
   const [edit, setEdit] = useState<any | null>(null)
-  const load = async () => setRows(await technicianRepo.list())
-  useEffect(() => { load() }, [])
+  const [creating, setCreating] = useState(false)
+  const [createForm, setCreateForm] = useState<any>({ name:'', email:'', shortName:'', phone:'', region:'all', status:'active' })
+  useEffect(() => { (async()=>{ const a:any = await loadAdapters(); setRepo(a.technicianRepo); setUser(a.authRepo.getCurrentUser()) ; setRows(await a.technicianRepo.list()) })() }, [])
+  const load = async () => { if (!repo) return; setRows(await repo.list()) }
   return (
     <div className="space-y-3">
       <div className="text-lg font-semibold">技師管理</div>
+      <div className="flex items-center gap-2">
+        <button onClick={()=> setCreating(true)} className="rounded bg-gray-900 px-3 py-1 text-white text-sm">新增技師</button>
+        <button onClick={()=>{
+          const input = document.createElement('input');
+          input.type='file'; input.accept='.csv'; input.onchange=async(e:any)=>{
+            const f = e.target.files?.[0]; if(!f) return; const text = await f.text();
+            const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
+            const header = lines.shift()?.split(',').map(s=>s.trim().toLowerCase())||[]
+            const idx = (k:string)=> header.indexOf(k)
+            for (const line of lines) {
+              const cols = line.split(',')
+              const rec:any = { email: cols[idx('email')] || '', name: cols[idx('name')] || '', shortName: cols[idx('short_name')] || cols[idx('shortname')] || '', phone: cols[idx('phone')] || '', region: (cols[idx('region')]||'all').toLowerCase(), status: (cols[idx('status')]||'active').toLowerCase() }
+              const code = cols[idx('code')] || undefined
+              try { await repo.upsert({ ...rec, code } as any) } catch {}
+            }
+            await load(); alert('CSV 匯入完成')
+          }; input.click();
+        }} className="rounded bg-brand-500 px-3 py-1 text-white text-sm">匯入 CSV</button>
+      </div>
       {rows.map(t => (
         <div key={t.id} className="rounded-xl border p-4 shadow-card">
           <div className="flex items-center justify-between">
@@ -74,6 +97,52 @@ export default function TechnicianManagementPage() {
             <div className="mt-3 flex justify-end gap-2">
               <button onClick={()=>setEdit(null)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
               <button onClick={async()=>{ await technicianRepo.upsert(edit); setEdit(null); load() }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">儲存</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {creating && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-card">
+            <div className="mb-2 text-lg font-semibold">新增技師</div>
+            <div className="space-y-2 text-sm">
+              <div>姓名：<input className="w-full rounded border px-2 py-1" value={createForm.name} onChange={e=>setCreateForm({...createForm,name:e.target.value})} /></div>
+              <div>Email：<input className="w-full rounded border px-2 py-1" value={createForm.email} onChange={e=>setCreateForm({...createForm,email:e.target.value.trim().toLowerCase()})} /></div>
+              <div>簡稱：<input className="w-full rounded border px-2 py-1" value={createForm.shortName} onChange={e=>setCreateForm({...createForm,shortName:e.target.value})} /></div>
+              <div>電話：<input className="w-full rounded border px-2 py-1" value={createForm.phone} onChange={e=>setCreateForm({...createForm,phone:e.target.value})} /></div>
+              <div>
+                區域：
+                <select className="w-full rounded border px-2 py-1" value={createForm.region} onChange={e=>setCreateForm({...createForm,region:e.target.value})}>
+                  <option value="all">全區</option>
+                  <option value="north">北區</option>
+                  <option value="central">中區</option>
+                  <option value="south">南區</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <button onClick={()=>setCreating(false)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
+              <button onClick={async()=>{
+                if (!repo) return
+                if (!createForm.email || !createForm.name) { alert('請填姓名與 Email'); return }
+                try {
+                  await repo.upsert({
+                    name: createForm.name,
+                    shortName: createForm.shortName || undefined,
+                    email: createForm.email,
+                    phone: createForm.phone || undefined,
+                    region: createForm.region || 'all',
+                    status: 'active',
+                    skills: {},
+                    revenueShareScheme: undefined as any
+                  } as any)
+                  setCreating(false)
+                  setCreateForm({ name:'', email:'', shortName:'', phone:'', region:'all', status:'active' })
+                  await load()
+                } catch(e:any) {
+                  alert(e?.message || '建立失敗')
+                }
+              }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">建立</button>
             </div>
           </div>
         </div>

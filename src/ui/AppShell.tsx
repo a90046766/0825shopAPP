@@ -3,7 +3,6 @@ import { can } from '../utils/permissions'
 import { notificationRepo } from '../adapters/local/notifications'
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../adapters'
-import QiuBaoVoiceAssistant from './components/QiuBao'
 
 function getCurrentUser(): any {
   try {
@@ -98,7 +97,7 @@ function DesktopNav() {
     <Link to={to} className={`relative flex items-center justify-between rounded-lg px-3 py-2 text-sm ${active(to)} ${disabled ? 'pointer-events-none opacity-40' : ''}`}>
       <span className="truncate">{label}</span>
       {/* 只保留紅色數量徽章（包含通知/其他） */}
-      {badge && badge>0 && (
+      {typeof badge === 'number' && badge > 0 && (
         <span className="flex h-5 min-w-[1.25rem] px-1 items-center justify-center rounded-full bg-rose-500 text-xs font-medium text-white ml-2">
           {badge > 99 ? '99+' : badge}
         </span>
@@ -171,13 +170,14 @@ function DesktopNav() {
 
   const renderItem = (to: string, label: string, perm: any) => {
     const allowed = can(user, perm as any)
-    const badge = to==='/approvals' ? (counts.approvals||0)
+    const rawBadge = to==='/approvals' ? (counts.approvals||0)
       : to==='/orders' ? (counts.orders||0)
       : to==='/schedule' ? (counts.schedule||0)
       : to==='/reservations' ? (counts.reservations||0)
       : to==='/report-center' ? (counts.reports||0)
       : to==='/notifications' ? (unreadCount||0)
-      : 0
+      : undefined
+    const badge = rawBadge && rawBadge > 0 ? rawBadge : undefined
     return <Item key={to} to={to} label={label} badge={badge} disabled={!allowed} />
   }
 
@@ -287,8 +287,7 @@ export default function AppShell() {
           <Outlet />
         </div>
       </main>
-      {/* 球寶語音助手 */}
-      <QiuBaoVoiceAssistant />
+      {/* 球寶語音助手（關閉 AI 僅保留靜態形象，可視需求改為 <QiuBao className="bottom-20 right-20" />） */}
     </div>
   )
 }

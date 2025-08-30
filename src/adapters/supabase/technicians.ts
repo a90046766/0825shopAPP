@@ -49,7 +49,7 @@ class SupabaseTechnicianRepo implements TechnicianRepo {
     return (data || []).map(fromDb)
   }
 
-  async upsert(tech: Omit<Technician, 'id' | 'updatedAt' | 'code'> & { id?: string }): Promise<Technician> {
+  async upsert(tech: Omit<Technician, 'id' | 'updatedAt'> & { id?: string }): Promise<Technician> {
     const now = new Date().toISOString()
     if (tech.id) {
       // 保持 code 不變（不可變）
@@ -61,7 +61,7 @@ class SupabaseTechnicianRepo implements TechnicianRepo {
       if (error) throw error
       return fromDb(data)
     }
-    const code = await generateNextCode()
+    const code = (tech as any).code || await generateNextCode()
     const genId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? (crypto as any).randomUUID() : undefined
     const payload = { id: genId, ...toDb(tech), code, updated_at: now }
     const { data, error } = await supabase.from('technicians').insert(payload).select(TECH_COLUMNS).single()
@@ -93,6 +93,25 @@ class SupabaseTechnicianApplicationRepo implements TechnicianApplicationRepo {
     if (error) throw error
   }
   async approve(id: string): Promise<void> {
+    // 1) 讀取申請資料
+    const { data: app, error: ge } = await supabase.from('technician_applications').select('*').eq('id', id).maybeSingle()
+    if (ge) throw ge
+    if (!app) throw new Error('找不到申請資料')
+
+    // 2) 建立/啟用技師資料（自動配號 SRxxx）
+    const repo = new SupabaseTechnicianRepo()
+    await repo.upsert({
+      name: app.name,
+      shortName: app.short_name || undefined,
+      email: app.email,
+      phone: app.phone || undefined,
+      region: app.region || 'all',
+      status: 'active',
+      skills: {},
+      revenueShareScheme: undefined as any
+    } as any)
+
+    // 3) 標記通過
     const { error } = await supabase.from('technician_applications').update({ status: 'approved' }).eq('id', id)
     if (error) throw error
   }

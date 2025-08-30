@@ -109,6 +109,12 @@ export default function QiuBao({ className = '', showVoice = false, onVoiceClick
 
 // 智能語音AI助手功能
 export function QiuBaoVoiceAssistant() {
+  // 已停用 AI 互動邏輯，僅保留可選的靜態展示；若需重新開啟，將下方 early return 移除
+  return null
+}
+
+/* 以下為原 AI 版本，暫時關閉以縮短載入與避免語音互動
+export function QiuBaoVoiceAssistant_Legacy() {
   const [isVisible, setIsVisible] = useState(false)
   const [messages, setMessages] = useState<string[]>([])
   const [isListening, setIsListening] = useState(false)
@@ -356,3 +362,4 @@ export function QiuBaoVoiceAssistant() {
     </>
   )
 }
+*/
