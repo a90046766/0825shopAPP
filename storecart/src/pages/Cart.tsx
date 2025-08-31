@@ -200,22 +200,28 @@ export default function CartPage() {
                       {formatPrice(item.product.price)}
                     </span>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
-                        className="p-1 rounded-full hover:bg-gray-100"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <span className="w-8 text-center text-sm font-medium">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
-                        disabled={item.quantity >= item.product.currentStock}
-                        className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-50"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
+                      {item.product.modeCode === 'used' ? (
+                        <span className="px-2 py-1 text-xs rounded bg-rose-100 text-rose-700">唯一件 × 1</span>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
+                            className="p-1 rounded-full hover:bg-gray-100"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <span className="w-8 text-center text-sm font-medium">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
+                            disabled={item.quantity >= item.product.currentStock}
+                            className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-50"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-2">

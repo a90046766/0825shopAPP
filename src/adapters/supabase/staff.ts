@@ -12,6 +12,8 @@ function fromStaffRow(r: any): Staff {
     status: r.status,
     points: r.points ?? 0,
     refCode: r.ref_code || undefined,
+    // @ts-ignore
+    tempContact: r.temp_contact || undefined,
     updatedAt: r.updated_at || new Date().toISOString(),
   } as Staff
 }
@@ -20,6 +22,7 @@ function toStaffRow(p: Partial<Staff>): any {
   const r: any = { ...p }
   if ('shortName' in r) r.short_name = (r as any).shortName
   if ('refCode' in r) r.ref_code = (r as any).refCode
+  if ('tempContact' in r) r.temp_contact = (r as any).tempContact
   if ('updatedAt' in r) delete (r as any).updatedAt
   return r
 }
@@ -28,7 +31,7 @@ class SupabaseStaffRepo implements StaffRepo {
   async list(): Promise<Staff[]> {
     const { data, error } = await supabase
       .from('staff')
-      .select('id,name,short_name,email,phone,role,status,points,ref_code,updated_at')
+      .select('id,name,short_name,email,phone,role,status,points,ref_code,temp_contact,updated_at')
       .order('updated_at', { ascending: false })
     if (error) throw error
     return (data || []).map(fromStaffRow)

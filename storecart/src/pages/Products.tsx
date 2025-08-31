@@ -60,7 +60,11 @@ export default function ProductsPage() {
 
   const handleAddToCart = (product: any) => {
     addToCart(product)
-    toast.success(`已加入購物車：${product.name}`)
+    if (product.modeCode === 'used') {
+      toast.success(`已保留唯一件：${product.name}`)
+    } else {
+      toast.success(`已加入購物車：${product.name}`)
+    }
   }
 
   const formatPrice = (price: number) => {
@@ -209,6 +213,11 @@ export default function ProductsPage() {
                     團購
                   </div>
                 )}
+                {product.modeCode === 'used' && (
+                  <div className="absolute top-2 left-2 bg-rose-600 text-white text-xs px-2 py-1 rounded">
+                    唯一件
+                  </div>
+                )}
               </div>
 
               {/* 產品資訊 */}
@@ -265,7 +274,9 @@ export default function ProductsPage() {
 
                 {/* 庫存狀態 */}
                 <div className="text-sm text-gray-600">
-                  {product.currentStock > 0 ? (
+                  {product.modeCode === 'used' ? (
+                    <span className="text-rose-600">唯一件（先下單先得）</span>
+                  ) : product.currentStock > 0 ? (
                     <span className="text-green-600">
                       庫存：{product.currentStock} 件
                     </span>
@@ -277,14 +288,18 @@ export default function ProductsPage() {
                 {/* 加入購物車按鈕 */}
                 <button
                   onClick={() => handleAddToCart(product)}
-                  disabled={product.currentStock <= 0}
+                  disabled={product.modeCode !== 'used' && product.currentStock <= 0}
                   className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                    product.currentStock > 0
+                    product.modeCode === 'used' || product.currentStock > 0
                       ? 'bg-blue-500 text-white hover:bg-blue-600'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
-                  {product.currentStock > 0 ? '加入購物車' : '缺貨中'}
+                  {product.modeCode === 'used'
+                    ? '立即保留'
+                    : product.currentStock > 0
+                      ? '加入購物車'
+                      : '缺貨中'}
                 </button>
               </div>
             </div>

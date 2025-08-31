@@ -41,6 +41,15 @@ class SupabaseMemberRepo implements MemberRepo {
   async create(draft: Omit<Member, 'id' | 'updatedAt' | 'points' | 'code'>): Promise<Member> {
     const now = new Date().toISOString()
     const row: any = { ...draft, updated_at: now, points: 0 }
+    // 解析介紹人代碼以設定類型
+    if (row.referrerCode && !row.referrer_type) {
+      const code: string = String(row.referrerCode).toUpperCase()
+      if (code.startsWith('MO')) row.referrer_type = 'member'
+      else if (code.startsWith('SR')) row.referrer_type = 'technician'
+      else if (code.startsWith('SE')) row.referrer_type = 'sales'
+      row.referrer_code = code
+      delete row.referrerCode
+    }
     // 生成 MOxxxx
     row.code = `MO${String(Math.floor(Math.random()*9000)+1000)}`
     const { data, error } = await supabase.from('members').insert(row).select().single()

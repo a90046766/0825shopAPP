@@ -115,7 +115,6 @@ function DesktopNav() {
   { to: '/notifications', label: '通知中心', perm: 'notifications.read' },
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
   { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
-  { to: '/members', label: '會員管理', perm: 'customers.manage' },
   { to: '/approvals', label: '待審核', perm: 'admin' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
   { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
@@ -127,7 +126,9 @@ function DesktopNav() {
   const menuBottom = [
     { to: '/technicians', label: '技師管理', perm: 'technicians.manage' },
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
-    { to: '/reports', label: '報表', perm: 'reports.manage' }
+    { to: '/reports', label: '報表', perm: 'reports.manage' },
+    // 僅管理員可見
+    { to: '/members', label: '會員管理', perm: 'admin' }
   ]
 
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -287,7 +288,7 @@ export default function AppShell() {
           <Outlet />
         </div>
       </main>
-      {/* 球寶語音助手（關閉 AI 僅保留靜態形象，可視需求改為 <QiuBao className="bottom-20 right-20" />） */}
+      {/* 球寶已移除 */}
     </div>
   )
 }

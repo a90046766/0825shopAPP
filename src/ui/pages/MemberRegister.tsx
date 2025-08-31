@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { memberRepo } from '../../adapters/local/members'
+import { loadAdapters } from '../../adapters'
 
 export default function MemberRegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', refCode: '' })
@@ -11,7 +11,8 @@ export default function MemberRegisterPage() {
     e.preventDefault()
     setErr('')
     try {
-      const created = await memberRepo.create({ name: form.name, email: form.email || undefined, phone: form.phone || undefined, referrerCode: form.refCode || undefined })
+      const a = await loadAdapters()
+      const created = await a.memberRepo.create({ name: form.name, email: form.email || undefined, phone: form.phone || undefined, referrerCode: form.refCode || undefined } as any)
       setOk({ code: created.code })
     } catch (e: any) {
       setErr(e?.message || '註冊失敗')

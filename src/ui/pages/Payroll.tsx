@@ -3,6 +3,7 @@ import { Button, Card, Badge, Modal, Select, Input, Textarea } from '../kit'
 import { loadAdapters } from '../../adapters'
 import { can } from '../../utils/permissions'
 import { PayrollRecord, User } from '../../core/repository'
+import { computeMonthlyPayroll } from '../../services/payroll'
 
 export default function Payroll() {
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
@@ -10,6 +11,7 @@ export default function Payroll() {
   const [payrollRepo, setPayrollRepo] = useState<any>(null)
   const [staffRepo, setStaffRepo] = useState<any>(null)
   const [technicianRepo, setTechnicianRepo] = useState<any>(null)
+  const [orderRepo, setOrderRepo] = useState<any>(null)
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
   const [records, setRecords] = useState<PayrollRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -18,6 +20,13 @@ export default function Payroll() {
   const [showBulkEditModal, setShowBulkEditModal] = useState(false)
   const [editingRecord, setEditingRecord] = useState<PayrollRecord | null>(null)
   const [staffList, setStaffList] = useState<any[]>([])
+  const [techMonthlyMap, setTechMonthlyMap] = useState<Record<string, any>>({})
+  const [roleFilter, setRoleFilter] = useState<'all' | 'support' | 'sales' | 'technician'>('all')
+  const [search, setSearch] = useState('')
+  // 批次調整狀態
+  const [bulkRole, setBulkRole] = useState<'all' | 'support' | 'sales' | 'technician'>('support')
+  const [bulkField, setBulkField] = useState('bonus')
+  const [bulkAmount, setBulkAmount] = useState<string>('')
 
   useEffect(() => {
     if (!user || !can(user, 'payroll.view')) return
@@ -25,6 +34,7 @@ export default function Payroll() {
       setPayrollRepo(adapters.payrollRepo)
       setStaffRepo(adapters.staffRepo)
       setTechnicianRepo(adapters.technicianRepo)
+      setOrderRepo(adapters.orderRepo)
     })
   }, [user])
   
@@ -46,6 +56,15 @@ export default function Payroll() {
       const monthRecords = payrollData.filter((r: any) => r.month === month)
       setRecords(monthRecords)
       setStaffList([...staffData, ...techData])
+      // 技師本月分潤估算（僅用於顯示）
+      try {
+        const techMonthly = await computeMonthlyPayroll(month)
+        const map: Record<string, any> = {}
+        for (const row of techMonthly) {
+          map[row.technician.name] = row
+        }
+        setTechMonthlyMap(map)
+      } catch {}
     } catch (error) {
       console.error('載入薪資資料失敗:', error)
     } finally {
@@ -83,6 +102,75 @@ export default function Payroll() {
     }
   }
 
+  // 取得成員角色（support/sales/technician）
+  const getRoleOf = (s: any): 'support' | 'sales' | 'technician' => {
+    if (s?.role === 'support' || s?.role === 'sales') return s.role
+    // 無 role 欄位者視為技師（具有 region/code）
+    return 'technician'
+  }
+
+  const recordsWithRole = useMemo(() => {
+    const emailToRole: Record<string, 'support'|'sales'|'technician'> = {}
+    for (const s of staffList) emailToRole[s.email] = getRoleOf(s)
+    return records.map(r => ({ ...r, __role: emailToRole[r.userEmail] || 'technician' as const }))
+  }, [records, staffList])
+
+  const filteredRecords = useMemo(() => {
+    return recordsWithRole.filter(r => {
+      const hitRole = roleFilter === 'all' || r.__role === roleFilter
+      const hitQ = !search || r.userName?.toLowerCase?.().includes(search.toLowerCase()) || r.userEmail?.toLowerCase?.().includes(search.toLowerCase())
+      return hitRole && hitQ
+    })
+  }, [recordsWithRole, roleFilter, search])
+
+  const exportCSV = () => {
+    const headers = ['姓名','員編','Email','月份','底薪','獎金','積分','模式','油資','加班','節金','職務','請假','遲到','客訴','維修','平台','狀態','淨發']
+    const rows = filteredRecords.map(r => {
+      const calc = calculateSalary(r as PayrollRecord)
+      return [
+        r.userName, r.employeeId, r.userEmail, r.month,
+        r.baseSalary||0, r.bonus||0, r.points||0, r.pointsMode||'accumulate',
+        r.allowances?.fuel||0, r.allowances?.overtime||0, r.allowances?.holiday||0, r.allowances?.duty||0,
+        r.deductions?.leave||0, r.deductions?.tardiness||0, r.deductions?.complaints||0, r.deductions?.repairCost||0,
+        r.platform||'同', r.status||'pending', calc.net
+      ]
+    })
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `payroll_${month}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const applyBulk = async () => {
+    try {
+      const targets = recordsWithRole.filter(r => (bulkRole === 'all' ? true : r.__role === bulkRole))
+      const field = bulkField
+      const amountNum = Number(bulkAmount || 0)
+      const patches = targets.map(r => {
+        const patch: any = {}
+        if (field.includes('.')) {
+          const [grp, key] = field.split('.')
+          patch[grp] = { ...(r as any)[grp] || {}, [key]: amountNum }
+        } else {
+          patch[field] = amountNum
+        }
+        return { id: (r as any).id, patch }
+      })
+      await payrollRepo.bulkUpdate(patches)
+      setShowBulkEditModal(false)
+      setBulkAmount('')
+      await loadData()
+    } catch (e) {
+      console.error('批次更新失敗', e)
+    }
+  }
+
   const calculateSalary = (record: PayrollRecord) => {
     const base = record.baseSalary || 0
     const allowances = record.allowances || {}
@@ -113,6 +201,48 @@ export default function Payroll() {
       default:
         return '未設定'
     }
+  }
+
+  // 自動計算（依職位）
+  const autoCalc = async () => {
+    if (!editingRecord) return
+    const staff = staffList.find(s => s.email === editingRecord.userEmail)
+    if (!staff) return
+    const role = getRoleOf(staff)
+    // 技師：使用技師分潤估算
+    if (role === 'technician') {
+      const t = techMonthlyMap[staff.name]
+      if (t) {
+        setEditingRecord(r => ({
+          ...(r as PayrollRecord),
+          baseSalary: t.baseSalary || 0,
+          bonus: t.bonus || 0,
+        }))
+      }
+      return
+    }
+    // 業務：以 refCode 匹配本月訂單金額 × (bonusRate%)
+    if (role === 'sales') {
+      try {
+        const orders = await orderRepo.list()
+        const ym = month
+        const inMonth = orders.filter((o: any) => {
+          const d = o.workCompletedAt || o.createdAt
+          return (d || '').slice(0,7) === ym
+        })
+        const code: string = (staff.refCode || '').toUpperCase()
+        const mine = inMonth.filter((o: any) => (o.referrerCode || '').toUpperCase() === code)
+        const revenue = mine.reduce((sum: number, o: any) => sum + (o.serviceItems||[]).reduce((s: number, it: any)=> s + (it.unitPrice||0)*(it.quantity||0), 0), 0)
+        const rate = Number((editingRecord.bonusRate || 10)) / 100
+        const bonus = Math.round(revenue * rate)
+        setEditingRecord(r => ({
+          ...(r as PayrollRecord),
+          bonus
+        }))
+      } catch {}
+      return
+    }
+    // 客服：暫不自動計算，保留手動
   }
 
   const saveRecord = async (record: PayrollRecord) => {
@@ -146,44 +276,96 @@ export default function Payroll() {
     <div className="p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">薪資管理</h1>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
           <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-40" />
-          {can(user, 'admin') && (<Button onClick={() => setShowBulkEditModal(true)}>快速編輯</Button>)}
+          <Select value={roleFilter} onChange={(e)=>setRoleFilter(e.target.value as any)} className="w-36">
+            <option value="all">全部</option>
+            <option value="support">客服</option>
+            <option value="sales">業務</option>
+            <option value="technician">技師</option>
+          </Select>
+          <Input placeholder="搜尋姓名/Email" value={search} onChange={(e)=>setSearch(e.target.value)} className="w-48" />
+          {can(user, 'admin') && (
+            <>
+              <Button variant="outline" onClick={exportCSV}>匯出 CSV</Button>
+              <Button onClick={() => setShowBulkEditModal(true)}>快速編輯</Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* 客服薪資編輯 */}
+      {/* 管理者：三類人員入口（客服/業務/技師） */}
       {can(user, 'admin') && (
-        <Card>
-          <h2 className="text-lg font-semibold mb-4">客服薪資編輯</h2>
-          <div className="flex items-center space-x-4">
-            <Select
-              value={selectedStaff}
-              onChange={(e) => handleStaffSelect(e.target.value)}
-              className="w-64"
-            >
-              <option value="">選擇客服人員</option>
-              {staffList
-                .filter(s => s.role === 'support')
-                .map(staff => (
-                  <option key={staff.email} value={staff.email}>
-                    {staff.name} ({staff.email})
-                  </option>
-                ))
-              }
-            </Select>
-            <span className="text-sm text-gray-600">
-              選擇客服後可查看/編輯其薪資資料
-            </span>
-          </div>
-        </Card>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <h2 className="text-lg font-semibold mb-4">客服薪資編輯</h2>
+            <div className="flex items-center space-x-4">
+              <Select
+                value={selectedStaff}
+                onChange={(e) => handleStaffSelect(e.target.value)}
+                className="w-64"
+              >
+                <option value="">選擇客服人員</option>
+                {staffList
+                  .filter(s => getRoleOf(s) === 'support')
+                  .map(staff => (
+                    <option key={staff.email} value={staff.email}>
+                      {staff.name} ({staff.email})
+                    </option>
+                  ))
+                }
+              </Select>
+            </div>
+          </Card>
+          <Card>
+            <h2 className="text-lg font-semibold mb-4">業務薪資編輯</h2>
+            <div className="flex items-center space-x-4">
+              <Select
+                value={selectedStaff}
+                onChange={(e) => handleStaffSelect(e.target.value)}
+                className="w-64"
+              >
+                <option value="">選擇業務人員</option>
+                {staffList
+                  .filter(s => getRoleOf(s) === 'sales')
+                  .map(staff => (
+                    <option key={staff.email} value={staff.email}>
+                      {staff.name} ({staff.email})
+                    </option>
+                  ))
+                }
+              </Select>
+            </div>
+          </Card>
+          <Card>
+            <h2 className="text-lg font-semibold mb-4">技師薪資編輯</h2>
+            <div className="flex items-center space-x-4">
+              <Select
+                value={selectedStaff}
+                onChange={(e) => handleStaffSelect(e.target.value)}
+                className="w-64"
+              >
+                <option value="">選擇技師</option>
+                {staffList
+                  .filter(s => getRoleOf(s) === 'technician')
+                  .map(staff => (
+                    <option key={staff.email} value={staff.email}>
+                      {staff.name} ({staff.email})
+                    </option>
+                  ))
+                }
+              </Select>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* 薪資記錄列表 */}
       <div className="space-y-4">
-        {records.map((record) => {
+        {filteredRecords.map((record) => {
           const calc = calculateSalary(record)
           const issuanceDate = getIssuanceDate(record.month, record.platform || '同')
+          const techCalc = techMonthlyMap[record.userName]
           
           return (
             <Card key={record.id}>
@@ -214,6 +396,17 @@ export default function Payroll() {
                       <div className="text-gray-600">發放日: {issuanceDate}</div>
                     </div>
                   </div>
+
+                  {/* 技師分潤估算（僅顯示） */}
+                  {techCalc && (
+                    <div className="mt-3 rounded border bg-gray-50 p-3 text-xs text-gray-700">
+                      <div className="font-medium text-gray-900 mb-1">技師分潤估算（{month}）</div>
+                      <div>方案：{techCalc.scheme}</div>
+                      <div>本月服務額（平均分攤後）：${techCalc.perTechTotal}</div>
+                      <div>保底：{String(techCalc.scheme).startsWith('base') ? '40000' : '無'}</div>
+                      <div>估算應發：${techCalc.total}</div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="text-right">
@@ -455,6 +648,9 @@ export default function Payroll() {
             <div className="flex justify-end space-x-2">
               <Button variant="outline" onClick={() => setShowEditModal(false)}>
                 取消
+              </Button>
+              <Button variant="outline" onClick={autoCalc}>
+                自動計算
               </Button>
               <Button onClick={confirmSave}>
                 確認儲存

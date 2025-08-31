@@ -17,6 +17,8 @@ export interface Product {
   safeStock: number
   currentStock: number
   visible_in_cart: boolean
+  // 銷售模式：svc(服務)/home(居家)/new(新品)/used(二手)
+  modeCode?: 'svc' | 'home' | 'new' | 'used'
   created_at: string
   updated_at: string
 }
@@ -86,25 +88,24 @@ export const useProductsStore = create<ProductsState>()(
           const { getSupabase } = await import('../lib/supabase')
           const supabase = getSupabase()
           if (supabase) {
-            const { error } = await supabase.from('products').insert({
+            const insertRow: any = {
               id: product.id,
               name: product.name,
               description: product.description,
-              price: product.price,
-              original_price: product.originalPrice,
-              group_buy_price: product.groupBuyPrice,
+              // DB 欄位：unit_price / group_price
+              unit_price: product.price,
+              group_price: product.groupBuyPrice,
               category: product.category,
-              subcategory: product.subcategory,
-              image: product.image,
               content: product.content,
               region: product.region,
               default_quantity: product.defaultQuantity,
               safe_stock: product.safeStock,
-              current_stock: product.currentStock,
               visible_in_cart: product.visible_in_cart,
-              created_at: product.created_at,
+              mode_code: product.modeCode,
               updated_at: product.updated_at,
-            })
+            }
+            if (product.image) insertRow.image_urls = [product.image]
+            const { error } = await supabase.from('products').insert(insertRow)
             if (error) throw error
           }
         } catch (error) {
@@ -131,25 +132,24 @@ export const useProductsStore = create<ProductsState>()(
           const { getSupabase } = await import('../lib/supabase')
           const supabase = getSupabase()
           if (supabase) {
+            const updateRow: any = {
+              name: (updatedProduct as any).name,
+              description: (updatedProduct as any).description,
+              unit_price: (updatedProduct as any).price,
+              group_price: (updatedProduct as any).groupBuyPrice,
+              category: (updatedProduct as any).category,
+              content: (updatedProduct as any).content,
+              region: (updatedProduct as any).region,
+              default_quantity: (updatedProduct as any).defaultQuantity,
+              safe_stock: (updatedProduct as any).safeStock,
+              visible_in_cart: (updatedProduct as any).visible_in_cart,
+              mode_code: (updatedProduct as any).modeCode,
+              updated_at: (updatedProduct as any).updated_at,
+            }
+            if ((updatedProduct as any).image) updateRow.image_urls = [(updatedProduct as any).image]
             const { error } = await supabase
               .from('products')
-              .update({
-                name: updatedProduct.name,
-                description: updatedProduct.description,
-                price: updatedProduct.price,
-                original_price: updatedProduct.originalPrice,
-                group_buy_price: updatedProduct.groupBuyPrice,
-                category: updatedProduct.category,
-                subcategory: updatedProduct.subcategory,
-                image: updatedProduct.image,
-                content: updatedProduct.content,
-                region: updatedProduct.region,
-                default_quantity: updatedProduct.defaultQuantity,
-                safe_stock: updatedProduct.safeStock,
-                current_stock: updatedProduct.currentStock,
-                visible_in_cart: updatedProduct.visible_in_cart,
-                updated_at: updatedProduct.updated_at,
-              })
+              .update(updateRow)
               .eq('id', id)
             if (error) throw error
           }
@@ -320,7 +320,7 @@ export const useProductsStore = create<ProductsState>()(
         const { data: products, error: productsError } = await supabase
           .from('products')
           .select('*')
-          .order('created_at', { ascending: false })
+          .order('updated_at', { ascending: false })
         
         if (productsError) throw productsError
 
@@ -345,6 +345,7 @@ export const useProductsStore = create<ProductsState>()(
             safeStock: p.safe_stock ?? 0,
             currentStock: p.current_stock ?? 999,
             visible_in_cart: typeof p.visible_in_cart === 'boolean' ? p.visible_in_cart : true,
+            modeCode: p.mode_code ?? undefined,
             created_at: p.created_at ?? new Date().toISOString(),
             updated_at: p.updated_at ?? new Date().toISOString(),
           }

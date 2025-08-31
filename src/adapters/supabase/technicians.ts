@@ -15,14 +15,17 @@ function fromDb(row: any): Technician {
     points: r.points ?? 0,
     revenueShareScheme: r.revenue_share_scheme || r.revenueShareScheme,
     skills: r.skills || {},
+    // @ts-ignore
+    tempContact: r.temp_contact || undefined,
     updatedAt: r.updated_at || new Date().toISOString(),
   }
 }
 
 function toDb(patch: Partial<Technician>): any {
   const r: any = { ...patch }
-  if ('shortName' in r) r.short_name = (r as any).shortName
-  if ('revenueShareScheme' in r) r.revenue_share_scheme = (r as any).revenueShareScheme
+  if ('shortName' in r) { r.short_name = (r as any).shortName; delete (r as any).shortName }
+  if ('revenueShareScheme' in r) { r.revenue_share_scheme = (r as any).revenueShareScheme; delete (r as any).revenueShareScheme }
+  if ('tempContact' in r) { r.temp_contact = (r as any).tempContact }
   if ('updatedAt' in r) delete (r as any).updatedAt
   return r
 }
@@ -37,7 +40,7 @@ async function generateNextCode(): Promise<string> {
   return `SR${next}`
 }
 
-const TECH_COLUMNS = 'id,code,name,short_name,email,phone,region,status,points,revenue_share_scheme,skills,updated_at'
+const TECH_COLUMNS = 'id,code,name,short_name,email,phone,region,status,points,revenue_share_scheme,skills,temp_contact,updated_at'
 
 class SupabaseTechnicianRepo implements TechnicianRepo {
   async list(): Promise<Technician[]> {
@@ -62,8 +65,8 @@ class SupabaseTechnicianRepo implements TechnicianRepo {
       return fromDb(data)
     }
     const code = (tech as any).code || await generateNextCode()
-    const genId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? (crypto as any).randomUUID() : undefined
-    const payload = { id: genId, ...toDb(tech), code, updated_at: now }
+    // 重要：不要明傳 id，讓資料庫使用 default gen_random_uuid()
+    const payload = { ...toDb(tech), code, updated_at: now } as any
     const { data, error } = await supabase.from('technicians').insert(payload).select(TECH_COLUMNS).single()
     if (error) throw error
     return fromDb(data)
