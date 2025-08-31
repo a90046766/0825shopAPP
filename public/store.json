@@ -1,0 +1,52 @@
+{
+  "categories": [
+    { "id": "cat-svc",  "name": "專業清洗服務",       "sortOrder": 1, "active": true },
+    { "id": "cat-home", "name": "居家清潔/消毒服務",   "sortOrder": 2, "active": true },
+    { "id": "cat-new",  "name": "家電購買服務",       "sortOrder": 3, "active": true },
+    { "id": "cat-used", "name": "二手家電服務",       "sortOrder": 4, "active": true }
+  ],
+  "items": [
+    {
+      "id": "demo-1",
+      "name": "分離式冷氣清洗",
+      "description": "室內外機標準清洗，含濾網、蒸發器、冷凝器",
+      "unitPrice": 1800,
+      "imageUrls": [],
+      "categoryId": "cat-svc",
+      "published": true,
+      "storeSort": 1
+    },
+    {
+      "id": "demo-2",
+      "name": "滾筒洗衣機清洗",
+      "description": "深度拆洗保養，去除污垢與異味",
+      "unitPrice": 1999,
+      "imageUrls": [],
+      "categoryId": "cat-svc",
+      "published": true,
+      "storeSort": 2
+    },
+    {
+      "id": "demo-3",
+      "name": "居家環境消毒",
+      "description": "全室消毒服務，守護家人健康",
+      "unitPrice": 2500,
+      "imageUrls": [],
+      "categoryId": "cat-home",
+      "published": true,
+      "storeSort": 1
+    },
+    {
+      "id": "demo-4",
+      "name": "二手除濕機",
+      "description": "整備良好，一件一售，先下單先得",
+      "unitPrice": 3200,
+      "imageUrls": [],
+      "categoryId": "cat-used",
+      "published": true,
+      "storeSort": 1
+    }
+  ]
+}
+
+
