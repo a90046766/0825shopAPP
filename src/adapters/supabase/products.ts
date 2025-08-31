@@ -14,6 +14,8 @@ function toDbRow(input: Partial<Product>): any {
     categoryId: 'category_id',
     defaultQuantity: 'defaultquantity',
     soldCount: 'sold_count',
+    published: 'published',
+    storeSort: 'store_sort',
   }
   for (const [camel, snake] of Object.entries(map)) {
     if (camel in r) r[snake] = (r as any)[camel]
@@ -44,13 +46,21 @@ function fromDbRow(row: any): Product {
     defaultQuantity: r.defaultquantity ?? 1,
     // @ts-ignore
     soldCount: r.sold_count ?? 0,
+    // @ts-ignore
+    published: typeof r.published === 'boolean' ? r.published : (r.published === 1 ? true : (r.published === 0 ? false : undefined)),
+    // @ts-ignore
+    storeSort: r.store_sort ?? r.storeSort,
     updatedAt: r.updated_at ?? new Date().toISOString(),
   }
 }
 
 class SupabaseProductRepo implements ProductRepo {
   async list(): Promise<Product[]> {
-    const { data, error } = await supabase.from('products').select('*').order('updated_at', { ascending: false })
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('store_sort', { ascending: true, nullsFirst: false })
+      .order('updated_at', { ascending: false })
     if (error) throw error
     return (data || []).map(fromDbRow)
   }

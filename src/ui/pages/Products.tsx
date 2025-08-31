@@ -42,16 +42,18 @@ export default function ProductsPage() {
             imageUrls:[], 
             safeStock:0, 
             category:'',
-            defaultQuantity: 1
+            defaultQuantity: 1,
+            published: true,
+            storeSort: 0
           })} className="rounded-lg bg-brand-500 px-3 py-1 text-white">新增</button>
           {rows.length===0 && (
             <button onClick={async()=>{
               if(!repos) return
               try {
-                await repos.productRepo.upsert({ id:'', name:'分離式冷氣清洗', unitPrice:1800, groupPrice:1600, groupMinQty:2, description:'室內外機標準清洗，包含濾網、蒸發器、冷凝器清潔', content: '專業冷氣清洗服務，適用於各種分離式冷氣機型', region: '全台', imageUrls:[], safeStock:20, defaultQuantity: 1 })
-                await repos.productRepo.upsert({ id:'', name:'洗衣機清洗（滾筒）', unitPrice:1999, groupPrice:1799, groupMinQty:2, description:'滾筒式洗衣機拆洗保養，包含內筒、外筒、管路清潔', content: '深度清洗滾筒洗衣機，去除污垢和異味', region: '全台', imageUrls:[], safeStock:20, defaultQuantity: 1 })
-                await repos.productRepo.upsert({ id:'', name:'倒T型抽油煙機清洗', unitPrice:2200, groupPrice:2000, groupMinQty:2, description:'不鏽鋼倒T型抽油煙機，包含內部機械清洗', content: '專業抽油煙機清洗，確保廚房空氣品質', region: '全台', imageUrls:[], safeStock:20, defaultQuantity: 1 })
-                await repos.productRepo.upsert({ id:'', name:'傳統雙渦輪抽油煙機清洗', unitPrice:1800, groupPrice:1600, groupMinQty:2, description:'傳統型雙渦輪抽油煙機清洗保養', content: '傳統抽油煙機專業清洗服務', region: '全台', imageUrls:[], safeStock:20, defaultQuantity: 1 })
+                await repos.productRepo.upsert({ id:'', name:'分離式冷氣清洗', unitPrice:1800, groupPrice:1600, groupMinQty:2, description:'室內外機標準清洗，包含濾網、蒸發器、冷凝器清潔', content: '專業冷氣清洗服務，適用於各種分離式冷氣機型', region: '全台', imageUrls:[], safeStock:20, defaultQuantity: 1, published: true, storeSort: 1 })
+                await repos.productRepo.upsert({ id:'', name:'洗衣機清洗（滾筒）', unitPrice:1999, groupPrice:1799, groupMinQty:2, description:'滾筒式洗衣機拆洗保養，包含內筒、外筒、管路清潔', content: '深度清洗滾筒洗衣機，去除污垢和異味', region: '全台', imageUrls:[], safeStock:20, defaultQuantity: 1, published: true, storeSort: 2 })
+                await repos.productRepo.upsert({ id:'', name:'倒T型抽油煙機清洗', unitPrice:2200, groupPrice:2000, groupMinQty:2, description:'不鏽鋼倒T型抽油煙機，包含內部機械清洗', content: '專業抽油煙機清洗，確保廚房空氣品質', region: '全台', imageUrls:[], safeStock:20, defaultQuantity: 1, published: true, storeSort: 3 })
+                await repos.productRepo.upsert({ id:'', name:'傳統雙渦輪抽油煙機清洗', unitPrice:1800, groupPrice:1600, groupMinQty:2, description:'傳統型雙渦輪抽油煙機清洗保養', content: '傳統抽油煙機專業清洗服務', region: '全台', imageUrls:[], safeStock:20, defaultQuantity: 1, published: true, storeSort: 4 })
                 await load()
                 alert('預設產品已建立')
               } catch(e:any){ alert(e?.message||'建立失敗') }
@@ -85,6 +87,8 @@ export default function ProductsPage() {
                     imageUrls: [],
                     safeStock: row.safeStock? Number(row.safeStock): undefined,
                     defaultQuantity: row.defaultQuantity? Number(row.defaultQuantity): 1,
+                    published: typeof row.published==='string' ? (/^(1|true|yes|y)$/i.test(row.published)) : !!row.published,
+                    storeSort: row.storeSort? Number(row.storeSort): undefined,
                   } as any)
                 } catch {}
               }
@@ -188,6 +192,8 @@ export default function ProductsPage() {
               </div>
               <div>名稱：<input className="w-full rounded border px-2 py-1" value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})} /></div>
               <div>單價：<input type="number" className="w-full rounded border px-2 py-1" value={edit.unitPrice} onChange={e=>setEdit({...edit,unitPrice:Number(e.target.value)})} /></div>
+              <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!edit.published} onChange={e=>setEdit({...edit,published:e.target.checked})} />上架（顯示於購物車）</label>
+              <div>排序：<input type="number" className="w-full rounded border px-2 py-1" value={edit.storeSort||0} onChange={e=>setEdit({...edit,storeSort:Number(e.target.value)||0})} /></div>
               <div>內容：<textarea className="w-full rounded border px-2 py-1" rows={3} value={edit.content || ''} onChange={e=>setEdit({...edit,content:e.target.value})} placeholder="產品詳細內容描述..." /></div>
               <div>地區：<input className="w-full rounded border px-2 py-1" value={edit.region || ''} onChange={e=>setEdit({...edit,region:e.target.value})} placeholder="服務地區..." /></div>
               <div>預設數量：<input type="number" className="w-full rounded border px-2 py-1" value={edit.defaultQuantity||1} onChange={e=>setEdit({...edit,defaultQuantity:Math.max(1, Number(e.target.value)||1)})} /></div>

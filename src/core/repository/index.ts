@@ -133,6 +133,10 @@ export interface Product {
   defaultQuantity?: number
   // 已售出數（供展示）
   soldCount?: number
+  // 是否上架到購物車
+  published?: boolean
+  // 商店顯示排序（數字越小越前面）
+  storeSort?: number
   // 產品內容描述
   content?: string
   // 服務地區

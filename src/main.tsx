@@ -156,6 +156,8 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         <Route path="/apply/staff" element={<StaffApplyPage />} />
         <Route path="/apply/member" element={<MemberApplyPage />} />
         <Route path="/register/member" element={<MemberRegisterPage />} />
+        {/* 對外購物車入口（公開） */}
+        <Route path="/store" element={<ShopPage />} />
         
         {/* 私有路由 */}
         <Route path="/" element={<Navigate to="/dispatch" replace />} />
