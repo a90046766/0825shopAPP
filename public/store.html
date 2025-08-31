@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>購物站 - 0825shopAPP</title>
+  <style>
+    :root { --brand:#7c3aed; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background:#F5F7FB; color:#111827 }
+    .container{ max-width: 1080px; margin: 0 auto; padding: 16px }
+    .title{ font-size:20px; font-weight:700; margin: 12px 0 }
+    .grid{ display:grid; gap:12px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    .card{ background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow: 0 2px 8px rgba(0,0,0,.04) }
+    .img{ width:100%; height:160px; object-fit: cover; background:#fafafa }
+    .pad{ padding:12px }
+    .name{ font-weight:700; font-size:15px; margin-bottom:6px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden }
+    .desc{ font-size:13px; color:#6b7280; height:38px; overflow:hidden }
+    .row{ display:flex; align-items:center; justify-content:space-between; margin-top:8px }
+    .price{ color: var(--brand); font-weight:700 }
+    .btn{ background: var(--brand); color:#fff; border:none; padding:6px 10px; border-radius:8px; cursor:pointer }
+    header{ position:sticky; top:0; z-index:10; background: var(--brand); color:#fff; padding:10px 0; box-shadow:0 2px 10px rgba(0,0,0,.08) }
+    header .container{ display:flex; align-items:center; justify-content:space-between }
+    header .brand{ font-weight:800 }
+    .note{ background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:10px; font-size:13px; color:#6b7280; margin:12px 0 }
+  </style>
+  <script>
+    async function main(){
+      const $cats = document.getElementById('cats')
+      const $root = document.getElementById('root')
+      try {
+        const res = await fetch('/store.json', { cache: 'no-store' })
+        const data = await res.json()
+        const cats = (data.categories||[]).filter(c=>c.active!==false).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0))
+        const items = (data.items||[]).filter(i=>i.published!==false)
+        // 類別標籤
+        $cats.innerHTML = cats.map(c=>`<span style="display:inline-block;margin-right:8px;padding:4px 8px;border-radius:9999px;background:#EEF2FF;color:#3730A3;font-size:12px;">${c.name}</span>`).join('')
+        // 逐類別渲染
+        const byCat = {}
+        for (const c of cats) byCat[c.id] = []
+        for (const p of items) { (byCat[p.categoryId] = byCat[p.categoryId]||[]).push(p) }
+        const sections = []
+        for (const c of cats){
+          const list = (byCat[c.id]||[]).sort((a,b)=>(a.storeSort||9999)-(b.storeSort||9999))
+          if (list.length===0) continue
+          sections.push(`<div class="title">${c.name}</div>`)
+          sections.push('<div class="grid">'+ list.map(p=>
+            `<div class="card">
+              ${p.imageUrls&&p.imageUrls[0]?`<img class="img" src="${p.imageUrls[0]}"/>`:`<div class="img"></div>`}
+              <div class="pad">
+                <div class="name">${p.name||''}</div>
+                <div class="desc">${p.description||''}</div>
+                <div class="row">
+                  <div class="price">$${p.unitPrice||0}</div>
+                  <button class="btn" onclick="alert('已加入：${p.name||''}')">加入</button>
+                </div>
+              </div>
+            </div>`
+          ).join('') + '</div>')
+        }
+        $root.innerHTML = sections.join('') || '<div class="note">目前沒有可顯示的商品，請稍後再試。</div>'
+      } catch (e){
+        $root.innerHTML = '<div class="note">載入失敗，請稍後再試。</div>'
+      }
+    }
+    addEventListener('DOMContentLoaded', main)
+  </script>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="brand">0825shopAPP 購物站（靜態備援）</div>
+      <div style="font-size:12px;opacity:.9">本頁不連雲端，資料來自 /store.json</div>
+    </div>
+  </header>
+  <div class="container">
+    <div id="cats" style="margin:12px 0 6px"></div>
+    <div id="root" class="root"></div>
+  </div>
+</body>
+</html>
+
+
