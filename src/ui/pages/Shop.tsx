@@ -189,6 +189,60 @@ export default function ShopPage() {
 
   return (
     <div className="space-y-6">
+      {/* 品牌條 */}
+      <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-card">
+        <div className="text-base font-extrabold tracking-wide text-gray-900">日式洗濯 0825 購物站</div>
+        <div className="text-xs text-gray-500">線上預約 · 官方直營 · 透明價格</div>
+      </div>
+
+      {/* Hero 區 */}
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-500 to-brand-400 p-6 text-white shadow-card">
+        <div className="relative z-10">
+          <h1 className="text-2xl font-extrabold tracking-tight">日式洗濯．專業到你家</h1>
+          <p className="mt-2 max-w-2xl text-sm text-white/90">冷氣洗濯・居家清潔・家電購買・二手服務｜線上預約、透明價格、服務保固、照片存證、雙簽名結案。</p>
+          <div className="mt-4 flex flex-wrap gap-2 text-sm">
+            <a href="#svc" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">專業清洗服務</a>
+            <a href="#home" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">居家清潔</a>
+            <a href="#new" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">家電購買</a>
+            <a href="#used" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">二手服務</a>
+          </div>
+        </div>
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+      </section>
+
+      {/* 首頁橫幅（水平捲動） */}
+      <section aria-label="首頁橫幅">
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
+          {[
+            { k:'b1', title:'日式洗濯｜冷氣深層清洗', sub:'高壓深洗・藥水防護・完整覆蓋保護', href:'#svc', cls:'from-emerald-500 to-teal-500' },
+            { k:'b2', title:'居家清潔｜安心到家', sub:'裝修後/定期清潔・到府服務', href:'#home', cls:'from-sky-500 to-cyan-500' },
+            { k:'b3', title:'家電購買｜嚴選品牌', sub:'到府安裝・原廠保固', href:'#new', cls:'from-amber-500 to-orange-500' },
+            { k:'b4', title:'二手家電｜嚴修認證', sub:'唯一件・來源透明・功能保固', href:'#used', cls:'from-rose-500 to-pink-500' },
+          ].map(b => (
+            <a key={b.k} href={b.href} className={`min-w-[280px] flex-1 snap-start rounded-2xl bg-gradient-to-r ${b.cls} p-4 text-white shadow-card`}> 
+              <div className="text-lg font-extrabold">{b.title}</div>
+              <div className="mt-1 text-sm text-white/90">{b.sub}</div>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      {/* 四大服務導覽（錨點） */}
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[
+          { id:'svc', name:'專業清洗服務', desc:'冷氣/洗衣機/油煙機', icon:'🧼' },
+          { id:'home', name:'居家清潔', desc:'居家/裝修後/消毒', icon:'🏠' },
+          { id:'new', name:'家電購買', desc:'嚴選品牌/到府安裝', icon:'🛒' },
+          { id:'used', name:'二手服務', desc:'檢修/收購/唯一件', icon:'♻️' },
+        ].map(s => (
+          <a key={s.id} href={`#${s.id}`} className="rounded-2xl border bg-white p-4 shadow-card hover:shadow-lg transition-shadow">
+            <div className="text-2xl">{s.icon}</div>
+            <div className="mt-1 font-semibold text-gray-900">{s.name}</div>
+            <div className="text-xs text-gray-600">{s.desc}</div>
+          </a>
+        ))}
+      </section>
+
       <div className="flex items-center justify-between">
         <div />
         <div className="flex items-center gap-2">
@@ -205,7 +259,7 @@ export default function ShopPage() {
         const list = byCategory.map[catId] || []
         if (list.length === 0) return null
         return (
-          <section key={catId}>
+          <section key={catId} id={(cat?.name||'').includes('清洗')?'svc':(cat?.name||'').includes('居家')?'home':(cat?.name||'').includes('二手')?'used':(cat?.name||'').includes('購買')?'new':undefined}>
             <h2 className="mb-2 text-lg font-semibold">{cat?.name || '未分類'}</h2>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {list.map(p => (
@@ -217,7 +271,7 @@ export default function ShopPage() {
                     <div className="truncate text-base font-semibold">{p.name}</div>
                     {p.description && <div className="line-clamp-2 text-sm text-gray-600">{p.description}</div>}
                     <div className="flex items-center justify-between">
-                      <div className="text-brand-600 font-semibold">${p.unitPrice}</div>
+                      <div className="font-semibold text-brand-600">${p.unitPrice}</div>
                       <div className="flex items-center gap-2">
                         {p.modeCode === 'used' && (
                           <span className="rounded bg-rose-100 px-2 py-0.5 text-xs text-rose-700">唯一件</span>
@@ -245,7 +299,7 @@ export default function ShopPage() {
                               <input className="rounded border px-2 py-1 text-sm" type="number" value={draft.storeSort as any || 0} onChange={e=>setDraft(d=>({...d, storeSort: Number(e.target.value||0)}))} placeholder="排序" />
                             </div>
                             <label className="flex items-center gap-2 text-xs text-gray-600">
-                              <input type="checkbox" checked={!!draft.published} onChange={e=>setDraft(d=>({...d, published: e.target.checked}))} /> 上架到購物站
+                              <input type="checkbox" checked={!!draft.published} onChange={e=>setDraft(d=>({...d, published:e.target.checked}))} /> 上架到購物站
                             </label>
                             <div className="flex items-center gap-2">
                               <button onClick={saveEdit} className="rounded bg-emerald-600 px-3 py-1 text-white text-sm">儲存</button>
@@ -266,6 +320,7 @@ export default function ShopPage() {
           </section>
         )
       })}
+
       {/* 其他未分類 */}
       {(() => {
         const others = byCategory.map['__other__'] || []
@@ -283,7 +338,7 @@ export default function ShopPage() {
                     <div className="truncate text-base font-semibold">{p.name}</div>
                     {p.description && <div className="line-clamp-2 text-sm text-gray-600">{p.description}</div>}
                     <div className="flex items-center justify-between">
-                      <div className="text-brand-600 font-semibold">${p.unitPrice}</div>
+                      <div className="font-semibold text-brand-600">${p.unitPrice}</div>
                       <button onClick={()=>addToCart(p)} className="rounded bg-brand-500 px-3 py-1 text-white">加入</button>
                     </div>
                   </div>
@@ -293,6 +348,16 @@ export default function ShopPage() {
           </section>
         )
       })()}
+
+      {/* 聯繫我們 */}
+      <section className="rounded-2xl border bg-white p-4 shadow-card">
+        <h2 className="mb-2 text-lg font-semibold">聯繫我們</h2>
+        <div className="grid gap-2 text-sm md:grid-cols-3">
+          <a href="tel:0912345678" className="rounded-lg bg-gray-100 px-3 py-2">電話：0912-345-678</a>
+          <a href="mailto:service@example.com" className="rounded-lg bg-gray-100 px-3 py-2">Email：service@example.com</a>
+          <a href="https://line.me/R/ti/p/@yourline" target="_blank" rel="noreferrer" className="rounded-lg bg-gray-100 px-3 py-2">LINE：@yourline</a>
+        </div>
+      </section>
 
       {/* 購物車抽屜 */}
       {cartOpen && (

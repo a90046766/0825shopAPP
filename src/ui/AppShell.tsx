@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { can } from '../utils/permissions'
-import { notificationRepo } from '../adapters/local/notifications'
+// 通知改為透過 adapters 取得雲端 repository
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../adapters'
 
@@ -58,10 +58,14 @@ function TabBar() {
   useEffect(() => {
     const user = getCurrentUser()
     if (!user) return
-    notificationRepo.listForUser(user).then(({ unreadIds }) => {
-      const count = Object.values(unreadIds).filter(Boolean).length
-      setUnreadCount(count)
-    })
+    ;(async()=>{
+      try {
+        const a = await loadAdapters()
+        const { unreadIds } = await a.notificationRepo.listForUser(user)
+        const count = Object.values(unreadIds).filter(Boolean).length
+        setUnreadCount(count)
+      } catch {}
+    })()
   }, [loc.pathname])
   if (user?.role === 'technician') {
     // 技師：移除底部分頁列
@@ -88,10 +92,14 @@ function DesktopNav() {
   const user = getCurrentUser()
   useEffect(() => {
     if (!user) return
-    notificationRepo.listForUser(user).then(({ unreadIds }) => {
-      const count = Object.values(unreadIds).filter(Boolean).length
-      setUnreadCount(count)
-    })
+    ;(async()=>{
+      try {
+        const a = await loadAdapters()
+        const { unreadIds } = await a.notificationRepo.listForUser(user)
+        const count = Object.values(unreadIds).filter(Boolean).length
+        setUnreadCount(count)
+      } catch {}
+    })()
   }, [loc.pathname])
   const Item = ({ to, label, badge, disabled }: { to: string; label: string; badge?: number; disabled?: boolean }) => (
     <Link to={to} className={`relative flex items-center justify-between rounded-lg px-3 py-2 text-sm ${active(to)} ${disabled ? 'pointer-events-none opacity-40' : ''}`}>
@@ -109,8 +117,7 @@ function DesktopNav() {
   { to: '/dispatch', label: '派工總覽', perm: 'dashboard.view' },
   { to: '/orders', label: '訂單管理', perm: 'orders.list' },
   { to: '/reservations', label: '預約訂單', perm: 'orders.list' },
-  { to: '/shop', label: '購物車', perm: 'dashboard.view' },
-  { to: '/products', label: '產品管理', perm: 'products.manage' },
+  { to: '/store', label: '購物車', perm: 'dashboard.view' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/notifications', label: '通知中心', perm: 'notifications.read' },
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
@@ -128,7 +135,9 @@ function DesktopNav() {
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
     { to: '/reports', label: '報表', perm: 'reports.manage' },
     // 僅管理員可見
-    { to: '/members', label: '會員管理', perm: 'admin' }
+    { to: '/members', label: '會員管理', perm: 'admin' },
+    // 產品管理與購物車已解耦，改由管理員集中控管
+    { to: '/products', label: '產品管理', perm: 'admin' }
   ]
 
   const [counts, setCounts] = useState<Record<string, number>>({})

@@ -80,6 +80,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
 }
 
 ;(async()=>{
+  try {
   const a = await loadAdapters()
 
   async function mapSessionToLocalUser(session: any) {
@@ -162,7 +163,8 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         {/* 私有路由 */}
         <Route path="/" element={<Navigate to="/dispatch" replace />} />
         <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
-          <Route path="/shop" element={<PrivateRoute><ShopPage /></PrivateRoute>} />
+          {/* 導向公開入口 /store */}
+          <Route path="/shop" element={<Navigate to="/store" replace />} />
           <Route path="/dispatch" element={<PrivateRoute><PageDispatchHome /></PrivateRoute>} />
           <Route path="/orders/:id" element={<PrivateRoute permission="orders.read"><PageOrderDetail /></PrivateRoute>} />
           <Route path="/approvals" element={<PrivateRoute permission="admin"><ApprovalsPage /></PrivateRoute>} />
@@ -190,4 +192,16 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
       </BrowserRouter>
     </React.StrictMode>
   )
+  } catch (err: any) {
+    const msg = (err && (err.message || String(err))) || '初始化失敗'
+    createRoot(document.getElementById('root')!).render(
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-6">
+        <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-card">
+          <h1 className="text-xl font-bold text-gray-900">系統初始化失敗</h1>
+          <p className="mt-2 text-gray-600 break-words">{msg}</p>
+          <p className="mt-2 text-gray-600">請確認已設定 VITE_SUPABASE_URL 與 VITE_SUPABASE_ANON_KEY，並重新部署。</p>
+        </div>
+      </div>
+    )
+  }
 })()

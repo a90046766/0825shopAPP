@@ -1,22 +1,26 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { can } from '../../utils/permissions'
-import { authRepo as staticAuth } from '../../adapters/local/auth'
+// 改為動態從 adapters 取得 authRepo
 import { loadAdapters } from '../../adapters'
 
 export default function PageDispatchHome() {
-  const user = staticAuth.getCurrentUser()
+  const [user, setUser] = useState<any>(null)
   const [repos, setRepos] = useState<any>(null)
   const [bulletin, setBulletin] = useState('')
   const [loading, setLoading] = useState(true)
-  const editable = can(user, 'bulletin.manage')
+  const editable = !!user && (user.role==='admin' || user.role==='support')
 
-  useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a); try{ const s = await (a as any).settingsRepo?.get?.(); setBulletin((s&&s.bulletin)||'') } finally { setLoading(false) } })() }, [])
+  useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a); setUser(a.authRepo.getCurrentUser()); try{ const s = await (a as any).settingsRepo?.get?.(); setBulletin((s&&s.bulletin)||'') } finally { setLoading(false) } })() }, [])
 
   async function saveBulletin() {
-    if (!repos) return
-    await (repos as any).settingsRepo?.update?.({ bulletin, bulletinUpdatedAt: new Date().toISOString(), bulletinUpdatedBy: user?.email || '' })
-    alert('已更新公告')
+    if (!repos || !user) return
+    try {
+      await (repos as any).settingsRepo?.update?.({ bulletin, bulletinUpdatedAt: new Date().toISOString(), bulletinUpdatedBy: user?.email || '' })
+      alert('已更新公告')
+    } catch (e: any) {
+      alert('公告更新失敗：' + (e?.message || '未知錯誤'))
+    }
   }
 
   return (
@@ -47,7 +51,7 @@ export default function PageDispatchHome() {
           <Link to="/notifications" className="rounded-xl border bg-white p-4 shadow-card">通知中心</Link>
           <Link to="/payroll" className="rounded-xl border bg-white p-4 shadow-card">薪資</Link>
           <Link to="/me" className="rounded-xl border bg-white p-4 shadow-card">個人設定</Link>
-          <Link to="/shop" className="rounded-xl border bg-white p-4 shadow-card">購物車</Link>
+          <Link to="/store" className="rounded-xl border bg-white p-4 shadow-card">購物車</Link>
         </div>
       </div>
     </div>
