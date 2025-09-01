@@ -605,7 +605,7 @@ export default function PageOrderDetail() {
                     <option value="">請選擇</option>
                     {signCandidates.map((n: string, i: number) => (<option key={i} value={n}>{n}</option>))}
                   </select>
-                  <div className={`h-16 w-32 cursor-pointer rounded border ${hasTechSignature?'bg-white':'bg-gray-50'}`} onClick={async()=>{ if(hasTechSignature) return; if(!order.signatureTechnician){ const c = signCandidates||[]; if (c.length===1){ try{ await repos.orderRepo.update(order.id, { signatureTechnician: c[0] }); const o=await repos.orderRepo.get(order.id); setOrder(o); setSignAs('technician'); setSignOpen(true) }catch{ alert('自動設定簽名技師失敗') } return } setPickSigOpen(true); return } setSignAs('technician'); setSignOpen(true) }}>
+                  <div className={`h-16 w-32 cursor-pointer rounded border ${hasTechSignature?'bg-white':'bg-gray-50'}`} onClick={async()=>{ if(hasTechSignature) return; if(!order.signatureTechnician){ const c = signCandidates||[]; if (c.length===1){ try{ await repos.orderRepo.update(order.id, { signatureTechnician: c[0] }); const o=await repos.orderRepo.get(order.id); setOrder(o); setSignAs('technician'); setSignOpen(true) }catch{ alert('自動設定簽名技師失敗') } return } alert('請先在「已指派」列表的勾選框選擇簽名技師'); return } setSignAs('technician'); setSignOpen(true) }}>
                     {hasTechSignature && (order as any)?.signatures?.technician ? (
                       <img src={(order as any).signatures.technician} className="h-full w-full object-contain" />
                     ) : (
@@ -652,22 +652,7 @@ export default function PageOrderDetail() {
         }}
       />
 
-      {/* 簽名技師快速選擇彈窗（多位時） */}
-      {pickSigOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-card">
-            <div className="mb-2 text-lg font-semibold">選擇簽名技師</div>
-            <div className="space-y-2">
-              {(signCandidates||[]).map((n: string, i: number)=> (
-                <button key={i} onClick={async()=>{ try{ await repos.orderRepo.update(order.id, { signatureTechnician: n }); const o=await repos.orderRepo.get(order.id); setOrder(o); setPickSigOpen(false); setSignAs('technician'); setSignOpen(true) }catch{ alert('設定失敗') } }} className={`w-full rounded px-3 py-2 text-left ${order.signatureTechnician===n?'bg-brand-600 text-white':'bg-gray-100'}`}>{n}</button>
-              ))}
-            </div>
-            <div className="mt-3 text-right">
-              <button onClick={()=>setPickSigOpen(false)} className="rounded bg-gray-100 px-3 py-1">取消</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 已移除簽名技師快速選擇彈窗，改為在已指派列表勾選 */}
 
       {/* 現金收款簽名：簽完即標記已收款 */}
       <SignatureModal
