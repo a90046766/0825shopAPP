@@ -129,6 +129,21 @@ export default function PageOrderDetail() {
     return () => { if (h) clearInterval(h) }
   }, [order?.workStartedAt, order?.status])
   useEffect(()=>{ setNote((order as any)?.note || '') }, [order?.note])
+  // 簽名技師：改為在已指派名單旁的勾選框設定
+  // 僅一位已指派時自動套用為簽名技師（避免還要選）
+  const [autoSigTried, setAutoSigTried] = useState(false)
+  useEffect(()=>{ (async()=>{
+    try{
+      if (autoSigTried) return
+      if (!repos || !order) return
+      const assigned = Array.isArray(order.assignedTechnicians) ? order.assignedTechnicians : []
+      if (assigned.length === 1 && !order.signatureTechnician) {
+        await repos.orderRepo.update(order.id, { signatureTechnician: assigned[0] })
+        const o = await repos.orderRepo.get(order.id); setOrder(o)
+      }
+      setAutoSigTried(true)
+    }catch{}
+  })() }, [repos, order?.id, order?.signatureTechnician, order?.assignedTechnicians, autoSigTried])
   if (!order) return <div>載入中...</div>
   const isAdminOrSupport = user?.role==='admin' || user?.role==='support'
   const isAssignedTech = user?.role==='technician' && Array.isArray(order.assignedTechnicians) && order.assignedTechnicians.includes(user?.name || '')
@@ -183,6 +198,27 @@ export default function PageOrderDetail() {
             來源平台：
             <select className="ml-1 rounded border px-2 py-0.5" value={order.platform||'日'} onChange={async e=>{ await repos.orderRepo.update(order.id, { platform: e.target.value as any }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
               {['日','同','黃','今'].map(p=> <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+        )}
+        {isAdminOrSupport && (
+          <div className="mt-2 text-xs text-gray-600">
+            訂單狀態：
+            <select
+              className="ml-1 rounded border px-2 py-0.5"
+              value={order.status}
+              onChange={async (e)=>{
+                const v = e.target.value as any
+                const patch: any = { status: v }
+                if (v === 'completed' && !order.workCompletedAt) patch.workCompletedAt = new Date().toISOString()
+                await repos.orderRepo.update(order.id, patch)
+                const o = await repos.orderRepo.get(order.id)
+                setOrder(o)
+              }}
+            >
+              <option value="draft">草稿</option>
+              <option value="confirmed">已確認</option>
+              <option value="completed">已完成</option>
             </select>
           </div>
         )}
@@ -492,12 +528,28 @@ export default function PageOrderDetail() {
                 {order.assignedTechnicians?.length > 0 ? (
                   order.assignedTechnicians.map((tech: string, i: number) => (
                     <div key={i} className="flex items-center justify-between rounded bg-white p-2">
-                      <span>{tech}</span>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={order.signatureTechnician === tech}
+                          onChange={async (e)=>{
+                            try{
+                              const val = e.target.checked ? tech : ''
+                              await repos.orderRepo.update(order.id, { signatureTechnician: val as any })
+                              const o = await repos.orderRepo.get(order.id)
+                              setOrder(o)
+                            }catch{ alert('更新簽名技師失敗') }
+                          }}
+                        />
+                        <span>{tech}</span>
+                      </label>
                       <button 
                         onClick={async () => {
                           const newTechs = [...(order.assignedTechnicians || [])]
                           newTechs.splice(i, 1)
-                          await repos.orderRepo.update(order.id, { assignedTechnicians: newTechs })
+                          const patch: any = { assignedTechnicians: newTechs }
+                          if (order.signatureTechnician === tech) patch.signatureTechnician = ''
+                          await repos.orderRepo.update(order.id, patch)
                           const o = await repos.orderRepo.get(order.id)
                           setOrder(o)
                         }}
@@ -514,36 +566,7 @@ export default function PageOrderDetail() {
             </div>
           </div>
 
-          {/* 簽名技師 */}
-          {order.assignedTechnicians?.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-gray-700">簽名技師</div>
-              <div className="rounded-lg bg-gray-50 p-3 text-sm">
-                <select 
-                  className="w-full rounded border px-2 py-1"
-                  value={order.signatureTechnician || ''}
-                  onChange={async (e) => {
-                    await repos.orderRepo.update(order.id, { signatureTechnician: e.target.value })
-                    const o = await repos.orderRepo.get(order.id)
-                    setOrder(o)
-                  }}
-                >
-                  <option value="">請選擇簽名技師</option>
-                  {order.assignedTechnicians.map((tech: string) => (
-                    <option key={tech} value={tech}>{tech}</option>
-                  ))}
-                </select>
-                {order.signatureTechnician && (
-                  <div className="mt-2 text-xs text-gray-600">
-                    電話：{(() => {
-                      const tech = techs.find((t: any) => t.name === order.signatureTechnician)
-                      return tech?.phone || '未設定'
-                    })()}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* 簽名技師選擇已整合到上方指派清單（勾選） */}
           {order.status==='draft' && can(user,'orders.update') && (
             <div className="mt-3 text-right">
               <button
@@ -576,13 +599,13 @@ export default function PageOrderDetail() {
                   <select
                     className="rounded-lg border px-2 py-1 text-sm"
                     value={order.signatureTechnician || ''}
-                    onChange={async (e) => { const val=e.target.value; await repos.orderRepo.update(order.id, { signatureTechnician: val }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}
+                    onChange={async (e) => { try { const val=e.target.value; if(val===(order.signatureTechnician||'')) return; await repos.orderRepo.update(order.id, { signatureTechnician: val }); const o=await repos.orderRepo.get(order.id); setOrder(o) } catch { alert('更新簽名技師失敗') } }}
                     disabled={hasTechSignature}
                   >
                     <option value="">請選擇</option>
                     {signCandidates.map((n: string, i: number) => (<option key={i} value={n}>{n}</option>))}
                   </select>
-                  <div className={`h-16 w-32 cursor-pointer rounded border ${hasTechSignature?'bg-white':'bg-gray-50'}`} onClick={()=>{ if(hasTechSignature) return; if(!order.signatureTechnician){ alert('請先選擇簽名技師'); return } setSignAs('technician'); setSignOpen(true) }}>
+                  <div className={`h-16 w-32 cursor-pointer rounded border ${hasTechSignature?'bg-white':'bg-gray-50'}`} onClick={async()=>{ if(hasTechSignature) return; if(!order.signatureTechnician){ const c = signCandidates||[]; if (c.length===1){ try{ await repos.orderRepo.update(order.id, { signatureTechnician: c[0] }); const o=await repos.orderRepo.get(order.id); setOrder(o); setSignAs('technician'); setSignOpen(true) }catch{ alert('自動設定簽名技師失敗') } return } setPickSigOpen(true); return } setSignAs('technician'); setSignOpen(true) }}>
                     {hasTechSignature && (order as any)?.signatures?.technician ? (
                       <img src={(order as any).signatures.technician} className="h-full w-full object-contain" />
                     ) : (
@@ -612,6 +635,56 @@ export default function PageOrderDetail() {
           </div>
         </div>
       </div>
+
+      {/* 簽名畫布：技師/客戶通用 */}
+      <SignatureModal
+        open={signOpen}
+        onClose={()=>setSignOpen(false)}
+        onSave={async (dataUrl)=>{
+          try {
+            const signatures = { ...(order.signatures||{}), [signAs]: dataUrl }
+            await repos.orderRepo.update(order.id, { signatures })
+            const o = await repos.orderRepo.get(order.id)
+            setOrder(o)
+          } finally {
+            setSignOpen(false)
+          }
+        }}
+      />
+
+      {/* 簽名技師快速選擇彈窗（多位時） */}
+      {pickSigOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-card">
+            <div className="mb-2 text-lg font-semibold">選擇簽名技師</div>
+            <div className="space-y-2">
+              {(signCandidates||[]).map((n: string, i: number)=> (
+                <button key={i} onClick={async()=>{ try{ await repos.orderRepo.update(order.id, { signatureTechnician: n }); const o=await repos.orderRepo.get(order.id); setOrder(o); setPickSigOpen(false); setSignAs('technician'); setSignOpen(true) }catch{ alert('設定失敗') } }} className={`w-full rounded px-3 py-2 text-left ${order.signatureTechnician===n?'bg-brand-600 text-white':'bg-gray-100'}`}>{n}</button>
+              ))}
+            </div>
+            <div className="mt-3 text-right">
+              <button onClick={()=>setPickSigOpen(false)} className="rounded bg-gray-100 px-3 py-1">取消</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 現金收款簽名：簽完即標記已收款 */}
+      <SignatureModal
+        open={paySignOpen}
+        onClose={()=>setPaySignOpen(false)}
+        onSave={async (dataUrl)=>{
+          try {
+            const signatures = { ...(order.signatures||{}), technician: dataUrl }
+            await repos.orderRepo.update(order.id, { signatures, paymentStatus: 'paid' as any })
+            const o = await repos.orderRepo.get(order.id)
+            setOrder(o)
+            alert('已簽名並標記為已收款')
+          } finally {
+            setPaySignOpen(false)
+          }
+        }}
+      />
 
       {/* 服務進度 */
       }

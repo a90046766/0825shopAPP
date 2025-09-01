@@ -438,7 +438,7 @@ export default function OrderManagementPage() {
                   if ((clean as any).memberCode && String((clean as any).memberCode).toUpperCase().startsWith('MO')) {
                     try { const m = await repos.memberRepo.findByCode(String((clean as any).memberCode).toUpperCase()); if (m) memberId = m.id } catch {}
                   }
-                  await repos.orderRepo.create({ ...clean, status:'draft', platform: clean.platform||'日', memberId, serviceItems: items } as any)
+                  await repos.orderRepo.create({ ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items } as any)
                   setCreating(false)
                   setForm({ 
                     customerName:'', 

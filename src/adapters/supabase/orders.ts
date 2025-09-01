@@ -27,6 +27,7 @@ function toDbRow(input: Partial<Order>): any {
     preferredTimeEnd: 'preferred_time_end',
     referrerCode: 'referrer_code',
     memberId: 'member_id',
+    signatureTechnician: 'signature_technician',
     assignedTechnicians: 'assigned_technicians',
     serviceItems: 'service_items',
     signatures: 'signatures',
@@ -123,14 +124,11 @@ class SupabaseOrderRepo implements OrderRepo {
         .from('orders')
         .select(ORDERS_COLUMNS)
       
-      // 檢查?�否?��??�編?�格式�?OD?�頭�?
-      if (id.startsWith('OD')) {
-        query = query.eq('order_number', id)
-      } else if (isValidUUID(id)) {
+      // 以 UUID 為主，否則以 order_number 查詢（不再限定必須 OD 開頭）
+      if (isValidUUID(id)) {
         query = query.eq('id', id)
       } else {
-        console.warn(`?��??��???ID ?��?: ${id}`)
-        return null
+        query = query.eq('order_number', id)
       }
       
       const { data, error } = await query.single()
@@ -192,14 +190,11 @@ class SupabaseOrderRepo implements OrderRepo {
         .from('orders')
         .update(toDbRow(patch))
       
-      // 檢查?�否?��??�編?�格式�?O?�頭�?
-      if (id.startsWith('OD')) {
-        query = query.eq('order_number', id)
-      } else if (isValidUUID(id)) {
+      // 以 UUID 為主，否則用 order_number 更新
+      if (isValidUUID(id)) {
         query = query.eq('id', id)
       } else {
-        console.error(`?��??��???ID ?��?: ${id}`)
-        throw new Error('?��??��???ID ?��?')
+        query = query.eq('order_number', id)
       }
       
       const { error } = await query
@@ -220,14 +215,11 @@ class SupabaseOrderRepo implements OrderRepo {
         .from('orders')
         .delete()
       
-      // 檢查?�否?��??�編?�格式�?O?�頭�?
-      if (id.startsWith('OD')) {
-        query = query.eq('order_number', id)
-      } else if (isValidUUID(id)) {
+      // 以 UUID 為主，否則以 order_number
+      if (isValidUUID(id)) {
         query = query.eq('id', id)
       } else {
-        console.error(`?��??��???ID ?��?: ${id}`)
-        throw new Error('?��??��???ID ?��?')
+        query = query.eq('order_number', id)
       }
       
       const { error } = await query
@@ -252,14 +244,11 @@ class SupabaseOrderRepo implements OrderRepo {
           updated_at: new Date().toISOString()
         })
       
-      // 檢查?�否?��??�編?�格式�?O?�頭�?
-      if (id.startsWith('OD')) {
-        query = query.eq('order_number', id)
-      } else if (isValidUUID(id)) {
+      // 以 UUID 為主，否則以 order_number
+      if (isValidUUID(id)) {
         query = query.eq('id', id)
       } else {
-        console.error(`?��??��???ID ?��?: ${id}`)
-        throw new Error('?��??��???ID ?��?')
+        query = query.eq('order_number', id)
       }
       
       const { error } = await query
@@ -283,14 +272,11 @@ class SupabaseOrderRepo implements OrderRepo {
           updated_at: new Date().toISOString()
         })
       
-      // 檢查?�否?��??�編?�格式�?O?�頭�?
-      if (id.startsWith('OD')) {
-        query = query.eq('order_number', id)
-      } else if (isValidUUID(id)) {
+      // 以 UUID 為主，否則以 order_number
+      if (isValidUUID(id)) {
         query = query.eq('id', id)
       } else {
-        console.error(`?��??��???ID ?��?: ${id}`)
-        throw new Error('?��??��???ID ?��?')
+        query = query.eq('order_number', id)
       }
       
       const { error } = await query
@@ -315,14 +301,11 @@ class SupabaseOrderRepo implements OrderRepo {
           updated_at: new Date().toISOString()
         })
       
-      // 檢查?�否?��??�編?�格式�?O?�頭�?
-      if (id.startsWith('OD')) {
-        query = query.eq('order_number', id)
-      } else if (isValidUUID(id)) {
+      // 以 UUID 為主，否則以 order_number
+      if (isValidUUID(id)) {
         query = query.eq('id', id)
       } else {
-        console.error(`?��??��???ID ?��?: ${id}`)
-        throw new Error('?��??��???ID ?��?')
+        query = query.eq('order_number', id)
       }
       
       const { error } = await query
@@ -347,14 +330,11 @@ class SupabaseOrderRepo implements OrderRepo {
           updated_at: new Date().toISOString()
         })
       
-      // 檢查?�否?��??�編?�格式�?O?�頭�?
-      if (id.startsWith('OD')) {
-        query = query.eq('order_number', id)
-      } else if (isValidUUID(id)) {
+      // 以 UUID 為主，否則以 order_number
+      if (isValidUUID(id)) {
         query = query.eq('id', id)
       } else {
-        console.error(`?��??��???ID ?��?: ${id}`)
-        throw new Error('?��??��???ID ?��?')
+        query = query.eq('order_number', id)
       }
       
       const { error } = await query
