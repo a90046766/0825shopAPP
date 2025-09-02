@@ -2,6 +2,13 @@
   command = "npm run build"
   publish = "dist"
 
+# 將 /store.html 永久導到 /store（避免空白頁）
+[[redirects]]
+  from = "/store.html"
+  to = "/store"
+  status = 301
+
+# SPA fallback：所有路由交給前端（/、/services/*、/store 等）
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -10,5 +17,3 @@
 # 忽略 Supabase 環境變數的機密掃描
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL"
-
-
