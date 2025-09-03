@@ -16,9 +16,10 @@ export const supabase = createClient(url || 'https://dummy.supabase.co', key || 
     persistSession: true
   },
   global: {
-    headers: key
-      ? { apikey: key, Authorization: `Bearer ${key}` }
-      : {}
+    // 僅強制 apikey，授權權杖交由 supabase-js 以登入 session 自動帶入
+    headers: key ? { apikey: key } : {},
+    // 明確使用瀏覽器 fetch，避免打包後的 typeof 檢測誤判
+    fetch: (...args: any[]) => (window as any).fetch?.(...args)
   }
 })
 

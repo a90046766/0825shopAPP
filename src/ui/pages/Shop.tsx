@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { loadAdapters, useAuth } from '../../adapters'
-import { useLocation } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
 import { can } from '../../utils/permissions'
 import { supabase } from '../../utils/supabase'
+import PublicHeader from '../components/PublicHeader'
+import { siteCMS } from '../../adapters/supabase/site_cms'
 
 type Product = {
   id: string
@@ -36,7 +38,29 @@ export default function ShopPage() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const totalQty = useMemo(()=> cart.reduce((s,it)=>s+it.quantity,0), [cart])
-  const totalAmount = useMemo(()=> cart.reduce((s,it)=>s+it.quantity*it.price,0), [cart])
+  // 產品快取映射
+  const productMap = useMemo(()=>{
+    const m: Record<string, any> = {}
+    for (const p of rows) m[p.id] = p
+    return m
+  }, [rows])
+  // 計算團購價是否生效
+  const getEffectivePrice = (productId: string, qty: number): number => {
+    const p = productMap[productId]
+    if (!p) return 0
+    if (p.groupPrice && p.groupMinQty && qty >= p.groupMinQty) return Number(p.groupPrice) || Number(p.unitPrice) || 0
+    return Number(p.unitPrice) || 0
+  }
+  const originalTotal = useMemo(()=> cart.reduce((s,it)=>{
+    const p = productMap[it.productId]
+    const unit = p?.unitPrice ?? it.price
+    return s + unit * it.quantity
+  }, 0), [cart, productMap])
+  const totalAmount = useMemo(()=> cart.reduce((s,it)=>{
+    const eff = getEffectivePrice(it.productId, it.quantity)
+    return s + eff * it.quantity
+  }, 0), [cart, productMap])
+  const totalSavings = Math.max(0, originalTotal - totalAmount)
 
   const [checkout, setCheckout] = useState({
     name: '',
@@ -48,6 +72,13 @@ export default function ShopPage() {
     preferredTimeEnd: ''
   })
   const [placing, setPlacing] = useState(false)
+  const [hero, setHero] = useState<any>(null)
+  const [settings, setSettings] = useState<any>(null)
+  const userRaw = (()=>{ try{ return JSON.parse(localStorage.getItem('supabase-auth-user')||'null') }catch{return null} })()
+  const isEditor = userRaw?.role==='admin' || userRaw?.role==='support'
+  const [cmsMode, setCmsMode] = useState(false)
+  const [editingHero, setEditingHero] = useState<any|null>(null)
+  const [editingSettings, setEditingSettings] = useState<any|null>(null)
 
   useEffect(() => {
     (async () => {
@@ -68,6 +99,16 @@ export default function ShopPage() {
           const meta = await import('../../adapters/supabase/product_meta')
           const list = await meta.productMeta.listCategories(true)
           setCats(list as any)
+        } catch {}
+
+        // 讀取 CMS：/store 的 Hero 與 site_settings
+        try {
+          const [h, s] = await Promise.all([
+            siteCMS.getHero('store-hero'),
+            siteCMS.getSettings()
+          ])
+          setHero(h)
+          setSettings(s)
         } catch {}
       } catch (e: any) {
         setError(e?.message || '載入失敗（雲端）')
@@ -174,8 +215,9 @@ export default function ShopPage() {
       const { error: e2 } = await supabase.from('reservation_items').insert(rows)
       if (e2) throw e2
       setCart([])
-      alert('預約已送出！我們將盡快與您聯絡確認時間。單號：' + ro.id)
       setCartOpen(false)
+      // 導向結帳成功頁，帶上預約單號 rid
+      window.location.href = `/store/success?rid=${encodeURIComponent(ro.id)}`
     } catch (err: any) {
       console.error(err)
       alert('建立預約失敗：' + (err?.message || '請稍後再試'))
@@ -189,26 +231,42 @@ export default function ShopPage() {
 
   return (
     <div className="space-y-6">
+      <PublicHeader />
       {/* 品牌條 */}
       <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-card">
         <div className="text-base font-extrabold tracking-wide text-gray-900">日式洗濯 0825 購物站</div>
         <div className="text-xs text-gray-500">線上預約 · 官方直營 · 透明價格</div>
       </div>
 
-      {/* Hero 區 */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-500 to-brand-400 p-6 text-white shadow-card">
-        <div className="relative z-10">
-          <h1 className="text-2xl font-extrabold tracking-tight">日式洗濯．專業到你家</h1>
-          <p className="mt-2 max-w-2xl text-sm text-white/90">冷氣洗濯・居家清潔・家電購買・二手服務｜線上預約、透明價格、服務保固、照片存證、雙簽名結案。</p>
-          <div className="mt-4 flex flex-wrap gap-2 text-sm">
-            <a href="#svc" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">專業清洗服務</a>
-            <a href="#home" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">居家清潔</a>
-            <a href="#new" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">家電購買</a>
-            <a href="#used" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">二手服務</a>
+      {/* Hero 區（讀取 CMS：slot=store-hero；無資料時 fallback） */}
+      {hero ? (
+        <section className="relative overflow-hidden rounded-2xl p-0 text-white shadow-card" style={{ backgroundImage: hero.imageUrl?`url(${hero.imageUrl})`:undefined, backgroundSize:'cover', backgroundPosition:'center' }}>
+          <div className="relative z-10 bg-black/35 p-6">
+            <h1 className="text-2xl font-extrabold tracking-tight">{hero.title || '日式洗濯．專業到你家'}</h1>
+            {hero.subtitle && <p className="mt-2 max-w-2xl text-sm text-white/90">{hero.subtitle}</p>}
+            <div className="mt-4 flex flex-wrap gap-2 text-sm">
+              <Link to="/services/cleaning" className="rounded-full bg-white/90 px-3 py-1 text-gray-900 hover:bg-white">專業清洗服務</Link>
+              <Link to="/services/home" className="rounded-full bg-white/90 px-3 py-1 text-gray-900 hover:bg-white">居家清潔</Link>
+              <Link to="/appliances" className="rounded-full bg-white/90 px-3 py-1 text-gray-900 hover:bg-white">家電購買</Link>
+              <Link to="/used" className="rounded-full bg-white/90 px-3 py-1 text-gray-900 hover:bg-white">二手服務</Link>
+            </div>
           </div>
-        </div>
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
-      </section>
+        </section>
+      ) : (
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-500 to-brand-400 p-6 text-white shadow-card">
+          <div className="relative z-10">
+            <h1 className="text-2xl font-extrabold tracking-tight">日式洗濯．專業到你家</h1>
+            <p className="mt-2 max-w-2xl text-sm text-white/90">冷氣洗濯・居家清潔・家電購買・二手服務｜線上預約、透明價格、服務保固、照片存證、雙簽名結案。</p>
+            <div className="mt-4 flex flex-wrap gap-2 text-sm">
+              <Link to="/services/cleaning" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">專業清洗服務</Link>
+              <Link to="/services/home" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">居家清潔</Link>
+              <Link to="/appliances" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">家電購買</Link>
+              <Link to="/used" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">二手服務</Link>
+            </div>
+          </div>
+          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+        </section>
+      )}
 
       {/* 首頁橫幅（水平捲動） */}
       <section aria-label="首頁橫幅">
@@ -252,6 +310,11 @@ export default function ShopPage() {
               <input type="checkbox" checked={adminMode} onChange={e=>setAdminMode(e.target.checked)} /> 管理模式
             </label>
           )}
+          {isEditor && (
+            <label className="ml-2 inline-flex items-center gap-2 text-xs text-gray-700">
+              <input type="checkbox" checked={cmsMode} onChange={e=>setCmsMode(e.target.checked)} /> CMS 管理
+            </label>
+          )}
         </div>
       </div>
       {byCategory.order.map(catId => {
@@ -279,6 +342,18 @@ export default function ShopPage() {
                         <button onClick={()=>addToCart(p)} className="rounded bg-brand-500 px-3 py-1 text-white">加入</button>
                       </div>
                     </div>
+                    {/* 團購提示 */}
+                    {p.groupPrice && p.groupMinQty && p.groupMinQty > 1 && (
+                      <div className="text-xs text-gray-600">
+                        <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-700">團 ${p.groupPrice}｜滿 {p.groupMinQty}</span>
+                        {(() => {
+                          const inCart = cart.find(it => it.productId === p.id)?.quantity || 0
+                          if (inCart >= p.groupMinQty!) return <span className="ml-2 text-emerald-700">已享團購價</span>
+                          const diff = (p.groupMinQty as number) - inCart
+                          return <span className="ml-2">再 {diff} 件享團購價</span>
+                        })()}
+                      </div>
+                    )}
                     {canManage && adminMode && (
                       <div className="pt-2 border-t mt-2">
                         {editingId === p.id ? (
@@ -349,15 +424,50 @@ export default function ShopPage() {
         )
       })()}
 
-      {/* 聯繫我們 */}
+      {/* 聯繫我們（讀取 site_settings） */}
       <section className="rounded-2xl border bg-white p-4 shadow-card">
         <h2 className="mb-2 text-lg font-semibold">聯繫我們</h2>
         <div className="grid gap-2 text-sm md:grid-cols-3">
-          <a href="tel:0912345678" className="rounded-lg bg-gray-100 px-3 py-2">電話：0912-345-678</a>
-          <a href="mailto:service@example.com" className="rounded-lg bg-gray-100 px-3 py-2">Email：service@example.com</a>
-          <a href="https://line.me/R/ti/p/@yourline" target="_blank" rel="noreferrer" className="rounded-lg bg-gray-100 px-3 py-2">LINE：@yourline</a>
+          <a href={settings?.phone?`tel:${settings.phone}`:'#'} className="rounded-lg bg-gray-100 px-3 py-2">電話：{settings?.phone || '—'}</a>
+          <a href={settings?.email?`mailto:${settings.email}`:'#'} className="rounded-lg bg-gray-100 px-3 py-2">Email：{settings?.email || '—'}</a>
+          <a href={settings?.lineUrl || '#'} target="_blank" rel="noreferrer" className="rounded-lg bg-gray-100 px-3 py-2">LINE：{settings?.lineUrl ? '前往官方 LINE' : '—'}</a>
         </div>
       </section>
+
+      {/* CMS 管理（admin/support 可見）：編輯 store-hero 與 site_settings */}
+      {isEditor && cmsMode && (
+        <section className="rounded-2xl border bg-white p-4 shadow-card">
+          <div className="mb-2 text-lg font-semibold">購物站 CMS 管理</div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* store-hero 編輯 */}
+            <div className="rounded border p-3">
+              <div className="mb-1 font-medium">Store Hero（slot=store-hero）</div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <input className="rounded border px-2 py-1" placeholder="標題" value={(editingHero??hero)?.title||''} onChange={e=>setEditingHero({ ...(editingHero??hero??{ slot:'store-hero' }), title:e.target.value })} />
+                <input className="rounded border px-2 py-1" placeholder="副標" value={(editingHero??hero)?.subtitle||''} onChange={e=>setEditingHero({ ...(editingHero??hero??{ slot:'store-hero' }), subtitle:e.target.value })} />
+                <input className="col-span-2 rounded border px-2 py-1" placeholder="圖片網址（可留空）" value={(editingHero??hero)?.imageUrl||''} onChange={e=>setEditingHero({ ...(editingHero??hero??{ slot:'store-hero' }), imageUrl:e.target.value })} />
+              </div>
+              <div className="mt-2 text-right">
+                <button onClick={async()=>{ try{ const saved = await siteCMS.upsertBanner({ id: hero?.id, slot:'store-hero', title:(editingHero??hero)?.title, subtitle:(editingHero??hero)?.subtitle, imageUrl:(editingHero??hero)?.imageUrl, sortOrder:0, active:true }); setHero(saved); setEditingHero(null) } catch(e:any){ alert(e?.message||'儲存失敗') } }} className="rounded bg-brand-500 px-3 py-1 text-sm text-white">儲存 Hero</button>
+              </div>
+            </div>
+
+            {/* site_settings 編輯 */}
+            <div className="rounded border p-3">
+              <div className="mb-1 font-medium">聯絡設定（site_settings）</div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <input className="rounded border px-2 py-1" placeholder="品牌色 #7C3AED" value={(editingSettings??settings)?.brandColor||''} onChange={e=>setEditingSettings({ ...(editingSettings??settings??{ id:'default' }), brandColor:e.target.value })} />
+                <input className="rounded border px-2 py-1" placeholder="電話" value={(editingSettings??settings)?.phone||''} onChange={e=>setEditingSettings({ ...(editingSettings??settings??{ id:'default' }), phone:e.target.value })} />
+                <input className="rounded border px-2 py-1" placeholder="Email" value={(editingSettings??settings)?.email||''} onChange={e=>setEditingSettings({ ...(editingSettings??settings??{ id:'default' }), email:e.target.value })} />
+                <input className="rounded border px-2 py-1" placeholder="LINE 連結" value={(editingSettings??settings)?.lineUrl||''} onChange={e=>setEditingSettings({ ...(editingSettings??settings??{ id:'default' }), lineUrl:e.target.value })} />
+              </div>
+              <div className="mt-2 text-right">
+                <button onClick={async()=>{ try{ const saved = await siteCMS.updateSettings(editingSettings??settings??{}); setSettings(saved); setEditingSettings(null) } catch(e:any){ alert(e?.message||'儲存失敗') } }} className="rounded bg-brand-500 px-3 py-1 text-sm text-white">儲存設定</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* 購物車抽屜 */}
       {cartOpen && (
@@ -371,30 +481,47 @@ export default function ShopPage() {
               <div className="py-10 text-center text-gray-500">購物車是空的</div>
             ) : (
               <div className="space-y-3">
-                {cart.map(it => (
-                  <div key={it.productId} className="rounded border p-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{it.name}</div>
-                        {it.modeCode === 'used' && <div className="text-xs text-rose-600">唯一件 × 1</div>}
-                      </div>
-                      <div className="text-sm font-semibold">${it.price * it.quantity}</div>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between text-sm">
-                      {it.modeCode === 'used' ? (
-                        <div className="text-gray-500">固定數量：1</div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button onClick={()=>updateQty(it.productId, it.quantity - 1)} className="rounded bg-gray-100 px-2">-</button>
-                          <input className="w-14 rounded border px-2 py-1 text-right" type="number" value={it.quantity} onChange={e=>updateQty(it.productId, Number(e.target.value||1))} />
-                          <button onClick={()=>updateQty(it.productId, it.quantity + 1)} className="rounded bg-gray-100 px-2">+</button>
+                {cart.map(it => {
+                  const p = productMap[it.productId]
+                  const unit = p?.unitPrice ?? it.price
+                  const eff = getEffectivePrice(it.productId, it.quantity)
+                  const lineOrig = unit * it.quantity
+                  const lineNow = eff * it.quantity
+                  const saved = Math.max(0, lineOrig - lineNow)
+                  const groupOn = eff < unit
+                  return (
+                    <div key={it.productId} className="rounded border p-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">{it.name}</div>
+                          {it.modeCode === 'used' && <div className="text-xs text-rose-600">唯一件 × 1</div>}
+                          {!it.modeCode || it.modeCode!=='used' ? (
+                            <div className="text-xs text-gray-600">
+                              單價：{groupOn ? (<><span className="line-through mr-1 text-gray-400">${unit}</span><span className="text-emerald-700">${eff}</span></>) : (<span>${unit}</span>)} × {it.quantity}
+                              {groupOn && saved>0 && <span className="ml-2 text-emerald-700">省 ${saved}</span>}
+                            </div>
+                          ) : null}
                         </div>
-                      )}
-                      <button onClick={()=>removeFromCart(it.productId)} className="rounded bg-red-100 px-2 py-1 text-red-600">移除</button>
+                        <div className="text-sm font-semibold">${lineNow}</div>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-sm">
+                        {it.modeCode === 'used' ? (
+                          <div className="text-gray-500">固定數量：1</div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button onClick={()=>updateQty(it.productId, it.quantity - 1)} className="rounded bg-gray-100 px-2">-</button>
+                            <input className="w-14 rounded border px-2 py-1 text-right" type="number" value={it.quantity} onChange={e=>updateQty(it.productId, Number(e.target.value||1))} />
+                            <button onClick={()=>updateQty(it.productId, it.quantity + 1)} className="rounded bg-gray-100 px-2">+</button>
+                          </div>
+                        )}
+                        <button onClick={()=>removeFromCart(it.productId)} className="rounded bg-red-100 px-2 py-1 text-red-600">移除</button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
                 <div className="border-t pt-2 text-right text-base">合計：<span className="font-semibold">${totalAmount}</span></div>
+                {totalSavings>0 && <div className="text-right text-sm text-emerald-700">本次共省：${totalSavings}</div>}
+                <div className="text-right text-sm text-gray-700">預估會員可得積分：{Math.floor(totalAmount/100)} 點</div>
               </div>
             )}
             <div className="mt-4 space-y-2">

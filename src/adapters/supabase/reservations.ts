@@ -4,6 +4,7 @@ import { supabase } from '../../utils/supabase'
 function fromOrderRow(r: any): ReservationOrder {
   return {
     id: r.id,
+    orderNumber: r.order_number || undefined,
     customerName: r.customer_name,
     customerPhone: r.customer_phone,
     items: [],

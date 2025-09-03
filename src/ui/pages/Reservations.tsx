@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../../adapters'
 import { Link } from 'react-router-dom'
-import { authRepo } from '../../adapters/local/auth'
+// 改為動態從 adapters 取得 authRepo
 import { can } from '../../utils/permissions'
 import { validateAddressServiceArea } from '../../utils/location'
 
 export default function ReservationsPage() {
   const [rows, setRows] = useState<any[]>([])
   const [repos, setRepos] = useState<any>(null)
-  const user = authRepo.getCurrentUser()
+  const [user, setUser] = useState<any>(null)
   const [q, setQ] = useState('')
   const [statusTab, setStatusTab] = useState<'all'|'pending'|'confirmed'|'canceled'>('all')
   
@@ -23,11 +23,11 @@ export default function ReservationsPage() {
     }
   }
   
-  useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a) })() }, [])
+  useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a); setUser(a.authRepo.getCurrentUser()) })() }, [])
   useEffect(() => { if (repos) load() }, [repos])
 
   const filtered = rows.filter(r => {
-    const hit = !q || r.id.includes(q) || (r.customerName||'').includes(q) || (r.customerPhone||'').includes(q)
+    const hit = !q || r.id.includes(q) || (r.orderNumber||'').includes(q) || (r.customerName||'').includes(q) || (r.customerPhone||'').includes(q)
     const byStatus = statusTab === 'all' || r.status === statusTab
     return hit && byStatus
   })
@@ -78,41 +78,46 @@ export default function ReservationsPage() {
         }
       }
       
-      // 將預約訂單轉換為正式訂單
-      const orderData = {
-        id: '',
-        customerName: reservation.customerName,
-        customerPhone: reservation.customerPhone,
-        customerAddress: reservation.customerAddress || '',
-        preferredDate: '',
-        preferredTimeStart: '09:00',
-        preferredTimeEnd: '12:00',
-        platform: 'cart',
-        referrerCode: '',
-        memberId: null,
-        serviceItems: reservation.items || [],
-        assignedTechnicians: [],
-        signatures: {},
-        photos: [],
-        photosBefore: [],
-        photosAfter: [],
-        paymentMethod: '',
-        paymentStatus: 'pending',
-        pointsUsed: 0,
-        pointsDeductAmount: 0,
-        category: 'service',
-        channel: 'cart',
-        status: 'confirmed',
-        workStartedAt: null,
-        workCompletedAt: null,
-        serviceFinishedAt: null,
-        canceledReason: '',
+      // 將預約訂單轉換為正式訂單（DB 端會沿用相同 order_number）
+      try {
+        const { supabase } = await import('../../utils/supabase')
+        const { data, error } = await supabase.rpc('confirm_reservation', { p_reservation_id: reservation.id })
+        if (error) throw error
+      } catch (e) {
+        console.error('confirm_reservation RPC 失敗，改用前端回退流程', e)
+        // 回退：直接建立訂單 + 標記 converted（不保證 order_number 相同）
+        const orderData = {
+          id: '',
+          customerName: reservation.customerName,
+          customerPhone: reservation.customerPhone,
+          customerAddress: reservation.customerAddress || '',
+          preferredDate: '',
+          preferredTimeStart: '09:00',
+          preferredTimeEnd: '12:00',
+          platform: 'cart',
+          referrerCode: '',
+          memberId: null,
+          serviceItems: reservation.items || [],
+          assignedTechnicians: [],
+          signatures: {},
+          photos: [],
+          photosBefore: [],
+          photosAfter: [],
+          paymentMethod: '',
+          paymentStatus: 'pending',
+          pointsUsed: 0,
+          pointsDeductAmount: 0,
+          category: 'service',
+          channel: 'cart',
+          status: 'confirmed',
+          workStartedAt: null,
+          workCompletedAt: null,
+          serviceFinishedAt: null,
+          canceledReason: '',
+        }
+        await repos.orderRepo.create(orderData)
+        await (repos as any).reservationsRepo.update(reservation.id, { status: 'converted' })
       }
-
-      await repos.orderRepo.create(orderData)
-      
-      // 更新預約訂單狀態為已確認
-      await (repos as any).reservationsRepo.update(reservation.id, { status: 'confirmed' })
       
       alert('預約訂單已轉換為正式訂單')
       load()
@@ -127,7 +132,7 @@ export default function ReservationsPage() {
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">預約訂單</div>
         <div className="flex items-center gap-2">
-          <input placeholder="搜尋客戶/電話" className="rounded border px-2 py-1 text-sm" value={q} onChange={e=>setQ(e.target.value)} />
+          <input placeholder="搜尋單號/客戶/電話" className="rounded border px-2 py-1 text-sm" value={q} onChange={e=>setQ(e.target.value)} />
         </div>
       </div>
 
@@ -155,6 +160,9 @@ export default function ReservationsPage() {
                 <div className="flex items-center gap-2">
                   <div className="font-semibold">{r.customerName}</div>
                   <div className="text-sm text-gray-500">{r.customerPhone}</div>
+                  {r.orderNumber && (
+                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">單號：{r.orderNumber}</span>
+                  )}
                   <span className={`rounded px-2 py-0.5 text-xs ${
                     r.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                     r.status === 'confirmed' ? 'bg-green-100 text-green-700' :

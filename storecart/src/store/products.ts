@@ -309,9 +309,9 @@ export const useProductsStore = create<ProductsState>()(
           const { data, error } = await supabase
             .from('product_categories')
             .select('id,name,sort_order,active')
-            .order('sort_order', { ascending: true })
           if (error) throw error
-          categories = data || []
+          const rows = (data || []) as any[]
+          categories = rows.sort((a:any,b:any)=> (a.sort_order??0)-(b.sort_order??0) || String(a.name||'').localeCompare(String(b.name||''),'zh-Hant'))
         } catch {
           categories = PRESET
         }

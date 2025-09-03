@@ -377,6 +377,7 @@ export interface ReservationItem {
 
 export interface ReservationOrder {
   id: string
+  orderNumber?: string
   customerName: string
   customerPhone: string
   items: ReservationItem[]

@@ -51,9 +51,16 @@ export const productMeta = {
   async listCategories(activeOnly = true): Promise<ProductCategory[]> {
     let q = supabase.from('product_categories').select('id,name,sort_order,active,updated_at')
     if (activeOnly) q = q.eq('active', true)
-    const { data, error } = await q.order('sort_order', { ascending: true }).order('name', { ascending: true })
+    // 為最大相容性：完全不在後端加 order 參數，改在前端排序，避免 400
+    const { data, error } = await q
     if (error) throw error
-    return (data || []).map(fromCategoryRow)
+    const rows = (data || []).sort((a:any,b:any)=>{
+      const sa = (a.sort_order ?? 0); const sb = (b.sort_order ?? 0)
+      if (sa !== sb) return sa - sb
+      const na = (a.name||''); const nb = (b.name||'')
+      return na.localeCompare(nb, 'zh-Hant')
+    })
+    return rows.map(fromCategoryRow)
   },
   async upsertCategory(cat: Omit<ProductCategory, 'id' | 'updatedAt'> & { id?: string }): Promise<ProductCategory> {
     const now = new Date().toISOString()
