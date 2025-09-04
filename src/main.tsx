@@ -33,7 +33,9 @@ import ReportsPage from './ui/pages/Reports'
 import ReportCenterPage from './ui/pages/ReportCenter'
 import UsedItemsPage from './ui/pages/UsedItems'
 import QuotesPage from './ui/pages/Quotes'
-import ShopPage from './ui/pages/Shop'
+import NewShopPage from './ui/pages/NewShopPage'
+import ShopProductsPage from './ui/pages/ShopProducts'
+import ShopCartPage from './ui/pages/ShopCart'
 import { supabase } from './utils/supabase'
 
 // 權限保護
@@ -157,8 +159,10 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         <Route path="/apply/staff" element={<StaffApplyPage />} />
         <Route path="/apply/member" element={<MemberApplyPage />} />
         <Route path="/register/member" element={<MemberRegisterPage />} />
-        {/* 對外購物車入口（公開） */}
-        <Route path="/store" element={<ShopPage />} />
+        {/* 對外購物站入口（公開） */}
+        <Route path="/store" element={<NewShopPage />} />
+        <Route path="/shop/products" element={<ShopProductsPage />} />
+        <Route path="/shop/cart" element={<ShopCartPage />} />
         
         {/* 私有路由 */}
         <Route path="/" element={<Navigate to="/dispatch" replace />} />
