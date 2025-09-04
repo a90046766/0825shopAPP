@@ -75,28 +75,56 @@ export default function NewShopPage() {
       name: "專業清洗服務",
       description: "冷氣、洗衣機、抽油煙機等家電專業清洗",
       icon: Sparkles,
-      features: ["專業技師", "環保清潔劑", "保固服務"],
+      features: [
+        "專業技師",
+        "環保清潔劑",
+        "保固服務",
+        "透明定價",
+        "完整防護",
+        "快速到府"
+      ],
       link: "/shop/products?category=cleaning"
     },
     {
       name: "家電銷售服務",
       description: "各品牌家電，品質保證，價格實惠",
       icon: Award,
-      features: ["原廠保固", "免費安裝", "售後服務"],
+      features: [
+        "原廠保固",
+        "免費安裝",
+        "售後服務",
+        "正品保證",
+        "專人諮詢",
+        "快速到貨"
+      ],
       link: "/shop/products?category=new"
     },
     {
       name: "二手家電服務",
       description: "品質檢驗，價格優惠，環保選擇",
       icon: Heart,
-      features: ["品質保證", "價格實惠", "環保節能"],
+      features: [
+        "品質保證",
+        "價格實惠",
+        "環保節能",
+        "專業檢測",
+        "功能保固",
+        "安全可靠"
+      ],
       link: "/shop/products?category=used"
     },
     {
       name: "居家清潔/消毒服務",
       description: "定期清潔，專業服務，讓家更舒適",
       icon: CheckCircle,
-      features: ["定期服務", "專業清潔", "滿意保證"],
+      features: [
+        "定期服務",
+        "專業清潔",
+        "滿意保證",
+        "醫療等級消毒",
+        "安全無毒配方",
+        "彈性時段預約"
+      ],
       link: "/shop/products?category=home"
     }
   ]
@@ -104,27 +132,75 @@ export default function NewShopPage() {
   const advantages = [
     {
       title: "專業技術",
-      description: "擁有多年經驗的專業技師團隊",
+      description: "多年實務經驗與標準化SOP，細節到位、品質穩定",
       icon: Award,
       color: "text-blue-600"
     },
     {
       title: "品質保證",
-      description: "使用環保清潔劑，不傷家電",
+      description: "使用專用清潔劑與專用工具，不傷材質、延長壽命",
       icon: Shield,
       color: "text-green-600"
     },
     {
-      title: "快速服務",
-      description: "預約制服務，準時到達",
+      title: "準時快速",
+      description: "預約到府，準時抵達，縮短等待時間",
       icon: Clock,
       color: "text-orange-600"
     },
     {
-      title: "滿意保證",
-      description: "服務不滿意，免費重做",
+      title: "滿意承諾",
+      description: "若不滿意免費重做，完工後仍提供30天保固",
       icon: Star,
       color: "text-purple-600"
+    },
+    {
+      title: "透明定價",
+      description: "清楚標示每一項費用，現場無另加價，安心無負擔",
+      icon: CheckCircle,
+      color: "text-emerald-600"
+    },
+    {
+      title: "合法投保",
+      description: "人員皆投保公責保險，雙重保障維護您的權益",
+      icon: Users,
+      color: "text-sky-600"
+    },
+    {
+      title: "口碑見證",
+      description: "累積眾多好評與實際案例照片，值得信賴",
+      icon: Heart,
+      color: "text-rose-600"
+    },
+    {
+      title: "綠色環保",
+      description: "落實節水節能與回收機制，友善環境、持續永續",
+      icon: Zap,
+      color: "text-yellow-600"
+    },
+    {
+      title: "專用清潔劑",
+      description: "針對不同材質選用專用配方，清潔同時守護家電",
+      icon: CheckCircle,
+      color: "text-emerald-600"
+    },
+    {
+      title: "安全防護",
+      description: "完備的現場安全防護與流程管控，服務更安心",
+      icon: Shield,
+      color: "text-indigo-600"
+    },
+    {
+      title: "服務聯保",
+      description: "完工提供保固通知與LINE客服支援，有問題即時回應",
+      icon: Users,
+      color: "text-blue-500"
+    },
+    {
+      title: "到府覆蓋",
+      description: "北中南主要都會區到府，偏遠規範清楚，安排更有效率",
+      icon: MapPin,
+      color: "text-rose-500"
     }
   ]
 
@@ -160,7 +236,7 @@ export default function NewShopPage() {
       )}
 
       {/* Hero 輪播區塊 */}
-      <div className="relative h-[450px] overflow-hidden">
+      <div className="relative h-[360px] md:h-[420px] overflow-hidden">
         {heroSlides.map((slide, index) => (
           <div
             key={index}
@@ -175,24 +251,24 @@ export default function NewShopPage() {
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 z-20 flex items-center justify-center">
-              <div className="text-center text-white max-w-4xl mx-auto px-6">
-                <h1 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in">
+              <div className="text-center text-white max-w-4xl mx-auto px-4">
+                <h1 className="text-3xl md:text-4xl font-bold mb-3 animate-fade-in">
                   {slide.title}
                 </h1>
-                <p className="text-lg md:text-xl mb-6 opacity-90">
+                <p className="text-base md:text-lg mb-5 opacity-90">
                   {slide.subtitle}
                 </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Link
                     to="/shop/products"
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-full text-sm md:text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
                   >
                     瀏覽服務
                     <ArrowRight className="inline ml-2 h-4 w-4" />
                   </Link>
                   <Link
                     to="/shop/services"
-                    className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 border border-white/30"
+                    className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-5 py-2.5 rounded-full text-sm md:text-base font-semibold transition-all duration-300 border border-white/30"
                   >
                     服務介紹
                   </Link>
@@ -217,7 +293,7 @@ export default function NewShopPage() {
       </div>
 
                         {/* 四大服務分類 */}
-                  <section className="py-16 px-6">
+                  <section className="py-12 px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
                                 <div className="text-center mb-12">
                         <h2 className="text-3xl font-bold text-gray-900 mb-3">
@@ -228,32 +304,32 @@ export default function NewShopPage() {
                         </p>
                       </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {services.map((service, index) => (
               <div
                 key={index}
-                className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100"
+                className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100"
               >
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 mx-auto">
-                  <service.icon className="h-8 w-8 text-white" />
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 mx-auto">
+                  <service.icon className="h-7 w-7 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">
+                <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">
                   {service.name}
                 </h3>
-                <p className="text-gray-600 mb-4 text-center">
+                <p className="text-gray-600 mb-3 text-center text-sm">
                   {service.description}
                 </p>
-                                            <ul className="space-y-2 mb-6">
+                                            <ul className="space-y-1.5 mb-5">
                               {service.features.map((feature, idx) => (
-                                <li key={idx} className="flex items-center text-sm text-gray-600">
-                                  <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                                <li key={idx} className="flex items-center text-xs md:text-sm text-gray-600">
+                                  <CheckCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-500 mr-2 flex-shrink-0" />
                                   {feature}
                                 </li>
                               ))}
                             </ul>
                             <Link
                               to={service.link}
-                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 text-center block"
+                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 px-4 rounded-xl font-semibold transition-all duration-300 text-center block text-sm"
                             >
                               瀏覽服務
                             </Link>
@@ -264,7 +340,7 @@ export default function NewShopPage() {
       </section>
 
       {/* 為什麼選擇我們 */}
-      <section className="py-16 bg-gradient-to-br from-blue-50 to-purple-50">
+      <section className="py-12 bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="max-w-7xl mx-auto px-6">
                                 <div className="text-center mb-12">
                         <h2 className="text-3xl font-bold text-gray-900 mb-3">
@@ -275,19 +351,19 @@ export default function NewShopPage() {
                         </p>
                       </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {advantages.map((advantage, index) => (
               <div
                 key={index}
-                className="bg-white rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
+                className="bg-white rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
               >
-                <div className={`w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6 mx-auto`}>
-                  <advantage.icon className={`h-10 w-10 ${advantage.color}`} />
+                <div className={`w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 mx-auto`}>
+                  <advantage.icon className={`h-8 w-8 ${advantage.color}`} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">
                   {advantage.title}
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm">
                   {advantage.description}
                 </p>
               </div>

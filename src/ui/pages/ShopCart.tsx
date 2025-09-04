@@ -272,6 +272,15 @@ export default function ShopCartPage() {
     return cart.filter(item => isGroupBuyEligible(item.id))
   }
 
+  // 針對單一商品：距離團購門檻還差幾件
+  const getRemainingForGroup = (productId: string) => {
+    const product = allProducts.find(p => p.id === productId) as any
+    const cartItem = cart.find(item => item.id === productId)
+    if (!product || !product.groupMinQty || !cartItem) return 0
+    const remain = product.groupMinQty - cartItem.quantity
+    return Math.max(0, remain)
+  }
+
   // 計算折扣碼優惠
   const getDiscountAmount = () => {
     if (!discountCode) return 0
@@ -283,10 +292,10 @@ export default function ShopCartPage() {
     return 0
   }
 
-  // 計算積分折扣
+  // 計算積分折扣（每1積分=1元，可全額折抵）
   const getPointsDiscount = () => {
     if (!usePoints || pointsToUse <= 0) return 0
-    return Math.min(pointsToUse * 0.1, getTotalPrice()) // 每100積分折抵10元
+    return Math.min(pointsToUse, getTotalPrice())
   }
 
   // 計算最終價格
@@ -297,6 +306,27 @@ export default function ShopCartPage() {
     const pointsDiscount = getPointsDiscount()
     
     return Math.max(0, total - groupBuySavings - discountAmount - pointsDiscount)
+  }
+
+  // 尚差幾件達團購（僅針對清洗服務）
+  const getItemsToReachGroup = () => {
+    const targets = cart
+      .filter(item => {
+        const p = allProducts.find(x => x.id === item.id)
+        return p?.category === 'cleaning' && p?.groupMinQty
+      })
+      .map(item => {
+        const p = allProducts.find(x => x.id === item.id) as any
+        const remain = Math.max(0, (p.groupMinQty || 0) - item.quantity)
+        return remain
+      })
+    const minRemain = targets.length ? Math.min(...targets) : 0
+    return minRemain
+  }
+
+  // 預估可獲得積分（消費$100=1積分，取整）
+  const getEstimatedPoints = () => {
+    return Math.floor(getFinalPrice() / 100)
   }
 
   // 處理折扣碼
@@ -314,9 +344,9 @@ export default function ShopCartPage() {
     }
   }
 
-  // 處理積分使用
+  // 處理積分使用（可全額折抵）
   const handlePointsChange = (points: number) => {
-    const maxPoints = Math.min(customerPoints, Math.floor(getTotalPrice() * 10)) // 最多使用總價的10倍積分
+    const maxPoints = Math.min(customerPoints, Math.floor(getTotalPrice()))
     setPointsToUse(Math.min(points, maxPoints))
   }
 
@@ -494,6 +524,11 @@ export default function ShopCartPage() {
                                 <span>NT$ {product?.price?.toLocaleString()} × {item.quantity}</span>
                               )}
                             </div>
+                            {!isGroupBuy && product?.groupMinQty ? (
+                              <div className="text-xs text-orange-600 mt-1">
+                                再加 {getRemainingForGroup(item.id)} 件即可享團購價（門檻 {product.groupMinQty} 件）
+                              </div>
+                            ) : null}
                             {isGroupBuy && (
                               <div className="text-xs text-green-600 mt-1">
                                 ✓ 已達團購門檻，享受優惠價
@@ -675,6 +710,16 @@ export default function ShopCartPage() {
 
               {cart.length > 0 && (
                 <>
+                  {/* 規則說明卡片 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-900">
+                    <div className="font-semibold mb-1">購物說明</div>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>專業清洗服務：同項商品單次數量滿 3 件享團購價</li>
+                      <li>積分：每消費 NT$100 累積 1 點；100 點可折抵 NT$10</li>
+                      <li>折扣碼：商業 SR001、技師 SE001，可享 97% 優惠</li>
+                    </ul>
+                  </div>
+
                   {/* 價格明細 */}
                   <div className="space-y-3 mb-6">
                     <div className="flex justify-between text-sm text-gray-600">
@@ -694,6 +739,12 @@ export default function ShopCartPage() {
                         <span>優惠後金額</span>
                         <span>NT$ {getTotalPrice().toLocaleString()}</span>
                       </div>
+                      {/* 尚差幾件達團購提示 */}
+                      {getItemsToReachGroup() > 0 && (
+                        <div className="mt-2 text-xs text-orange-600">
+                          再加 {getItemsToReachGroup()} 件清洗服務可享團購價
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -781,6 +832,14 @@ export default function ShopCartPage() {
                     <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t">
                       <span>應付金額</span>
                       <span>NT$ {getFinalPrice().toLocaleString()}</span>
+                    </div>
+                    {getGroupBuySavings() > 0 && (
+                      <div className="text-xs text-green-600">
+                        已為您節省：NT$ {getGroupBuySavings().toLocaleString()}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-500">
+                      預估可獲得積分：{getEstimatedPoints().toLocaleString()} 點
                     </div>
                   </div>
 

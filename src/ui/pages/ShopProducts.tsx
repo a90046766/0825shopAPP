@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { 
   ShoppingCart, 
   Star, 
   Users, 
   CheckCircle, 
   ArrowRight,
+  ArrowLeft,
   Plus,
   Minus,
   Sparkles,
@@ -15,8 +16,58 @@ import {
 } from 'lucide-react'
 
 export default function ShopProductsPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const params = new URLSearchParams(location.search)
+  const initialCategory = (params.get('category') as any) || 'cleaning'
   const [cart, setCart] = useState<any[]>([])
-  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [groupOnly, setGroupOnly] = useState(false)
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
+  const [sortKey, setSortKey] = useState<'relevance' | 'priceAsc' | 'priceDesc'>('relevance')
+  const [favorites, setFavorites] = useState<string[]>([])
+  const [history, setHistory] = useState<any[]>([])
+
+  // 當網址列的 category 變化時同步
+  useEffect(() => {
+    const p = new URLSearchParams(location.search)
+    const next = (p.get('category') as any) || 'cleaning'
+    setSelectedCategory(next)
+  }, [location.search])
+
+  // 初始載入收藏與瀏覽紀錄
+  useEffect(() => {
+    try {
+      const fav = JSON.parse(localStorage.getItem('shopFavorites') || '[]')
+      if (Array.isArray(fav)) setFavorites(fav)
+    } catch {}
+    try {
+      const hist = JSON.parse(localStorage.getItem('shopHistory') || '[]')
+      if (Array.isArray(hist)) setHistory(hist)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    try { localStorage.setItem('shopFavorites', JSON.stringify(favorites)) } catch {}
+  }, [favorites])
+
+  useEffect(() => {
+    try { localStorage.setItem('shopHistory', JSON.stringify(history)) } catch {}
+  }, [history])
+
+  const toggleFavorite = (productId: string) => {
+    setFavorites(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId])
+  }
+
+  const addToHistory = (product: any) => {
+    setHistory(prev => {
+      const without = prev.filter((p:any) => p.id !== product.id)
+      const entry = { id: product.id, name: product.name, image: product.image, price: product.price, category: product.category }
+      return [entry, ...without].slice(0, 10)
+    })
+  }
 
   // 專業清洗服務產品（參考 942clean.com.tw）
   const cleaningProducts = [
@@ -206,22 +257,52 @@ export default function ShopProductsPage() {
   // 合併所有產品
   const allProducts = [...cleaningProducts, ...newAppliances, ...usedAppliances, ...homeCleaning]
 
-  // 根據分類篩選產品
-  const filteredProducts = selectedCategory === 'all' 
-    ? allProducts 
-    : allProducts.filter(p => p.category === selectedCategory)
+  // 根據分類/關鍵字/團購/價格區間篩選 + 排序
+  const filteredProducts = (() => {
+    const min = minPrice ? Math.max(0, Number(minPrice)) : 0
+    const max = maxPrice ? Math.max(min, Number(maxPrice)) : Infinity
+    const base = allProducts
+      .filter(p => selectedCategory === 'all' ? true : p.category === selectedCategory)
+      .filter(p => {
+        if (!searchQuery.trim()) return true
+        const q = searchQuery.trim().toLowerCase()
+        const hay = [p.name, p.description, ...(p.features||[])].join(' ').toLowerCase()
+        return hay.includes(q)
+      })
+      .filter(p => groupOnly ? !!p.groupPrice : true)
+      .filter(p => p.price >= min && p.price <= max)
+
+    const sorted = [...base].sort((a:any, b:any) => {
+      if (sortKey === 'priceAsc') return a.price - b.price
+      if (sortKey === 'priceDesc') return b.price - a.price
+      return 0
+    })
+    return sorted
+  })()
 
   // 添加到購物車
   const addToCart = (product: any) => {
     const existingItem = cart.find(item => item.id === product.id)
+    // 銷售型態規則：
+    // cleaning/home：可無限增加
+    // used：唯一單一件（不可重複）
+    // new：限制最多 2 件
     if (existingItem) {
+      const category = product.category
+      if (category === 'used') {
+        return // 二手件唯一單一件
+      }
+      if (category === 'new' && existingItem.quantity >= 2) {
+        return // 新家電上限 2 件
+      }
       setCart(cart.map(item => 
         item.id === product.id 
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ))
     } else {
-      setCart([...cart, { ...product, quantity: 1 }])
+      const initialQty = product.category === 'used' ? 1 : 1
+      setCart([...cart, { ...product, quantity: initialQty }])
     }
   }
 
@@ -271,60 +352,101 @@ export default function ShopProductsPage() {
         </div>
       </div>
 
-      {/* 分類導航 */}
+      {/* 分類與搜尋列 */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex space-x-8 overflow-x-auto py-4">
-            <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              全部產品
-            </button>
-            <button
-              onClick={() => setSelectedCategory('cleaning')}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === 'cleaning'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              專業清洗服務
-            </button>
-            <button
-              onClick={() => setSelectedCategory('new')}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === 'new'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              新家電銷售
-            </button>
-            <button
-              onClick={() => setSelectedCategory('used')}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === 'used'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              二手家電
-            </button>
-            <button
-              onClick={() => setSelectedCategory('home')}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === 'home'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              居家清潔
-            </button>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between py-4">
+            <div className="flex items-center space-x-6 overflow-x-auto">
+              <Link to="/store" className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm md:text-base">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                返回首頁
+              </Link>
+              <button
+                onClick={() => navigate('/shop/products?category=cleaning')}
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                  selectedCategory === 'cleaning'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:text-blue-600'
+                }`}
+              >
+                專業清洗服務
+              </button>
+              <button
+                onClick={() => navigate('/shop/products?category=new')}
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                  selectedCategory === 'new'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:text-blue-600'
+                }`}
+              >
+                新家電銷售
+              </button>
+              <button
+                onClick={() => navigate('/shop/products?category=used')}
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                  selectedCategory === 'used'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:text-blue-600'
+                }`}
+              >
+                二手家電
+              </button>
+              <button
+                onClick={() => navigate('/shop/products?category=home')}
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                  selectedCategory === 'home'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:text-blue-600'
+                }`}
+              >
+                居家清潔
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e)=> setSearchQuery(e.target.value)}
+                  placeholder="搜尋服務 / 商品關鍵字"
+                  className="w-64 max-w-full rounded-lg border px-4 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={groupOnly} onChange={(e)=> setGroupOnly(e.target.checked)} />
+                只看可團購
+              </label>
+              <div className="flex items-center gap-2 text-sm">
+                <input
+                  type="number"
+                  min={0}
+                  value={minPrice}
+                  onChange={(e)=> setMinPrice(e.target.value)}
+                  placeholder="最低價"
+                  className="w-24 rounded-lg border px-2 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <span className="text-gray-400">-</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={maxPrice}
+                  onChange={(e)=> setMaxPrice(e.target.value)}
+                  placeholder="最高價"
+                  className="w-24 rounded-lg border px-2 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <select
+                  value={sortKey}
+                  onChange={(e)=> setSortKey(e.target.value as any)}
+                  className="ml-2 rounded-lg border px-2 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="relevance">預設排序</option>
+                  <option value="priceAsc">價格（低→高）</option>
+                  <option value="priceDesc">價格（高→低）</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -340,12 +462,18 @@ export default function ShopProductsPage() {
                   className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden"
                 >
                   {/* 產品圖片 */}
-                  <div className="h-48 bg-gray-100 relative">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="h-48 bg-gray-100 relative" onClick={()=> addToHistory(product)}>
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={(e)=> { e.stopPropagation(); toggleFavorite(product.id) }}
+                      className={`absolute top-3 right-3 rounded-full p-2 ${favorites.includes(product.id) ? 'bg-rose-500 text-white' : 'bg-white text-gray-600'} shadow`}
+                      aria-label="favorite"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                        <path d="M11.645 20.91l-.007-.003-.022-.01a15.247 15.247 0 01-.383-.173 25.18 25.18 0 01-4.244-2.457C4.688 16.744 2.25 14.328 2.25 11.25 2.25 8.75 4.2 6.75 6.75 6.75c1.591 0 3.094.735 4.095 1.878a5.248 5.248 0 014.095-1.878c2.55 0 4.5 2 4.5 4.5 0 3.078-2.438 5.494-4.739 6.997a25.175 25.175 0 01-4.244 2.457 15.247 15.247 0 01-.383.173l-.022.01-.007.003-.003.001a.75.75 0 01-.592 0l-.003-.001z" />
+                      </svg>
+                    </button>
                     {product.category === 'cleaning' && (
                       <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-medium">
                         專業清洗
@@ -499,6 +627,27 @@ export default function ShopProductsPage() {
                     前往結帳
                     <ArrowRight className="inline ml-2 h-5 w-5" />
                   </Link>
+
+                  {/* 最近瀏覽 */}
+                  {history.length > 0 && (
+                    <div className="mt-8 border-t pt-4">
+                      <div className="text-sm font-semibold text-gray-800 mb-2">最近瀏覽</div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {history.map((h:any) => (
+                          <div key={h.id} className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded bg-gray-100 overflow-hidden">
+                              <img src={h.image} alt={h.name} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">{h.name}</div>
+                              <div className="text-xs text-gray-600">NT$ {h.price?.toLocaleString?.()}</div>
+                            </div>
+                            <button onClick={()=> addToCart(h)} className="text-xs px-2 py-1 bg-blue-600 text-white rounded">加入</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
