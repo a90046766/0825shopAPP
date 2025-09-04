@@ -36,6 +36,7 @@ import QuotesPage from './ui/pages/Quotes'
 import NewShopPage from './ui/pages/NewShop'
 import ShopProductsPage from './ui/pages/ShopProducts'
 import ShopCartPage from './ui/pages/ShopCart'
+import DatabaseTestPage from './ui/pages/DatabaseTest'
 import { supabase } from './utils/supabase'
 
 // 權限保護
@@ -163,6 +164,8 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         <Route path="/store" element={<NewShopPage />} />
         <Route path="/shop/products" element={<ShopProductsPage />} />
         <Route path="/shop/cart" element={<ShopCartPage />} />
+        {/* 測試頁面 */}
+        <Route path="/test/database" element={<DatabaseTestPage />} />
         
         {/* 私有路由 */}
         <Route path="/" element={<Navigate to="/dispatch" replace />} />
