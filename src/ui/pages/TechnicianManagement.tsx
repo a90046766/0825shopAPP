@@ -10,6 +10,7 @@ export default function TechnicianManagementPage() {
   const [edit, setEdit] = useState<any | null>(null)
   const [creating, setCreating] = useState(false)
   const [createForm, setCreateForm] = useState<any>({ name:'', email:'', shortName:'', phone:'', region:'all', status:'active' })
+  const [ratingEdit, setRatingEdit] = useState<{ id:number; override:number|null }|null>(null)
   useEffect(() => { (async()=>{ const a:any = await loadAdapters(); setRepo(a.technicianRepo); setUser(a.authRepo.getCurrentUser()) ; setRows(await a.technicianRepo.list()) })() }, [])
   const load = async () => { if (!repo) return; setRows(await repo.list()) }
   return (
@@ -40,10 +41,14 @@ export default function TechnicianManagementPage() {
             <div>
               <div className="font-semibold">{t.name} <span className="text-xs text-gray-500">{t.code}</span></div>
               <div className="text-xs text-gray-500">email {t.email}｜區域 {t.region}｜方案 {t.revenueShareScheme||'-'}</div>
+              <div className="text-xs text-gray-500 mt-1">評分覆蓋：{t.rating_override ?? '無'}（0~100）</div>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={()=>{navigator.clipboard.writeText(t.code)}} className="rounded-lg bg-gray-100 px-3 py-1 text-sm">複製編號</button>
               <button onClick={()=>setEdit(t)} className="rounded-lg bg-gray-900 px-3 py-1 text-white">編輯</button>
+              {(() => { const email = (user?.email||'').toLowerCase(); const canAdjust = user?.role==='admin' || email==='a90046766@gmail.com'; return canAdjust ? (
+                <button onClick={()=>setRatingEdit({ id: t.id, override: t.rating_override ?? null })} className="rounded-lg bg-indigo-600 px-3 py-1 text-white">調整評分</button>
+              ) : null })()}
               <button onClick={async()=>{ const { confirmTwice } = await import('../kit'); if(await confirmTwice('確認刪除此技師？','刪除後無法復原，仍要刪除？')){ await (await import('../../adapters/local/technicians')).technicianRepo.remove(t.id); load() } }} className="rounded-lg bg-rose-500 px-3 py-1 text-white">刪除</button>
             </div>
           </div>
@@ -141,6 +146,25 @@ export default function TechnicianManagementPage() {
                   alert(e?.message || '建立失敗')
                 }
               }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">建立</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {ratingEdit && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-card">
+            <div className="mb-2 text-lg font-semibold">調整評分（僅管理者）</div>
+            <div className="text-sm text-gray-600 mb-2">輸入 0~100 分，留空可清除覆蓋值</div>
+            <input type="number" min={0} max={100} className="w-full rounded border px-2 py-1" value={ratingEdit.override ?? ''} onChange={e=> setRatingEdit({ ...ratingEdit!, override: e.target.value===''? null : Number(e.target.value) })} />
+            <div className="mt-3 flex justify-end gap-2">
+              <button onClick={()=>setRatingEdit(null)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
+              <button onClick={async()=>{
+                try {
+                  await fetch(`/api/employees/${ratingEdit!.id}`, { method:'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ rating_override: ratingEdit!.override }) })
+                  setRatingEdit(null); await load()
+                } catch(e:any) { alert(e?.message || '更新失敗') }
+              }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">儲存</button>
             </div>
           </div>
         </div>

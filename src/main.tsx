@@ -38,6 +38,9 @@ import NewShopPage from './ui/pages/NewShop'
 import ShopProductsPage from './ui/pages/ShopProducts'
 import ShopCartPage from './ui/pages/ShopCart'
 import DatabaseTestPage from './ui/pages/DatabaseTest'
+import AdminContentPage from './ui/pages/AdminContent'
+import AdminSettingsPage from './ui/pages/AdminSettings'
+import MemberOrdersPage from './ui/pages/MemberOrders'
 import { supabase } from './utils/supabase'
 
 // 權限保護
@@ -167,6 +170,8 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         <Route path="/store" element={<NewShopPage />} />
         <Route path="/shop/products" element={<ShopProductsPage />} />
         <Route path="/shop/cart" element={<ShopCartPage />} />
+        {/* 會員中心 */}
+        <Route path="/member/orders" element={<MemberOrdersPage />} />
         {/* 測試頁面 */}
         <Route path="/test/database" element={<DatabaseTestPage />} />
         
@@ -194,9 +199,11 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
           <Route path="/payroll" element={<PrivateRoute permission="payroll.view"><PayrollPage /></PrivateRoute>} />
           <Route path="/reports" element={<PrivateRoute permission="reports.view"><ReportsPage /></PrivateRoute>} />
           <Route path="/report-center" element={<PrivateRoute permission="reports.view"><ReportCenterPage /></PrivateRoute>} />
+          <Route path="/admin/settings" element={<PrivateRoute permission="promotions.manage"><AdminSettingsPage /></PrivateRoute>} />
           <Route path="/used-items" element={<PrivateRoute permission="inventory.manage"><UsedItemsPage /></PrivateRoute>} />
           <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
           <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
+          <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
         </Route>
         </Routes>
       </BrowserRouter>

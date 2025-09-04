@@ -17,10 +17,17 @@ import {
   Zap,
   ShoppingBag
 } from 'lucide-react'
+import MemberBell from '../components/MemberBell'
 
 export default function NewShopPage() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [cmsHero, setCmsHero] = useState<any[] | null>(null)
+  const [cmsServices, setCmsServices] = useState<any[] | null>(null)
+  const [cmsAdvantages, setCmsAdvantages] = useState<any[] | null>(null)
+  const [cmsPromotion, setCmsPromotion] = useState<any | null>(null)
+  const [cmsLoyalty, setCmsLoyalty] = useState<any | null>(null)
+  const [cmsContacts, setCmsContacts] = useState<any | null>(null)
 
   // 檢查用戶登入狀態
   useEffect(() => {
@@ -49,7 +56,30 @@ export default function NewShopPage() {
     return () => clearInterval(timer)
   }, [])
 
-  const heroSlides = [
+  // 載入 CMS 內容（失敗則用本地預設）
+  useEffect(() => {
+    (async () => {
+      try {
+        const mod = await import('../../adapters/supabase/cms')
+        const [h, s, a, p, l, c] = await Promise.all([
+          mod.fetchHeroSlides().catch(()=>null),
+          mod.fetchServices().catch(()=>null),
+          mod.fetchAdvantages().catch(()=>null),
+          mod.fetchPromotions().catch(()=>null),
+          mod.fetchLoyalty().catch(()=>null),
+          mod.fetchContacts().catch(()=>null)
+        ])
+        if (h && Array.isArray(h) && h.length>0) setCmsHero(h)
+        if (s && Array.isArray(s) && s.length>0) setCmsServices(s)
+        if (a && Array.isArray(a) && a.length>0) setCmsAdvantages(a)
+        if (p) setCmsPromotion(p)
+        if (l) setCmsLoyalty(l)
+        if (c) setCmsContacts(c)
+      } catch {}
+    })()
+  }, [])
+
+  const heroSlides = cmsHero || [
     {
       title: "專業日式洗濯服務",
       subtitle: "讓您的家電煥然一新，享受潔淨生活",
@@ -70,14 +100,14 @@ export default function NewShopPage() {
     }
   ]
 
-  const services = [
+  const services = cmsServices || [
     {
       name: "專業清洗服務",
       description: "冷氣、洗衣機、抽油煙機等家電專業清洗",
       icon: Sparkles,
       features: [
         "專業技師",
-        "環保清潔劑",
+        "專用清潔劑",
         "保固服務",
         "透明定價",
         "完整防護",
@@ -129,7 +159,7 @@ export default function NewShopPage() {
     }
   ]
 
-  const advantages = [
+  const advantages = cmsAdvantages || [
     {
       title: "專業技術",
       description: "多年實務經驗與標準化SOP，細節到位、品質穩定",
@@ -173,9 +203,9 @@ export default function NewShopPage() {
       color: "text-rose-600"
     },
     {
-      title: "綠色環保",
-      description: "落實節水節能與回收機制，友善環境、持續永續",
-      icon: Zap,
+      title: "到府防護",
+      description: "作業全程鋪墊遮蔽與安全斷電，保護環境與設備",
+      icon: Shield,
       color: "text-yellow-600"
     },
     {
@@ -216,6 +246,13 @@ export default function NewShopPage() {
               <span className="text-sm text-gray-500">({currentUser.role || '用戶'})</span>
             </div>
             <div className="flex items-center space-x-3">
+              <Link
+                to="/member/orders"
+                className="inline-flex items-center px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                我的訂單
+              </Link>
+              <MemberBell />
               <Link
                 to="/login/member"
                 className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
@@ -266,12 +303,12 @@ export default function NewShopPage() {
                     瀏覽服務
                     <ArrowRight className="inline ml-2 h-4 w-4" />
                   </Link>
-                  <Link
-                    to="/shop/services"
+                  <a
+                    href="#services"
                     className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-5 py-2.5 rounded-full text-sm md:text-base font-semibold transition-all duration-300 border border-white/30"
                   >
                     服務介紹
-                  </Link>
+                  </a>
                 </div>
               </div>
             </div>
@@ -293,7 +330,7 @@ export default function NewShopPage() {
       </div>
 
                         {/* 四大服務分類 */}
-                  <section className="py-12 px-4 md:px-6">
+                  <section id="services" className="py-12 px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
                                 <div className="text-center mb-12">
                         <h2 className="text-3xl font-bold text-gray-900 mb-3">
@@ -319,14 +356,14 @@ export default function NewShopPage() {
                 <p className="text-gray-600 mb-3 text-center text-sm">
                   {service.description}
                 </p>
-                                            <ul className="space-y-1.5 mb-5">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-5 text-left">
                               {service.features.map((feature, idx) => (
-                                <li key={idx} className="flex items-center text-xs md:text-sm text-gray-600">
+                                <div key={idx} className="flex items-center text-xs md:text-sm text-gray-600">
                                   <CheckCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-500 mr-2 flex-shrink-0" />
                                   {feature}
-                                </li>
+                                </div>
                               ))}
-                            </ul>
+                            </div>
                             <Link
                               to={service.link}
                               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 px-4 rounded-xl font-semibold transition-all duration-300 text-center block text-sm"
@@ -391,9 +428,7 @@ export default function NewShopPage() {
               </div>
               <div>
                 <h3 className="text-xl font-semibold mb-3">品質保證</h3>
-                <p className="text-green-100">
-                  使用環保清潔劑，不傷家電，延長使用壽命
-                </p>
+                <p className="text-green-100">使用專用清潔劑，不傷家電</p>
               </div>
               <div>
                 <h3 className="text-xl font-semibold mb-3">滿意保證</h3>
@@ -421,16 +456,16 @@ export default function NewShopPage() {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto mb-8">
               <div className="bg-white/20 rounded-2xl p-6">
-                <div className="text-3xl font-bold mb-2">3件</div>
-                <div className="text-orange-100">團購門檻</div>
+                <div className="text-3xl font-bold mb-2">推薦加入</div>
+                <div className="text-orange-100">就送100積分</div>
               </div>
               <div className="bg-white/20 rounded-2xl p-6">
-                <div className="text-3xl font-bold mb-2">85折</div>
-                <div className="text-orange-100">團購優惠</div>
+                <div className="text-3xl font-bold mb-2">滿$100送1積分</div>
+                <div className="text-orange-100">消費回饋</div>
               </div>
               <div className="bg-white/20 rounded-2xl p-6">
-                <div className="text-3xl font-bold mb-2">積分</div>
-                <div className="text-orange-100">額外回饋</div>
+                <div className="text-3xl font-bold mb-2">可全額折抵</div>
+                <div className="text-orange-100">積分永久有效</div>
               </div>
             </div>
                                     <Link
@@ -454,24 +489,22 @@ export default function NewShopPage() {
             <h2 className="text-4xl font-bold mb-6">
               積分回饋制度
             </h2>
-            <p className="text-xl mb-8 text-purple-100 max-w-3xl mx-auto">
-              消費即可累積積分，享受更多優惠！每100元消費獲得1積分，每100積分可折抵10元
-            </p>
+            <p className="text-xl mb-8 text-purple-100 max-w-3xl mx-auto">消費$100=1積分，每1積分=$1，積分可全額折抵，永久不過期</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto mb-8">
               <div className="bg-white/20 rounded-2xl p-6">
-                <div className="text-3xl font-bold mb-2">1:1</div>
+                <div className="text-3xl font-bold mb-2">100:1</div>
                 <div className="text-purple-100">積分比例</div>
-                <div className="text-sm text-purple-200">每100元=1積分</div>
+                <div className="text-sm text-purple-200">消費$100=1積分</div>
               </div>
               <div className="bg-white/20 rounded-2xl p-6">
-                <div className="text-3xl font-bold mb-2">10:1</div>
+                <div className="text-3xl font-bold mb-2">1:1</div>
                 <div className="text-purple-100">折抵比例</div>
-                <div className="text-sm text-purple-200">每100積分=10元</div>
+                <div className="text-sm text-purple-200">每1積分=$1元</div>
               </div>
               <div className="bg-white/20 rounded-2xl p-6">
                 <div className="text-3xl font-bold mb-2">永久</div>
-                <div className="text-purple-100">積分有效</div>
-                <div className="text-sm text-purple-200">積分永不過期</div>
+                <div className="text-purple-100">永不過期</div>
+                <div className="text-sm text-purple-200">積分可全額折抵費用</div>
               </div>
             </div>
             <Link
@@ -524,15 +557,7 @@ export default function NewShopPage() {
             </div>
           </div>
           
-          <div className="text-center mt-12">
-            <Link
-              to="/shop/products"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 inline-flex items-center"
-            >
-              立即預約服務
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </div>
+          <div className="text-center mt-12 text-sm text-gray-300">日式洗濯 統編:90046766</div>
         </div>
       </section>
     </div>

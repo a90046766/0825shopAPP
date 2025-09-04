@@ -119,7 +119,23 @@ export default function ReservationsPage() {
         await (repos as any).reservationsRepo.update(reservation.id, { status: 'converted' })
       }
       
-      alert('預約訂單已轉換為正式訂單')
+      // 發送會員站內通知
+      try {
+        const res = await fetch('/api/notifications/member', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId: reservation.customerId || reservation.customer_id,
+            title: '訂單成立通知',
+            message: '已成立正式訂單，詳情請確認'
+          })
+        })
+        await res.json().catch(()=>{})
+      } catch (e) {
+        console.warn('建立會員通知失敗（不中斷）：', e)
+      }
+
+      alert('預約訂單已轉換為正式訂單，並已通知會員')
       load()
     } catch (error) {
       console.error('轉換預約訂單失敗:', error)
