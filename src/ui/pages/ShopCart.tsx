@@ -21,10 +21,12 @@ import {
   AlertCircle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { checkMemberAuth, canCheckout } from '../../utils/memberAuth'
 
 export default function ShopCartPage() {
   const navigate = useNavigate()
   const [cart, setCart] = useState<any[]>([])
+  const [memberUser, setMemberUser] = useState<any>(null)
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     phone: '',
@@ -38,6 +40,20 @@ export default function ShopCartPage() {
   const [customerPoints, setCustomerPoints] = useState(0)
   const [usePoints, setUsePoints] = useState(false)
   const [pointsToUse, setPointsToUse] = useState(0)
+
+  // 檢查會員登入狀態
+  useEffect(() => {
+    const member = checkMemberAuth()
+    if (member) {
+      setMemberUser(member)
+      // 自動填入會員資訊
+      setCustomerInfo(prev => ({
+        ...prev,
+        name: member.name,
+        email: member.email
+      }))
+    }
+  }, [])
 
   // 專業清洗服務產品（與產品頁面保持一致）
   const cleaningProducts = [
@@ -368,18 +384,71 @@ export default function ShopCartPage() {
   // 計算可使用的最大積分
   const maxUsablePoints = Math.min(customerPoints, Math.floor(getTotalPrice() * 10))
 
+  // 如果未登入會員，顯示提示
+  if (!memberUser) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+            <AlertCircle className="h-8 w-8 text-yellow-600" />
+          </div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">需要會員登入</h1>
+          <p className="text-gray-600 mb-6">您需要登入會員才能使用購物車功能</p>
+          <div className="space-y-3">
+            <Link
+              to="/login/member"
+              className="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              會員登入
+            </Link>
+            <Link
+              to="/register/member"
+              className="w-full inline-flex justify-center items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              立即註冊
+            </Link>
+            <Link
+              to="/store"
+              className="w-full inline-flex justify-center items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              返回購物站
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-6">
         {/* 頁面標題 */}
         <div className="mb-8">
-          <Link
-            to="/shop/products"
-            className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            返回商品頁面
-          </Link>
+          <div className="flex items-center justify-between mb-4">
+            <Link
+              to="/shop/products"
+              className="inline-flex items-center text-blue-600 hover:text-blue-700"
+            >
+              <ArrowLeft className="h-5 w-5 mr-2" />
+              返回商品頁面
+            </Link>
+            {/* 會員資訊 */}
+            <div className="flex items-center space-x-3">
+              <div className="text-right">
+                <p className="text-sm text-gray-600">歡迎，{memberUser.name}</p>
+                <p className="text-xs text-gray-500">會員編號：{memberUser.code}</p>
+              </div>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('member-auth-user')
+                  navigate('/store')
+                }}
+                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                登出
+              </button>
+            </div>
+          </div>
           <h1 className="text-3xl font-bold text-gray-900">購物車結帳</h1>
         </div>
 

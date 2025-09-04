@@ -14,11 +14,32 @@ import {
   ArrowRight,
   Sparkles,
   Heart,
-  Zap
+  Zap,
+  ShoppingBag
 } from 'lucide-react'
 
 export default function NewShopPage() {
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+
+  // 檢查用戶登入狀態
+  useEffect(() => {
+    const checkUser = () => {
+      try {
+        const supabaseUser = localStorage.getItem('supabase-auth-user')
+        const localUser = localStorage.getItem('local-auth-user')
+        const user = supabaseUser ? JSON.parse(supabaseUser) : localUser ? JSON.parse(localUser) : null
+        setCurrentUser(user)
+      } catch (error) {
+        console.error('檢查用戶狀態失敗:', error)
+      }
+    }
+    
+    checkUser()
+    // 監聽 localStorage 變化
+    window.addEventListener('storage', checkUser)
+    return () => window.removeEventListener('storage', checkUser)
+  }, [])
 
   // 自動輪播
   useEffect(() => {
@@ -54,31 +75,29 @@ export default function NewShopPage() {
       name: "專業清洗服務",
       description: "冷氣、洗衣機、抽油煙機等家電專業清洗",
       icon: Sparkles,
-      price: "NT$ 1,800起",
-      groupPrice: "NT$ 1,600起",
-      groupMin: 3,
-      features: ["專業技師", "環保清潔劑", "保固服務"]
+      features: ["專業技師", "環保清潔劑", "保固服務"],
+      link: "/shop/products?category=cleaning"
     },
     {
-      name: "新家電銷售",
+      name: "家電銷售服務",
       description: "各品牌家電，品質保證，價格實惠",
       icon: Award,
-      price: "NT$ 8,000起",
-      features: ["原廠保固", "免費安裝", "售後服務"]
+      features: ["原廠保固", "免費安裝", "售後服務"],
+      link: "/shop/products?category=new"
     },
     {
-      name: "二手家電",
+      name: "二手家電服務",
       description: "品質檢驗，價格優惠，環保選擇",
       icon: Heart,
-      price: "NT$ 3,000起",
-      features: ["品質保證", "價格實惠", "環保節能"]
+      features: ["品質保證", "價格實惠", "環保節能"],
+      link: "/shop/products?category=used"
     },
     {
-      name: "居家清潔",
+      name: "居家清潔/消毒服務",
       description: "定期清潔，專業服務，讓家更舒適",
       icon: CheckCircle,
-      price: "NT$ 2,500起",
-      features: ["定期服務", "專業清潔", "滿意保證"]
+      features: ["定期服務", "專業清潔", "滿意保證"],
+      link: "/shop/products?category=home"
     }
   ]
 
@@ -111,8 +130,37 @@ export default function NewShopPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* 用戶資訊欄 */}
+      {currentUser && (
+        <div className="bg-white border-b border-gray-200 px-6 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">歡迎回來，</span>
+              <span className="font-medium text-gray-900">{currentUser.name || currentUser.email}</span>
+              <span className="text-sm text-gray-500">({currentUser.role || '用戶'})</span>
+            </div>
+                                      <div className="flex items-center space-x-3">
+                            <Link
+                              to="/login/member"
+                              className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                            >
+                              <ShoppingBag className="h-4 w-4 mr-2" />
+                              會員登入
+                            </Link>
+                            <Link
+                              to="/dispatch"
+                              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
+                              返回派工系統
+                            </Link>
+                          </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero 輪播區塊 */}
-      <div className="relative h-[600px] overflow-hidden">
+      <div className="relative h-[450px] overflow-hidden">
         {heroSlides.map((slide, index) => (
           <div
             key={index}
@@ -128,25 +176,25 @@ export default function NewShopPage() {
             />
             <div className="absolute inset-0 z-20 flex items-center justify-center">
               <div className="text-center text-white max-w-4xl mx-auto px-6">
-                <h1 className="text-5xl md:text-6xl font-bold mb-4 animate-fade-in">
+                <h1 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in">
                   {slide.title}
                 </h1>
-                <p className="text-xl md:text-2xl mb-8 opacity-90">
+                <p className="text-lg md:text-xl mb-6 opacity-90">
                   {slide.subtitle}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link
-                    to="/shop/cart"
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    to="/shop/products"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
                   >
-                    立即購物
-                    <ArrowRight className="inline ml-2 h-5 w-5" />
+                    瀏覽服務
+                    <ArrowRight className="inline ml-2 h-4 w-4" />
                   </Link>
                   <Link
                     to="/shop/services"
-                    className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 border border-white/30"
+                    className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 border border-white/30"
                   >
-                    查看服務
+                    服務介紹
                   </Link>
                 </div>
               </div>
@@ -168,17 +216,17 @@ export default function NewShopPage() {
         </div>
       </div>
 
-      {/* 四大服務分類 */}
-      <section className="py-20 px-6">
+                        {/* 四大服務分類 */}
+                  <section className="py-16 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              我們的服務
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              專業的日式洗濯服務，讓您的家電煥然一新，享受潔淨舒適的生活品質
-            </p>
-          </div>
+                                <div className="text-center mb-12">
+                        <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                          我們的服務
+                        </h2>
+                        <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+                          專業的日式洗濯服務，讓您的家電煥然一新，享受潔淨舒適的生活品質
+                        </p>
+                      </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {services.map((service, index) => (
@@ -195,30 +243,20 @@ export default function NewShopPage() {
                 <p className="text-gray-600 mb-4 text-center">
                   {service.description}
                 </p>
-                <div className="text-center mb-4">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {service.price}
-                  </div>
-                  {service.groupPrice && (
-                    <div className="text-sm text-orange-600">
-                      團購價：{service.groupPrice} (滿{service.groupMin}件)
-                    </div>
-                  )}
-                </div>
-                <ul className="space-y-2 mb-6">
-                  {service.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center text-sm text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  to="/shop/cart"
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 text-center block"
-                >
-                  立即預約
-                </Link>
+                                            <ul className="space-y-2 mb-6">
+                              {service.features.map((feature, idx) => (
+                                <li key={idx} className="flex items-center text-sm text-gray-600">
+                                  <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                                  {feature}
+                                </li>
+                              ))}
+                            </ul>
+                            <Link
+                              to={service.link}
+                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 text-center block"
+                            >
+                              瀏覽服務
+                            </Link>
               </div>
             ))}
           </div>
@@ -226,16 +264,16 @@ export default function NewShopPage() {
       </section>
 
       {/* 為什麼選擇我們 */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 to-purple-50">
+      <section className="py-16 bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              為什麼選擇日式洗濯？
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              我們提供的不只是清潔服務，更是對品質的堅持和對客戶的承諾
-            </p>
-          </div>
+                                <div className="text-center mb-12">
+                        <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                          為什麼選擇日式洗濯？
+                        </h2>
+                        <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+                          我們提供的不只是清潔服務，更是對品質的堅持和對客戶的承諾
+                        </p>
+                      </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {advantages.map((advantage, index) => (
@@ -259,7 +297,7 @@ export default function NewShopPage() {
       </section>
 
       {/* 保固承諾 */}
-      <section className="py-20 px-6">
+      <section className="py-16 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl p-12 text-white text-center">
             <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-8 mx-auto">
@@ -293,7 +331,7 @@ export default function NewShopPage() {
       </section>
 
       {/* 團購優惠活動 */}
-      <section className="py-20 bg-gradient-to-r from-orange-50 to-red-50">
+      <section className="py-16 bg-gradient-to-r from-orange-50 to-red-50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl p-12 text-white text-center">
             <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-8 mx-auto">
@@ -319,19 +357,19 @@ export default function NewShopPage() {
                 <div className="text-orange-100">額外回饋</div>
               </div>
             </div>
-            <Link
-              to="/shop/cart"
-              className="bg-white text-orange-600 hover:bg-gray-100 px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 inline-flex items-center"
-            >
-              立即團購
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
+                                    <Link
+                          to="/shop/products?category=cleaning"
+                          className="bg-white text-orange-600 hover:bg-gray-100 px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 inline-flex items-center"
+                        >
+                          瀏覽清洗服務
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
           </div>
         </div>
       </section>
 
       {/* 積分系統介紹 */}
-      <section className="py-20 px-6">
+      <section className="py-16 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl p-12 text-white text-center">
             <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-8 mx-auto">
@@ -361,24 +399,24 @@ export default function NewShopPage() {
               </div>
             </div>
             <Link
-              to="/shop/cart"
-              className="bg-white text-purple-600 hover:bg-gray-100 px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 inline-flex items-center"
+              to="/shop/products"
+              className="bg-white text-purple-600 hover:bg-gray-100 px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 inline-flex items-center"
             >
               開始累積積分
-              <ArrowRight className="ml-2 h-5 w-5" />
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </div>
         </div>
       </section>
 
       {/* 聯繫我們 */}
-      <section className="py-20 bg-gray-900 text-white">
+      <section className="py-16 bg-gray-900 text-white">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-3">
               聯繫我們
             </h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            <p className="text-lg text-gray-300 max-w-3xl mx-auto">
               有任何問題或需要預約服務，歡迎隨時聯繫我們
             </p>
           </div>
@@ -388,16 +426,16 @@ export default function NewShopPage() {
               <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4 mx-auto">
                 <Phone className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">電話諮詢</h3>
-              <p className="text-gray-300">0913-788-051</p>
+              <h3 className="text-xl font-semibold mb-2">客服專線</h3>
+              <p className="text-gray-300">0800-XXX-XXX</p>
               <p className="text-gray-400 text-sm">週一至週日 8:00-20:00</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mb-4 mx-auto">
                 <Mail className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Email 諮詢</h3>
-              <p className="text-gray-300">jason660628@yahoo.com.tw</p>
+              <h3 className="text-xl font-semibold mb-2">客服信箱</h3>
+              <p className="text-gray-300">service@company.com</p>
               <p className="text-gray-400 text-sm">24小時內回覆</p>
             </div>
             <div className="text-center">
@@ -412,11 +450,11 @@ export default function NewShopPage() {
           
           <div className="text-center mt-12">
             <Link
-              to="/shop/cart"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-full text-xl font-semibold transition-all duration-300 inline-flex items-center"
+              to="/shop/products"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 inline-flex items-center"
             >
               立即預約服務
-              <ArrowRight className="ml-2 h-6 w-6" />
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </div>
         </div>

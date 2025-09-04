@@ -98,11 +98,16 @@ export default function DatabaseTestPage() {
     setError('')
     
     try {
+      // 生成會員編號
+      const memberCode = `MO${String(Math.floor(Math.random()*9000)+1000)}`
+      
       const testMember = {
+        code: memberCode,
         name: `正式會員${Date.now()}`,
         email: `member${Date.now()}@example.com`,
         phone: '0987654321',
-        referrer_code: 'SE001'
+        referrer_code: 'SE001',
+        referrer_type: 'sales'
       }
 
       const { data, error } = await supabase
@@ -114,7 +119,7 @@ export default function DatabaseTestPage() {
       if (error) {
         setError(`創建失敗: ${error.message}`)
       } else {
-        alert('測試會員創建成功！')
+        alert(`測試會員創建成功！會員編號：${memberCode}`)
         checkTables() // 重新載入資料
       }
     } catch (err: any) {

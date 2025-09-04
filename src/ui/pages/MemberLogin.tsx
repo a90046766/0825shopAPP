@@ -1,43 +1,65 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { authRepo } from '../../adapters/local/auth'
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { supabase } from '../../utils/supabase'
+import { Eye, EyeOff, ShoppingBag, ArrowLeft } from 'lucide-react'
 
 export default function MemberLoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  useEffect(() => {
-    // 檢查是否有記住的帳號
-    const remembered = authRepo.getRememberedEmail()
-    if (remembered) {
-      setEmail(remembered)
-      setRemember(true)
-    }
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) return
-
     setLoading(true)
     setError('')
 
     try {
-      const u = await authRepo.login(email, password)
-      
-      // 處理記住帳號
-      if (remember) {
-        authRepo.rememberEmail(email)
-      } else {
-        authRepo.forgetEmail()
+      // 檢查是否為會員
+      const { data: member, error: memberError } = await supabase
+        .from('members')
+        .select('id, name, email, code, status')
+        .eq('email', email.toLowerCase())
+        .single()
+
+      if (memberError || !member) {
+        setError('此 Email 尚未註冊為會員，請先註冊')
+        return
       }
 
-      if (!u.passwordSet) navigate('/reset-password')
-      else navigate('/dispatch')
+      if (member.status !== 'active') {
+        setError('您的會員帳號尚未啟用，請聯繫客服')
+        return
+      }
+
+      // 使用 Supabase Auth 登入
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase(),
+        password
+      })
+
+      if (error) {
+        setError(error.message)
+        return
+      }
+
+      if (data.user) {
+        // 儲存會員資訊到 localStorage
+        const memberInfo = {
+          id: member.id,
+          name: member.name,
+          email: member.email,
+          code: member.code,
+          role: 'member',
+          type: 'member'
+        }
+        localStorage.setItem('member-auth-user', JSON.stringify(memberInfo))
+        
+        // 導向購物站首頁
+        navigate('/store')
+      }
     } catch (err: any) {
       setError(err.message || '登入失敗')
     } finally {
@@ -45,102 +67,125 @@ export default function MemberLoginPage() {
     }
   }
 
-  const handleChangeAccount = () => {
-    setRemember(false)
-    setEmail('')
-    authRepo.forgetEmail()
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-card">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">洗濯派工系統</h1>
-          <p className="mt-1 text-sm text-gray-500">會員登入</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full">
+        {/* 返回按鈕 */}
+        <div className="mb-6">
+          <Link
+            to="/store"
+            className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            返回購物站
+          </Link>
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {remember && email ? (
-            <div className="rounded-xl bg-brand-50 p-3">
-              <div className="text-sm text-gray-700">
-                已記住帳號：<span className="font-medium">{email}</span>
-              </div>
-              <button 
-                type="button" 
-                onClick={handleChangeAccount}
-                className="mt-1 text-sm text-brand-600 underline"
-              >
-                更換帳號
-              </button>
+        {/* 登入表單 */}
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          {/* 標題 */}
+          <div className="text-center mb-8">
+            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <ShoppingBag className="h-8 w-8 text-blue-600" />
             </div>
-          ) : (
+            <h1 className="text-2xl font-bold text-gray-900">會員登入</h1>
+            <p className="text-gray-600 mt-2">歡迎回到購物站</p>
+          </div>
+
+          {/* 錯誤訊息 */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* 登入表單 */}
+          <form onSubmit={handleLogin} className="space-y-6">
+            {/* Email */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                電子郵件
+              </label>
               <input
+                id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-                placeholder="請輸入 Email"
                 required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                placeholder="請輸入您的 Email"
               />
             </div>
-          )}
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">密碼</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-              placeholder="請輸入密碼"
-              required
-            />
+            {/* 密碼 */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                密碼
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  placeholder="請輸入您的密碼"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* 登入按鈕 */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? '登入中...' : '登入'}
+            </button>
+          </form>
+
+          {/* 其他選項 */}
+          <div className="mt-8 text-center">
+            <p className="text-gray-600">
+              還沒有會員帳號？{' '}
+              <Link
+                to="/register/member"
+                className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              >
+                立即註冊
+              </Link>
+            </p>
           </div>
 
-          {!remember && (
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="remember"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-              />
-              <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
-                記住帳號
-              </label>
-            </div>
-          )}
-        </div>
+          {/* 分隔線 */}
+          <div className="mt-8 flex items-center">
+            <div className="flex-1 border-t border-gray-200"></div>
+            <span className="px-4 text-sm text-gray-500">或</span>
+            <div className="flex-1 border-t border-gray-200"></div>
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading || !email || !password}
-          className="mt-6 w-full rounded-xl bg-brand-500 py-3 font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
-        >
-          {loading ? '登入中...' : '登入'}
-        </button>
-
-        {/* 註冊選項 */}
-        <div className="mt-6 text-center">
-          <div className="text-sm text-gray-600">還沒有帳號？</div>
-          <button
-            type="button"
-            onClick={() => navigate('/member-register')}
-            className="mt-2 text-sm text-brand-600 underline hover:text-brand-700"
-          >
-            請註冊
-          </button>
+          {/* 內部人員登入 */}
+          <div className="mt-6 text-center">
+            <p className="text-gray-600 text-sm">
+              您是內部人員？{' '}
+              <Link
+                to="/login"
+                className="text-gray-700 hover:text-gray-900 font-medium transition-colors"
+              >
+                點此登入後台系統
+              </Link>
+            </p>
+          </div>
         </div>
-      </form>
+      </div>
     </div>
   )
 }
