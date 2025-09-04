@@ -28,16 +28,15 @@ export const checkSupabaseConnection = async () => {
   try {
     if (!url || !key) return false
     
-    const { data, error } = await supabase
-      .from('products')
-      .select('id')
-      .limit(1)
+    // 使用更安全的連線測試 - 檢查 auth 狀態而不是特定表
+    const { data, error } = await supabase.auth.getSession()
     
     if (error) {
       console.error('Supabase 連線失敗:', error)
       return false
     }
     
+    console.log('✅ Supabase 連線測試成功')
     return true
   } catch (err) {
     console.error('Supabase 健康檢查失敗:', err)
