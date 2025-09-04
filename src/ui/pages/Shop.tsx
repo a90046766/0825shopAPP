@@ -18,6 +18,8 @@ type Product = {
   defaultQuantity?: number
   published?: boolean
   storeSort?: number
+  groupPrice?: number
+  groupMinQty?: number
 }
 
 type Category = { id: string; name: string; sortOrder?: number }
@@ -79,6 +81,9 @@ export default function ShopPage() {
   const [cmsMode, setCmsMode] = useState(false)
   const [editingHero, setEditingHero] = useState<any|null>(null)
   const [editingSettings, setEditingSettings] = useState<any|null>(null)
+  const [customerPoints, setCustomerPoints] = useState<any>(null)
+  const [reservationOrders, setReservationOrders] = useState<any[]>([])
+  const [showReservationModal, setShowReservationModal] = useState(false)
 
   useEffect(() => {
     (async () => {
@@ -110,13 +115,68 @@ export default function ShopPage() {
           setHero(h)
           setSettings(s)
         } catch {}
+
+        // 簡化的積分系統初始化
+        try {
+          if (currentUser?.id) {
+            // 初始化積分（如果沒有）
+            const existingPoints = localStorage.getItem(`customer-points-${currentUser.id}`)
+            if (!existingPoints) {
+              const initialPoints = {
+                currentPoints: 100,
+                totalEarned: 100,
+                totalUsed: 0
+              }
+              localStorage.setItem(`customer-points-${currentUser.id}`, JSON.stringify(initialPoints))
+              setCustomerPoints(initialPoints)
+            } else {
+              setCustomerPoints(JSON.parse(existingPoints))
+            }
+            
+            // 讀取預訂訂單
+            const reservations = await a.reservationsRepo.list()
+            setReservationOrders(reservations || [])
+          }
+        } catch {}
+
       } catch (e: any) {
         setError(e?.message || '載入失敗（雲端）')
       } finally {
         setLoading(false)
       }
     })()
-  }, [])
+  }, [currentUser?.id])
+
+  // 簡化的積分系統函數
+  async function initializeCustomerPoints() {
+    if (!currentUser?.id) {
+      alert('請先登入以開始使用積分系統')
+      return
+    }
+    try {
+      const initialPoints = {
+        currentPoints: 100,
+        totalEarned: 100,
+        totalUsed: 0
+      }
+      localStorage.setItem(`customer-points-${currentUser.id}`, JSON.stringify(initialPoints))
+      setCustomerPoints(initialPoints)
+      alert('積分系統已開始使用！')
+    } catch (e: any) {
+      alert('初始化積分失敗：' + (e?.message || '請稍後再試'))
+    }
+  }
+
+  async function removeReservation(id: string) {
+    if (!confirm('確定要刪除此預訂訂單嗎？')) return
+    try {
+      await adapters.reservationsRepo.delete(id)
+      setReservationOrders(prev => prev.filter(order => order.id !== id))
+      alert('預訂訂單已刪除')
+    } catch (e: any) {
+      alert('刪除預訂訂單失敗：' + (e?.message || '請稍後再試'))
+    }
+  }
 
   const byCategory = useMemo(() => {
     const map: Record<string, Product[]> = {}

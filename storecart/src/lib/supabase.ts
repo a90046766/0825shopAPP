@@ -2,19 +2,26 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const useSupabase = import.meta.env.VITE_USE_SUPABASE === '1'
 
 let supabase: any = null
 
 export function getSupabase() {
-  // 即使環境變數缺失也建立 client（避免 UI 掛死），但 API 會失敗
+  // 如果設定為不使用 Supabase 或環境變數缺失，返回 null
+  if (!useSupabase || !supabaseUrl || !supabaseAnonKey) {
+    console.log('Supabase 未啟用或配置不完整，使用本地模式')
+    return null
+  }
+
+  // 建立 Supabase client
   if (!supabase) {
-    supabase = createClient(supabaseUrl || 'https://dummy.supabase.co', supabaseAnonKey || 'dummy-key', {
+    supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: { storageKey: 'sb-storecart-auth' },
-      // 明確注入 fetch 與預設標頭，確保帶上 apikey/Authorization
       global: {
-        headers: supabaseAnonKey
-          ? { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` }
-          : {},
+        headers: { 
+          apikey: supabaseAnonKey, 
+          Authorization: `Bearer ${supabaseAnonKey}` 
+        },
         fetch: (...args: any[]) => (window as any).fetch?.(...args)
       }
     })
@@ -25,7 +32,10 @@ export function getSupabase() {
 export async function checkSupabaseConnection() {
   try {
     const client = getSupabase()
-    if (!client) return false
+    if (!client) {
+      console.log('Supabase 未啟用，跳過連線檢查')
+      return false
+    }
 
     const { data, error } = await client.from('products').select('count').limit(1)
     return !error
@@ -33,5 +43,10 @@ export async function checkSupabaseConnection() {
     console.error('Supabase 連線檢查失敗:', error)
     return false
   }
+}
+
+// 檢查是否啟用 Supabase
+export function isSupabaseEnabled() {
+  return useSupabase && !!supabaseUrl && !!supabaseAnonKey
 }
 

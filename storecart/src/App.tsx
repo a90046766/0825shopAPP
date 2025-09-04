@@ -1,3 +1,4 @@
+import React from 'react'
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import RegisterPage from './pages/Register'
@@ -213,6 +214,257 @@ function Home() {
   )
 }
 
+function NewAppliances() {
+  return (
+    <div className="space-y-8">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">新家電購買</h1>
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          正品家電，品質保證，價格實惠，為您的居家生活提供最優質的選擇
+        </p>
+      </div>
+
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-8 text-center">
+        <h2 className="text-2xl font-bold text-green-900 mb-4">🆕 新家電服務</h2>
+        <p className="text-green-700 mb-6">
+          我們提供各種品牌的新家電，包含冷氣、洗衣機、冰箱、抽油煙機等
+        </p>
+        <div className="grid gap-4 md:grid-cols-3 mb-6">
+          <div className="bg-white/50 rounded-lg p-4">
+            <div className="text-2xl mb-2">❄️</div>
+            <div className="font-semibold text-green-900">冷氣設備</div>
+            <div className="text-sm text-green-700">分離式、窗型冷氣</div>
+          </div>
+          <div className="bg-white/50 rounded-lg p-4">
+            <div className="text-2xl mb-2">🧺</div>
+            <div className="font-semibold text-green-900">洗衣設備</div>
+            <div className="text-sm text-green-700">滾筒、直立式洗衣機</div>
+          </div>
+          <div className="bg-white/50 rounded-lg p-4">
+            <div className="text-2xl mb-2">🍳</div>
+            <div className="font-semibold text-green-900">廚房設備</div>
+            <div className="text-sm text-green-700">抽油煙機、瓦斯爐</div>
+          </div>
+        </div>
+        <p className="text-sm text-green-600">
+          詳細產品資訊和價格請聯繫我們的客服專線，我們會為您提供最適合的選擇
+        </p>
+      </div>
+
+      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">📞 聯絡我們</h3>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <p className="text-gray-600 mb-2">客服專線：0800-000-000</p>
+            <p className="text-gray-600 mb-2">服務時間：週一至週日 8:00-20:00</p>
+            <p className="text-gray-600">電子郵件：service@942clean.com.tw</p>
+          </div>
+          <div>
+            <p className="text-gray-600 mb-2">我們提供：</p>
+            <ul className="text-gray-600 text-sm space-y-1">
+              <li>• 專業諮詢服務</li>
+              <li>• 免費估價</li>
+              <li>• 安裝服務</li>
+              <li>• 保固服務</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function UsedAppliances() {
+  return (
+    <div className="space-y-8">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">二手家電購買</h1>
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          精選二手家電，品質檢驗，價格優惠，環保又經濟的選擇
+        </p>
+      </div>
+
+      <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-xl p-8 text-center">
+        <h2 className="text-2xl font-bold text-orange-900 mb-4">🔄 二手家電服務</h2>
+        <p className="text-orange-700 mb-6">
+          我們嚴格檢驗每一件二手家電，確保品質和安全性，讓您安心使用
+        </p>
+        <div className="grid gap-4 md:grid-cols-3 mb-6">
+          <div className="bg-white/50 rounded-lg p-4">
+            <div className="text-2xl mb-2">🔍</div>
+            <div className="font-semibold text-orange-900">品質檢驗</div>
+            <div className="text-sm text-orange-700">專業檢測，品質保證</div>
+          </div>
+          <div className="bg-white/50 rounded-lg p-4">
+            <div className="text-2xl mb-2">💰</div>
+            <div className="font-semibold text-orange-900">價格優惠</div>
+            <div className="text-sm text-orange-700">比新品便宜30-50%</div>
+          </div>
+          <div className="bg-white/50 rounded-lg p-4">
+            <div className="text-2xl mb-2">🌱</div>
+            <div className="font-semibold text-orange-900">環保選擇</div>
+            <div className="text-sm text-orange-700">減少浪費，愛護地球</div>
+          </div>
+        </div>
+        <p className="text-sm text-orange-600">
+          二手家電庫存會定期更新，請聯繫我們了解最新可用的商品
+        </p>
+      </div>
+
+      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">📋 二手家電流程</h3>
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="text-center">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <span className="text-xl">1</span>
+            </div>
+            <p className="text-sm font-medium text-gray-900">收購檢驗</p>
+            <p className="text-xs text-gray-600">專業檢測品質</p>
+          </div>
+          <div className="text-center">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <span className="text-xl">2</span>
+            </div>
+            <p className="text-sm font-medium text-gray-900">清潔保養</p>
+            <p className="text-xs text-gray-600">深度清潔消毒</p>
+          </div>
+          <div className="text-center">
+            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <span className="text-xl">3</span>
+            </div>
+            <p className="text-sm font-medium text-gray-900">功能測試</p>
+            <p className="text-xs text-gray-600">確保正常運作</p>
+          </div>
+          <div className="text-center">
+            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <span className="text-xl">4</span>
+            </div>
+            <p className="text-sm font-medium text-gray-900">保固服務</p>
+            <p className="text-xs text-gray-600">提供保固保障</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Cleaning() {
+  return (
+    <div className="space-y-8">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">居家消毒清潔</h1>
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          專業消毒清潔，守護家人健康，為您的居家環境提供最安全的保護
+        </p>
+      </div>
+
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-8 text-center">
+        <h2 className="text-2xl font-bold text-purple-900 mb-4">🧼 居家清潔服務</h2>
+        <p className="text-purple-700 mb-6">
+          採用專業消毒設備和環保清潔劑，徹底清除細菌病毒，讓您的居家環境更加安全健康
+        </p>
+        <div className="grid gap-4 md:grid-cols-3 mb-6">
+          <div className="bg-white/50 rounded-lg p-4">
+            <div className="text-2xl mb-2">🦠</div>
+            <div className="font-semibold text-purple-900">病毒消毒</div>
+            <div className="text-sm text-purple-700">99.9%病毒清除率</div>
+          </div>
+          <div className="bg-white/50 rounded-lg p-4">
+            <div className="text-2xl mb-2">🌿</div>
+            <div className="font-semibold text-purple-900">環保清潔</div>
+            <div className="text-sm text-purple-700">無毒無害清潔劑</div>
+          </div>
+          <div className="bg-white/50 rounded-lg p-4">
+            <div className="text-2xl mb-2">📱</div>
+            <div className="font-semibold text-purple-900">預約服務</div>
+            <div className="text-sm text-purple-700">彈性時間安排</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">🏠 室內清潔服務</h3>
+          <ul className="space-y-2 text-gray-600">
+            <li className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              客廳、臥室深度清潔
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              廚房油污清除
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              浴室除菌消毒
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              地毯深度清潔
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              窗戶玻璃清潔
+            </li>
+          </ul>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">🦠 消毒服務項目</h3>
+          <ul className="space-y-2 text-gray-600">
+            <li className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              空氣消毒淨化
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              表面消毒處理
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              空調系統消毒
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              排水管消毒
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              寵物區域消毒
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">💡 為什麼選擇我們的清潔服務？</h3>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="text-center">
+            <div className="text-3xl mb-2">🔬</div>
+            <h4 className="font-medium text-gray-900 mb-1">專業設備</h4>
+            <p className="text-xs text-gray-600">使用專業清潔設備</p>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl mb-2">🧪</div>
+            <h4 className="font-medium text-gray-900 mb-1">環保清潔劑</h4>
+            <p className="text-xs text-gray-600">無毒無害配方</p>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl mb-2">👨‍🔬</div>
+            <h4 className="font-medium text-gray-900 mb-1">專業團隊</h4>
+            <p className="text-xs text-gray-600">經驗豐富清潔師</p>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl mb-2">📋</div>
+            <h4 className="font-medium text-gray-900 mb-1">服務報告</h4>
+            <p className="text-xs text-gray-600">詳細清潔記錄</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Page({ title }: { title: string }) {
   return (
     <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
@@ -229,9 +481,9 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/services" element={<ProductsPage />} />
-          <Route path="/new-appliances" element={<ProductsPage />} />
-          <Route path="/used-appliances" element={<ProductsPage />} />
-          <Route path="/cleaning" element={<ProductsPage />} />
+          <Route path="/new-appliances" element={<NewAppliances />} />
+          <Route path="/used-appliances" element={<UsedAppliances />} />
+          <Route path="/cleaning" element={<Cleaning />} />
           <Route path="/account" element={<Page title="會員中心" />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/cart" element={<CartPage />} />
