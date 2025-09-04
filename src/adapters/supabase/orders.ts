@@ -21,6 +21,9 @@ function toDbRow(input: Partial<Order>): any {
   const map: Record<string, string> = {
     customerName: 'customer_name',
     customerPhone: 'customer_phone',
+    customerEmail: 'customer_email',
+    customerTitle: 'customer_title',
+    customerTaxId: 'customer_tax_id',
     customerAddress: 'customer_address',
     preferredDate: 'preferred_date',
     preferredTimeStart: 'preferred_time_start',
@@ -38,6 +41,8 @@ function toDbRow(input: Partial<Order>): any {
     paymentStatus: 'payment_status',
     pointsUsed: 'points_used',
     pointsDeductAmount: 'points_deduct_amount',
+    invoiceSent: 'invoice_sent',
+    note: 'note',
     workStartedAt: 'work_started_at',
     workCompletedAt: 'work_completed_at',
     serviceFinishedAt: 'service_finished_at',
@@ -67,6 +72,9 @@ function fromDbRow(row: any): Order {
     memberId: pick('memberId', 'member_id'),
     customerName: pick('customerName', 'customer_name') || '',
     customerPhone: pick('customerPhone', 'customer_phone') || '',
+    customerEmail: pick('customerEmail', 'customer_email') || '',
+    customerTitle: pick('customerTitle', 'customer_title') || '',
+    customerTaxId: pick('customerTaxId', 'customer_tax_id') || '',
     customerAddress: pick('customerAddress', 'customer_address') || '',
     preferredDate: pick('preferredDate', 'preferred_date') || '',
     preferredTimeStart: pick('preferredTimeStart', 'preferred_time_start') || '09:00',
@@ -76,6 +84,8 @@ function fromDbRow(row: any): Order {
     paymentStatus: pick('paymentStatus', 'payment_status'),
     pointsUsed: pick('pointsUsed', 'points_used') ?? 0,
     pointsDeductAmount: pick('pointsDeductAmount', 'points_deduct_amount') ?? 0,
+    invoiceSent: (r.invoiceSent ?? r.invoice_sent) ?? false,
+    note: pick('note', 'note') || '',
     serviceItems: pick('serviceItems', 'service_items') || [],
     assignedTechnicians: pick('assignedTechnicians', 'assigned_technicians') || [],
     signatureTechnician: r.signatureTechnician || r.signature_technician,
@@ -96,7 +106,7 @@ function fromDbRow(row: any): Order {
 }
 
 const ORDERS_COLUMNS =
-  'id,order_number,customer_name,customer_phone,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,photos,photos_before,photos_after,payment_method,payment_status,points_used,points_deduct_amount,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_at,updated_at'
+  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,photos,photos_before,photos_after,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_at,updated_at'
 
 class SupabaseOrderRepo implements OrderRepo {
   async list(): Promise<Order[]> {

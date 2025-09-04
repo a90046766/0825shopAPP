@@ -15,6 +15,8 @@ export interface Order {
   customerName: string
   customerPhone: string
   customerEmail?: string
+  customerTitle?: string
+  customerTaxId?: string
   customerAddress: string
   preferredDate?: string
   preferredTimeStart?: string
@@ -41,7 +43,8 @@ export interface Order {
   serviceFinishedAt?: string
   canceledReason?: string
   status: 'pending' | 'confirmed' | 'assigned' | 'in_progress' | 'completed' | 'canceled'
-  notes?: string
+  invoiceSent?: boolean
+  note?: string
   createdAt: string
   updatedAt: string
 }
@@ -130,6 +133,8 @@ export const useOrdersStore = create<OrdersState>()(
               customer_name: order.customerName,
               customer_phone: order.customerPhone,
               customer_email: order.customerEmail,
+              customer_title: order.customerTitle,
+              customer_tax_id: order.customerTaxId,
               customer_address: order.customerAddress,
               preferred_date: order.preferredDate,
               preferred_time_start: order.preferredTimeStart,
@@ -156,7 +161,8 @@ export const useOrdersStore = create<OrdersState>()(
               service_finished_at: order.serviceFinishedAt,
               canceled_reason: order.canceledReason,
               status: order.status,
-              notes: order.notes,
+              invoice_sent: order.invoiceSent ?? false,
+              note: order.note,
               created_at: order.createdAt,
               updated_at: order.updatedAt,
             })
@@ -193,6 +199,8 @@ export const useOrdersStore = create<OrdersState>()(
                 customer_name: updatedOrder.customerName,
                 customer_phone: updatedOrder.customerPhone,
                 customer_email: updatedOrder.customerEmail,
+                customer_title: updatedOrder.customerTitle,
+                customer_tax_id: updatedOrder.customerTaxId,
                 customer_address: updatedOrder.customerAddress,
                 preferred_date: updatedOrder.preferredDate,
                 preferred_time_start: updatedOrder.preferredTimeStart,
@@ -219,7 +227,8 @@ export const useOrdersStore = create<OrdersState>()(
                 service_finished_at: updatedOrder.serviceFinishedAt,
                 canceled_reason: updatedOrder.canceledReason,
                 status: updatedOrder.status,
-                notes: updatedOrder.notes,
+                invoice_sent: updatedOrder.invoiceSent ?? false,
+                note: updatedOrder.note,
                 updated_at: updatedOrder.updatedAt,
               })
               .eq('id', id)
@@ -380,6 +389,8 @@ export const useOrdersStore = create<OrdersState>()(
           customerName: o.customer_name,
           customerPhone: o.customer_phone,
           customerEmail: o.customer_email,
+          customerTitle: o.customer_title,
+          customerTaxId: o.customer_tax_id,
           customerAddress: o.customer_address,
           preferredDate: o.preferred_date,
           preferredTimeStart: o.preferred_time_start,
@@ -406,7 +417,8 @@ export const useOrdersStore = create<OrdersState>()(
           serviceFinishedAt: o.service_finished_at,
           canceledReason: o.canceled_reason,
           status: o.status,
-          notes: o.notes,
+          invoiceSent: o.invoice_sent ?? false,
+          note: o.note,
           createdAt: o.created_at,
           updatedAt: o.updated_at,
         }))

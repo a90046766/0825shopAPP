@@ -217,7 +217,7 @@ export default function ShopCartPage() {
       setCart(cart.filter(item => item.id !== productId))
     } else {
       setCart(cart.map(item => 
-        item.id === product.id ? { ...item, quantity } : item
+        item.id === productId ? { ...item, quantity } : item
       ))
     }
   }

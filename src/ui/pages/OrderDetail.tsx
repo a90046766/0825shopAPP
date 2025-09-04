@@ -644,6 +644,21 @@ export default function PageOrderDetail() {
           try {
             const signatures = { ...(order.signatures||{}), [signAs]: dataUrl }
             await repos.orderRepo.update(order.id, { signatures })
+            // 若為「無法服務」流程的簽名，落盤：狀態=unservice、備註加入原因、必要時加入車馬費
+            try {
+              if (unserviceOpen && signAs === 'customer') {
+                const addFare = unserviceFare === 'fare400'
+                const items = Array.isArray(order.serviceItems) ? [...order.serviceItems] : []
+                if (addFare) {
+                  items.push({ name: '車馬費', quantity: 1, unitPrice: 400 } as any)
+                }
+                const prevNote = (order as any).note || ''
+                const tag = addFare ? '（含車馬費$400）' : ''
+                const merged = `${prevNote ? prevNote + '\n' : ''}[無法服務] ${unserviceReason}${tag}`.trim()
+                await repos.orderRepo.update(order.id, { status: 'unservice' as any, note: merged, serviceItems: items })
+                setUnserviceOpen(false)
+              }
+            } catch {}
             const o = await repos.orderRepo.get(order.id)
             setOrder(o)
           } finally {
