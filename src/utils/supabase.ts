@@ -27,16 +27,28 @@ export const supabase = createClient(url || 'https://dummy.supabase.co', key || 
 export const checkSupabaseConnection = async () => {
   try {
     if (!url || !key) return false
-    
-    // 使用更安全的連線測試 - 檢查 auth 狀態而不是特定表
-    const { data, error } = await supabase.auth.getSession()
-    
+    // 1) 直接呼叫 Auth 健康檢查端點（最穩定，無需授權）
+    try {
+      const res = await fetch(`${url}/auth/v1/health`, {
+        method: 'GET',
+        headers: { 'apikey': key },
+        mode: 'cors'
+      })
+      if (res.ok) {
+        console.log('✅ Supabase Auth 健康檢查成功')
+        return true
+      }
+    } catch (e) {
+      console.warn('Auth 健康檢查失敗，改用 session 測試:', e)
+    }
+
+    // 2) 後備：檢查 auth session（若匿名也不應拋例外）
+    const { error } = await supabase.auth.getSession()
     if (error) {
-      console.error('Supabase 連線失敗:', error)
+      console.error('Supabase 連線失敗 (getSession):', error)
       return false
     }
-    
-    console.log('✅ Supabase 連線測試成功')
+    console.log('✅ Supabase 連線測試成功 (getSession)')
     return true
   } catch (err) {
     console.error('Supabase 健康檢查失敗:', err)
