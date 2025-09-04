@@ -14,12 +14,9 @@
   to = "/index.html"
   status = 200
 
-# 忽略 Supabase 環境變數的機密掃描
+# 環境變數設定：忽略機密掃描 + 強制設定 Supabase
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL"
-
-# 強制設定 Supabase 環境變數，確保部署後不會丟失
-[build.environment]
   VITE_USE_SUPABASE = "1"
   VITE_SUPABASE_URL = "https://dekopbnpsvqlztabblxg.supabase.co"
   VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRla29wYm5wc3ZxbHp0YWJibHhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NzkxMDgsImV4cCI6MjA3MTQ1NTEwOH0.vGeRNxRag5H4UmfuEVcju9Pt5p-i36hwfnOZaCd0x8Q"
