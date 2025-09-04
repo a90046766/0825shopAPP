@@ -9,11 +9,31 @@ export interface CartItem {
   addedAt: string
 }
 
+export interface CustomerPoints {
+  points: number
+  totalEarned: number
+  totalUsed: number
+}
+
+export interface ReservationOrder {
+  id: string
+  customerId: string
+  serviceId: string
+  quantity: number
+  reservationDate: string
+  reservationTime: string
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  notes?: string
+  createdAt: string
+}
+
 export interface CartState {
   items: CartItem[]
   loading: boolean
   error: string | null
   discountCode: string // 折扣碼（業務/技師編號）
+  customerPoints: CustomerPoints | null // 客戶積分
+  reservationOrders: ReservationOrder[] // 預訂訂單
   
   // 購物車操作
   addToCart: (product: Product, quantity?: number) => void
@@ -22,13 +42,24 @@ export interface CartState {
   clearCart: () => void
   setDiscountCode: (code: string) => void
   
+  // 積分系統
+  setCustomerPoints: (points: CustomerPoints) => void
+  usePoints: (points: number) => void
+  earnPoints: (points: number) => void
+  
+  // 預訂訂單
+  addReservationOrder: (order: Omit<ReservationOrder, 'id' | 'createdAt'>) => void
+  updateReservationStatus: (id: string, status: ReservationOrder['status']) => void
+  removeReservationOrder: (id: string) => void
+  
   // 計算
   getTotalItems: () => number
   getTotalPrice: () => number
   getGroupBuyPrice: () => number // 團購價計算
-  getFinalPrice: () => number // 最終價格（含折扣）
+  getFinalPrice: () => number // 最終價格（含折扣和積分）
   getItemQuantity: (productId: string) => number
   getDiscountAmount: () => number // 折扣金額
+  getPointsDiscount: () => number // 積分折抵金額
   
   // 檢查庫存
   checkStock: (productId: string, quantity: number) => boolean
@@ -46,6 +77,8 @@ export const useCartStore = create<CartState>()(
       loading: false,
       error: null,
       discountCode: '',
+      customerPoints: null,
+      reservationOrders: [],
 
       addToCart: (product, quantity = 1) => {
         const { items } = get()
@@ -129,6 +162,71 @@ export const useCartStore = create<CartState>()(
         set({ discountCode: code.toUpperCase() })
       },
 
+      // 積分系統
+      setCustomerPoints: (points) => {
+        set({ customerPoints: points })
+      },
+
+      usePoints: (points) => {
+        const { customerPoints } = get()
+        if (customerPoints && customerPoints.points >= points) {
+          set({
+            customerPoints: {
+              ...customerPoints,
+              points: customerPoints.points - points,
+              totalUsed: customerPoints.totalUsed + points
+            }
+          })
+        }
+      },
+
+      earnPoints: (points) => {
+        const { customerPoints } = get()
+        if (customerPoints) {
+          set({
+            customerPoints: {
+              ...customerPoints,
+              points: customerPoints.points + points,
+              totalEarned: customerPoints.totalEarned + points
+            }
+          })
+        } else {
+          set({
+            customerPoints: {
+              points,
+              totalEarned: points,
+              totalUsed: 0
+            }
+          })
+        }
+      },
+
+      // 預訂訂單
+      addReservationOrder: (order) => {
+        const newOrder: ReservationOrder = {
+          ...order,
+          id: `res_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          createdAt: new Date().toISOString()
+        }
+        set({
+          reservationOrders: [...get().reservationOrders, newOrder]
+        })
+      },
+
+      updateReservationStatus: (id, status) => {
+        set({
+          reservationOrders: get().reservationOrders.map(order =>
+            order.id === id ? { ...order, status } : order
+          )
+        })
+      },
+
+      removeReservationOrder: (id) => {
+        set({
+          reservationOrders: get().reservationOrders.filter(order => order.id !== id)
+        })
+      },
+
       getTotalItems: () => {
         return get().items.reduce((total, item) => total + item.quantity, 0)
       },
@@ -159,11 +257,22 @@ export const useCartStore = create<CartState>()(
         return 0 // 不符合團購條件
       },
 
-      // 最終價格計算
+      // 積分折抵金額計算
+      getPointsDiscount: () => {
+        const { customerPoints } = get()
+        if (!customerPoints || customerPoints.points < 100) return 0
+        
+        // 每100積分可折抵10元
+        const usablePoints = Math.floor(customerPoints.points / 100) * 100
+        return (usablePoints / 100) * 10
+      },
+
+      // 最終價格計算（含積分折抵）
       getFinalPrice: () => {
         const totalPrice = get().getTotalPrice()
         const groupBuyPrice = get().getGroupBuyPrice()
         const discountCode = get().discountCode
+        const pointsDiscount = get().getPointsDiscount()
         
         let finalPrice = groupBuyPrice > 0 ? groupBuyPrice : totalPrice
         
@@ -171,6 +280,9 @@ export const useCartStore = create<CartState>()(
         if (discountCode && (discountCode.startsWith('SR') || discountCode.startsWith('SE'))) {
           finalPrice = finalPrice * 0.97
         }
+        
+        // 積分折抵
+        finalPrice = Math.max(0, finalPrice - pointsDiscount)
         
         return finalPrice
       },
@@ -213,7 +325,9 @@ export const useCartStore = create<CartState>()(
       name: 'cart-items',
       partialize: (state) => ({ 
         items: state.items,
-        discountCode: state.discountCode
+        discountCode: state.discountCode,
+        customerPoints: state.customerPoints,
+        reservationOrders: state.reservationOrders
       })
     },
   ),

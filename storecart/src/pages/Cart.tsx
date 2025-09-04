@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useCartStore } from '../store/cart'
 import { useOrdersStore } from '../store/orders'
-import { Trash2, Minus, Plus, ShoppingBag, ArrowRight, Tag, Users } from 'lucide-react'
+import { Trash2, Minus, Plus, ShoppingBag, ArrowRight, Tag, Users, Gift, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function CartPage() {
@@ -14,11 +14,14 @@ export default function CartPage() {
     getGroupBuyPrice,
     getFinalPrice,
     getDiscountAmount,
+    getPointsDiscount,
     clearCart,
     discountCode,
     setDiscountCode,
     isGroupBuyEligible,
-    getGroupBuyEligibleItems
+    getGroupBuyEligibleItems,
+    customerPoints,
+    setCustomerPoints
   } = useCartStore()
   
   const { createOrderFromCart } = useOrdersStore()
@@ -101,6 +104,7 @@ export default function CartPage() {
   const groupBuyPrice = getGroupBuyPrice()
   const finalPrice = getFinalPrice()
   const discountAmount = getDiscountAmount()
+  const pointsDiscount = getPointsDiscount()
   const isGroupBuy = isGroupBuyEligible()
   const groupBuyItems = getGroupBuyEligibleItems()
 
@@ -153,6 +157,56 @@ export default function CartPage() {
             專業清洗服務滿3件即可享受團購價！目前有 {groupBuyItems.length} 項商品符合條件，
             還需要 {Math.max(0, 3 - groupBuyItems.reduce((sum, item) => sum + item.quantity, 0))} 件即可享受優惠。
           </p>
+        </div>
+      )}
+
+      {/* 積分顯示 */}
+      {customerPoints ? (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Gift className="h-6 w-6 text-purple-600" />
+              <div>
+                <h3 className="font-semibold text-purple-900">積分資訊</h3>
+                <p className="text-sm text-purple-700">
+                  目前積分: <span className="font-bold">{customerPoints.points}</span> 點
+                  {pointsDiscount > 0 && (
+                    <span className="ml-2 text-green-600">
+                      (可折抵 {formatPrice(pointsDiscount)})
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="text-right text-sm text-purple-600">
+              <div>累計獲得: {customerPoints.totalEarned} 點</div>
+              <div>累計使用: {customerPoints.totalUsed} 點</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Star className="h-6 w-6 text-green-600" />
+              <div>
+                <h3 className="font-semibold text-green-900">開始累積積分</h3>
+                <p className="text-sm text-green-700">
+                  每100元消費可獲得1積分，每100積分可折抵10元
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setCustomerPoints({
+                points: 100,
+                totalEarned: 100,
+                totalUsed: 0
+              })}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700"
+            >
+              開始使用積分
+            </button>
+          </div>
         </div>
       )}
 
