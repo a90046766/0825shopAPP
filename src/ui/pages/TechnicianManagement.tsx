@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useEffect, useState } from 'react'
 import { loadAdapters } from '../../adapters'
-import { Navigate } from 'react-router-dom'
 import { Navigate } from 'react-router-dom'
 
 export default function TechnicianManagementPage() {
@@ -96,7 +94,7 @@ export default function TechnicianManagementPage() {
             </div>
             <div className="mt-3 flex justify-end gap-2">
               <button onClick={()=>setEdit(null)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
-              <button onClick={async()=>{ await technicianRepo.upsert(edit); setEdit(null); load() }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">儲存</button>
+              <button onClick={async()=>{ if (!repo) return; await repo.upsert(edit); setEdit(null); load() }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">儲存</button>
             </div>
           </div>
         </div>

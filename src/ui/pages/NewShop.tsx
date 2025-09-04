@@ -139,22 +139,22 @@ export default function NewShopPage() {
               <span className="font-medium text-gray-900">{currentUser.name || currentUser.email}</span>
               <span className="text-sm text-gray-500">({currentUser.role || '用戶'})</span>
             </div>
-                                      <div className="flex items-center space-x-3">
-                            <Link
-                              to="/login/member"
-                              className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
-                            >
-                              <ShoppingBag className="h-4 w-4 mr-2" />
-                              會員登入
-                            </Link>
-                            <Link
-                              to="/dispatch"
-                              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                              <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
-                              返回派工系統
-                            </Link>
-                          </div>
+            <div className="flex items-center space-x-3">
+              <Link
+                to="/login/member"
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                會員登入
+              </Link>
+              <Link
+                to="/dispatch"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
+                返回派工系統
+              </Link>
+            </div>
           </div>
         </div>
       )}

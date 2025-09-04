@@ -17,6 +17,7 @@ import ResetPasswordPage from './ui/pages/ResetPassword'
 import NotificationsPage from './ui/pages/Notifications'
 import TechnicianSchedulePage from './ui/pages/TechnicianSchedule'
 import MemberRegisterPage from './ui/pages/MemberRegister'
+import MemberLoginPage from './ui/pages/MemberLogin'
 import ProductsPage from './ui/pages/Products'
 import InventoryPage from './ui/pages/Inventory'
 import TechnicianManagementPage from './ui/pages/TechnicianManagement'
@@ -203,6 +204,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
   )
   } catch (err: any) {
     const msg = (err && (err.message || String(err))) || '初始化失敗'
+    try { console.error('App init error:', err) } catch {}
     createRoot(document.getElementById('root')!).render(
       <div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-6">
         <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-card">
