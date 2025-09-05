@@ -22,6 +22,8 @@ export type Permission =
   | 'reservations.manage'
   | 'reports.thread'
   | 'bulletin.manage'
+  | 'bulletin.send_all'
+  | 'bulletin.send_user'
   | 'shop.manage'
 
 // 角色權限矩陣
@@ -42,7 +44,7 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     'schedule.view',
     'inventory.manage',
     'reports.view', 'reports.manage',
-    'bulletin.manage'
+    'bulletin.manage', 'bulletin.send_all', 'bulletin.send_user'
   ],
   support: [
     'dashboard.view',
@@ -60,7 +62,7 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     'schedule.view',
     'inventory.manage',
     'reports.view',
-    'bulletin.manage'
+    'bulletin.manage', 'bulletin.send_user'
   ],
   sales: [
     'dashboard.view',

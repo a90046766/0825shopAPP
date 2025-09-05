@@ -76,6 +76,24 @@ export default function LoginPage() {
         {error && (
           <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
             {error}
+            {String(error).includes('商城會員') && (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/login/member')}
+                  className="rounded bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-700"
+                >
+                  前往會員登入
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/store')}
+                  className="rounded bg-gray-100 px-3 py-1.5 text-gray-800 hover:bg-gray-200"
+                >
+                  返回購物首頁
+                </button>
+              </div>
+            )}
           </div>
         )}
 

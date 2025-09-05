@@ -161,32 +161,51 @@ class SupabaseOrderRepo implements OrderRepo {
 
   async create(draft: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
     try {
-      const row = toDbRow(draft)
-      // ?�新訂單?��? UUID
-      row.id = generateUUID()
-      
-      // ?��?訂單編�?
-      const { data: orderNumberData, error: orderNumberError } = await supabase
-        .rpc('generate_order_number')
-      
-      if (orderNumberError) {
-        console.error('?��?訂單編�?失�?:', orderNumberError)
-        throw new Error('?��?訂單編�?失�?')
+      // 優先使用 RPC 將「產生單號 + 寫入 header/items」包成交易
+      const payload: any = {
+        customerName: (draft as any).customerName,
+        customerPhone: (draft as any).customerPhone,
+        customerEmail: (draft as any).customerEmail,
+        customerAddress: (draft as any).customerAddress,
+        preferredDate: (draft as any).preferredDate,
+        preferredTimeStart: (draft as any).preferredTimeStart,
+        preferredTimeEnd: (draft as any).preferredTimeEnd,
+        paymentMethod: (draft as any).paymentMethod,
+        pointsUsed: (draft as any).pointsUsed,
+        pointsDeductAmount: (draft as any).pointsDeductAmount,
+        note: (draft as any).note,
+        platform: (draft as any).platform || '商城',
+        status: (draft as any).status || 'pending',
+        serviceItems: (draft as any).serviceItems || []
       }
-      
+
+      try {
+        const { data: rpcRow, error: rpcErr } = await supabase.rpc('create_reservation_order', {
+          p_member_id: (draft as any).memberId || null,
+          p_payload: payload
+        })
+        if (rpcErr) throw rpcErr
+        if (rpcRow) return fromDbRow(rpcRow)
+      } catch (rpcError: any) {
+        // RPC 不存在或失敗時，回退到舊流程（兩段式）
+        console.warn('create_reservation_order RPC 不可用，回退兩段式建立：', rpcError?.message || rpcError)
+      }
+
+      // 回退流程（兩段式）：先產生單號再插入
+      const row = toDbRow(draft)
+      row.id = generateUUID()
+      const { data: orderNumberData, error: orderNumberError } = await supabase.rpc('generate_order_number')
+      if (orderNumberError) {
+        console.error('產生訂單編號失敗:', orderNumberError)
+        throw new Error('產生訂單編號失敗')
+      }
       row.order_number = orderNumberData
-      
-      const { data, error } = await supabase
-        .from('orders')
-        .insert(row)
-        .select(ORDERS_COLUMNS)
-        .single()
-      
+
+      const { data, error } = await supabase.from('orders').insert(row).select(ORDERS_COLUMNS).single()
       if (error) {
         console.error('Supabase order create error:', error)
-        throw new Error(`訂單建�?失�?: ${error.message}`)
+        throw new Error(`訂單建立失敗: ${error.message}`)
       }
-      
       return fromDbRow(data)
     } catch (error) {
       console.error('Supabase order create exception:', error)
@@ -356,6 +375,35 @@ class SupabaseOrderRepo implements OrderRepo {
     } catch (error) {
       console.error('Supabase order finishWork exception:', error)
       throw new Error('完�?工�?失�?')
+    }
+  }
+
+  // 客服確認並推播會員（以顧客 Email 為目標）
+  async confirmWithMemberNotify(id: string): Promise<void> {
+    await this.confirm(id)
+    try {
+      // 取得訂單資料，用於組合通知內容
+      const order = await this.get(id)
+      if (!order) return
+      const email = (order.customerEmail || '').toLowerCase()
+      if (!email) return
+      const timeBand = (order.preferredTimeStart && order.preferredTimeEnd)
+        ? `${order.preferredTimeStart}-${order.preferredTimeEnd}`
+        : ''
+      const title = '服務已確認通知'
+      const body = `親愛的${order.customerName||''}您好，感謝您的惠顧！您${order.preferredDate||''}的服務已確認，訂單編號 ${order.id}。技師將於 ${timeBand} 抵達，請保持電話暢通。建議加入官方 LINE：@942clean 以利溝通與留存紀錄。如需異動請於 LINE 留言或致電 (02)7756-2269。`
+      // 直接寫入 notifications 表
+      await supabase.from('notifications').insert({
+        title,
+        body,
+        level: 'info',
+        target: 'user',
+        target_user_email: email,
+        sent_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      })
+    } catch (e) {
+      console.warn('confirmWithMemberNotify 寫入通知失敗：', e)
     }
   }
 }

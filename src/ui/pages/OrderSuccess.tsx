@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle, CreditCard, Landmark, ArrowRight } from 'lucide-react'
+import { loadAdapters } from '../../adapters'
 
 export default function OrderSuccessPage() {
   const navigate = useNavigate()
@@ -18,10 +19,43 @@ export default function OrderSuccessPage() {
       const found = all.find((o: any) => o.id === orderId)
       setOrder(found || null)
     } catch {}
+    ;(async()=>{
+      // 若本地找不到，嘗試從雲端載入
+      try {
+        if (!orderId) return
+        if (order) return
+        const repos = await loadAdapters()
+        const o = await repos.orderRepo.get(orderId).catch(()=>null)
+        if (!o) return
+        // 正規化為成功頁顯示需要的欄位
+        const subTotal = Array.isArray(o.serviceItems) ? o.serviceItems.reduce((s:any,it:any)=> s + ((it.unitPrice||0)*(it.quantity||0)), 0) : 0
+        const finalPrice = Math.max(0, subTotal - (o.pointsDeductAmount||0))
+        const normalized = {
+          id: o.id,
+          paymentMethod: o.paymentMethod,
+          finalPrice,
+          customerInfo: {
+            address: o.customerAddress,
+            preferredDate: o.preferredDate,
+            preferredTime: (o.preferredTimeStart && o.preferredTimeEnd) ? `${o.preferredTimeStart}-${o.preferredTimeEnd}` : ''
+          }
+        }
+        setOrder(normalized)
+      } catch {}
+    })()
   }, [orderId])
 
-  const saveRemit = () => {
+  const saveRemit = async () => {
     if (!order || !last5 || last5.length < 5) return
+    // 優先雲端
+    try {
+      const repos = await loadAdapters()
+      const newNote = `${order?.note ? order.note + '\n' : ''}匯款末五碼：${last5}`
+      await repos.orderRepo.update(order.id, { paymentStatus: 'pending' as any, note: newNote })
+      setSaved(true)
+      return
+    } catch {}
+    // 回退本地
     try {
       const all = JSON.parse(localStorage.getItem('reservationOrders') || '[]')
       const idx = all.findIndex((o: any) => o.id === order.id)
@@ -130,6 +164,12 @@ export default function OrderSuccessPage() {
             <button onClick={()=> navigate('/store')} className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-gray-100 text-gray-800 hover:bg-gray-200">
               返回購物站
             </button>
+            <a
+              href="https://line.me/R/ti/p/@942clean"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-green-600 text-white hover:bg-green-700 sm:col-span-2"
+            >加入官方 LINE</a>
           </div>
         </div>
       </div>

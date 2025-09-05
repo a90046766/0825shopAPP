@@ -137,7 +137,9 @@ function DesktopNav() {
     // 僅管理員可見
     { to: '/members', label: '會員管理', perm: 'admin' },
     // 產品管理與購物車已解耦，改由管理員集中控管
-    { to: '/products', label: '產品管理', perm: 'admin' }
+    { to: '/products', label: '產品管理', perm: 'admin' },
+    // 廣播
+    { to: '/admin/broadcast', label: '站內廣播', perm: 'bulletin.manage' }
   ]
 
   const [counts, setCounts] = useState<Record<string, number>>({})

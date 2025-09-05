@@ -576,8 +576,12 @@ export default function PageOrderDetail() {
                   if(!order.preferredDate || !order.preferredTimeStart || !order.preferredTimeEnd){ alert('請填寫服務日期與時段'); return }
                   const { confirmTwice } = await import('../kit');
                   if (!(await confirmTwice('確認建單完成？','確認後訂單進入待服務（僅能取消）。是否繼續？'))) return
-                  await repos.orderRepo.confirm(order.id)
-                  const o=await repos.orderRepo.get(order.id); setOrder(o); alert('已確認，待服務')
+                  if ((repos.orderRepo as any).confirmWithMemberNotify) {
+                    await (repos.orderRepo as any).confirmWithMemberNotify(order.id)
+                  } else {
+                    await repos.orderRepo.confirm(order.id)
+                  }
+                  const o=await repos.orderRepo.get(order.id); setOrder(o); alert('已確認，已發送通知')
                 }}
                 className="inline-block rounded-xl bg-blue-600 px-4 py-2 text-white"
               >確認（建單完成）</button>

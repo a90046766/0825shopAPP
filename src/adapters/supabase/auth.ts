@@ -18,26 +18,18 @@ class SupabaseAuthRepo implements AuthRepo {
   async login(email: string, password: string): Promise<User> {
     const lc = email.trim().toLowerCase()
     const pwd = password && password.trim() ? password : 'a123123'
-    let { data, error } = await supabase.auth.signInWithPassword({ email: lc, password: pwd })
-
-    // 若密碼登入失敗，嘗試以相同密碼自動建立帳號（適用於尚未在 Auth 建立用戶的情境）
-    if (error) {
-      try {
-        const { data: signupData, error: signupError } = await supabase.auth.signUp({ email: lc, password: pwd, options: { emailRedirectTo: undefined } })
-        if (signupError) {
-          // 已存在但密碼錯誤 → 明確提示
-          throw new Error(signupError.message?.includes('already registered')
-            ? '帳號已存在，但密碼不正確。請至 Supabase Auth 設定密碼或使用忘記密碼'
-            : (signupError.message || '登入失敗'))
-        }
-        data = signupData as any
-      } catch (e: any) {
-        throw new Error(e?.message || '登入失敗')
-      }
-    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email: lc, password: pwd })
+    if (error) throw new Error(error.message || '登入失敗')
 
     if (!data.user) {
       throw new Error('登入失敗：無法取得使用者資料')
+    }
+
+    // 嚴格阻擋商城會員登入後台
+    const userType = (data.user.user_metadata && (data.user.user_metadata as any).user_type) || ''
+    if (String(userType).toLowerCase() === 'member') {
+      await supabase.auth.signOut()
+      throw new Error('此帳號為商城會員，請使用會員登入頁 /login/member')
     }
 
     // 先查技師，若找到就不再查 staff，避免 staff 查詢 500 影響登入
@@ -65,11 +57,13 @@ class SupabaseAuthRepo implements AuthRepo {
       'jason660628@yahoo.com.tw': { name: '楊小飛', role: 'technician' },
     }
 
-    // 不再阻擋登入：即使查不到 staff/technicians 也允許登入，後續自動補齊
-
-    // 以主帳號資訊為最優先；非主帳號優先採用技師資料，再回退到 staff
+    // 僅允許 PRIMARY / technicians / staff 登入
     const displayName = PRIMARY[lc]?.name ?? technicianData?.name ?? staffData?.name ?? data.user.email ?? ''
-    const role = (PRIMARY[lc]?.role ?? (technicianData ? 'technician' : (staffData?.role as any) ?? 'support')) as User['role']
+    const role = (PRIMARY[lc]?.role ?? (technicianData ? 'technician' : (staffData?.role as any) ?? null)) as User['role']
+    if (!role) {
+      await supabase.auth.signOut()
+      throw new Error('此帳號非內部人員，請改用會員登入頁 /login/member')
+    }
 
     this.currentUser = {
       id: data.user.id,
@@ -80,7 +74,7 @@ class SupabaseAuthRepo implements AuthRepo {
       passwordSet: true
     }
 
-    // 若為主帳號且 staff 中尚無資料，或需要校正角色，嘗試自動補齊/校正一筆 staff 記錄
+    // 只對 PRIMARY 進行自動補齊/校正 staff 資料
     if (PRIMARY[lc]) {
       try {
         await supabase
@@ -91,19 +85,6 @@ class SupabaseAuthRepo implements AuthRepo {
             email: lc,
             phone: (staffData as any)?.phone || '',
             role: PRIMARY[lc].role,
-            status: 'active'
-          }, { onConflict: 'email' })
-      } catch {}
-    } else if (!staffData && !technicianData) {
-      // 非主帳號，且兩表皆無 → 最少補上 staff 基本資料（support）
-      try {
-        await supabase
-          .from('staff')
-          .upsert({
-            name: data.user.email || '',
-            email: lc,
-            phone: '',
-            role: 'support',
             status: 'active'
           }, { onConflict: 'email' })
       } catch {}

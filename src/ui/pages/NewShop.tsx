@@ -318,21 +318,7 @@ export default function NewShopPage() {
         </div>
       )}
 
-      {/* 固定橫幅（活動公告） */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="text-sm sm:text-base font-semibold tracking-wide">
-            本月活動：推薦加入就送100積分｜消費滿$100贈1積分｜積分可全額折抵
-          </div>
-          <Link
-            to="/shop/products?category=cleaning"
-            className="inline-flex items-center px-4 py-1.5 bg-white/15 hover:bg-white/25 rounded-full text-white text-sm font-medium transition-colors"
-          >
-            立即查看清洗服務
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </div>
-      </div>
+      {/* 固定橫幅已移除 */}
 
       {/* Hero 輪播區塊 */}
       <div className="relative h-[300px] md:h-[360px] overflow-hidden">
@@ -454,16 +440,17 @@ export default function NewShopPage() {
                 key={index}
                 className="bg-white rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
               >
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto ${advantageBgMap[advantage.color] || 'bg-gray-100'}`}>
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto ${advantageBgMap[advantage.color] || 'bg-blue-50'}`}>
                   {/* 若 CMS 回來的是字串名稱，進行對應；否則使用傳入的元件 */}
                   {typeof (advantage as any).icon === 'string' ? (
                     (() => {
                       const map: any = { Shield, Star, Users, Award, Clock, CheckCircle, Heart, MapPin }
                       const Icon = map[(advantage as any).icon] || CheckCircle
-                      return <Icon className={`h-8 w-8 ${advantage.color}`} />
+                      const color = (advantage as any).color || 'text-blue-600'
+                      return <Icon className={`h-8 w-8 ${color}`} />
                     })()
                   ) : (
-                    <advantage.icon className={`h-8 w-8 ${advantage.color}`} />
+                    (()=>{ const C:any = (advantage as any).icon; const color = (advantage as any).color || 'text-blue-600'; return <C className={`h-8 w-8 ${color}`} /> })()
                   )}
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-3">

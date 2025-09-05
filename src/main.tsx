@@ -42,7 +42,9 @@ import OrderSuccessPage from './ui/pages/OrderSuccess'
 import DatabaseTestPage from './ui/pages/DatabaseTest'
 import AdminContentPage from './ui/pages/AdminContent'
 import AdminSettingsPage from './ui/pages/AdminSettings'
+import AdminBroadcastPage from './ui/pages/AdminBroadcast'
 import MemberOrdersPage from './ui/pages/MemberOrders'
+import MemberOrderDetailPage from './ui/pages/MemberOrderDetail'
 import { supabase } from './utils/supabase'
 
 // 權限保護
@@ -186,6 +188,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         <Route path="/shop/order-success" element={<OrderSuccessPage />} />
         {/* 會員中心 */}
         <Route path="/member/orders" element={<MemberOrdersPage />} />
+        <Route path="/member/orders/:id" element={<MemberOrderDetailPage />} />
         {/* 測試頁面 */}
         <Route path="/test/database" element={<DatabaseTestPage />} />
         
@@ -214,6 +217,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
           <Route path="/reports" element={<PrivateRoute permission="reports.view"><ReportsPage /></PrivateRoute>} />
           <Route path="/report-center" element={<PrivateRoute permission="reports.view"><ReportCenterPage /></PrivateRoute>} />
           <Route path="/admin/settings" element={<PrivateRoute permission="promotions.manage"><AdminSettingsPage /></PrivateRoute>} />
+          <Route path="/admin/broadcast" element={<PrivateRoute permission="bulletin.manage"><AdminBroadcastPage /></PrivateRoute>} />
           <Route path="/used-items" element={<PrivateRoute permission="inventory.manage"><UsedItemsPage /></PrivateRoute>} />
           <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
           <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />

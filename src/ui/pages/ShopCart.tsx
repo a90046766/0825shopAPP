@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { checkMemberAuth, canCheckout } from '../../utils/memberAuth'
+import { loadAdapters } from '../../adapters'
 
 export default function ShopCartPage() {
   const navigate = useNavigate()
@@ -407,7 +408,59 @@ export default function ShopCartPage() {
         })
       } catch {}
 
-      // 創建訂單資料
+      // 優先直寫 Supabase（透過 adapters）
+      let createdId = ''
+      try {
+        const adapters = await loadAdapters()
+        // 時段映射
+        const mapTime: Record<string, { start: string; end: string }> = {
+          morning: { start: '09:00', end: '12:00' },
+          afternoon: { start: '13:00', end: '17:00' },
+          evening: { start: '18:00', end: '20:00' }
+        }
+        const tw = mapTime[customerInfo.preferredTime] || { start: undefined as any, end: undefined as any }
+        const serviceItems = cart.map((it:any)=> ({ name: it.name, quantity: it.quantity, unitPrice: it.price, category: it.category }))
+        // 合法 UUID 的 memberId 才帶上，否則交由後端留空
+        const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        const memberId = (memberUser?.id && validUuid.test(memberUser.id)) ? memberUser.id : undefined
+        const draft: any = {
+          memberId,
+          customerName: customerInfo.name,
+          customerPhone: customerInfo.phone,
+          customerEmail: customerInfo.email,
+          customerAddress: fullAddress,
+          preferredDate: customerInfo.preferredDate || undefined,
+          preferredTimeStart: tw.start,
+          preferredTimeEnd: tw.end,
+          paymentMethod,
+          pointsUsed: pointsToUse,
+          pointsDeductAmount: getPointsDiscount(),
+          note: discountCode ? `折扣碼: ${discountCode}` : undefined,
+          platform: '商城',
+          status: 'pending',
+          serviceItems
+        }
+        const created = await (adapters as any).orderRepo.create(draft)
+        createdId = created?.id || ''
+      } catch (cloudErr) {
+        console.warn('直寫雲端失敗，改用本地暫存：', cloudErr)
+      }
+
+      // 若雲端建立成功 → 清空購物車並導向
+      if (createdId) {
+        if (usePoints && pointsToUse > 0) {
+          const newPoints = customerPoints - pointsToUse
+          setCustomerPoints(newPoints)
+          localStorage.setItem('customerPoints', newPoints.toString())
+        }
+        try { localStorage.setItem('lastOrderId', createdId) } catch {}
+        try { localStorage.removeItem('shopCart') } catch {}
+        setCart([])
+        navigate(`/shop/order-success?order=${encodeURIComponent(createdId)}`)
+        return
+      }
+
+      // 回退：儲存到 localStorage（模擬資料庫）
       const order = {
         id: `ORDER-${Date.now()}`,
         customerInfo: { ...customerInfo, address: fullAddress },
@@ -423,21 +476,18 @@ export default function ShopCartPage() {
         createdAt: new Date().toISOString(),
         status: 'pending'
       }
-
-      // 儲存到 localStorage（模擬資料庫）
       const existingOrders = JSON.parse(localStorage.getItem('reservationOrders') || '[]')
       existingOrders.push(order)
       localStorage.setItem('reservationOrders', JSON.stringify(existingOrders))
 
-      // 更新積分
       if (usePoints && pointsToUse > 0) {
         const newPoints = customerPoints - pointsToUse
         setCustomerPoints(newPoints)
         localStorage.setItem('customerPoints', newPoints.toString())
       }
-
-      // 導向成功頁面
       try { localStorage.setItem('lastOrderId', order.id) } catch {}
+      try { localStorage.removeItem('shopCart') } catch {}
+      setCart([])
       navigate(`/shop/order-success?order=${encodeURIComponent(order.id)}`)
 
     } catch (error) {
