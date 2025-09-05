@@ -35,27 +35,46 @@ export async function loadAdapters() {
       // 連線探測 + 首次種子。嚴格模式：失敗直接拋錯；一般模式：回退本地
       try {
         console.log('🔍 測試 Supabase 資料存取...')
-        const list = STRICT ? await a.productRepo.list() : await a.productRepo.list().catch(()=>[] as any)
-        console.log('📦 產品列表載入成功，數量:', list?.length || 0)
-        
-        if (!list || list.length === 0) {
-          console.log('🌱 初始化預設產品資料...')
-          await a.productRepo.upsert({ id: '', name: '分離式冷氣清洗', unitPrice: 1800, groupPrice: 1600, groupMinQty: 2, description: '室內外機標準清洗，包含濾網、蒸發器、冷凝器清潔', imageUrls: [], safeStock: 20 } as any)
-          await a.productRepo.upsert({ id: '', name: '洗衣機清洗（滾筒）', unitPrice: 1999, groupPrice: 1799, groupMinQty: 2, description: '滾筒式洗衣機拆洗保養，包含內筒、外筒、管路清潔', imageUrls: [], safeStock: 20 } as any)
-          await a.productRepo.upsert({ id: '', name: '倒T型抽油煙機清洗', unitPrice: 2200, groupPrice: 2000, groupMinQty: 2, description: '不鏽鋼倒T型抽油煙機，包含內部機械清洗', imageUrls: [], safeStock: 20 } as any)
-          await a.productRepo.upsert({ id: '', name: '傳統雙渦輪抽油煙機清洗', unitPrice: 1800, groupPrice: 1600, groupMinQty: 2, description: '傳統型雙渦輪抽油煙機清洗保養', imageUrls: [], safeStock: 20 } as any)
-        }
-        
-        // 首次技師資料（空表時種子兩名預設技師）
+        const withTimeout = <T,>(p: Promise<T>, ms = 7000) => Promise.race<T>([
+          p,
+          new Promise<T>((_, rej) => setTimeout(() => rej(new Error('SUPABASE_DATA_TEST_TIMEOUT')), ms))
+        ])
+
+        let list: any[] = []
         try {
-          const techs = await (a as any).technicianRepo?.list?.()
-          if (Array.isArray(techs) && techs.length === 0) {
-            console.log('👨‍🔧 初始化預設技師資料...')
-            await (a as any).technicianRepo.upsert({ name: '楊小飛', shortName: '小飛', email: 'jason660628@yahoo.com.tw', phone: '0913788051', region: 'north', status: 'active' })
-            await (a as any).technicianRepo.upsert({ name: '洗小濯', shortName: '小濯', email: 'xiaofu888@yahoo.com.tw', phone: '0986985725', region: 'north', status: 'active' })
+          const out = await withTimeout(a.productRepo.list(), 7000)
+          // @ts-ignore
+          console.log('📦 產品列表載入成功，數量:', out?.length || 0)
+          // @ts-ignore
+          list = Array.isArray(out) ? out : []
+        } catch (e: any) {
+          console.warn('⚠️ 產品列表讀取失敗或逾時，跳過資料探測：', e?.message || e)
+        }
+
+        if ((!list || list.length === 0) && !STRICT) {
+          try {
+            console.log('🌱 初始化預設產品資料（非嚴格模式）...')
+            await a.productRepo.upsert({ id: '', name: '分離式冷氣清洗', unitPrice: 1800, groupPrice: 1600, groupMinQty: 2, description: '室內外機標準清洗，包含濾網、蒸發器、冷凝器清潔', imageUrls: [], safeStock: 20 } as any)
+            await a.productRepo.upsert({ id: '', name: '洗衣機清洗（滾筒）', unitPrice: 1999, groupPrice: 1799, groupMinQty: 2, description: '滾筒式洗衣機拆洗保養，包含內筒、外筒、管路清潔', imageUrls: [], safeStock: 20 } as any)
+            await a.productRepo.upsert({ id: '', name: '倒T型抽油煙機清洗', unitPrice: 2200, groupPrice: 2000, groupMinQty: 2, description: '不鏽鋼倒T型抽油煙機，包含內部機械清洗', imageUrls: [], safeStock: 20 } as any)
+            await a.productRepo.upsert({ id: '', name: '傳統雙渦輪抽油煙機清洗', unitPrice: 1800, groupPrice: 1600, groupMinQty: 2, description: '傳統型雙渦輪抽油煙機清洗保養', imageUrls: [], safeStock: 20 } as any)
+          } catch (seedErr) {
+            console.warn('⚠️ 預設產品初始化失敗：', seedErr)
           }
-        } catch (techError) {
-          console.warn('⚠️ 技師資料初始化失敗:', techError)
+        }
+
+        // 首次技師資料（空表時種子兩名預設技師）僅在非嚴格模式
+        if (!STRICT) {
+          try {
+            const techs = await (a as any).technicianRepo?.list?.()
+            if (Array.isArray(techs) && techs.length === 0) {
+              console.log('👨‍🔧 初始化預設技師資料（非嚴格模式）...')
+              await (a as any).technicianRepo.upsert({ name: '楊小飛', shortName: '小飛', email: 'jason660628@yahoo.com.tw', phone: '0913788051', region: 'north', status: 'active' })
+              await (a as any).technicianRepo.upsert({ name: '洗小濯', shortName: '小濯', email: 'xiaofu888@yahoo.com.tw', phone: '0986985725', region: 'north', status: 'active' })
+            }
+          } catch (techError) {
+            console.warn('⚠️ 技師資料初始化失敗（非嚴格模式）：', techError)
+          }
         }
         try { localStorage.setItem('adapter-mode', 'supabase') } catch {}
         console.log('✅ Supabase 模式初始化完成')
