@@ -26,10 +26,7 @@ export default function MemberLoginPage() {
         return
       }
 
-      if (member.status !== 'active') {
-        setError('您的會員帳號尚未啟用，請聯繫客服')
-        return
-      }
+      // 允許尚未啟用之會員登入以瀏覽內容與購物站，但結帳將在前台 gating
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase(),
@@ -42,13 +39,22 @@ export default function MemberLoginPage() {
       }
 
       if (data.user) {
+        // 若為首次登入，強制要求重設密碼
+        try {
+          const needReset = localStorage.getItem('member-pw-reset-required') === '1'
+          if (needReset) {
+            navigate('/login/member/reset')
+            return
+          }
+        } catch {}
         const memberInfo = {
           id: member.id,
           name: member.name,
           email: member.email,
           code: member.code,
           role: 'member',
-          type: 'member'
+          type: 'member',
+          status: member.status
         }
         localStorage.setItem('member-auth-user', JSON.stringify(memberInfo))
         navigate('/store')
@@ -106,6 +112,9 @@ export default function MemberLoginPage() {
         <div className="mt-6 text-center text-sm text-gray-600">
           還沒有會員帳號？
           <Link to="/register/member" className="text-blue-600 hover:text-blue-700 ml-1">立即註冊</Link>
+        </div>
+        <div className="mt-2 text-center text-xs text-gray-500">
+          第一次登入密碼預設為手機後六碼；登入後將引導您變更密碼。
         </div>
       </div>
     </div>

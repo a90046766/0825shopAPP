@@ -348,7 +348,16 @@ export default function NewShopPage() {
                 className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100"
               >
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 mx-auto">
-                  <service.icon className="h-7 w-7 text-white" />
+                  {/* 若 CMS 回來的是字串名稱，進行對應；否則使用傳入的元件 */}
+                  {typeof (service as any).icon === 'string' ? (
+                    (() => {
+                      const map: any = { Shield, Star, Users, Award, Clock, CheckCircle, Heart, Sparkles }
+                      const Icon = map[(service as any).icon] || Sparkles
+                      return <Icon className="h-7 w-7 text-white" />
+                    })()
+                  ) : (
+                    <service.icon className="h-7 w-7 text-white" />
+                  )}
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">
                   {service.name}
@@ -356,11 +365,14 @@ export default function NewShopPage() {
                 <p className="text-gray-600 mb-3 text-center text-sm">
                   {service.description}
                 </p>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-5 text-left">
+                            {/* 特色改為兩欄三列（AAA BBB / CCC DDD / EEE FFF）並強化標籤視覺 */}
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5">
                               {service.features.map((feature, idx) => (
-                                <div key={idx} className="flex items-center text-xs md:text-sm text-gray-600">
-                                  <CheckCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-500 mr-2 flex-shrink-0" />
-                                  {feature}
+                                <div key={idx} className="flex items-center">
+                                  <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                                  <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-[12px] font-semibold text-gray-700">
+                                    {feature}
+                                  </span>
                                 </div>
                               ))}
                             </div>
@@ -395,7 +407,16 @@ export default function NewShopPage() {
                 className="bg-white rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
               >
                 <div className={`w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 mx-auto`}>
-                  <advantage.icon className={`h-8 w-8 ${advantage.color}`} />
+                  {/* 若 CMS 回來的是字串名稱，進行對應；否則使用傳入的元件 */}
+                  {typeof (advantage as any).icon === 'string' ? (
+                    (() => {
+                      const map: any = { Shield, Star, Users, Award, Clock, CheckCircle, Heart, MapPin }
+                      const Icon = map[(advantage as any).icon] || CheckCircle
+                      return <Icon className={`h-8 w-8 ${advantage.color}`} />
+                    })()
+                  ) : (
+                    <advantage.icon className={`h-8 w-8 ${advantage.color}`} />
+                  )}
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-3">
                   {advantage.title}

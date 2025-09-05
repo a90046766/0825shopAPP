@@ -6,6 +6,7 @@ export interface MemberUser {
   code: string
   role: 'member'
   type: 'member'
+  status?: string
 }
 
 // 檢查是否為會員

@@ -18,6 +18,7 @@ import NotificationsPage from './ui/pages/Notifications'
 import TechnicianSchedulePage from './ui/pages/TechnicianSchedule'
 import MemberRegisterPage from './ui/pages/MemberRegister'
 import MemberLoginPage from './ui/pages/MemberLogin'
+import MemberPasswordResetPage from './ui/pages/MemberPasswordReset'
 import ProductsPage from './ui/pages/Products'
 import InventoryPage from './ui/pages/Inventory'
 import TechnicianManagementPage from './ui/pages/TechnicianManagement'
@@ -166,6 +167,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         <Route path="/register/member" element={<MemberRegisterPage />} />
         {/* 會員專用登入 */}
         <Route path="/login/member" element={<MemberLoginPage />} />
+        <Route path="/login/member/reset" element={<MemberPasswordResetPage />} />
         {/* 對外購物站入口（公開） */}
         <Route path="/store" element={<NewShopPage />} />
         <Route path="/shop/products" element={<ShopProductsPage />} />
@@ -182,7 +184,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
           <Route path="/shop" element={<Navigate to="/store" replace />} />
           <Route path="/dispatch" element={<PrivateRoute><PageDispatchHome /></PrivateRoute>} />
           <Route path="/orders/:id" element={<PrivateRoute permission="orders.read"><PageOrderDetail /></PrivateRoute>} />
-          <Route path="/approvals" element={<PrivateRoute permission="admin"><ApprovalsPage /></PrivateRoute>} />
+          <Route path="/approvals" element={<PrivateRoute permission="approvals.manage"><ApprovalsPage /></PrivateRoute>} />
           <Route path="/notifications" element={<PrivateRoute><NotificationsPage /></PrivateRoute>} />
           <Route path="/schedule" element={<PrivateRoute permission="technicians.schedule.view"><TechnicianSchedulePage /></PrivateRoute>} />
           <Route path="/products" element={<PrivateRoute permission="products.manage"><ProductsPage /></PrivateRoute>} />

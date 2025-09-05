@@ -353,6 +353,10 @@ export default function ShopCartPage() {
   // 提交訂單
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canCheckout()) {
+      toast.error('您的會員尚未通過審核，暫時無法結帳')
+      return
+    }
     
     // 驗證必填欄位
     if (!customerInfo.name || !customerInfo.phone || !customerInfo.email || !customerInfo.address) {
@@ -366,6 +370,20 @@ export default function ShopCartPage() {
     }
 
     try {
+      // 確保派工系統內已建立客戶資料（失敗不阻斷提單）
+      try {
+        await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: customerInfo.name,
+            phone: customerInfo.phone,
+            email: customerInfo.email,
+            address: customerInfo.address
+          })
+        })
+      } catch {}
+
       // 創建訂單資料
       const order = {
         id: `ORDER-${Date.now()}`,
@@ -846,13 +864,51 @@ export default function ShopCartPage() {
                   {/* 提交訂單按鈕 */}
                   <button
                     onClick={handleSubmitOrder}
-                    disabled={cart.length === 0}
+                    disabled={cart.length === 0 || !canCheckout()}
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 disabled:cursor-not-allowed"
                   >
                     提交訂單
                   </button>
                 </>
               )}
+            </div>
+
+            {/* 聯繫我們 */}
+            <div className="mt-8 bg-white rounded-2xl shadow-lg p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Shield className="h-6 w-6 text-blue-600" />
+                聯繫我們
+              </h2>
+              <div className="space-y-3 text-sm text-gray-700">
+                <div>
+                  <div className="font-medium">公司資訊</div>
+                  <div className="text-gray-600">日式洗濯 統編:90046766</div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Phone className="h-4 w-4 text-blue-600 mt-0.5" />
+                  <div>
+                    <div className="font-medium">客服專線</div>
+                    <div className="text-gray-600">(02)7756-2269</div>
+                    <div className="text-xs text-gray-500">電話客服服務時間：上午九點~下午六點</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Mail className="h-4 w-4 text-green-600 mt-0.5" />
+                  <div>
+                    <div className="font-medium">官方 LINE</div>
+                    <div className="text-gray-600">@942clean</div>
+                    <div className="text-xs text-gray-500">線上客服服務時間：上午九點~晚間九點</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-purple-600 mt-0.5" />
+                  <div>
+                    <div className="font-medium">服務區域</div>
+                    <div className="text-gray-600">基隆 / 台北 / 新北 / 桃園 / 中壢 / 新竹 / 頭份 / 台中 / 彰化 / 台南 / 高雄</div>
+                    <div className="text-xs text-gray-500 mt-1">偏遠地區或山區皆無法服務。南投/雲林/嘉義/屏東由周邊地區技師支援，需同址三台(含)以上才能承接。</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
