@@ -15,19 +15,7 @@ export default function MemberLoginPage() {
     setError('')
 
     try {
-      const { data: member, error: memberError } = await supabase
-        .from('members')
-        .select('id, name, email, code, status')
-        .eq('email', email.toLowerCase())
-        .single()
-
-      if (memberError || !member) {
-        setError('此 Email 尚未註冊為會員，請先註冊')
-        return
-      }
-
-      // 允許尚未啟用之會員登入以瀏覽內容與購物站，但結帳將在前台 gating
-
+      // 先嘗試登入（避免 members 表尚未建立導致誤判）
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase(),
         password
@@ -47,16 +35,36 @@ export default function MemberLoginPage() {
             return
           }
         } catch {}
+        // 嘗試讀取正式會員；若無則讀申請記錄，設定為 pending
+        let resolved: any = null
+        try {
+          const { data: m } = await supabase
+            .from('members')
+            .select('id, name, email, code, status')
+            .eq('email', email.toLowerCase())
+            .maybeSingle()
+          if (m) resolved = m
+          else {
+            const { data: app } = await supabase
+              .from('member_applications')
+              .select('id, name, email, status')
+              .eq('email', email.toLowerCase())
+              .order('applied_at', { ascending: false })
+              .maybeSingle()
+            if (app) resolved = { ...app, status: app.status || 'pending' }
+          }
+        } catch {}
+
         const memberInfo = {
-          id: member.id,
-          name: member.name,
-          email: member.email,
-          code: member.code,
-          role: 'member',
-          type: 'member',
-          status: member.status
+          id: resolved?.id || data.user.id,
+          name: resolved?.name || data.user.email || '',
+          email: (resolved?.email || data.user.email || '').toLowerCase(),
+          code: resolved?.code,
+          role: 'member' as const,
+          type: 'member' as const,
+          status: resolved?.status || 'pending'
         }
-        localStorage.setItem('member-auth-user', JSON.stringify(memberInfo))
+        try { localStorage.setItem('member-auth-user', JSON.stringify(memberInfo)) } catch {}
         navigate('/store')
       }
     } catch (err: any) {
