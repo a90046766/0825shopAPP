@@ -376,10 +376,7 @@ export default function ShopCartPage() {
   // 提交訂單
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!canCheckout()) {
-      toast.error('您的會員尚未通過審核，暫時無法結帳')
-      return
-    }
+    // 允許提交為預約訂單（未審核也可先提交），後台轉單前再檢核
     
     // 組合完整地址
     const fullAddress = `${(customerInfo.city||'').trim()}${(customerInfo.district||'').trim()}${(customerInfo.street||'').trim()}`.trim()
@@ -439,16 +436,9 @@ export default function ShopCartPage() {
         localStorage.setItem('customerPoints', newPoints.toString())
       }
 
-      // 清空購物車
-      setCart([])
-      localStorage.removeItem('shopCart')
-
-      toast.success('訂單已成功提交！')
-      
-      // 導向成功頁面或返回首頁
-      setTimeout(() => {
-        navigate('/shop')
-      }, 2000)
+      // 導向成功頁面
+      try { localStorage.setItem('lastOrderId', order.id) } catch {}
+      navigate(`/shop/order-success?order=${encodeURIComponent(order.id)}`)
 
     } catch (error) {
       toast.error('提交訂單時發生錯誤')
@@ -779,9 +769,9 @@ export default function ShopCartPage() {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-900">
                     <div className="font-semibold mb-1">購物說明</div>
                     <ul className="list-disc pl-5 space-y-1">
-                      <li>清洗服務：同次訂單內清洗品項合併滿 3 件即享各品項團購價（可跨品項）</li>
+                      <li>清洗服務：同次訂單清洗品項合併滿 3 件即享各品項團購價（可跨品項）</li>
                       <li>積分：每消費 NT$100 累積 1 點；1 點可折抵 NT$1（可全額折抵）</li>
-                      <li>折扣碼：輸入折扣碼可享 97% 優惠（商業 SR001、技師 SE001）</li>
+                      <li>折扣碼：輸入折扣碼可享 97% 優惠</li>
                     </ul>
                   </div>
 
@@ -904,7 +894,7 @@ export default function ShopCartPage() {
                   {/* 提交訂單按鈕 */}
                   <button
                     onClick={handleSubmitOrder}
-                    disabled={cart.length === 0 || !canCheckout()}
+                    disabled={cart.length === 0}
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 disabled:cursor-not-allowed"
                   >
                     提交訂單

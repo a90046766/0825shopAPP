@@ -38,6 +38,7 @@ import QuotesPage from './ui/pages/Quotes'
 import NewShopPage from './ui/pages/NewShop'
 import ShopProductsPage from './ui/pages/ShopProducts'
 import ShopCartPage from './ui/pages/ShopCart'
+import OrderSuccessPage from './ui/pages/OrderSuccess'
 import DatabaseTestPage from './ui/pages/DatabaseTest'
 import AdminContentPage from './ui/pages/AdminContent'
 import AdminSettingsPage from './ui/pages/AdminSettings'
@@ -182,6 +183,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         <Route path="/store" element={<NewShopPage />} />
         <Route path="/shop/products" element={<ShopProductsPage />} />
         <Route path="/shop/cart" element={<ShopCartPage />} />
+        <Route path="/shop/order-success" element={<OrderSuccessPage />} />
         {/* 會員中心 */}
         <Route path="/member/orders" element={<MemberOrdersPage />} />
         {/* 測試頁面 */}

@@ -51,11 +51,11 @@ export const memberLogout = (): void => {
 // 會員權限檢查（購物相關）
 export const canShop = (): boolean => {
   const member = getMemberUser()
-  return !!member && member.status === 'active'
+  return !!member
 }
 
 // 會員權限檢查（結帳）
 export const canCheckout = (): boolean => {
   const member = getMemberUser()
-  return !!member && member.status === 'active'
+  return !!member
 }
