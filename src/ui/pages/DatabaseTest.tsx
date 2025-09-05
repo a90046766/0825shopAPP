@@ -7,6 +7,10 @@ export default function DatabaseTestPage() {
   const [applications, setApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [searchEmail, setSearchEmail] = useState('')
+  const [customerResults, setCustomerResults] = useState<any[]>([])
+  const [memberAppResult, setMemberAppResult] = useState<any[]>([])
+  const [memberResult, setMemberResult] = useState<any[]>([])
 
   // 檢查資料庫表格
   const checkTables = async () => {
@@ -55,6 +59,37 @@ export default function DatabaseTestPage() {
 
     } catch (err: any) {
       setError(err.message || '檢查資料庫失敗')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 依 Email 查詢：會員申請 / 正式會員 / 客戶（派工系統）
+  const searchByEmail = async () => {
+    if (!searchEmail) return
+    setLoading(true)
+    setError('')
+    try {
+      const email = searchEmail.toLowerCase()
+      // Supabase: member_applications / members
+      const [{ data: appRows }, { data: memRows }] = await Promise.all([
+        supabase.from('member_applications').select('*').eq('email', email),
+        supabase.from('members').select('*').eq('email', email)
+      ])
+      setMemberAppResult(appRows || [])
+      setMemberResult(memRows || [])
+
+      // 派工系統（本地 API）
+      try {
+        const res = await fetch(`/api/customers?search=${encodeURIComponent(email)}`)
+        const j = await res.json()
+        if (j?.success) setCustomerResults(j.data || [])
+        else setCustomerResults([])
+      } catch {
+        setCustomerResults([])
+      }
+    } catch (e: any) {
+      setError(e?.message || '查詢失敗')
     } finally {
       setLoading(false)
     }
@@ -163,6 +198,47 @@ export default function DatabaseTestPage() {
             >
               測試會員創建
             </button>
+          </div>
+        </div>
+
+        {/* 依 Email 快速查詢 */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">依 Email 查詢</h2>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="email"
+              value={searchEmail}
+              onChange={(e)=> setSearchEmail(e.target.value)}
+              placeholder="輸入 Email（例如：a13788051@gmail.com）"
+              className="flex-1 rounded border px-3 py-2"
+            />
+            <button onClick={searchByEmail} disabled={loading || !searchEmail} className="px-4 py-2 bg-gray-900 text-white rounded-lg disabled:opacity-50">查詢</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <div className="text-sm font-semibold mb-2">會員申請（member_applications）</div>
+              {memberAppResult.length === 0 ? (
+                <div className="text-sm text-gray-500">無資料</div>
+              ) : (
+                <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-48">{JSON.stringify(memberAppResult, null, 2)}</pre>
+              )}
+            </div>
+            <div>
+              <div className="text-sm font-semibold mb-2">正式會員（members）</div>
+              {memberResult.length === 0 ? (
+                <div className="text-sm text-gray-500">無資料</div>
+              ) : (
+                <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-48">{JSON.stringify(memberResult, null, 2)}</pre>
+              )}
+            </div>
+            <div>
+              <div className="text-sm font-semibold mb-2">派工系統客戶（/api/customers）</div>
+              {customerResults.length === 0 ? (
+                <div className="text-sm text-gray-500">無資料或 API 未啟動</div>
+              ) : (
+                <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-48">{JSON.stringify(customerResults, null, 2)}</pre>
+              )}
+            </div>
           </div>
         </div>
 

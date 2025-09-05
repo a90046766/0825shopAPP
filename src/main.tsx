@@ -94,6 +94,13 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
   async function mapSessionToLocalUser(session: any) {
     if (!session?.user) return
     const email = (session.user.email || '').toLowerCase()
+    const userType = (session.user.user_metadata && (session.user.user_metadata as any).user_type) || ''
+
+    // 若為商城會員，嚴禁注入後台登入態
+    if (userType === 'member') {
+      try { localStorage.removeItem('supabase-auth-user') } catch {}
+      return
+    }
     try {
       const { data: tech } = await supabase
         .from('technicians')
@@ -113,9 +120,12 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
       } as any
 
       const displayName = (PRIMARY as any)[email]?.name ?? tech?.name ?? staff?.name ?? session.user.email ?? ''
-      const role = ((PRIMARY as any)[email]?.role ?? (tech ? 'technician' : (staff?.role as any) ?? 'support')) as any
+      const inferredRole = ((PRIMARY as any)[email]?.role ?? (tech ? 'technician' : (staff?.role as any) ?? null)) as any
 
-      const user = { id: session.user.id, email: session.user.email, name: displayName, role, phone: (staff as any)?.phone || (tech as any)?.phone, passwordSet: true }
+      // 非內部人員（未命中 PRIMARY/technicians/staff）不建立後台登入態
+      if (!inferredRole) return
+
+      const user = { id: session.user.id, email: session.user.email, name: displayName, role: inferredRole, phone: (staff as any)?.phone || (tech as any)?.phone, passwordSet: true }
       try { localStorage.setItem('supabase-auth-user', JSON.stringify(user)) } catch {}
 
       if (location.pathname === '/login') {

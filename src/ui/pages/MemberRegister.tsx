@@ -58,12 +58,12 @@ export default function MemberRegisterPage() {
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-card text-center">
         <div className="text-5xl">📝</div>
         <div className="mt-3 text-lg font-semibold">申請已送出</div>
-        <div className="mt-2 text-gray-600">我們已收到您的會員申請，待客服/管理員審核通過後，會以站內通知歡迎您加入。</div>
+        <div className="mt-2 text-gray-600">感謝您的光臨。系統採審核制，您可先選看想要的產品，我們會盡快為您服務，謝謝！</div>
         <button
-          onClick={() => navigate('/login/member')}
+          onClick={() => navigate('/shop/cart')}
           className="mt-6 w-full rounded-xl bg-brand-500 py-3 text-white hover:bg-brand-600"
         >
-          返回登入
+          了解，前往購物車
         </button>
       </div>
     </div>

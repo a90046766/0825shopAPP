@@ -83,8 +83,66 @@ class SupabaseMemberApplicationRepo implements MemberApplicationRepo {
     if (error) throw error
   }
   async approve(id: string): Promise<void> {
-    const { error } = await supabase.from('member_applications').update({ status: 'approved' }).eq('id', id)
-    if (error) throw error
+    // 1) 讀取申請資料
+    const { data: app, error: ge } = await supabase.from('member_applications').select('*').eq('id', id).maybeSingle()
+    if (ge) throw ge
+    if (!app) throw new Error('找不到申請資料')
+
+    const now = new Date().toISOString()
+    const email = (app.email || '').toLowerCase()
+    const phone = app.phone || ''
+    const name  = app.name || ''
+    const ref   = app.referrer_code || ''
+    let refType: string | undefined
+    if (ref) {
+      const code = String(ref).toUpperCase()
+      if (code.startsWith('MO')) refType = 'member'
+      else if (code.startsWith('SR')) refType = 'technician'
+      else if (code.startsWith('SE')) refType = 'sales'
+    }
+
+    // 2) 若已存在同 email 會員：啟用並更新基本資料；否則建立新會員
+    const { data: existing, error: fe } = await supabase
+      .from('members')
+      .select('id, code')
+      .eq('email', email)
+      .maybeSingle()
+    if (fe) throw fe
+
+    if (existing) {
+      const { error: ue } = await supabase
+        .from('members')
+        .update({
+          name,
+          phone,
+          referrer_code: ref || null,
+          referrer_type: refType || null,
+          status: 'active',
+          updated_at: now
+        })
+        .eq('id', existing.id)
+      if (ue) throw ue
+    } else {
+      const code = `MO${String(Math.floor(Math.random()*9000)+1000)}`
+      const { error: ie } = await supabase
+        .from('members')
+        .insert({
+          code,
+          name,
+          email,
+          phone,
+          referrer_code: ref || null,
+          referrer_type: refType || null,
+          status: 'active',
+          points: 0,
+          updated_at: now
+        })
+      if (ie) throw ie
+    }
+
+    // 3) 標記申請為通過
+    const { error: ae } = await supabase.from('member_applications').update({ status: 'approved' }).eq('id', id)
+    if (ae) throw ae
   }
   async reject(id: string): Promise<void> {
     const { error } = await supabase.from('member_applications').update({ status: 'rejected' }).eq('id', id)

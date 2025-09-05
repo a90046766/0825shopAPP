@@ -101,18 +101,40 @@ class SupabaseTechnicianApplicationRepo implements TechnicianApplicationRepo {
     if (ge) throw ge
     if (!app) throw new Error('找不到申請資料')
 
-    // 2) 建立/啟用技師資料（自動配號 SRxxx）
+    // 2) 先查是否已存在相同 Email 技師，存在則更新啟用；否則建立新技師
+    const { data: existing, error: fe } = await supabase
+      .from('technicians')
+      .select('id, code')
+      .eq('email', app.email)
+      .maybeSingle()
+    if (fe) throw fe
+
     const repo = new SupabaseTechnicianRepo()
-    await repo.upsert({
-      name: app.name,
-      shortName: app.short_name || undefined,
-      email: app.email,
-      phone: app.phone || undefined,
-      region: app.region || 'all',
-      status: 'active',
-      skills: {},
-      revenueShareScheme: undefined as any
-    } as any)
+    if (existing) {
+      await repo.upsert({
+        id: existing.id,
+        code: existing.code,
+        name: app.name,
+        shortName: app.short_name || undefined,
+        email: app.email,
+        phone: app.phone || undefined,
+        region: app.region || 'all',
+        status: 'active',
+        skills: {},
+        revenueShareScheme: undefined as any
+      } as any)
+    } else {
+      await repo.upsert({
+        name: app.name,
+        shortName: app.short_name || undefined,
+        email: app.email,
+        phone: app.phone || undefined,
+        region: app.region || 'all',
+        status: 'active',
+        skills: {},
+        revenueShareScheme: undefined as any
+      } as any)
+    }
 
     // 3) 標記通過
     const { error } = await supabase.from('technician_applications').update({ status: 'approved' }).eq('id', id)
