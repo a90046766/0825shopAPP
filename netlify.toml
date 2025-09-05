@@ -2,11 +2,22 @@
   command = "npm run build"
   publish = "dist"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 # 將 /store.html 永久導到 /store（避免空白頁）
 [[redirects]]
   from = "/store.html"
   to = "/store"
   status = 301
+
+# API 轉發到 Netlify Functions（/api/*）
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = true
 
 # SPA fallback：所有路由交給前端（/、/services/*、/store 等）
 [[redirects]]

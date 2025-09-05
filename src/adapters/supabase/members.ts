@@ -50,8 +50,9 @@ class SupabaseMemberRepo implements MemberRepo {
       row.referrer_code = code
       delete row.referrerCode
     }
-    // 生成 MOxxxx
-    row.code = `MO${String(Math.floor(Math.random()*9000)+1000)}`
+    // 生成 MO 隨機跳碼（避免連號），從 1000 起跳
+    const rand = 1000 + Math.floor(Math.random() * 9000)
+    row.code = `MO${rand}`
     const { data, error } = await supabase.from('members').insert(row).select().single()
     if (error) throw error
     return fromRow(data)

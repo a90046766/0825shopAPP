@@ -30,13 +30,20 @@ function toDb(patch: Partial<Technician>): any {
   return r
 }
 
+function randomJump(start = 100, maxJump = 37): number {
+  const base = Math.max(start, 100)
+  const jump = Math.floor(Math.random() * maxJump) + 1
+  return base + jump + Math.floor(Math.random() * 50)
+}
+
 async function generateNextCode(): Promise<string> {
   const { data } = await supabase.from('technicians').select('code')
   const nums = (data || [])
     .map((x: any) => String(x.code || ''))
     .map((c: string) => (c.startsWith('SR') ? parseInt(c.slice(2), 10) : NaN))
     .filter((n: number) => !isNaN(n))
-  const next = (nums.length ? Math.max(...nums) : 100) + 1
+  const seed = nums.length ? Math.max(...nums) : 100
+  const next = randomJump(seed, 53)
   return `SR${next}`
 }
 

@@ -7,8 +7,9 @@ import './styles.css'
 import LoginPage from './ui/pages/Login'
 import TechnicianApplyPage from './ui/pages/TechnicianApply'
 import StaffApplyPage from './ui/pages/StaffApply'
-import MemberApplyPage from './ui/pages/MemberApply'
-import ApprovalsPage from './ui/pages/Approvals'
+// 移除會員申請/審核頁
+// import MemberApplyPage from './ui/pages/MemberApply'
+// import ApprovalsPage from './ui/pages/Approvals'
 import AppShell from './ui/AppShell'
 import PageDispatchHome from './ui/pages/DispatchHome'
 import PageOrderDetail from './ui/pages/OrderDetail'
@@ -176,7 +177,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/apply/technician" element={<TechnicianApplyPage />} />
         <Route path="/apply/staff" element={<StaffApplyPage />} />
-        <Route path="/apply/member" element={<MemberApplyPage />} />
+        {/* 移除會員申請頁 */}
         <Route path="/register/member" element={<MemberRegisterPage />} />
         {/* 會員專用登入 */}
         <Route path="/login/member" element={<MemberLoginPage />} />
@@ -199,7 +200,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
           <Route path="/shop" element={<Navigate to="/store" replace />} />
           <Route path="/dispatch" element={<PrivateRoute><PageDispatchHome /></PrivateRoute>} />
           <Route path="/orders/:id" element={<PrivateRoute permission="orders.read"><PageOrderDetail /></PrivateRoute>} />
-          <Route path="/approvals" element={<PrivateRoute permission="approvals.manage"><ApprovalsPage /></PrivateRoute>} />
+          {/* 移除審核頁 */}
           <Route path="/notifications" element={<PrivateRoute><NotificationsPage /></PrivateRoute>} />
           <Route path="/schedule" element={<PrivateRoute permission="technicians.schedule.view"><TechnicianSchedulePage /></PrivateRoute>} />
           <Route path="/products" element={<PrivateRoute permission="products.manage"><ProductsPage /></PrivateRoute>} />

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { SectionTitle } from '../kit'
 import { useNavigate } from 'react-router-dom'
 import { loadAdapters } from '../../adapters'
+import ShareReferral from '../components/ShareReferral'
 
 export default function PageProfile() {
   const nav = useNavigate()
@@ -12,6 +13,7 @@ export default function PageProfile() {
   const [phone, setPhone] = useState('')
   const [avatar, setAvatar] = useState<string>('')
   const [tempContact, setTempContact] = useState('')
+  const [shareOpen, setShareOpen] = useState(false)
   const roleZh = user?.role==='admin'? '管理員' : user?.role==='support'? '客服' : user?.role==='sales'? '業務' : user?.role==='technician'? '內部人員' : '會員'
 
   useEffect(() => {
@@ -88,8 +90,11 @@ export default function PageProfile() {
           {staffLabel && (
             <label className="block">臨時聯絡人<input className="mt-1 w-full rounded border px-3 py-2" placeholder="（選填）" value={tempContact} onChange={e=>setTempContact(e.target.value)} /></label>
           )}
-          <div className="pt-2">
+          <div className="pt-2 flex items-center gap-2">
             <button onClick={handleSave} className="rounded-xl bg-brand-500 px-4 py-2 text-white">儲存</button>
+            {memberCode && (
+              <button onClick={()=>setShareOpen(true)} className="rounded-xl bg-rose-600 px-4 py-2 text-white">分享推薦</button>
+            )}
           </div>
         </div>
       </div>
@@ -100,6 +105,9 @@ export default function PageProfile() {
           <button onClick={()=>nav('/reset-password')} className="w-full rounded-xl bg-gray-900 py-3 text-white">變更密碼</button>
         </div>
       </div>
+      {shareOpen && (
+        <ShareReferral code={memberCode||''} onClose={()=>setShareOpen(false)} />
+      )}
     </div>
   )
 }

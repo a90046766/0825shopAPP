@@ -15,7 +15,8 @@ import {
   Sparkles,
   Heart,
   Zap,
-  ShoppingBag
+  ShoppingBag,
+  HelpCircle
 } from 'lucide-react'
 import MemberBell from '../components/MemberBell'
 
@@ -29,6 +30,7 @@ export default function NewShopPage() {
   const [cmsPromotion, setCmsPromotion] = useState<any | null>(null)
   const [cmsLoyalty, setCmsLoyalty] = useState<any | null>(null)
   const [cmsContacts, setCmsContacts] = useState<any | null>(null)
+  const [cmsFaqs, setCmsFaqs] = useState<any[] | null>(null)
 
   // 檢查用戶登入狀態
   useEffect(() => {
@@ -70,13 +72,14 @@ export default function NewShopPage() {
     (async () => {
       try {
         const mod = await import('../../adapters/supabase/cms')
-        const [h, s, a, p, l, c] = await Promise.all([
+        const [h, s, a, p, l, c, f] = await Promise.all([
           mod.fetchHeroSlides().catch(()=>null),
           mod.fetchServices().catch(()=>null),
           mod.fetchAdvantages().catch(()=>null),
           mod.fetchPromotions().catch(()=>null),
           mod.fetchLoyalty().catch(()=>null),
-          mod.fetchContacts().catch(()=>null)
+          mod.fetchContacts().catch(()=>null),
+          mod.fetchFaqs().catch(()=>[])
         ])
         if (h && Array.isArray(h) && h.length>0) setCmsHero(h)
         if (s && Array.isArray(s) && s.length>0) setCmsServices(s)
@@ -84,6 +87,7 @@ export default function NewShopPage() {
         if (p) setCmsPromotion(p)
         if (l) setCmsLoyalty(l)
         if (c) setCmsContacts(c)
+        if (Array.isArray(f) && f.length>0) setCmsFaqs(f as any)
       } catch {}
     })()
   }, [])
@@ -242,6 +246,17 @@ export default function NewShopPage() {
       color: "text-rose-500"
     }
   ]
+
+  const defaultFaqs = [
+    { question: '清洗服務的保固怎麼計算？', answer: '依機齡提供 30~90 天保固；若於保固內無法維修，提供換新機購物金。' },
+    { question: '團購怎麼算？可以跨品項嗎？', answer: '同次訂單的清洗品項可跨品項累計，滿 3 件起即可套用各品項的團購價。' },
+    { question: '積分怎麼累積與折抵？', answer: '消費每滿 NT$100 贈 1 點；每 1 點可折抵 NT$1，且可全額折抵，永久不過期。' },
+    { question: '期望時段如何安排？', answer: '可選上午(09:00-12:00) / 下午(13:00-17:00) / 晚上(18:00-21:00)。實際到府時間以客服確認為準。' },
+    { question: '付款方式有哪些？', answer: '支援現金、匯款（回報末五碼）、刷卡（行動刷卡）。未來將陸續開放更多方式。' },
+    { question: '服務區域與偏遠規範？', answer: '北中南主要都會區到府。偏遠或山區多有限制，南投/雲林/嘉義/屏東由周邊地區技師支援，需同址三台(含)以上。' }
+  ]
+  const faqs = (cmsFaqs && cmsFaqs.length>0) ? cmsFaqs.map((x:any)=>({ question: x.question, answer: x.answer })) : defaultFaqs
+  const [openFaq, setOpenFaq] = useState<number | null>(0)
 
   // 色彩背景對應，讓優勢圖示背景更有色彩
   const advantageBgMap: Record<string, string> = {
@@ -479,7 +494,7 @@ export default function NewShopPage() {
               <div>
                 <h3 className="text-xl font-semibold mb-3">服務保固</h3>
                 <p className="text-green-100">
-                  所有清洗服務提供30天保固，如有問題免費重做
+                  依機齡提供30~90天保固，如無法維修提供換新機購物金
                 </p>
               </div>
               <div>
@@ -570,6 +585,37 @@ export default function NewShopPage() {
               開始累積積分
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 常見問題 */}
+      <section className="py-16 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">常見問題</h2>
+            <p className="text-base text-gray-600">快速了解保固、團購、時段與付款等規則</p>
+          </div>
+          <div className="max-w-3xl mx-auto space-y-3">
+            {faqs.slice(0,6).map((item:any, idx:number)=> (
+              <div key={idx} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                <button
+                  className="w-full flex items-center justify-between px-4 py-3 text-left"
+                  onClick={()=> setOpenFaq(openFaq===idx ? null : idx)}
+                >
+                  <span className="flex items-center gap-2 text-gray-900 font-medium">
+                    <HelpCircle className="h-4 w-4 text-blue-600" />
+                    {item.question}
+                  </span>
+                  <span className="text-gray-400 text-sm">{openFaq===idx ? '收合' : '展開'}</span>
+                </button>
+                {openFaq===idx && (
+                  <div className="px-4 pb-4 text-sm text-gray-700 border-t">
+                    {item.answer}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </section>

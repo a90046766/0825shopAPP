@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../utils/supabase'
 
-type TableKey = 'hero_slides' | 'services' | 'advantages' | 'promotions' | 'loyalty' | 'contacts' | 'categories'
+type TableKey = 'hero_slides' | 'services' | 'advantages' | 'promotions' | 'loyalty' | 'contacts' | 'categories' | 'faqs' | 'policies' | 'referrals'
 
 const TABLES: { key: TableKey; name: string }[] = [
   { key: 'hero_slides', name: 'Hero 輪播圖' },
@@ -11,6 +11,9 @@ const TABLES: { key: TableKey; name: string }[] = [
   { key: 'loyalty', name: '積分設定' },
   { key: 'contacts', name: '聯繫我們' },
   { key: 'categories', name: '分類清單' },
+  { key: 'faqs', name: '常見問題' },
+  { key: 'policies', name: '政策/承諾' },
+  { key: 'referrals', name: '推薦紀錄（唯讀）' },
 ]
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -92,6 +95,21 @@ export default function AdminContentPage() {
           { key: 'sort_order', label: '排序', type: 'number' },
           { key: 'enabled', label: '啟用', type: 'checkbox' },
         ]
+      case 'faqs':
+        return [
+          { key: 'question', label: '問題', type: 'text' },
+          { key: 'answer', label: '解答', type: 'textarea' },
+          { key: 'sort_order', label: '排序', type: 'number' },
+          { key: 'enabled', label: '啟用', type: 'checkbox' },
+        ]
+      case 'policies':
+        return [
+          { key: 'type', label: '類型(commitment)', type: 'text' },
+          { key: 'content', label: '內容', type: 'textarea' },
+          { key: 'enabled', label: '啟用', type: 'checkbox' },
+        ]
+      case 'referrals':
+        return []
       default:
         return []
     }
@@ -121,6 +139,7 @@ export default function AdminContentPage() {
   }
 
   const onDelete = async (id: string) => {
+    if (current === 'referrals') return alert('此表為唯讀')
     if (!confirm('確定要刪除？')) return
     setLoading(true)
     try {
@@ -136,6 +155,7 @@ export default function AdminContentPage() {
 
   const onSave = async () => {
     if (!editing) return
+    if (current === 'referrals') return alert('此表為唯讀')
     setLoading(true)
     setError('')
     try {

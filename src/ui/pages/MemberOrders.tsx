@@ -1,7 +1,34 @@
 import React, { useEffect, useState } from 'react'
 import { getMemberUser } from '../../utils/memberAuth'
 import { Link } from 'react-router-dom'
+import { Home, ShoppingBag, ClipboardList, CheckCircle2, Share2 } from 'lucide-react'
+import ShareReferral from '../components/ShareReferral'
 import { supabase } from '../../utils/supabase'
+
+function normalizeTimeSlot(raw: string): string {
+  if (!raw) return ''
+  const text = String(raw).toLowerCase().trim()
+  // 直接時間區間格式（09:00-12:00）維持原樣
+  if (/\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}/.test(text)) return raw
+  // 常見英文/中文時段對應
+  const map: Record<string, string> = {
+    'morning': '09:00-12:00',
+    '上午': '09:00-12:00',
+    'afternoon': '13:00-17:00',
+    '下午': '13:00-17:00',
+    'evening': '18:00-21:00',
+    '晚上': '18:00-21:00',
+  }
+  if (map[text]) return map[text]
+  // 若像是 '09:00' 單點，給一個推定範圍
+  if (/^\d{1,2}:\d{2}$/.test(text)) {
+    const [h, m] = text.split(':').map(Number)
+    if (h < 12) return '09:00-12:00'
+    if (h < 18) return '13:00-17:00'
+    return '18:00-21:00'
+  }
+  return raw
+}
 
 export default function MemberOrdersPage() {
   const member = getMemberUser()
@@ -10,53 +37,37 @@ export default function MemberOrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [shareOpen, setShareOpen] = useState(false)
 
   const load = async () => {
     if (!member) return
     setLoading(true)
     setError('')
     try {
-      const cid = (member as any)?.customerId || member?.id
-      const [r1, r2] = await Promise.allSettled([
-        fetch(`/api/orders/member/${cid}/reservations`).then(r=>r.json()),
-        fetch(`/api/orders/member/${cid}/orders`).then(r=>r.json())
-      ])
-
-      let remoteReservations: any[] = []
-      let remoteOrders: any[] = []
-      if (r1.status === 'fulfilled' && r1.value?.success) remoteReservations = r1.value.data || []
-      if (r2.status === 'fulfilled' && r2.value?.success) remoteOrders = r2.value.data || []
-
-      // Supabase 回退：依 email 抓 orders，pending 歸類為預約，其餘為正式
-      try {
-        if ((r1.status !== 'fulfilled' || !r1.value?.success) || (r2.status !== 'fulfilled' || !r2.value?.success)) {
-          const emailLc = (member.email||'').toLowerCase()
-          const { data, error } = await supabase.from('orders').select('*').eq('customer_email', emailLc).order('created_at', { ascending: false })
-          if (!error && Array.isArray(data)) {
-            const mapped = (data||[])
-            const pending = mapped.filter((o:any)=> (o.status||'')==='pending').map((o:any)=> ({
-              id: o.order_number || o.id,
-              status: o.status,
-              item_count: Array.isArray(o.service_items) ? o.service_items.reduce((n:number,it:any)=> n + (it.quantity||0), 0) : 0,
-              total_price: Array.isArray(o.service_items) ? o.service_items.reduce((s:number,it:any)=> s + ((it.unitPrice||0)*(it.quantity||0)), 0) : 0,
-              reservation_date: o.preferred_date || '',
-              reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
-              payment_method: o.payment_method || '',
-              points_used: o.points_used || 0,
-              points_deduct_amount: o.points_deduct_amount || 0,
-              address: o.customer_address || '',
-              items: Array.isArray(o.service_items) ? o.service_items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice })) : []
-            }))
-            const confirmed = mapped.filter((o:any)=> (o.status||'')!=='pending').map((o:any)=> ({
-              id: o.order_number || o.id,
-              status: o.status,
-              items: Array.isArray(o.service_items) ? o.service_items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice })) : []
-            }))
-            if (remoteReservations.length===0) remoteReservations = pending
-            if (remoteOrders.length===0) remoteOrders = confirmed
-          }
-        }
-      } catch {}
+      // 直接以 Supabase 為單一資料來源（穩定一致）
+      const emailLc = (member.email||'').toLowerCase()
+      const { data, error } = await supabase.from('orders').select('*').eq('customer_email', emailLc).order('created_at', { ascending: false })
+      if (error) throw error
+      const mapped = (data||[])
+      const supReservations = mapped.filter((o:any)=> (o.status||'')==='pending').map((o:any)=> ({
+        id: o.order_number || o.id,
+        status: o.status,
+        item_count: Array.isArray(o.service_items) ? o.service_items.reduce((n:number,it:any)=> n + (it.quantity||0), 0) : 0,
+        total_price: Array.isArray(o.service_items) ? o.service_items.reduce((s:number,it:any)=> s + ((it.unitPrice||0)*(it.quantity||0)), 0) : 0,
+        reservation_date: o.preferred_date || '',
+        reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
+        reservation_time_display: normalizeTimeSlot((o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || '')),
+        payment_method: o.payment_method || '',
+        points_used: o.points_used || 0,
+        points_deduct_amount: o.points_deduct_amount || 0,
+        address: o.customer_address || '',
+        items: Array.isArray(o.service_items) ? o.service_items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice })) : []
+      }))
+      const supOrders = mapped.filter((o:any)=> (o.status||'')!=='pending').map((o:any)=> ({
+        id: o.order_number || o.id,
+        status: o.status,
+        items: Array.isArray(o.service_items) ? o.service_items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice })) : []
+      }))
 
       // 本地預約資料（聚合：以訂單為單位）
       let localReservations: any[] = []
@@ -71,6 +82,7 @@ export default function MemberOrdersPage() {
           total_price: Number(o.finalPrice || o.totalPrice || 0),
           reservation_date: o.customerInfo?.preferredDate || '',
           reservation_time: o.customerInfo?.preferredTime || '',
+          reservation_time_display: normalizeTimeSlot(o.customerInfo?.preferredTime || ''),
           payment_method: o.paymentMethod || '',
           points_used: o.pointsUsed || 0,
           points_deduct_amount: o.pointsDiscount || 0,
@@ -80,12 +92,8 @@ export default function MemberOrdersPage() {
         }))
       } catch {}
 
-      setReservations([...(remoteReservations||[]), ...localReservations])
-      setOrders(remoteOrders)
-
-      if ((r1.status === 'fulfilled' && !r1.value?.success) || (r2.status === 'fulfilled' && !r2.value?.success)) {
-        setError((r1 as any).value?.error || (r2 as any).value?.error || '')
-      }
+      setReservations([...(supReservations||[]), ...localReservations])
+      setOrders(supOrders)
     } catch (e: any) {
       setError(e?.message || '載入失敗')
     } finally {
@@ -127,14 +135,42 @@ export default function MemberOrdersPage() {
       <div className="mb-4 flex items-center justify-between">
         <div className="text-base md:text-lg font-bold">我的訂單</div>
         <div className="flex gap-2">
-          <button onClick={()=>setTab('orders')} className={`rounded px-3 py-1 text-sm ${tab==='orders'?'bg-gray-900 text-white':'border'}`}>正式訂單</button>
-          <button onClick={()=>setTab('reservations')} className={`rounded px-3 py-1 text-sm ${tab==='reservations'?'bg-gray-900 text-white':'border'}`}>預約訂單</button>
+          <button onClick={()=>setTab('orders')} className={`rounded px-3 py-1 text-sm ${tab==='orders'?'bg-blue-600 text-white':'border border-blue-200 text-blue-600'}`}>正式訂單</button>
+          <button onClick={()=>setTab('reservations')} className={`rounded px-3 py-1 text-sm ${tab==='reservations'?'bg-amber-600 text-white':'border border-amber-200 text-amber-700'}`}>預約訂單</button>
         </div>
       </div>
-      <div className="mb-3 flex items-center gap-2 text-sm">
-        <Link to="/store" className="text-blue-600 hover:underline">返回首頁</Link>
-        <span className="text-gray-300">|</span>
-        <Link to="/shop/products" className="text-blue-600 hover:underline">返回購物</Link>
+      {/* 快速入口卡牌 */}
+      <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Link to="/store" className="rounded-xl border border-blue-200 bg-blue-50 p-3 hover:bg-blue-100/70 transition-colors">
+          <div className="flex items-center gap-2 text-blue-900">
+            <Home className="h-5 w-5" />
+            <div className="font-semibold">首頁</div>
+          </div>
+        </Link>
+        <Link to="/shop/products" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 hover:bg-emerald-100/70 transition-colors">
+          <div className="flex items-center gap-2 text-emerald-900">
+            <ShoppingBag className="h-5 w-5" />
+            <div className="font-semibold">返回購物</div>
+          </div>
+        </Link>
+        <button onClick={()=>setTab('orders')} className="text-left rounded-xl border border-indigo-200 bg-indigo-50 p-3 hover:bg-indigo-100/70 transition-colors">
+          <div className="flex items-center gap-2 text-indigo-900">
+            <CheckCircle2 className="h-5 w-5" />
+            <div className="font-semibold">正式訂單</div>
+          </div>
+        </button>
+        <button onClick={()=>setTab('reservations')} className="text-left rounded-xl border border-amber-200 bg-amber-50 p-3 hover:bg-amber-100/70 transition-colors">
+          <div className="flex items-center gap-2 text-amber-900">
+            <ClipboardList className="h-5 w-5" />
+            <div className="font-semibold">預約訂單</div>
+          </div>
+        </button>
+        <button onClick={()=>setShareOpen(true)} className="text-left rounded-xl border border-rose-200 bg-rose-50 p-3 hover:bg-rose-100/70 transition-colors">
+          <div className="flex items-center gap-2 text-rose-900">
+            <Share2 className="h-5 w-5" />
+            <div className="font-semibold">分享推薦</div>
+          </div>
+        </button>
       </div>
 
       {error && <div className="mb-3 rounded bg-red-50 text-red-700 px-3 py-2 text-sm">{error}</div>}
@@ -143,31 +179,33 @@ export default function MemberOrdersPage() {
       {tab==='reservations' && (
         <div className="space-y-3">
           {reservations.map((r:any)=>(
-            <Link to={`/member/orders/${encodeURIComponent(r.id)}`} className="block rounded border p-3 md:p-4 hover:bg-gray-50">
+            <Link to={`/member/orders/${encodeURIComponent(r.id)}`} className="block rounded-xl border border-amber-200 bg-amber-50 p-3 md:p-4 hover:bg-amber-100/70 transition-colors">
               <div className="flex items-center gap-2">
-                <div className="font-medium text-sm md:text-base">預約單號 {r.id}</div>
-                <span className="ml-auto text-[11px] md:text-xs rounded px-2 py-0.5 bg-gray-100">{r.status}</span>
+                <div className="font-semibold text-sm md:text-base text-amber-900">預約單號 {r.id}</div>
+                <span className="ml-auto text-[11px] md:text-xs rounded px-2 py-0.5 bg-amber-200 text-amber-800">{r.status}</span>
               </div>
-              <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs md:text-sm text-gray-700">
-                <div>品項數量：<span className="font-medium">{r.item_count}</span></div>
-                <div>預估金額：<span className="font-medium">NT$ {Number(r.total_price||0).toLocaleString()}</span></div>
-                <div>期望日期：<span className="font-medium">{r.reservation_date || '-'}</span></div>
-                <div>期望時間：<span className="font-medium">{r.reservation_time || '-'}</span></div>
+              <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs md:text-sm text-amber-900/90">
+                <div>品項數量：<span className="font-semibold">{r.item_count}</span></div>
+                <div>預估金額：<span className="font-semibold">NT$ {Number(r.total_price||0).toLocaleString()}</span></div>
+                <div>期望日期：<span className="font-semibold">{r.reservation_date || '-'}</span></div>
+                <div>期望時間：<span className="font-semibold">{r.reservation_time_display || r.reservation_time || '-'}</span></div>
               </div>
               {r.payment_method || r.points_used || r.points_deduct_amount || r.address || r.discount_code ? (
-                <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs md:text-sm text-gray-700">
-                  {r.payment_method && <div>付款方式：<span className="font-medium">{r.payment_method}</span></div>}
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs md:text-sm text-amber-900/90">
+                  {r.payment_method && <div>付款方式：<span className="font-semibold">{r.payment_method}</span></div>}
                   {(r.points_used||r.points_deduct_amount) && (
-                    <div>積分折抵：<span className="font-medium">{r.points_used||0} 點（-NT$ {(r.points_deduct_amount||0).toLocaleString()}）</span></div>
+                    <div>積分折抵：
+                      <span className="font-semibold">{r.points_used||0} 點（-NT$ {(r.points_deduct_amount||0).toLocaleString()}）</span>
+                    </div>
                   )}
-                  {r.address && <div className="truncate">地址：<span className="font-medium">{r.address}</span></div>}
-                  {r.discount_code && <div>折扣碼：<span className="font-medium">{r.discount_code}</span></div>}
+                  {r.address && <div className="truncate">地址：<span className="font-semibold">{r.address}</span></div>}
+                  {r.discount_code && <div>折扣碼：<span className="font-semibold">{r.discount_code}</span></div>}
                 </div>
               ) : null}
-              <div className="mt-2 text-xs md:text-sm text-gray-600">
+              <div className="mt-2 text-xs md:text-sm text-amber-900/80">
                 {Array.isArray(r.items) && r.items.length>0 && (
                   <div>
-                    <div className="font-medium text-gray-800 mb-1">品項明細</div>
+                    <div className="font-semibold text-amber-900 mb-1">品項明細</div>
                     <ul className="list-disc pl-5 space-y-0.5">
                       {r.items.map((it:any, idx:number)=> (
                         <li key={idx}>{it.service_name} ×{it.quantity}（NT$ {Number(it.price||0).toLocaleString()}）</li>
@@ -188,21 +226,21 @@ export default function MemberOrdersPage() {
             const amount = Array.isArray(o.items) ? o.items.reduce((s:number,it:any)=> s + (Number(it.price)||0)*(Number(it.quantity)||0), 0) : 0
             const count = Array.isArray(o.items) ? o.items.reduce((n:number,it:any)=> n + (Number(it.quantity)||0), 0) : 0
             return (
-              <Link key={o.id} to={`/member/orders/${encodeURIComponent(o.order_number||o.id)}`} className="block rounded border p-3 md:p-4 hover:bg-gray-50">
+              <Link key={o.id} to={`/member/orders/${encodeURIComponent(o.order_number||o.id)}`} className="block rounded-xl border border-blue-200 bg-blue-50 p-3 md:p-4 hover:bg-blue-100/70 transition-colors">
                 <div className="flex items-center gap-2">
-                  <div className="font-medium text-sm md:text-base">訂單編號 {o.order_number || o.id}</div>
-                  <span className="ml-auto text-[11px] md:text-xs rounded px-2 py-0.5 bg-gray-100">{o.status}</span>
+                  <div className="font-semibold text-sm md:text-base text-blue-900">訂單編號 {o.order_number || o.id}</div>
+                  <span className="ml-auto text-[11px] md:text-xs rounded px-2 py-0.5 bg-blue-200 text-blue-800">{o.status}</span>
                 </div>
-                <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs md:text-sm text-gray-700">
-                  <div>品項數量：<span className="font-medium">{count}</span></div>
-                  <div>預估金額：<span className="font-medium">NT$ {amount.toLocaleString()}</span></div>
+                <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs md:text-sm text-blue-900/90">
+                  <div>品項數量：<span className="font-semibold">{count}</span></div>
+                  <div>預估金額：<span className="font-semibold">NT$ {amount.toLocaleString()}</span></div>
                 </div>
-                <div className="mt-2 space-y-1 text-xs md:text-sm text-gray-600">
+                <div className="mt-2 space-y-1 text-xs md:text-sm text-blue-900/80">
                   {(o.items||[]).slice(0,3).map((it:any,idx:number)=> (
                     <div key={idx}>• {it.service_name} ×{it.quantity}（NT$ {Number(it.price||0).toLocaleString()}）</div>
                   ))}
                   {(Array.isArray(o.items) && o.items.length>3) && (
-                    <div className="text-gray-400">… 其餘 {o.items.length-3} 項</div>
+                    <div className="text-blue-800/50">… 其餘 {o.items.length-3} 項</div>
                   )}
                 </div>
                 {o.photos && o.photos.length>0 && (
@@ -213,7 +251,7 @@ export default function MemberOrdersPage() {
                   </div>
                 )}
                 {o.status==='completed' && (
-                  <div className="mt-3 rounded bg-gray-50 p-3">
+                  <div className="mt-3 rounded bg-blue-100/50 p-3">
                     <div className="text-sm font-medium mb-2">為本次服務評價</div>
                     <RatingForm orderId={o.id} onSubmit={submitRating} />
                   </div>
@@ -227,6 +265,9 @@ export default function MemberOrdersPage() {
 
       {/* 行動底部安全間距 */}
       <div className="h-16 md:h-0" />
+      {shareOpen && (
+        <ShareReferral code={(member?.code)||''} onClose={()=>setShareOpen(false)} />
+      )}
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../../adapters'
+import { supabase } from '../../utils/supabase'
 
 export default function MembersPage() {
   const [rows, setRows] = useState<any[]>([])
@@ -11,6 +12,27 @@ export default function MembersPage() {
   return (
     <div className="space-y-3">
       <div className="text-lg font-semibold">會員管理</div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={async()=>{
+            try{
+              const { data, error } = await supabase.from('members').select('id, code')
+              if (error) throw error
+              const existing = new Set((data||[]).map((r:any)=> String(r.code||'').toUpperCase()).filter(Boolean))
+              const needs = (data||[]).filter((r:any)=> !r.code)
+              const gen = (): string => `MO${1000 + Math.floor(Math.random()*9000)}`
+              for (const row of needs) {
+                let code = gen(); let tries = 0
+                while (existing.has(code) && tries < 10) { code = gen(); tries++ }
+                await supabase.from('members').update({ code }).eq('id', row.id)
+                existing.add(code)
+              }
+              await load(); alert(`已補配 ${needs.length} 位會員編號`)
+            }catch(e:any){ alert(e?.message||'補配失敗') }
+          }}
+          className="rounded bg-brand-500 px-3 py-1 text-white text-sm"
+        >補配缺失編號</button>
+      </div>
       <div className="rounded-2xl bg-white p-2 shadow-card">
         {rows.map(m => (
           <div key={m.id} className="flex items-center justify-between border-b p-3 text-sm">

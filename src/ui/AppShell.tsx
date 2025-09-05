@@ -134,10 +134,10 @@ function DesktopNav() {
     { to: '/technicians', label: '技師管理', perm: 'technicians.manage' },
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
     { to: '/reports', label: '報表', perm: 'reports.manage' },
-    // 僅管理員可見
-    { to: '/members', label: '會員管理', perm: 'admin' },
-    // 產品管理與購物車已解耦，改由管理員集中控管
-    { to: '/products', label: '產品管理', perm: 'admin' },
+    // 僅管理員/客服可見
+    { to: '/members', label: '會員管理', perm: 'customers.manage' },
+    // 商品管理：僅 admin/support 可見（技師隱藏）
+    { to: '/products', label: '商品管理', perm: 'products.manage' },
     // 廣播
     { to: '/admin/broadcast', label: '站內廣播', perm: 'bulletin.manage' }
   ]

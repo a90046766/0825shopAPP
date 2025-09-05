@@ -5,6 +5,7 @@ import { Navigate } from 'react-router-dom'
 
 export default function ProductsPage() {
   const u = authRepo.getCurrentUser()
+  // 技師隱藏：直接導回派工（不可見/不可進入）
   if (u && u.role==='technician') return <Navigate to="/dispatch" replace />
   const [rows, setRows] = useState<any[]>([])
   const [repos, setRepos] = useState<any>(null)

@@ -369,7 +369,7 @@ export default function ShopProductsPage() {
             <div className="flex items-center space-x-6 overflow-x-auto">
               <Link to="/store" className="inline-flex items-center text-blue-600 hover:text-blue-700 text-xs md:text-base">
                 <ArrowLeft className="h-4 w-4 mr-1 hidden md:inline" />
-                返回首頁
+                首頁
               </Link>
               <button
                 onClick={() => navigate('/shop/products?category=cleaning')}

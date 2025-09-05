@@ -45,6 +45,7 @@ export default function ShopCartPage() {
   const [customerPoints, setCustomerPoints] = useState(0)
   const [usePoints, setUsePoints] = useState(false)
   const [pointsToUse, setPointsToUse] = useState(0)
+  const [commitmentText, setCommitmentText] = useState('')
 
   // 台灣縣市/行政區（精簡版）
   const taiwanCities = [
@@ -75,6 +76,32 @@ export default function ShopCartPage() {
         email: member.email
       }))
     }
+  }, [])
+
+  // 載入「我們的承諾」（CMS 優先，無則使用預設）
+  useEffect(() => {
+    (async () => {
+      try {
+        const mod = await import('../../adapters/supabase/cms')
+        const txt = await mod.fetchCommitment()
+        if (typeof txt === 'string' && txt.trim()) {
+          setCommitmentText(txt.trim())
+          return
+        }
+      } catch {}
+      // 預設版本
+      setCommitmentText([
+        '我們的承諾',
+        '一、10年(不含第10年)內機器。保固三個月，保固後三個月內有問題免費前往查看檢測。',
+        '二、13年(不含第13年)內機器。保固三個月，保固期內若已無法維修提供換機購物金。',
+        '三、13年以上機器，無法提供保固及購物金，請見諒。',
+        '免責聲明：',
+        '1. 現場技師判斷機況較差，可能會婉拒施作，避免後續爭議。',
+        '2. 10年以上機器，其機殼或部分塑料配件，可能硬化或脆化導致斷裂，在可正常運作的情況下不在保固範圍內。',
+        '3. 家電機齡以規格表上之製造年月起算，無法查看的話基本上依機況判斷可能會以最高13年以上之機齡計算。',
+        '4. 冷氣排水管一般僅以高壓水槍清洗及疏通，若是因為排水管堵塞之滴水，不在保固範圍內。'
+      ].join('\n'))
+    })()
   }, [])
 
   // 專業清洗服務產品（與產品頁面保持一致）
@@ -379,6 +406,10 @@ export default function ShopCartPage() {
     e.preventDefault()
     // 允許提交為預約訂單（未審核也可先提交），後台轉單前再檢核
     
+    // 我們的承諾（官網）：提交前必須同意
+    const ok = window.confirm((commitmentText||'').trim() + '\n\n請點選「確定」代表您已閱讀並同意我們的承諾')
+    if (!ok) return
+
     // 組合完整地址
     const fullAddress = `${(customerInfo.city||'').trim()}${(customerInfo.district||'').trim()}${(customerInfo.street||'').trim()}`.trim()
 
@@ -423,6 +454,10 @@ export default function ShopCartPage() {
         // 合法 UUID 的 memberId 才帶上，否則交由後端留空
         const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
         const memberId = (memberUser?.id && validUuid.test(memberUser.id)) ? memberUser.id : undefined
+        const commitmentAcceptedAt = new Date().toISOString()
+        const noteCommit = `【承諾已同意】${commitmentAcceptedAt}`
+        const noteDiscount = discountCode ? `折扣碼: ${discountCode}` : ''
+        const noteCombined = [noteCommit, noteDiscount].filter(Boolean).join('\n')
         const draft: any = {
           memberId,
           customerName: customerInfo.name,
@@ -435,7 +470,7 @@ export default function ShopCartPage() {
           paymentMethod,
           pointsUsed: pointsToUse,
           pointsDeductAmount: getPointsDiscount(),
-          note: discountCode ? `折扣碼: ${discountCode}` : undefined,
+          note: noteCombined || undefined,
           platform: '商城',
           status: 'pending',
           serviceItems
@@ -446,7 +481,31 @@ export default function ShopCartPage() {
         console.warn('直寫雲端失敗，改用本地暫存：', cloudErr)
       }
 
-      // 若雲端建立成功 → 清空購物車並導向
+      // 同步派工系統的 reservation_orders（最小影響：不阻斷主要流程）
+      try {
+        const payload = {
+          customer: {
+            name: customerInfo.name,
+            phone: customerInfo.phone,
+            email: customerInfo.email,
+            address: fullAddress
+          },
+          preferredDate: customerInfo.preferredDate,
+          preferredTime: customerInfo.preferredTime,
+          note: [
+            `【承諾已同意】${new Date().toISOString()}`,
+            discountCode ? `折扣碼: ${discountCode}` : ''
+          ].filter(Boolean).join('\n'),
+          items: cart.map((it:any) => ({ name: it.name, quantity: it.quantity, price: it.price }))
+        }
+        fetch('/api/orders/reservations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(()=>{})
+      } catch {}
+
+      // 若雲端建立成功 → 清空購物車並導向（雙保險）
       if (createdId) {
         if (usePoints && pointsToUse > 0) {
           const newPoints = customerPoints - pointsToUse
@@ -454,7 +513,7 @@ export default function ShopCartPage() {
           localStorage.setItem('customerPoints', newPoints.toString())
         }
         try { localStorage.setItem('lastOrderId', createdId) } catch {}
-        try { localStorage.removeItem('shopCart') } catch {}
+        try { localStorage.setItem('shopCart', JSON.stringify([])) } catch {}
         setCart([])
         navigate(`/shop/order-success?order=${encodeURIComponent(createdId)}`)
         return
@@ -474,7 +533,8 @@ export default function ShopCartPage() {
         discountCode,
         paymentMethod,
         createdAt: new Date().toISOString(),
-        status: 'pending'
+        status: 'pending',
+        note: `【承諾已同意】${new Date().toISOString()}`
       }
       const existingOrders = JSON.parse(localStorage.getItem('reservationOrders') || '[]')
       existingOrders.push(order)
@@ -486,7 +546,7 @@ export default function ShopCartPage() {
         localStorage.setItem('customerPoints', newPoints.toString())
       }
       try { localStorage.setItem('lastOrderId', order.id) } catch {}
-      try { localStorage.removeItem('shopCart') } catch {}
+      try { localStorage.setItem('shopCart', JSON.stringify([])) } catch {}
       setCart([])
       navigate(`/shop/order-success?order=${encodeURIComponent(order.id)}`)
 

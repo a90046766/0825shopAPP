@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../../adapters'
+import { supabase } from '../../utils/supabase'
 import { Navigate } from 'react-router-dom'
 
 export default function TechnicianManagementPage() {
@@ -18,6 +19,26 @@ export default function TechnicianManagementPage() {
       <div className="text-lg font-semibold">技師管理</div>
       <div className="flex items-center gap-2">
         <button onClick={()=> setCreating(true)} className="rounded bg-gray-900 px-3 py-1 text-white text-sm">新增技師</button>
+        <button
+          onClick={async()=>{
+            try{
+              const { data, error } = await supabase.from('technicians').select('id, code')
+              if (error) throw error
+              const existing = new Set((data||[]).map((r:any)=> String(r.code||'').toUpperCase()).filter(Boolean))
+              const needs = (data||[]).filter((r:any)=> !r.code)
+              const gen = (seed:number)=> `SR${seed + Math.floor(Math.random()*50) + 101}`
+              let seed = 100
+              for (const row of needs) {
+                let code = gen(seed); let tries = 0
+                while (existing.has(code) && tries < 10) { seed += 17; code = gen(seed); tries++ }
+                await supabase.from('technicians').update({ code }).eq('id', row.id)
+                existing.add(code); seed += 23
+              }
+              await load(); alert(`已補配 ${needs.length} 位技師編號`)
+            }catch(e:any){ alert(e?.message||'補配失敗') }
+          }}
+          className="rounded bg-brand-500 px-3 py-1 text-white text-sm"
+        >補配缺失編號</button>
         <button onClick={()=>{
           const input = document.createElement('input');
           input.type='file'; input.accept='.csv'; input.onchange=async(e:any)=>{
