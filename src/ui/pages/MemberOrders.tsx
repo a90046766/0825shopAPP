@@ -16,14 +16,38 @@ export default function MemberOrdersPage() {
     setError('')
     try {
       const cid = (member as any)?.customerId || member?.id
-      const [r1, r2] = await Promise.all([
+      const [r1, r2] = await Promise.allSettled([
         fetch(`/api/orders/member/${cid}/reservations`).then(r=>r.json()),
         fetch(`/api/orders/member/${cid}/orders`).then(r=>r.json())
       ])
-      if (r1.success) setReservations(r1.data || [])
-      if (r2.success) setOrders(r2.data || [])
-      if (!r1.success) setError(r1.error || '載入預約訂單失敗')
-      if (!r2.success) setError((prev)=> prev || r2.error || '載入正式訂單失敗')
+
+      let remoteReservations: any[] = []
+      let remoteOrders: any[] = []
+      if (r1.status === 'fulfilled' && r1.value?.success) remoteReservations = r1.value.data || []
+      if (r2.status === 'fulfilled' && r2.value?.success) remoteOrders = r2.value.data || []
+
+      // 合併本地預約資料（購物站暫存）
+      let localReservations: any[] = []
+      try {
+        const all = JSON.parse(localStorage.getItem('reservationOrders') || '[]')
+        const email = (member.email || '').toLowerCase()
+        const mine = all.filter((o:any)=> (o?.customerInfo?.email||'').toLowerCase() === email)
+        localReservations = mine.flatMap((o:any, i:number)=> (o.items||[]).map((it:any, j:number)=> ({
+          id: `${o.id}-${j}`,
+          service_name: it.name,
+          quantity: it.quantity,
+          status: o.status || 'pending',
+          reservation_date: o.customerInfo?.preferredDate || '',
+          reservation_time: o.customerInfo?.preferredTime || ''
+        })))
+      } catch {}
+
+      setReservations([...remoteReservations, ...localReservations])
+      setOrders(remoteOrders)
+
+      if ((r1.status === 'fulfilled' && !r1.value?.success) || (r2.status === 'fulfilled' && !r2.value?.success)) {
+        setError((r1 as any).value?.error || (r2 as any).value?.error || '')
+      }
     } catch (e: any) {
       setError(e?.message || '載入失敗')
     } finally {
@@ -61,13 +85,18 @@ export default function MemberOrdersPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
-        <div className="text-lg font-bold">我的訂單</div>
+        <div className="text-base md:text-lg font-bold">我的訂單</div>
         <div className="flex gap-2">
           <button onClick={()=>setTab('orders')} className={`rounded px-3 py-1 text-sm ${tab==='orders'?'bg-gray-900 text-white':'border'}`}>正式訂單</button>
           <button onClick={()=>setTab('reservations')} className={`rounded px-3 py-1 text-sm ${tab==='reservations'?'bg-gray-900 text-white':'border'}`}>預約訂單</button>
         </div>
+      </div>
+      <div className="mb-3 flex items-center gap-2 text-sm">
+        <Link to="/store" className="text-blue-600 hover:underline">返回首頁</Link>
+        <span className="text-gray-300">|</span>
+        <Link to="/shop/products" className="text-blue-600 hover:underline">返回購物</Link>
       </div>
 
       {error && <div className="mb-3 rounded bg-red-50 text-red-700 px-3 py-2 text-sm">{error}</div>}
@@ -76,13 +105,13 @@ export default function MemberOrdersPage() {
       {tab==='reservations' && (
         <div className="space-y-3">
           {reservations.map((r:any)=>(
-            <div key={r.id} className="rounded border p-4">
+            <div key={r.id} className="rounded border p-3 md:p-4">
               <div className="flex items-center gap-2">
-                <div className="font-medium">{r.service_name}</div>
-                <div className="text-sm text-gray-500">數量 {r.quantity}</div>
-                <span className="ml-auto text-xs rounded px-2 py-0.5 bg-gray-100">{r.status}</span>
+                <div className="font-medium text-sm md:text-base">{r.service_name}</div>
+                <div className="text-xs md:text-sm text-gray-500">數量 {r.quantity}</div>
+                <span className="ml-auto text-[11px] md:text-xs rounded px-2 py-0.5 bg-gray-100">{r.status}</span>
               </div>
-              <div className="mt-1 text-xs text-gray-500">預約時間：{r.reservation_date} {r.reservation_time}</div>
+              <div className="mt-1 text-[11px] md:text-xs text-gray-500">預約時間：{r.reservation_date} {r.reservation_time}</div>
             </div>
           ))}
           {reservations.length===0 && <div className="text-sm text-gray-500">目前沒有預約訂單</div>}
@@ -92,12 +121,12 @@ export default function MemberOrdersPage() {
       {tab==='orders' && (
         <div className="space-y-3">
           {orders.map((o:any)=>(
-            <div key={o.id} className="rounded border p-4">
+            <div key={o.id} className="rounded border p-3 md:p-4">
               <div className="flex items-center gap-2">
-                <div className="font-medium">訂單編號 {o.order_number || o.id}</div>
-                <span className="ml-auto text-xs rounded px-2 py-0.5 bg-gray-100">{o.status}</span>
+                <div className="font-medium text-sm md:text-base">訂單編號 {o.order_number || o.id}</div>
+                <span className="ml-auto text-[11px] md:text-xs rounded px-2 py-0.5 bg-gray-100">{o.status}</span>
               </div>
-              <div className="mt-2 space-y-1 text-sm">
+              <div className="mt-2 space-y-1 text-xs md:text-sm">
                 {(o.items||[]).map((it:any)=> (
                   <div key={it.id}>• {it.service_name} x{it.quantity} (${it.price})</div>
                 ))}
@@ -121,6 +150,9 @@ export default function MemberOrdersPage() {
           {orders.length===0 && <div className="text-sm text-gray-500">目前沒有正式訂單</div>}
         </div>
       )}
+
+      {/* 行動底部安全間距 */}
+      <div className="h-16 md:h-0" />
     </div>
   )
 }

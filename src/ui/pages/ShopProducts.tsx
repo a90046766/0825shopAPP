@@ -353,27 +353,27 @@ export default function ShopProductsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 頁面標題 */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <h1 className="text-4xl font-bold mb-4">我們的產品與服務</h1>
-          <p className="text-xl opacity-90">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-10 md:py-16">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 text-center">
+          <h1 className="text-2xl md:text-4xl font-bold mb-2 md:mb-4">我們的產品與服務</h1>
+          <p className="text-sm md:text-xl opacity-90">
             專業的日式洗濯服務，讓您的家電煥然一新
           </p>
         </div>
       </div>
 
       {/* 分類與搜尋列 */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between py-4">
+      <div className="bg-white border-b sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 md:px-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between py-3 md:py-4">
             <div className="flex items-center space-x-6 overflow-x-auto">
-              <Link to="/store" className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm md:text-base">
-                <ArrowLeft className="h-4 w-4 mr-1" />
+              <Link to="/store" className="inline-flex items-center text-blue-600 hover:text-blue-700 text-xs md:text-base">
+                <ArrowLeft className="h-4 w-4 mr-1 hidden md:inline" />
                 返回首頁
               </Link>
               <button
                 onClick={() => navigate('/shop/products?category=cleaning')}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'cleaning'
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-600 hover:text-blue-600'
@@ -383,7 +383,7 @@ export default function ShopProductsPage() {
               </button>
               <button
                 onClick={() => navigate('/shop/products?category=new')}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'new'
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-600 hover:text-blue-600'
@@ -393,7 +393,7 @@ export default function ShopProductsPage() {
               </button>
               <button
                 onClick={() => navigate('/shop/products?category=used')}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'used'
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-600 hover:text-blue-600'
@@ -403,7 +403,7 @@ export default function ShopProductsPage() {
               </button>
               <button
                 onClick={() => navigate('/shop/products?category=home')}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'home'
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-600 hover:text-blue-600'
@@ -413,29 +413,29 @@ export default function ShopProductsPage() {
               </button>
             </div>
 
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 md:gap-3 flex-wrap">
               <div className="relative">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e)=> setSearchQuery(e.target.value)}
                   placeholder="搜尋服務 / 商品關鍵字"
-                  className="w-64 max-w-full rounded-lg border px-4 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-48 md:w-64 max-w-full rounded-lg border px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 text-sm md:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                <span className="pointer-events-none absolute right-2 md:right-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
               </div>
-              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <label className="inline-flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-700">
                 <input type="checkbox" checked={groupOnly} onChange={(e)=> setGroupOnly(e.target.checked)} />
                 只看可團購
               </label>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm">
                 <input
                   type="number"
                   min={0}
                   value={minPrice}
                   onChange={(e)=> setMinPrice(e.target.value)}
                   placeholder="最低價"
-                  className="w-24 rounded-lg border px-2 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-20 md:w-24 rounded-lg border px-2 py-1.5 md:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <span className="text-gray-400">-</span>
                 <input
@@ -444,12 +444,12 @@ export default function ShopProductsPage() {
                   value={maxPrice}
                   onChange={(e)=> setMaxPrice(e.target.value)}
                   placeholder="最高價"
-                  className="w-24 rounded-lg border px-2 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-20 md:w-24 rounded-lg border px-2 py-1.5 md:py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <select
                   value={sortKey}
                   onChange={(e)=> setSortKey(e.target.value as any)}
-                  className="ml-2 rounded-lg border px-2 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="ml-1.5 md:ml-2 rounded-lg border px-2 py-1.5 md:py-2 text-xs md:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="relevance">預設排序</option>
                   <option value="priceAsc">價格（低→高）</option>
@@ -461,86 +461,86 @@ export default function ShopProductsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-8">
           {/* 產品列表 */}
           <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
               {filteredProducts.map((product) => (
                 <div
                   key={product.id}
                   className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden"
                 >
                   {/* 產品圖片 */}
-                  <div className="h-48 bg-gray-100 relative" onClick={()=> addToHistory(product)}>
+                  <div className="h-40 md:h-48 bg-gray-100 relative" onClick={()=> addToHistory(product)}>
                     <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={(e)=> { e.stopPropagation(); toggleFavorite(product.id) }}
-                      className={`absolute top-3 right-3 rounded-full p-2 ${favorites.includes(product.id) ? 'bg-rose-500 text-white' : 'bg-white text-gray-600'} shadow`}
+                      className={`absolute top-2 right-2 md:top-3 md:right-3 rounded-full p-1.5 md:p-2 ${favorites.includes(product.id) ? 'bg-rose-500 text-white' : 'bg-white text-gray-600'} shadow`}
                       aria-label="favorite"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 md:h-4 md:w-4">
                         <path d="M11.645 20.91l-.007-.003-.022-.01a15.247 15.247 0 01-.383-.173 25.18 25.18 0 01-4.244-2.457C4.688 16.744 2.25 14.328 2.25 11.25 2.25 8.75 4.2 6.75 6.75 6.75c1.591 0 3.094.735 4.095 1.878a5.248 5.248 0 014.095-1.878c2.55 0 4.5 2 4.5 4.5 0 3.078-2.438 5.494-4.739 6.997a25.175 25.175 0 01-4.244 2.457 15.247 15.247 0 01-.383.173l-.022.01-.007.003-.003.001a.75.75 0 01-.592 0l-.003-.001z" />
                       </svg>
                     </button>
                     {product.category === 'cleaning' && (
-                      <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-medium">
+                      <div className="absolute top-2 left-2 md:top-3 md:left-3 bg-blue-600 text-white px-2 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-medium">
                         專業清洗
                       </div>
                     )}
                     {product.category === 'new' && (
-                      <div className="absolute top-3 left-3 bg-green-600 text-white px-2 py-1 rounded-full text-xs font-medium">
+                      <div className="absolute top-2 left-2 md:top-3 md:left-3 bg-green-600 text-white px-2 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-medium">
                         新品
                       </div>
                     )}
                     {product.category === 'used' && (
-                      <div className="absolute top-3 left-3 bg-orange-600 text-white px-2 py-1 rounded-full text-xs font-medium">
+                      <div className="absolute top-2 left-2 md:top-3 md:left-3 bg-orange-600 text-white px-2 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-medium">
                         二手
                       </div>
                     )}
                     {product.category === 'home' && (
-                      <div className="absolute top-3 left-3 bg-purple-600 text-white px-2 py-1 rounded-full text-xs font-medium">
+                      <div className="absolute top-2 left-2 md:top-3 md:left-3 bg-purple-600 text-white px-2 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-medium">
                         居家清潔
                       </div>
                     )}
                   </div>
 
                   {/* 產品資訊 */}
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  <div className="p-4 md:p-6">
+                    <h3 className="text-base md:text-xl font-bold text-gray-900 mb-1 md:mb-2">
                       {product.name}
                     </h3>
-                    <p className="text-gray-600 mb-4 line-clamp-2">
+                    <p className="text-gray-600 mb-3 md:mb-4 line-clamp-2 text-sm md:text-base">
                       {product.description}
                     </p>
 
                     {/* 價格資訊 */}
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-2xl font-bold text-blue-600">
+                    <div className="mb-3 md:mb-4">
+                      <div className="flex items-center gap-2 mb-1.5 md:mb-2">
+                        <span className="text-lg md:text-2xl font-bold text-blue-600">
                           NT$ {product.price.toLocaleString()}
                         </span>
                         {product.groupPrice && (
-                          <span className="text-sm text-orange-600 font-medium">
+                          <span className="text-xs md:text-sm text-orange-600 font-medium">
                             團購價
                           </span>
                         )}
                       </div>
                       {product.groupPrice && product.groupMinQty && (
-                        <div className="text-sm text-orange-600">
+                        <div className="text-xs md:text-sm text-orange-600">
                           團購價：NT$ {product.groupPrice.toLocaleString()} (滿{product.groupMinQty}件)
                         </div>
                       )}
                     </div>
 
                     {/* 特色功能 */}
-                    <div className="mb-4">
+                    <div className="mb-3 md:mb-4">
                       <div className="flex flex-wrap gap-1">
                         {product.features.slice(0, 3).map((feature, idx) => (
                           <span
                             key={idx}
-                            className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
+                            className="bg-gray-100 text-gray-700 px-2 py-0.5 md:py-1 rounded text-[11px] md:text-xs"
                           >
                             {feature}
                           </span>
@@ -551,9 +551,9 @@ export default function ShopProductsPage() {
                     {/* 加入購物車按鈕 */}
                     <button
                       onClick={() => addToCart(product)}
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2"
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 md:py-3 px-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 text-sm md:text-base"
                     >
-                      <ShoppingCart className="h-5 w-5" />
+                      <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
                       加入購物車
                     </button>
                   </div>
@@ -564,29 +564,29 @@ export default function ShopProductsPage() {
 
           {/* 購物車側邊欄 */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
-              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <ShoppingCart className="h-6 w-6 text-blue-600" />
+            <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 lg:sticky lg:top-24">
+              <h3 className="text-base md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
                 購物車
               </h3>
 
               {cart.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <div className="text-center py-6 md:py-8 text-gray-500">
+                  <ShoppingCart className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-2 md:mb-3 text-gray-300" />
                   <p>購物車是空的</p>
-                  <p className="text-sm">開始選購商品吧！</p>
+                  <p className="text-xs md:text-sm">開始選購商品吧！</p>
                 </div>
               ) : (
                 <>
                   {/* 購物車商品列表 */}
-                  <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+                  <div className="space-y-3 mb-3 md:mb-4 max-h-48 md:max-h-64 overflow-y-auto">
                     {cart.map((item) => (
                       <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-gray-900 truncate">
+                          <h4 className="font-medium text-gray-900 truncate text-sm md:text-base">
                             {item.name}
                           </h4>
-                          <div className="text-sm text-gray-600">
+                          <div className="text-xs md:text-sm text-gray-600">
                             NT$ {item.price.toLocaleString()} × {item.quantity}
                           </div>
                         </div>
@@ -595,16 +595,16 @@ export default function ShopProductsPage() {
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
                             className="p-1 hover:bg-gray-200 rounded"
                           >
-                            <Minus className="h-4 w-4" />
+                            <Minus className="h-3.5 w-3.5 md:h-4 md:w-4" />
                           </button>
-                          <span className="w-8 text-center text-sm font-medium">
+                          <span className="w-8 text-center text-xs md:text-sm font-medium">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
                             className="p-1 hover:bg-gray-200 rounded"
                           >
-                            <Plus className="h-4 w-4" />
+                            <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />
                           </button>
                         </div>
                       </div>
@@ -613,17 +613,17 @@ export default function ShopProductsPage() {
 
                   {/* 價格摘要 */}
                   <div className="border-t pt-4 space-y-2 mb-4">
-                    <div className="flex justify-between text-sm text-gray-600">
+                    <div className="flex justify-between text-xs md:text-sm text-gray-600">
                       <span>商品總計</span>
                       <span>NT$ {totalPrice.toLocaleString()}</span>
                     </div>
                     {groupBuySavings > 0 && (
-                      <div className="flex justify-between text-sm text-orange-600">
+                      <div className="flex justify-between text-xs md:text-sm text-orange-600">
                         <span>團購優惠</span>
                         <span>-NT$ {groupBuySavings.toLocaleString()}</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t">
+                    <div className="flex justify-between text-base md:text-lg font-bold text-gray-900 pt-2 border-t">
                       <span>應付金額</span>
                       <span>NT$ {(totalPrice - groupBuySavings).toLocaleString()}</span>
                     </div>
@@ -632,16 +632,16 @@ export default function ShopProductsPage() {
                   {/* 結帳按鈕 */}
                   <Link
                     to="/shop/cart"
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 text-center block"
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 md:py-3 px-4 rounded-xl font-semibold transition-all duration-300 text-center block text-sm md:text-base"
                   >
                     前往結帳
-                    <ArrowRight className="inline ml-2 h-5 w-5" />
+                    <ArrowRight className="inline ml-2 h-4 w-4 md:h-5 md:w-5" />
                   </Link>
 
                   {/* 最近瀏覽 */}
                   {history.length > 0 && (
                     <div className="mt-8 border-t pt-4">
-                      <div className="text-sm font-semibold text-gray-800 mb-2">最近瀏覽</div>
+                      <div className="text-xs md:text-sm font-semibold text-gray-800 mb-2">最近瀏覽</div>
                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                         {history.map((h:any) => (
                           <div key={h.id} className="flex items-center gap-3">
@@ -649,10 +649,10 @@ export default function ShopProductsPage() {
                               <img src={h.image} alt={h.name} className="w-full h-full object-cover" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-900 truncate">{h.name}</div>
-                              <div className="text-xs text-gray-600">NT$ {h.price?.toLocaleString?.()}</div>
+                              <div className="text-xs md:text-sm font-medium text-gray-900 truncate">{h.name}</div>
+                              <div className="text-[11px] md:text-xs text-gray-600">NT$ {h.price?.toLocaleString?.()}</div>
                             </div>
-                            <button onClick={()=> addToCart(h)} className="text-xs px-2 py-1 bg-blue-600 text-white rounded">加入</button>
+                            <button onClick={()=> addToCart(h)} className="text-[11px] md:text-xs px-2 py-1 bg-blue-600 text-white rounded">加入</button>
                           </div>
                         ))}
                       </div>
@@ -664,6 +664,25 @@ export default function ShopProductsPage() {
           </div>
         </div>
       </div>
+
+      {/* 行動版底部快速結帳列 */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t shadow-md p-3 flex items-center justify-between lg:hidden">
+          <div className="text-sm">
+            <div className="text-gray-600">小計</div>
+            <div className="text-base font-bold text-gray-900">NT$ {(totalPrice - groupBuySavings).toLocaleString()}</div>
+          </div>
+          <Link
+            to="/shop/cart"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+          >
+            前往結帳
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
+      {/* 底部安全間距 */}
+      <div className="h-16 lg:h-0" />
     </div>
   )
 }

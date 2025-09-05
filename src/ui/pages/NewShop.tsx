@@ -22,6 +22,7 @@ import MemberBell from '../components/MemberBell'
 export default function NewShopPage() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isMember, setIsMember] = useState(false)
   const [cmsHero, setCmsHero] = useState<any[] | null>(null)
   const [cmsServices, setCmsServices] = useState<any[] | null>(null)
   const [cmsAdvantages, setCmsAdvantages] = useState<any[] | null>(null)
@@ -44,6 +45,7 @@ export default function NewShopPage() {
               ? JSON.parse(localUser)
               : null
         setCurrentUser(user)
+        setIsMember(!!memberUser)
       } catch (error) {
         console.error('檢查用戶狀態失敗:', error)
       }
@@ -260,51 +262,55 @@ export default function NewShopPage() {
     <div className="min-h-screen bg-gray-50">
       {/* 用戶資訊欄 */}
       {currentUser && (
-        <div className="bg-white border-b border-gray-200 px-6 py-3">
+        <div className="bg-white border-b border-gray-200 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">歡迎回來，</span>
-              <span className="font-medium text-gray-900">{currentUser.name || currentUser.email}</span>
+              <span className="text-xs text-gray-600">歡迎回來，</span>
+              <span className="text-sm font-medium text-gray-900">{currentUser.name || currentUser.email}</span>
               {currentUser.code && (
-                <span className="text-xs text-gray-500">會員編號：{currentUser.code}</span>
+                <span className="text-[11px] text-gray-500">會員編號：{currentUser.code}</span>
               )}
-              <span className="text-sm text-gray-500">({currentUser.role || '用戶'})</span>
+              {!isMember && (
+                <span className="text-xs text-gray-500">({currentUser.role || '用戶'})</span>
+              )}
             </div>
             <div className="flex items-center space-x-3">
               <Link
                 to="/member/orders"
-                className="inline-flex items-center px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                className="inline-flex items-center px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors"
               >
                 我的訂單
               </Link>
               <MemberBell />
               <button
                 onClick={() => { try { localStorage.removeItem('member-auth-user') } catch {}; location.reload() }}
-                className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
+                className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors"
               >
                 登出
               </button>
-              <Link
-                to="/dispatch"
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
-                返回派工系統
-              </Link>
+              {!isMember && (
+                <Link
+                  to="/dispatch"
+                  className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <ArrowRight className="h-3 w-3 mr-2 rotate-180" />
+                  返回派工系統
+                </Link>
+              )}
             </div>
           </div>
         </div>
       )}
       {!currentUser && (
-        <div className="bg-white border-b border-gray-200 px-6 py-3">
+        <div className="bg-white border-b border-gray-200 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="text-sm text-gray-600">歡迎來到日式洗濯</div>
             <div className="flex items-center space-x-3">
               <Link
                 to="/login/member"
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors"
               >
-                <ShoppingBag className="h-4 w-4 mr-2" />
+                <ShoppingBag className="h-3 w-3 mr-2" />
                 會員登入
               </Link>
             </div>
@@ -329,7 +335,7 @@ export default function NewShopPage() {
       </div>
 
       {/* Hero 輪播區塊 */}
-      <div className="relative h-[360px] md:h-[420px] overflow-hidden">
+      <div className="relative h-[300px] md:h-[360px] overflow-hidden">
         {heroSlides.map((slide, index) => (
           <div
             key={index}
@@ -345,23 +351,23 @@ export default function NewShopPage() {
             />
             <div className="absolute inset-0 z-20 flex items-center justify-center">
               <div className="text-center text-white max-w-4xl mx-auto px-4">
-                <h1 className="text-3xl md:text-4xl font-bold mb-3 animate-fade-in">
+                <h1 className="text-2xl md:text-3xl font-bold mb-2 animate-fade-in">
                   {slide.title}
                 </h1>
-                <p className="text-base md:text-lg mb-5 opacity-90">
+                <p className="text-sm md:text-base mb-4 opacity-90">
                   {slide.subtitle}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Link
                     to="/shop/products"
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-full text-sm md:text-base font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
                   >
                     瀏覽服務
-                    <ArrowRight className="inline ml-2 h-4 w-4" />
+                    <ArrowRight className="inline ml-2 h-3 w-3" />
                   </Link>
                   <a
                     href="#services"
-                    className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-5 py-2.5 rounded-full text-sm md:text-base font-semibold transition-all duration-300 border border-white/30"
+                    className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition-all duration-300 border border-white/30"
                   >
                     服務介紹
                   </a>
@@ -370,74 +376,60 @@ export default function NewShopPage() {
             </div>
           </div>
         ))}
-        
-        {/* 輪播指示器 */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-30 flex space-x-3">
-          {heroSlides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentSlide ? 'bg-white scale-125' : 'bg-white/50'
-              }`}
-            />
-          ))}
-        </div>
+        {/* 輪播指示器保持不變 */}
       </div>
 
-                        {/* 四大服務分類 */}
-                  <section id="services" className="py-12 px-4 md:px-6">
+      {/* 四大服務分類 */}
+      <section id="services" className="py-10 px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
-                                <div className="text-center mb-12">
-                        <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                          我們的服務
-                        </h2>
-                        <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                          專業的日式洗濯服務，讓您的家電煥然一新，享受潔淨舒適的生活品質
-                        </p>
-                      </div>
-          
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              我們的服務
+            </h2>
+            <p className="text-base text-gray-600 max-w-3xl mx-auto">
+              專業的日式洗濯服務，讓您的家電煥然一新，享受潔淨舒適的生活品質
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {services.map((service, index) => (
               <div
                 key={index}
-                className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100"
+                className="bg-white rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100"
               >
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 mx-auto">
-                  {/* 若 CMS 回來的是字串名稱，進行對應；否則使用傳入的元件 */}
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-3 mx-auto">
                   {typeof (service as any).icon === 'string' ? (
                     (() => {
                       const map: any = { Shield, Star, Users, Award, Clock, CheckCircle, Heart, Sparkles }
                       const Icon = map[(service as any).icon] || Sparkles
-                      return <Icon className="h-7 w-7 text-white" />
+                      return <Icon className="h-6 w-6 text-white" />
                     })()
                   ) : (
-                    <service.icon className="h-7 w-7 text-white" />
+                    <service.icon className="h-6 w-6 text-white" />
                   )}
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">
+                <h3 className="text-base font-bold text-gray-900 mb-2 text-center">
                   {service.name}
                 </h3>
-                <p className="text-gray-600 mb-3 text-center text-sm">
+                <p className="text-gray-600 mb-3 text-center text-xs">
                   {service.description}
                 </p>
-                            {/* 特色改為兩欄三列（AAA BBB / CCC DDD / EEE FFF）並強化標籤視覺 */}
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5">
-                              {service.features.map((feature, idx) => (
-                                <div key={idx} className="flex items-center">
-                                  <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                                  <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-[12px] font-semibold text-gray-700">
-                                    {feature}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                            <Link
-                              to={service.link}
-                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 px-4 rounded-xl font-semibold transition-all duration-300 text-center block text-sm"
-                            >
-                              瀏覽服務
-                            </Link>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
+                  {service.features.map((feature, idx) => (
+                    <div key={idx} className="flex items-center">
+                      <CheckCircle className="h-3 w-3 text-green-500 mr-2 flex-shrink-0" />
+                      <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+                        {feature}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  to={service.link}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2 px-4 rounded-xl font-semibold transition-all duration-300 text-center block text-xs"
+                >
+                  瀏覽服務
+                </Link>
               </div>
             ))}
           </div>

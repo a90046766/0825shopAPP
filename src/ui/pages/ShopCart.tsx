@@ -486,15 +486,15 @@ export default function ShopCartPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-6">
+      <div className="max-w-6xl mx-auto px-4 md:px-6">
         {/* 頁面標題 */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mb-6 md:mb-8">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
             <Link
               to="/shop/products"
-              className="inline-flex items-center text-blue-600 hover:text-blue-700"
+              className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm"
             >
-              <ArrowLeft className="h-5 w-5 mr-2" />
+              <ArrowLeft className="h-4 w-4 mr-2" />
               返回商品頁面
             </Link>
             {/* 會員資訊 */}
@@ -514,26 +514,26 @@ export default function ShopCartPage() {
               </button>
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">購物車結帳</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">購物車結帳</h1>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* 購物車商品列表 */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <ShoppingCart className="h-6 w-6 text-blue-600" />
+            <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
                 購物車商品 ({cart.length} 件)
               </h2>
 
               {cart.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-lg mb-2">購物車是空的</p>
-                  <p className="mb-4">開始選購商品吧！</p>
+                <div className="text-center py-10 md:py-12 text-gray-500">
+                  <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-base md:text-lg mb-2">購物車是空的</p>
+                  <p className="text-sm md:text-base mb-4">開始選購商品吧！</p>
                   <Link
                     to="/shop/products"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 md:px-6 md:py-3 rounded-lg font-medium transition-colors"
                   >
                     前往選購
                   </Link>
@@ -541,16 +541,15 @@ export default function ShopCartPage() {
               ) : (
                 <>
                   {/* 商品列表 */}
-                  <div className="space-y-4 mb-6">
+                  <div className="space-y-3 md:space-y-4 mb-5 md:mb-6">
                     {cart.map((item) => {
                       const product = allProducts.find(p => p.id === item.id)
                       const isGroupBuy = isGroupBuyEligible(item.id)
-                      
                       return (
-                        <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                        <div key={item.id} className="flex items-center gap-3 md:gap-4 p-3 md:p-4 bg-gray-50 rounded-lg">
                           <div className="flex-1">
-                            <h3 className="font-medium text-gray-900">{item.name}</h3>
-                            <div className="text-sm text-gray-600 mt-1">
+                            <h3 className="font-medium text-gray-900 text-sm md:text-base">{item.name}</h3>
+                            <div className="text-xs md:text-sm text-gray-600 mt-1">
                               {isGroupBuy ? (
                                 <span className="text-orange-600">
                                   團購價：NT$ {product?.groupPrice?.toLocaleString()} × {item.quantity}
@@ -560,37 +559,25 @@ export default function ShopCartPage() {
                               )}
                             </div>
                             {!isGroupBuy && product?.groupMinQty ? (
-                              <div className="text-xs text-orange-600 mt-1">
+                              <div className="text-[11px] md:text-xs text-orange-600 mt-1">
                                 再加 {getRemainingForGroup(item.id)} 件即可享團購價（門檻 {product.groupMinQty} 件）
                               </div>
                             ) : null}
                             {isGroupBuy && (
-                              <div className="text-xs text-green-600 mt-1">
+                              <div className="text-[11px] md:text-xs text-green-600 mt-1">
                                 ✓ 已達團購門檻，享受優惠價
                               </div>
                             )}
                           </div>
-                          
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="p-1 hover:bg-gray-200 rounded"
-                            >
-                              <Minus className="h-4 w-4" />
+                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-1 hover:bg-gray-200 rounded">
+                              <Minus className="h-3.5 w-3.5 md:h-4 md:w-4" />
                             </button>
-                            <span className="w-12 text-center text-sm font-medium">
-                              {item.quantity}
-                            </span>
-                            <button
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="p-1 hover:bg-gray-200 rounded"
-                            >
-                              <Plus className="h-4 w-4" />
+                            <span className="w-10 md:w-12 text-center text-xs md:text-sm font-medium">{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-1 hover:bg-gray-200 rounded">
+                              <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />
                             </button>
-                            <button
-                              onClick={() => removeFromCart(item.id)}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded"
-                            >
+                            <button onClick={() => removeFromCart(item.id)} className="p-2 text-red-500 hover:bg-red-50 rounded">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
@@ -601,12 +588,12 @@ export default function ShopCartPage() {
 
                   {/* 團購提醒 */}
                   {getGroupBuyEligibleItems().length > 0 && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
-                      <div className="flex items-center gap-2 text-orange-800 mb-2">
-                        <Users className="h-5 w-5" />
-                        <span className="font-medium">團購優惠提醒</span>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 md:p-4 mb-5 md:mb-6">
+                      <div className="flex items-center gap-2 text-orange-800 mb-1.5 md:mb-2">
+                        <Users className="h-4 w-4 md:h-5 md:w-5" />
+                        <span className="text-sm md:text-base font-medium">團購優惠提醒</span>
                       </div>
-                      <p className="text-orange-700 text-sm">
+                      <p className="text-orange-700 text-xs md:text-sm">
                         您已達到團購門檻，享受優惠價格！共節省 NT$ {getGroupBuySavings().toLocaleString()}
                       </p>
                     </div>
@@ -614,10 +601,7 @@ export default function ShopCartPage() {
 
                   {/* 清空購物車 */}
                   <div className="text-right">
-                    <button
-                      onClick={clearCart}
-                      className="text-red-600 hover:text-red-700 text-sm font-medium"
-                    >
+                    <button onClick={clearCart} className="text-red-600 hover:text-red-700 text-sm font-medium">
                       清空購物車
                     </button>
                   </div>
@@ -626,58 +610,53 @@ export default function ShopCartPage() {
             </div>
 
             {/* 客戶資訊表單 */}
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <User className="h-6 w-6 text-blue-600" />
+            <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+                <User className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
                 客戶資訊
               </h2>
-              
               <form onSubmit={handleSubmitOrder} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      姓名 <span className="text-red-500">*</span>
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">姓名 <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       required
+                      autoComplete="name"
+                      inputMode="text"
                       value={customerInfo.name}
                       onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="請輸入姓名"
                     />
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      電話 <span className="text-red-500">*</span>
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">電話 <span className="text-red-500">*</span></label>
                     <input
                       type="tel"
                       required
+                      autoComplete="tel"
+                      inputMode="tel"
                       value={customerInfo.phone}
                       onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="請輸入電話"
                     />
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email <span className="text-red-500">*</span>
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
                     <input
                       type="email"
                       required
+                      autoComplete="email"
+                      inputMode="email"
                       value={customerInfo.email}
                       onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="請輸入Email"
                     />
                   </div>
-                  
-                  {null}
-                  
+
                   <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">縣市 <span className="text-red-500">*</span></label>
@@ -710,17 +689,17 @@ export default function ShopCartPage() {
                     <input
                       type="text"
                       required
+                      autoComplete="street-address"
+                      inputMode="text"
                       value={customerInfo.street}
                       onChange={(e) => setCustomerInfo({...customerInfo, street: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="例如：重慶南路一段100號6樓"
                     />
                   </div>
-                  
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      期望日期
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">期望日期</label>
                     <input
                       type="date"
                       value={customerInfo.preferredDate}
@@ -728,11 +707,8 @@ export default function ShopCartPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      期望時間
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">期望時間</label>
                     <select
                       value={customerInfo.preferredTime}
                       onChange={(e) => setCustomerInfo({...customerInfo, preferredTime: e.target.value})}
@@ -744,7 +720,7 @@ export default function ShopCartPage() {
                       <option value="evening">晚上 (18:00-20:00)</option>
                     </select>
                   </div>
-                  
+
                   <div className="md:col-span-2">
                     <div className="mt-1 rounded-md bg-yellow-100 px-3 py-2 text-sm font-semibold text-red-700">
                       實際服務時間以客服跟您確認後為主
@@ -757,16 +733,16 @@ export default function ShopCartPage() {
 
           {/* 結帳摘要 */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-8">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <CreditCard className="h-6 w-6 text-blue-600" />
+            <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 lg:sticky lg:top-8">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+                <CreditCard className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
                 結帳摘要
               </h2>
 
               {cart.length > 0 && (
                 <>
-                  {/* 規則說明卡片（移除自動提供折扣碼文字） */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-900">
+                  {/* 規則說明卡片 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4 mb-5 md:mb-6 text-xs md:text-sm text-blue-900">
                     <div className="font-semibold mb-1">購物說明</div>
                     <ul className="list-disc pl-5 space-y-1">
                       <li>清洗服務：同次訂單清洗品項合併滿 3 件即享各品項團購價（可跨品項）</li>
@@ -776,37 +752,32 @@ export default function ShopCartPage() {
                   </div>
 
                   {/* 價格明細 */}
-                  <div className="space-y-3 mb-6">
-                    <div className="flex justify-between text-sm text-gray-600">
+                  <div className="space-y-3 mb-5 md:mb-6">
+                    <div className="flex justify-between text-xs md:text-sm text-gray-600">
                       <span>商品總計</span>
                       <span>NT$ {getGroupBuyPrice().toLocaleString()}</span>
                     </div>
-                    
                     {getGroupBuySavings() > 0 && (
-                      <div className="flex justify-between text-sm text-orange-600">
+                      <div className="flex justify-between text-xs md:text-sm text-orange-600">
                         <span>團購優惠</span>
                         <span>-NT$ {getGroupBuySavings().toLocaleString()}</span>
                       </div>
                     )}
-                    
                     <div className="border-t pt-2">
-                      <div className="flex justify-between text-sm text-gray-600">
+                      <div className="flex justify-between text-xs md:text-sm text-gray-600">
                         <span>優惠後金額</span>
                         <span>NT$ {getTotalPrice().toLocaleString()}</span>
                       </div>
-                      {/* 尚差幾件達團購提示 */}
                       {getItemsToReachGroup() > 0 && (
-                        <div className="mt-2 text-xs text-orange-600">
+                        <div className="mt-2 text-[11px] md:text-xs text-orange-600">
                           再加 {getItemsToReachGroup()} 件清洗服務可享團購價
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* 折扣碼（依需求移除） */}
-
                   {/* 付款方式 */}
-                  <div className="mb-6">
+                  <div className="mb-5 md:mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">付款方式</label>
                     <div className="grid grid-cols-1 gap-2">
                       <label className="inline-flex items-center gap-2 text-sm">
@@ -825,24 +796,17 @@ export default function ShopCartPage() {
                   </div>
 
                   {/* 積分系統 */}
-                  <div className="mb-6">
+                  <div className="mb-5 md:mb-6">
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium text-gray-700">
-                        積分使用 (目前有 {customerPoints} 積分)
-                      </label>
+                      <label className="text-sm font-medium text-gray-700">積分使用 (目前有 {customerPoints} 積分)</label>
                       <button
                         type="button"
                         onClick={() => setUsePoints(!usePoints)}
-                        className={`text-sm px-2 py-1 rounded ${
-                          usePoints 
-                            ? 'bg-blue-100 text-blue-700' 
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
+                        className={`text-xs md:text-sm px-2 py-1 rounded ${usePoints ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}
                       >
                         {usePoints ? '使用中' : '使用積分'}
                       </button>
                     </div>
-                    
                     {usePoints && (
                       <div className="space-y-2">
                         <input
@@ -854,7 +818,7 @@ export default function ShopCartPage() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="輸入要使用的積分"
                         />
-                        <div className="text-xs text-gray-500">
+                        <div className="text-[11px] md:text-xs text-gray-500">
                           每100積分可折抵NT$10，最多使用 {maxUsablePoints.toLocaleString()} 積分
                         </div>
                       </div>
@@ -864,49 +828,59 @@ export default function ShopCartPage() {
                   {/* 最終價格 */}
                   <div className="border-t pt-4 space-y-3 mb-6">
                     {getDiscountAmount() > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
+                      <div className="flex justify-between text-xs md:text-sm text-green-600">
                         <span>折扣碼優惠</span>
                         <span>-NT$ {getDiscountAmount().toLocaleString()}</span>
                       </div>
                     )}
-                    
                     {usePoints && pointsToUse > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
+                      <div className="flex justify-between text-xs md:text-sm text-green-600">
                         <span>積分折抵</span>
                         <span>-NT$ {getPointsDiscount().toLocaleString()}</span>
                       </div>
                     )}
-                    
-                    <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t">
+                    <div className="flex justify-between text-base md:text-lg font-bold text-gray-900 pt-2 border-t">
                       <span>應付金額</span>
                       <span>NT$ {getFinalPrice().toLocaleString()}</span>
                     </div>
                     {getGroupBuySavings() > 0 && (
-                      <div className="text-xs text-green-600">
-                        已為您節省：NT$ {getGroupBuySavings().toLocaleString()}
-                      </div>
+                      <div className="text-[11px] md:text-xs text-green-600">已為您節省：NT$ {getGroupBuySavings().toLocaleString()}</div>
                     )}
-                    <div className="text-xs text-gray-500">
-                      預估可獲得積分：{getEstimatedPoints().toLocaleString()} 點
-                    </div>
+                    <div className="text-[11px] md:text-xs text-gray-500">預估可獲得積分：{getEstimatedPoints().toLocaleString()} 點</div>
                   </div>
 
-                  {/* 提交訂單按鈕 */}
+                  {/* 提交訂單按鈕（桌機） */}
                   <button
                     onClick={handleSubmitOrder}
                     disabled={cart.length === 0}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 disabled:cursor-not-allowed"
+                    className="hidden md:block w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 disabled:cursor-not-allowed"
                   >
                     提交訂單
                   </button>
                 </>
               )}
             </div>
-
-            {/* 聯繫我們（移除：右側摘要展開時會被遮蔽） */}
           </div>
         </div>
       </div>
+
+      {/* 行動版底部提交列 */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t shadow-md p-3 flex items-center justify-between md:hidden">
+          <div className="text-sm">
+            <div className="text-gray-600">應付金額</div>
+            <div className="text-base font-bold text-gray-900">NT$ {getFinalPrice().toLocaleString()}</div>
+          </div>
+          <button
+            onClick={handleSubmitOrder}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+          >
+            提交訂單
+          </button>
+        </div>
+      )}
+      {/* 底部安全間距 */}
+      <div className="h-16 md:h-0" />
     </div>
   )
 }
