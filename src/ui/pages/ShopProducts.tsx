@@ -47,6 +47,11 @@ export default function ShopProductsPage() {
       const hist = JSON.parse(localStorage.getItem('shopHistory') || '[]')
       if (Array.isArray(hist)) setHistory(hist)
     } catch {}
+    // 初始化購物車（從 localStorage 帶入，避免切頁後歸零）
+    try {
+      const saved = JSON.parse(localStorage.getItem('shopCart') || '[]')
+      if (Array.isArray(saved)) setCart(saved)
+    } catch {}
   }, [])
 
   useEffect(() => {
@@ -56,6 +61,11 @@ export default function ShopProductsPage() {
   useEffect(() => {
     try { localStorage.setItem('shopHistory', JSON.stringify(history)) } catch {}
   }, [history])
+
+  // 持久化購物車，避免到結帳頁歸零
+  useEffect(() => {
+    try { localStorage.setItem('shopCart', JSON.stringify(cart)) } catch {}
+  }, [cart])
 
   const toggleFavorite = (productId: string) => {
     setFavorites(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId])

@@ -15,9 +15,10 @@ export default function MemberOrdersPage() {
     setLoading(true)
     setError('')
     try {
+      const cid = (member as any)?.customerId || member?.id
       const [r1, r2] = await Promise.all([
-        fetch(`/api/orders/member/${member.id}/reservations`).then(r=>r.json()),
-        fetch(`/api/orders/member/${member.id}/orders`).then(r=>r.json())
+        fetch(`/api/orders/member/${cid}/reservations`).then(r=>r.json()),
+        fetch(`/api/orders/member/${cid}/orders`).then(r=>r.json())
       ])
       if (r1.success) setReservations(r1.data || [])
       if (r2.success) setOrders(r2.data || [])
@@ -33,7 +34,8 @@ export default function MemberOrdersPage() {
   const submitRating = async (orderId: number, stars: number, score: number, comment: string) => {
     if (!member) return
     try {
-      const res = await fetch(`/api/orders/member/${member.id}/orders/${orderId}/rating`, {
+      const cid = (member as any)?.customerId || member?.id
+      const res = await fetch(`/api/orders/member/${cid}/orders/${orderId}/rating`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stars, score, comment })

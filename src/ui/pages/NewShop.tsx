@@ -33,9 +33,16 @@ export default function NewShopPage() {
   useEffect(() => {
     const checkUser = () => {
       try {
+        const memberUser = localStorage.getItem('member-auth-user')
         const supabaseUser = localStorage.getItem('supabase-auth-user')
         const localUser = localStorage.getItem('local-auth-user')
-        const user = supabaseUser ? JSON.parse(supabaseUser) : localUser ? JSON.parse(localUser) : null
+        const user = memberUser
+          ? JSON.parse(memberUser)
+          : supabaseUser
+            ? JSON.parse(supabaseUser)
+            : localUser
+              ? JSON.parse(localUser)
+              : null
         setCurrentUser(user)
       } catch (error) {
         console.error('檢查用戶狀態失敗:', error)
@@ -131,12 +138,12 @@ export default function NewShopPage() {
     },
     {
       name: "二手家電服務",
-      description: "品質檢驗，價格優惠，環保選擇",
+      description: "品質檢驗，價格優惠，安心選擇",
       icon: Heart,
       features: [
         "品質保證",
         "價格實惠",
-        "環保節能",
+        "多重檢測",
         "專業檢測",
         "功能保固",
         "安全可靠"
@@ -234,6 +241,21 @@ export default function NewShopPage() {
     }
   ]
 
+  // 色彩背景對應，讓優勢圖示背景更有色彩
+  const advantageBgMap: Record<string, string> = {
+    'text-blue-600': 'bg-blue-50',
+    'text-green-600': 'bg-green-50',
+    'text-orange-600': 'bg-orange-50',
+    'text-purple-600': 'bg-purple-50',
+    'text-emerald-600': 'bg-emerald-50',
+    'text-sky-600': 'bg-sky-50',
+    'text-rose-600': 'bg-rose-50',
+    'text-yellow-600': 'bg-yellow-50',
+    'text-indigo-600': 'bg-indigo-50',
+    'text-blue-500': 'bg-blue-50',
+    'text-rose-500': 'bg-rose-50'
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 用戶資訊欄 */}
@@ -243,6 +265,9 @@ export default function NewShopPage() {
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">歡迎回來，</span>
               <span className="font-medium text-gray-900">{currentUser.name || currentUser.email}</span>
+              {currentUser.code && (
+                <span className="text-xs text-gray-500">會員編號：{currentUser.code}</span>
+              )}
               <span className="text-sm text-gray-500">({currentUser.role || '用戶'})</span>
             </div>
             <div className="flex items-center space-x-3">
@@ -253,13 +278,12 @@ export default function NewShopPage() {
                 我的訂單
               </Link>
               <MemberBell />
-              <Link
-                to="/login/member"
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              <button
+                onClick={() => { try { localStorage.removeItem('member-auth-user') } catch {}; location.reload() }}
+                className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
               >
-                <ShoppingBag className="h-4 w-4 mr-2" />
-                會員登入
-              </Link>
+                登出
+              </button>
               <Link
                 to="/dispatch"
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
@@ -271,6 +295,38 @@ export default function NewShopPage() {
           </div>
         </div>
       )}
+      {!currentUser && (
+        <div className="bg-white border-b border-gray-200 px-6 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="text-sm text-gray-600">歡迎來到日式洗濯</div>
+            <div className="flex items-center space-x-3">
+              <Link
+                to="/login/member"
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                會員登入
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 固定橫幅（活動公告） */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="text-sm sm:text-base font-semibold tracking-wide">
+            本月活動：推薦加入就送100積分｜消費滿$100贈1積分｜積分可全額折抵
+          </div>
+          <Link
+            to="/shop/products?category=cleaning"
+            className="inline-flex items-center px-4 py-1.5 bg-white/15 hover:bg-white/25 rounded-full text-white text-sm font-medium transition-colors"
+          >
+            立即查看清洗服務
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </div>
+      </div>
 
       {/* Hero 輪播區塊 */}
       <div className="relative h-[360px] md:h-[420px] overflow-hidden">
@@ -406,7 +462,7 @@ export default function NewShopPage() {
                 key={index}
                 className="bg-white rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
               >
-                <div className={`w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 mx-auto`}>
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto ${advantageBgMap[advantage.color] || 'bg-gray-100'}`}>
                   {/* 若 CMS 回來的是字串名稱，進行對應；否則使用傳入的元件 */}
                   {typeof (advantage as any).icon === 'string' ? (
                     (() => {
@@ -557,24 +613,24 @@ export default function NewShopPage() {
                 <Phone className="h-8 w-8 text-white" />
               </div>
               <h3 className="text-xl font-semibold mb-2">客服專線</h3>
-              <p className="text-gray-300">0800-XXX-XXX</p>
-              <p className="text-gray-400 text-sm">週一至週日 8:00-20:00</p>
+              <p className="text-gray-300">(02)7756-2269</p>
+              <p className="text-gray-400 text-sm">電話客服服務時間：上午九點~下午六點</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mb-4 mx-auto">
                 <Mail className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">客服信箱</h3>
-              <p className="text-gray-300">service@company.com</p>
-              <p className="text-gray-400 text-sm">24小時內回覆</p>
+              <h3 className="text-xl font-semibold mb-2">官方 LINE</h3>
+              <p className="text-gray-300">@942clean</p>
+              <p className="text-gray-400 text-sm">線上客服服務時間：上午九點~晚間九點</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mb-4 mx-auto">
                 <MapPin className="h-8 w-8 text-white" />
               </div>
               <h3 className="text-xl font-semibold mb-2">服務區域</h3>
-              <p className="text-gray-300">台北、新北、桃園</p>
-              <p className="text-gray-400 text-sm">其他地區請來電詢問</p>
+              <p className="text-gray-300">基隆 / 台北 / 新北 / 桃園 / 中壢 / 新竹 / 頭份 / 台中 / 彰化 / 台南 / 高雄</p>
+              <p className="text-gray-400 text-sm">偏遠地區或山區皆無法服務。南投/雲林/嘉義/屏東由周邊地區技師支援，需同址三台(含)以上才能承接。</p>
             </div>
           </div>
           

@@ -31,6 +31,9 @@ export default function ShopCartPage() {
     name: '',
     phone: '',
     email: '',
+    city: '',
+    district: '',
+    street: '',
     address: '',
     preferredDate: '',
     preferredTime: '',
@@ -358,8 +361,11 @@ export default function ShopCartPage() {
       return
     }
     
+    // 組合完整地址
+    const fullAddress = `${(customerInfo.city||'').trim()}${(customerInfo.district||'').trim()}${(customerInfo.street||'').trim()}`.trim()
+
     // 驗證必填欄位
-    if (!customerInfo.name || !customerInfo.phone || !customerInfo.email || !customerInfo.address) {
+    if (!customerInfo.name || !customerInfo.phone || !customerInfo.email || !fullAddress) {
       toast.error('請填寫所有必填欄位')
       return
     }
@@ -387,7 +393,7 @@ export default function ShopCartPage() {
       // 創建訂單資料
       const order = {
         id: `ORDER-${Date.now()}`,
-        customerInfo,
+        customerInfo: { ...customerInfo, address: fullAddress },
         items: cart,
         totalPrice: getTotalPrice(),
         groupBuySavings: getGroupBuySavings(),
@@ -659,36 +665,45 @@ export default function ShopCartPage() {
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      介紹人
-                    </label>
-                    <input
-                      type="text"
-                      value={customerInfo.referrer}
-                      onChange={(e) => setCustomerInfo({...customerInfo, referrer: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="請輸入介紹人（選填）"
-                    />
-                  </div>
+                  {null}
                   
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      服務地址 <span className="text-red-500">*</span>
-                    </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">縣市 <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       required
-                      value={customerInfo.address}
-                      onChange={(e) => setCustomerInfo({...customerInfo, address: e.target.value})}
+                      value={customerInfo.city}
+                      onChange={(e) => setCustomerInfo({...customerInfo, city: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="請輸入完整服務地址"
+                      placeholder="例如：台北市"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">區域 <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      required
+                      value={customerInfo.district}
+                      onChange={(e) => setCustomerInfo({...customerInfo, district: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="例如：中正區"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">詳細地址 <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      required
+                      value={customerInfo.street}
+                      onChange={(e) => setCustomerInfo({...customerInfo, street: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="例如：重慶南路一段100號6樓"
                     />
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      偏好日期
+                      期望日期
                     </label>
                     <input
                       type="date"
@@ -700,7 +715,7 @@ export default function ShopCartPage() {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      偏好時間
+                      期望時間
                     </label>
                     <select
                       value={customerInfo.preferredTime}
@@ -712,6 +727,12 @@ export default function ShopCartPage() {
                       <option value="afternoon">下午 (13:00-17:00)</option>
                       <option value="evening">晚上 (18:00-20:00)</option>
                     </select>
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <div className="mt-1 rounded-md bg-yellow-100 px-3 py-2 text-sm font-semibold text-red-700">
+                      實際確認時間以客服跟您確認後為主
+                    </div>
                   </div>
                 </div>
               </form>

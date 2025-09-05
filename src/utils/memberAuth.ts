@@ -7,6 +7,7 @@ export interface MemberUser {
   role: 'member'
   type: 'member'
   status?: string
+  customerId?: number
 }
 
 // 檢查是否為會員

@@ -55,6 +55,17 @@ export default function MemberLoginPage() {
           }
         } catch {}
 
+        // 嘗試取得派工系統的 customerId（用 email 搜尋），用於會員端查單
+        let customerId: number | undefined
+        try {
+          const res = await fetch(`/api/customers?search=${encodeURIComponent((resolved?.email || data.user.email || '').toLowerCase())}`)
+          const j = await res.json()
+          if (j?.success && Array.isArray(j.data)) {
+            const exact = j.data.find((c:any)=> String(c.email||'').toLowerCase() === (resolved?.email || data.user.email || '').toLowerCase())
+            customerId = exact?.id
+          }
+        } catch {}
+
         const memberInfo = {
           id: resolved?.id || data.user.id,
           name: resolved?.name || data.user.email || '',
@@ -62,7 +73,8 @@ export default function MemberLoginPage() {
           code: resolved?.code,
           role: 'member' as const,
           type: 'member' as const,
-          status: resolved?.status || 'pending'
+          status: resolved?.status || 'pending',
+          customerId
         }
         try { localStorage.setItem('member-auth-user', JSON.stringify(memberInfo)) } catch {}
         navigate('/store')
