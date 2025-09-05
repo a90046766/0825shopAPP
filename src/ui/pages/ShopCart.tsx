@@ -40,9 +40,27 @@ export default function ShopCartPage() {
     referrer: '' // 介紹人欄位
   })
   const [discountCode, setDiscountCode] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash')
   const [customerPoints, setCustomerPoints] = useState(0)
   const [usePoints, setUsePoints] = useState(false)
   const [pointsToUse, setPointsToUse] = useState(0)
+
+  // 台灣縣市/行政區（精簡版）
+  const taiwanCities = [
+    '基隆市','台北市','新北市','桃園市','新竹市','苗栗縣','台中市','彰化縣','台南市','高雄市'
+  ]
+  const taiwanDistricts: Record<string, string[]> = {
+    '基隆市': ['中正區','仁愛區','信義區','安樂區','中山區','七堵區','暖暖區'],
+    '台北市': ['信義區','大安區','中正區','內湖區','士林區','松山區','萬華區','中山區','文山區','南港區','北投區'],
+    '新北市': ['板橋區','新店區','中和區','永和區','三重區','新莊區','土城區','樹林區','蘆洲區','淡水區','汐止區'],
+    '桃園市': ['桃園區','中壢區','蘆竹區','龜山區','八德區','平鎮區','楊梅區'],
+    '新竹市': ['東區','北區','香山區'],
+    '苗栗縣': ['頭份市','苗栗市','竹南鎮'],
+    '台中市': ['西屯區','北屯區','南屯區','中區','西區','北區','南區','太平區','大里區'],
+    '彰化縣': ['彰化市','員林市','和美鎮','鹿港鎮'],
+    '台南市': ['中西區','東區','南區','北區','安平區','安南區'],
+    '高雄市': ['前鎮區','苓雅區','鼓山區','三民區','左營區','新興區']
+  }
 
   // 檢查會員登入狀態
   useEffect(() => {
@@ -236,25 +254,39 @@ export default function ShopCartPage() {
     toast.success('購物車已清空')
   }
 
-  // 計算商品總價
+  // 清洗類別團購：跨品項累計數量（只要是有 groupPrice 的 cleaning 類別）
+  const getCleaningGroupContext = () => {
+    const cleaningItems = cart.filter(it => {
+      const p = allProducts.find(x => x.id === it.id)
+      return p?.category === 'cleaning' && (p as any)?.groupPrice
+    })
+    const totalQty = cleaningItems.reduce((acc, it) => acc + (it.quantity || 0), 0)
+    const thresholds = cleaningItems
+      .map(it => (allProducts.find(x => x.id === it.id) as any)?.groupMinQty || 3)
+    const minThreshold = thresholds.length ? Math.min(...thresholds) : 3
+    const active = totalQty >= minThreshold
+    return { totalQty, minThreshold, active }
+  }
+
+  // 計算商品總價（套用跨品項清洗團購）
   const getTotalPrice = () => {
+    const ctx = getCleaningGroupContext()
     return cart.reduce((sum, item) => {
-      const product = allProducts.find(p => p.id === item.id)
-      if (product?.groupPrice && product?.groupMinQty && item.quantity >= product.groupMinQty) {
+      const product = allProducts.find(p => p.id === item.id) as any
+      if (!product) return sum
+      if (product.category === 'cleaning' && product.groupPrice && ctx.active) {
         return sum + (product.groupPrice * item.quantity)
       }
-      return sum + (product?.price || 0) * item.quantity
+      return sum + (product.price || 0) * item.quantity
     }, 0)
   }
 
-  // 計算團購優惠
+  // 計算團購前原價總計
   const getGroupBuyPrice = () => {
     return cart.reduce((sum, item) => {
-      const product = allProducts.find(p => p.id === item.id)
-      if (product?.groupPrice && product?.groupMinQty && item.quantity >= product.groupMinQty) {
-        return sum + (product.price * item.quantity)
-      }
-      return sum + (product?.price || 0) * item.quantity
+      const product = allProducts.find(p => p.id === item.id) as any
+      if (!product) return sum
+      return sum + (product.price || 0) * item.quantity
     }, 0)
   }
 
@@ -263,11 +295,11 @@ export default function ShopCartPage() {
     return getGroupBuyPrice() - getTotalPrice()
   }
 
-  // 檢查是否適用團購價
+  // 檢查是否適用團購價（跨品項：清洗類別、開啟時所有清洗品項皆適用）
   const isGroupBuyEligible = (productId: string) => {
-    const product = allProducts.find(p => p.id === productId)
-    const cartItem = cart.find(item => item.id === productId)
-    return product?.groupPrice && product?.groupMinQty && cartItem && cartItem.quantity >= product.groupMinQty
+    const product = allProducts.find(p => p.id === productId) as any
+    const ctx = getCleaningGroupContext()
+    return !!(product && product.category === 'cleaning' && product.groupPrice && ctx.active)
   }
 
   // 取得適用團購價的商品
@@ -275,22 +307,20 @@ export default function ShopCartPage() {
     return cart.filter(item => isGroupBuyEligible(item.id))
   }
 
-  // 針對單一商品：距離團購門檻還差幾件
+  // 針對清洗類：距離團購門檻還差幾件（跨品項累計）
   const getRemainingForGroup = (productId: string) => {
     const product = allProducts.find(p => p.id === productId) as any
-    const cartItem = cart.find(item => item.id === productId)
-    if (!product || !product.groupMinQty || !cartItem) return 0
-    const remain = product.groupMinQty - cartItem.quantity
-    return Math.max(0, remain)
+    if (!product || product.category !== 'cleaning') return 0
+    const ctx = getCleaningGroupContext()
+    return Math.max(0, ctx.minThreshold - ctx.totalQty)
   }
 
   // 計算折扣碼優惠
   const getDiscountAmount = () => {
     if (!discountCode) return 0
-    
     const total = getTotalPrice()
     if (discountCode === 'SR001' || discountCode === 'SE001') {
-      return total * 0.03 // 97% 折扣
+      return total * 0.03 // 97% 優惠（3% 折抵）
     }
     return 0
   }
@@ -311,20 +341,10 @@ export default function ShopCartPage() {
     return Math.max(0, total - groupBuySavings - discountAmount - pointsDiscount)
   }
 
-  // 尚差幾件達團購（僅針對清洗服務）
+  // 尚差幾件達團購（跨品項清洗）
   const getItemsToReachGroup = () => {
-    const targets = cart
-      .filter(item => {
-        const p = allProducts.find(x => x.id === item.id)
-        return p?.category === 'cleaning' && p?.groupMinQty
-      })
-      .map(item => {
-        const p = allProducts.find(x => x.id === item.id) as any
-        const remain = Math.max(0, (p.groupMinQty || 0) - item.quantity)
-        return remain
-      })
-    const minRemain = targets.length ? Math.min(...targets) : 0
-    return minRemain
+    const ctx = getCleaningGroupContext()
+    return Math.max(0, ctx.minThreshold - ctx.totalQty)
   }
 
   // 預估可獲得積分（消費$100=1積分，取整）
@@ -402,6 +422,7 @@ export default function ShopCartPage() {
         pointsDiscount: getPointsDiscount(),
         finalPrice: getFinalPrice(),
         discountCode,
+        paymentMethod,
         createdAt: new Date().toISOString(),
         status: 'pending'
       }
@@ -667,27 +688,32 @@ export default function ShopCartPage() {
                   
                   {null}
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">縣市 <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      value={customerInfo.city}
-                      onChange={(e) => setCustomerInfo({...customerInfo, city: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="例如：台北市"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">區域 <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      value={customerInfo.district}
-                      onChange={(e) => setCustomerInfo({...customerInfo, district: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="例如：中正區"
-                    />
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">縣市 <span className="text-red-500">*</span></label>
+                      <select
+                        required
+                        value={customerInfo.city}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value, district: '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">請選擇縣市</option>
+                        {taiwanCities.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">區域 <span className="text-red-500">*</span></label>
+                      <select
+                        required
+                        value={customerInfo.district}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, district: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={!customerInfo.city}
+                      >
+                        <option value="">請選擇區域</option>
+                        {(taiwanDistricts[customerInfo.city] || []).map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">詳細地址 <span className="text-red-500">*</span></label>
@@ -723,7 +749,7 @@ export default function ShopCartPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">請選擇時間</option>
-                      <option value="morning">上午 (8:00-12:00)</option>
+                      <option value="morning">上午 (09:00-12:00)</option>
                       <option value="afternoon">下午 (13:00-17:00)</option>
                       <option value="evening">晚上 (18:00-20:00)</option>
                     </select>
@@ -731,7 +757,7 @@ export default function ShopCartPage() {
                   
                   <div className="md:col-span-2">
                     <div className="mt-1 rounded-md bg-yellow-100 px-3 py-2 text-sm font-semibold text-red-700">
-                      實際確認時間以客服跟您確認後為主
+                      實際服務時間以客服跟您確認後為主
                     </div>
                   </div>
                 </div>
@@ -749,13 +775,13 @@ export default function ShopCartPage() {
 
               {cart.length > 0 && (
                 <>
-                  {/* 規則說明卡片 */}
+                  {/* 規則說明卡片（移除自動提供折扣碼文字） */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-900">
                     <div className="font-semibold mb-1">購物說明</div>
                     <ul className="list-disc pl-5 space-y-1">
-                      <li>專業清洗服務：同項商品單次數量滿 3 件享團購價</li>
-                      <li>積分：每消費 NT$100 累積 1 點；100 點可折抵 NT$10</li>
-                      <li>折扣碼：商業 SR001、技師 SE001，可享 97% 優惠</li>
+                      <li>清洗服務：同次訂單內清洗品項合併滿 3 件即享各品項團購價（可跨品項）</li>
+                      <li>積分：每消費 NT$100 累積 1 點；1 點可折抵 NT$1（可全額折抵）</li>
+                      <li>折扣碼：輸入折扣碼可享 97% 優惠（商業 SR001、技師 SE001）</li>
                     </ul>
                   </div>
 
@@ -787,32 +813,25 @@ export default function ShopCartPage() {
                     </div>
                   </div>
 
-                  {/* 折扣碼 */}
+                  {/* 折扣碼（依需求移除） */}
+
+                  {/* 付款方式 */}
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      折扣碼
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={discountCode}
-                        onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="輸入折扣碼"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleDiscountCode}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        套用
-                      </button>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">付款方式</label>
+                    <div className="grid grid-cols-1 gap-2">
+                      <label className="inline-flex items-center gap-2 text-sm">
+                        <input type="radio" name="pay" checked={paymentMethod==='cash'} onChange={()=>setPaymentMethod('cash')} />
+                        現金（到府付款）
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm">
+                        <input type="radio" name="pay" checked={paymentMethod==='transfer'} onChange={()=>setPaymentMethod('transfer')} />
+                        匯款（完成後回報末五碼）
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm">
+                        <input type="radio" name="pay" checked={paymentMethod==='card'} onChange={()=>setPaymentMethod('card')} />
+                        刷卡（到府行動刷卡）
+                      </label>
                     </div>
-                    {discountCode && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        可用折扣碼：SR001 (商業)、SE001 (技師) - 97% 優惠
-                      </div>
-                    )}
                   </div>
 
                   {/* 積分系統 */}
@@ -894,43 +913,7 @@ export default function ShopCartPage() {
               )}
             </div>
 
-            {/* 聯繫我們 */}
-            <div className="mt-8 bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Shield className="h-6 w-6 text-blue-600" />
-                聯繫我們
-              </h2>
-              <div className="space-y-3 text-sm text-gray-700">
-                <div>
-                  <div className="font-medium">公司資訊</div>
-                  <div className="text-gray-600">日式洗濯 統編:90046766</div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Phone className="h-4 w-4 text-blue-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium">客服專線</div>
-                    <div className="text-gray-600">(02)7756-2269</div>
-                    <div className="text-xs text-gray-500">電話客服服務時間：上午九點~下午六點</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Mail className="h-4 w-4 text-green-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium">官方 LINE</div>
-                    <div className="text-gray-600">@942clean</div>
-                    <div className="text-xs text-gray-500">線上客服服務時間：上午九點~晚間九點</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-4 w-4 text-purple-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium">服務區域</div>
-                    <div className="text-gray-600">基隆 / 台北 / 新北 / 桃園 / 中壢 / 新竹 / 頭份 / 台中 / 彰化 / 台南 / 高雄</div>
-                    <div className="text-xs text-gray-500 mt-1">偏遠地區或山區皆無法服務。南投/雲林/嘉義/屏東由周邊地區技師支援，需同址三台(含)以上才能承接。</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* 聯繫我們（移除：右側摘要展開時會被遮蔽） */}
           </div>
         </div>
       </div>
