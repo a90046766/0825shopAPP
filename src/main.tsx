@@ -194,7 +194,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         <Route path="/test/database" element={<DatabaseTestPage />} />
         
         {/* 私有路由 */}
-        <Route path="/" element={<Navigate to="/dispatch" replace />} />
+        <Route path="/" element={<Navigate to="/store" replace />} />
         <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
           {/* 導向公開入口 /store */}
           <Route path="/shop" element={<Navigate to="/store" replace />} />
@@ -224,6 +224,8 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
           <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
           <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
         </Route>
+        {/* 萬用路由：任何未知路徑導回購物站 */}
+        <Route path="*" element={<Navigate to="/store" replace />} />
         </Routes>
       </BrowserRouter>
     </React.StrictMode>
