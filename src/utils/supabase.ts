@@ -34,10 +34,7 @@ export const checkSupabaseConnection = async () => {
         headers: { 'apikey': key },
         mode: 'cors'
       })
-      if (res.ok) {
-        console.log('✅ Supabase Auth 健康檢查成功')
-        return true
-      }
+      if (res.ok) return true
     } catch (e) {
       console.warn('Auth 健康檢查失敗，改用 session 測試:', e)
     }
@@ -48,7 +45,6 @@ export const checkSupabaseConnection = async () => {
       console.error('Supabase 連線失敗 (getSession):', error)
       return false
     }
-    console.log('✅ Supabase 連線測試成功 (getSession)')
     return true
   } catch (err) {
     console.error('Supabase 健康檢查失敗:', err)

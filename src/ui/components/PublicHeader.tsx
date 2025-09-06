@@ -7,12 +7,18 @@ type UserLite = { role?: 'admin'|'support'|'technician'|'sales'|'member'; email?
 
 function useCurrentUser(): UserLite | null {
   try {
-    const raw = localStorage.getItem('supabase-auth-user')
-    if (!raw) return null
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
+    const member = localStorage.getItem('member-auth-user')
+    if (member) return JSON.parse(member)
+  } catch {}
+  try {
+    const staff = localStorage.getItem('supabase-auth-user')
+    if (staff) return JSON.parse(staff)
+  } catch {}
+  try {
+    const local = localStorage.getItem('local-auth-user')
+    if (local) return JSON.parse(local)
+  } catch {}
+  return null
 }
 
 export default function PublicHeader() {
@@ -32,7 +38,7 @@ export default function PublicHeader() {
   return (
     <header className="sticky top-0 z-30 mb-3 rounded-2xl bg-white/90 px-4 py-3 shadow-card backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between">
-        <Link to="/" className="text-base font-extrabold tracking-wide text-gray-900">日式洗濯 0825</Link>
+        <Link to="/" className="text-base font-extrabold tracking-wide text-gray-900">日式洗濯購物站</Link>
         <nav className="hidden gap-4 text-sm md:flex">
           {sorted.map(it => (
             <Link key={it.id} to={it.path} className={active(it.path)}>{it.label}</Link>
@@ -40,16 +46,21 @@ export default function PublicHeader() {
         </nav>
         <div className="flex items-center gap-2">
           {/* 會員入口（未登入：登入/註冊；已登入：顯示名稱/登出） */}
-          {!user ? (
+          {!user || user.role==='admin' || user.role==='support' || user.role==='technician' || user.role==='sales' ? (
             <>
-              <Link to="/login" className="hidden rounded bg-gray-100 px-3 py-1 text-xs text-gray-700 md:inline-block">登入</Link>
+              <Link to="/login/member" className="hidden rounded bg-gray-100 px-3 py-1 text-xs text-gray-700 md:inline-block">會員登入</Link>
               <Link to="/register/member" className="hidden rounded bg-brand-500 px-3 py-1 text-xs text-white md:inline-block">註冊</Link>
             </>
           ) : (
             <div className="hidden items-center gap-2 md:flex">
               <span className="text-xs text-gray-700">{user.name || user.email}</span>
               <button
-                onClick={async()=>{ try{ const a = await loadAdapters(); await a.authRepo.logout(); navigate('/login') }catch{} }}
+                onClick={async()=>{ 
+                  try{ const a = await loadAdapters(); await a.authRepo.logout(); }catch{}
+                  try{ const mod = await import('../../utils/supabase'); await mod.supabase.auth.signOut().catch(()=>{}) }catch{}
+                  try{ localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('member-auth-user'); localStorage.removeItem('local-auth-user') }catch{}
+                  try{ navigate('/'); }catch{} finally{ window.location.href = '/' }
+                }}
                 className="rounded bg-gray-100 px-3 py-1 text-xs text-gray-700"
               >登出</button>
             </div>

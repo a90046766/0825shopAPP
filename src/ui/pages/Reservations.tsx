@@ -15,8 +15,8 @@ export default function ReservationsPage() {
   const load = async () => { 
     if (!repos) return
     try {
-      // 改為走本地後端 API，聚合為整筆預約單
-      const res = await fetch('/api/orders/reservations')
+      // 走 Netlify Function：/api/reservations（避免階層式函式路徑 404）
+      const res = await fetch('/api/reservations')
       const j = await res.json()
       if (j?.success) setRows(j.data || [])
       else setRows([])

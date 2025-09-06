@@ -33,11 +33,10 @@ function AppBar() {
         {isTechnician && (
           <button 
             onClick={async () => {
-              try {
-                const a = await loadAdapters()
-                await a.authRepo.logout()
-                navigate('/login')
-              } catch {}
+              try { const a = await loadAdapters(); await a.authRepo.logout() } catch {}
+              try { const mod = await import('../utils/supabase'); await mod.supabase.auth.signOut().catch(()=>{}) } catch {}
+              try { localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('member-auth-user'); localStorage.removeItem('local-auth-user') } catch {}
+              try { navigate('/login') } catch {} finally { window.location.href = '/login' }
             }}
             className="rounded bg-white/20 px-2 py-1 text-white hover:bg-white/30"
           >
@@ -116,13 +115,13 @@ function DesktopNav() {
  const menuTop = [
   { to: '/dispatch', label: '派工總覽', perm: 'dashboard.view' },
   { to: '/orders', label: '訂單管理', perm: 'orders.list' },
-  { to: '/reservations', label: '預約訂單', perm: 'orders.list' },
-  { to: '/store', label: '購物車', perm: 'dashboard.view' },
+  { to: '/reservations', label: '預約訂單', perm: 'reservations.manage' },
+  { to: '/', label: '購物站', perm: 'dashboard.view' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/notifications', label: '通知中心', perm: 'notifications.read' },
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
   { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
-  { to: '/approvals', label: '待審核', perm: 'admin' },
+  { to: '/approvals', label: '待審核', perm: 'approvals.manage' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
   { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
   { to: '/documents', label: '文件管理', perm: 'documents.manage' },
@@ -286,11 +285,10 @@ export default function AppShell() {
           <div className="flex items-center gap-3">
             <div className="text-sm text-gray-700">{getCurrentUser()?.name || ''}</div>
             <button onClick={async ()=>{ 
-              try {
-                const a = await loadAdapters()
-                await a.authRepo.logout()
-                window.location.href='/login'
-              } catch {}
+              try { const a = await loadAdapters(); await a.authRepo.logout() } catch {}
+              try { const mod = await import('../utils/supabase'); await mod.supabase.auth.signOut().catch(()=>{}) } catch {}
+              try { localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('member-auth-user'); localStorage.removeItem('local-auth-user') } catch {}
+              window.location.href='/login'
             }} className="rounded bg-gray-100 px-3 py-1 text-sm text-gray-700">登出</button>
           </div>
         </div>

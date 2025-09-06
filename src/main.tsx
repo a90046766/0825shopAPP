@@ -10,15 +10,13 @@ try {
   }
 } catch {}
 
-try { console.log('BOOT:start', window.location.pathname) } catch {}
-
 // 頁面
 const LoginPage = React.lazy(() => import('./ui/pages/Login'))
 const TechnicianApplyPage = React.lazy(() => import('./ui/pages/TechnicianApply'))
 const StaffApplyPage = React.lazy(() => import('./ui/pages/StaffApply'))
-// 移除會員申請/審核頁
+// 移除會員申請；保留審核頁（技師/員工）
 // const MemberApplyPage = React.lazy(() => import('./ui/pages/MemberApply'))
-// const ApprovalsPage = React.lazy(() => import('./ui/pages/Approvals'))
+const ApprovalsPage = React.lazy(() => import('./ui/pages/Approvals'))
 const AppShell = React.lazy(() => import('./ui/AppShell'))
 const PageDispatchHome = React.lazy(() => import('./ui/pages/DispatchHome'))
 const PageOrderDetail = React.lazy(() => import('./ui/pages/OrderDetail'))
@@ -46,6 +44,7 @@ const ReportCenterPage = React.lazy(() => import('./ui/pages/ReportCenter'))
 const UsedItemsPage = React.lazy(() => import('./ui/pages/UsedItems'))
 const QuotesPage = React.lazy(() => import('./ui/pages/Quotes'))
 import NewShopPage from './ui/pages/NewShop'
+import EntryPage from './ui/pages/Entry'
 const ShopProductsPage = React.lazy(() => import('./ui/pages/ShopProducts'))
 const ShopCartPage = React.lazy(() => import('./ui/pages/ShopCart'))
 const OrderSuccessPage = React.lazy(() => import('./ui/pages/OrderSuccess'))
@@ -120,9 +119,9 @@ createRoot(document.getElementById('root')!).render(
       {/* 會員專用登入 */}
       <Route path="/login/member" element={<MemberLoginPage />} />
       <Route path="/login/member/reset" element={<MemberPasswordResetPage />} />
-      {/* 對外購物站入口（公開） */}
-      <Route path="/" element={<NewShopPage />} />
-      <Route path="/store" element={<Navigate to="/" replace />} />
+      {/* 對外入口與購物站 */}
+      <Route path="/" element={<EntryPage />} />
+      <Route path="/store" element={<NewShopPage />} />
       <Route path="/shop/products" element={<ShopProductsPage />} />
       <Route path="/shop/cart" element={<ShopCartPage />} />
       <Route path="/shop/order-success" element={<OrderSuccessPage />} />
@@ -152,6 +151,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/models" element={<PrivateRoute permission="models.manage"><ModelsPage /></PrivateRoute>} />
         <Route path="/members" element={<PrivateRoute permission="customers.manage"><MembersPage /></PrivateRoute>} />
         <Route path="/customers" element={<PrivateRoute permission="customers.manage"><CustomersPage /></PrivateRoute>} />
+        <Route path="/approvals" element={<PrivateRoute permission="approvals.manage"><ApprovalsPage /></PrivateRoute>} />
         <Route path="/payroll" element={<PrivateRoute permission="payroll.view"><PayrollPage /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute permission="reports.view"><ReportsPage /></PrivateRoute>} />
         <Route path="/report-center" element={<PrivateRoute permission="reports.view"><ReportCenterPage /></PrivateRoute>} />
