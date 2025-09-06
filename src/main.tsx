@@ -79,7 +79,11 @@ try {
   })()
   if (immediate) {
     createRoot(document.getElementById('root')!).render(
-      <React.StrictMode>{immediate}</React.StrictMode>
+      <React.StrictMode>
+        <BrowserRouter>
+          {immediate}
+        </BrowserRouter>
+      </React.StrictMode>
     )
     __HAS_RENDERED_PUBLIC__ = true
   }
