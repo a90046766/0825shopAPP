@@ -6,12 +6,7 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# 根路徑直接 301 到 /store（避免進入空白或受保護頁）
-[[redirects]]
-  from = "/"
-  to = "/store"
-  status = 301
-  force = true
+## 讓根路徑交給前端決定導向（避免硬轉址到 /store）
 
 # 將 /store.html 永久導到 /store（避免空白頁）
 [[redirects]]
