@@ -29,12 +29,6 @@
   status = 200
   force = true
 
-# 單點函式測試（可選，保險）
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
 # SPA fallback：所有路由交給前端（/、/services/*、/store 等）
 [[redirects]]
   from = "/*"
