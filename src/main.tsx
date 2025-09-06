@@ -52,6 +52,17 @@ import { supabase } from './utils/supabase'
 import { loadAdapters } from './adapters/index'
 import { can } from './utils/permissions'
 
+// 頁面啟動前：放入最小 fallback，並確保根路由導向 /store
+try {
+  const el = document.getElementById('root')
+  if (el && !el.innerHTML) {
+    el.innerHTML = '<div style="padding:16px;font-family:system-ui;color:#334155">系統啟動中...</div>'
+  }
+  if (location.pathname === '/') {
+    try { history.replaceState(null, '', '/store') } catch { location.assign('/store') }
+  }
+} catch {}
+
 function getCurrentUserFromStorage(): any {
   try {
     const supa = localStorage.getItem('supabase-auth-user')
@@ -168,10 +179,25 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
       }
     })
   } catch {}
+  const path = window.location.pathname
+  const renderPublicBypass = (() => {
+    if (path === '/' || path === '/store') return <NewShopPage />
+    if (path.startsWith('/shop/products')) return <ShopProductsPage />
+    if (path.startsWith('/shop/cart')) return <ShopCartPage />
+    if (path.startsWith('/shop/order-success')) return <OrderSuccessPage />
+    if (path.startsWith('/login/member')) return <MemberLoginPage />
+    if (path.startsWith('/register/member')) return <MemberRegisterPage />
+    if (path.startsWith('/member/orders')) return <MemberOrdersPage />
+    return null
+  })()
+
   createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <BrowserRouter>
-        <Routes>
+      {renderPublicBypass ? (
+        renderPublicBypass
+      ) : (
+        <BrowserRouter>
+          <Routes>
         {/* 公開路由 */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -193,9 +219,9 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         {/* 測試頁面 */}
         <Route path="/test/database" element={<DatabaseTestPage />} />
         
-        {/* 私有路由 */}
-        <Route path="/" element={<Navigate to="/store" replace />} />
-        <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
+          {/* 私有路由 */}
+          <Route path="/" element={<Navigate to="/store" replace />} />
+          <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
           {/* 導向公開入口 /store */}
           <Route path="/shop" element={<Navigate to="/store" replace />} />
           <Route path="/dispatch" element={<PrivateRoute><PageDispatchHome /></PrivateRoute>} />
@@ -224,10 +250,11 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
           <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
           <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
         </Route>
-        {/* 萬用路由：任何未知路徑導回購物站 */}
-        <Route path="*" element={<Navigate to="/store" replace />} />
-        </Routes>
-      </BrowserRouter>
+          {/* 萬用路由：任何未知路徑導回購物站 */}
+          <Route path="*" element={<Navigate to="/store" replace />} />
+          </Routes>
+        </BrowserRouter>
+      )}
     </React.StrictMode>
   )
   } catch (err: any) {
