@@ -89,7 +89,7 @@ export default function MemberRegisterPage() {
         <div className="mt-3 text-lg font-semibold">註冊成功</div>
         <div className="mt-2 text-gray-600">您的會員已啟用，現在即可前往購物。</div>
         <button
-          onClick={() => navigate('/shop/cart')}
+          onClick={() => navigate('/store/cart')}
           className="mt-6 w-full rounded-xl bg-brand-500 py-3 text-white hover:bg-brand-600"
         >
           前往購物車
@@ -107,21 +107,39 @@ export default function MemberRegisterPage() {
         </div>
         {err && <div className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{err}</div>}
         <div className="space-y-3">
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="姓名（必填）" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required />
+          <div>
+            <label htmlFor="reg_name" className="block text-sm font-medium text-gray-700 mb-2">姓名（必填）</label>
+            <input id="reg_name" name="name" autoComplete="name" className="w-full rounded-xl border px-4 py-3" placeholder="姓名（必填）" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required />
+          </div>
           {mode==='email' ? (
             <>
-              <input className="w-full rounded-xl border px-4 py-3" placeholder="Email（必填）" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required />
-              <input className="w-full rounded-xl border px-4 py-3" placeholder="手機（選填）" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} />
+              <div>
+                <label htmlFor="reg_email" className="block text-sm font-medium text-gray-700 mb-2">Email（必填）</label>
+                <input id="reg_email" name="email" autoComplete="email" className="w-full rounded-xl border px-4 py-3" placeholder="Email（必填）" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required />
+              </div>
+              <div>
+                <label htmlFor="reg_phone" className="block text-sm font-medium text-gray-700 mb-2">手機（選填）</label>
+                <input id="reg_phone" name="phone" autoComplete="tel" className="w-full rounded-xl border px-4 py-3" placeholder="手機（選填）" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} />
+              </div>
               <div className="text-xs text-gray-500">預設密碼：000000（首次登入會引導變更）</div>
             </>
           ) : (
             <>
-              <input className="w-full rounded-xl border px-4 py-3" placeholder="手機（必填）" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} required />
-              <input className="w-full rounded-xl border px-4 py-3" placeholder="Email（選填）" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} />
+              <div>
+                <label htmlFor="reg_phone2" className="block text-sm font-medium text-gray-700 mb-2">手機（必填）</label>
+                <input id="reg_phone2" name="phone" autoComplete="tel" className="w-full rounded-xl border px-4 py-3" placeholder="手機（必填）" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} required />
+              </div>
+              <div>
+                <label htmlFor="reg_email2" className="block text-sm font-medium text-gray-700 mb-2">Email（選填）</label>
+                <input id="reg_email2" name="email" autoComplete="email" className="w-full rounded-xl border px-4 py-3" placeholder="Email（選填）" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} />
+              </div>
               <div className="text-xs text-gray-500">預設密碼：手機後六碼（首次登入會引導變更）</div>
             </>
           )}
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="介紹人（自動帶入，可修改）" value={form.refCode} onChange={e=>setForm({...form,refCode:e.target.value})} />
+          <div>
+            <label htmlFor="reg_ref" className="block text-sm font-medium text-gray-700 mb-2">介紹人（自動帶入，可修改）</label>
+            <input id="reg_ref" name="refCode" autoComplete="off" className="w-full rounded-xl border px-4 py-3" placeholder="介紹人（自動帶入，可修改）" value={form.refCode} onChange={e=>setForm({...form,refCode:e.target.value})} />
+          </div>
           <button className="w-full rounded-xl bg-brand-500 py-3 text-white">送出</button>
         </div>
       </form>

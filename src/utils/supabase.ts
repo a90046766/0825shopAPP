@@ -27,16 +27,20 @@ export const supabase = createClient(url || 'https://dummy.supabase.co', key || 
 export const checkSupabaseConnection = async () => {
   try {
     if (!url || !key) return false
-    // 1) 直接呼叫 Auth 健康檢查端點（最穩定，無需授權）
+    // 1) 直接呼叫 Auth 健康檢查端點（加上 3s 超時，避免卡住）
     try {
+      const controller = new AbortController()
+      const t = setTimeout(() => controller.abort(), 3000)
       const res = await fetch(`${url}/auth/v1/health`, {
         method: 'GET',
         headers: { 'apikey': key },
-        mode: 'cors'
+        mode: 'cors',
+        signal: controller.signal
       })
+      clearTimeout(t)
       if (res.ok) return true
     } catch (e) {
-      console.warn('Auth 健康檢查失敗，改用 session 測試:', e)
+      // 靜默改用 session 測試
     }
 
     // 2) 後備：檢查 auth session（若匿名也不應拋例外）
