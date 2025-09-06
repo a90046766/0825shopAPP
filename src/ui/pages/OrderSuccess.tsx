@@ -77,7 +77,7 @@ export default function OrderSuccessPage() {
           <div className="mt-3 text-lg font-semibold">訂單已提交</div>
           <div className="mt-2 text-gray-600">找不到訂單詳情，您可以前往我的訂單查看。</div>
           <div className="mt-6 grid grid-cols-1 gap-3">
-            <Link to="/member/orders" className="w-full rounded-xl bg-gray-900 py-3 text-white hover:bg-gray-800 text-center">我的訂單</Link>
+            <Link to="/store/member/orders" className="w-full rounded-xl bg-gray-900 py-3 text-white hover:bg-gray-800 text-center">我的訂單</Link>
             <Link to="/store" className="w-full rounded-xl bg-gray-100 py-3 text-gray-800 hover:bg-gray-200 text-center">返回購物站</Link>
           </div>
         </div>
@@ -157,7 +157,7 @@ export default function OrderSuccessPage() {
           )}
 
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Link to="/member/orders" className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-gray-900 text-white hover:bg-gray-800">
+            <Link to="/store/member/orders" className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-gray-900 text-white hover:bg-gray-800">
               查看我的訂單
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>

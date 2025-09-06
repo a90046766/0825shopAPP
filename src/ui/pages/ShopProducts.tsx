@@ -372,7 +372,7 @@ export default function ShopProductsPage() {
                 首頁
               </Link>
               <button
-                onClick={() => navigate('/shop/products?category=cleaning')}
+                onClick={() => navigate('/store/products?category=cleaning')}
                 className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'cleaning'
                     ? 'bg-blue-600 text-white'
@@ -382,7 +382,7 @@ export default function ShopProductsPage() {
                 專業清洗服務
               </button>
               <button
-                onClick={() => navigate('/shop/products?category=new')}
+                onClick={() => navigate('/store/products?category=new')}
                 className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'new'
                     ? 'bg-blue-600 text-white'
@@ -392,7 +392,7 @@ export default function ShopProductsPage() {
                 新家電銷售
               </button>
               <button
-                onClick={() => navigate('/shop/products?category=used')}
+                onClick={() => navigate('/store/products?category=used')}
                 className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'used'
                     ? 'bg-blue-600 text-white'
@@ -402,7 +402,7 @@ export default function ShopProductsPage() {
                 二手家電
               </button>
               <button
-                onClick={() => navigate('/shop/products?category=home')}
+                onClick={() => navigate('/store/products?category=home')}
                 className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'home'
                     ? 'bg-blue-600 text-white'
@@ -631,7 +631,7 @@ export default function ShopProductsPage() {
 
                   {/* 結帳按鈕 */}
                   <Link
-                    to="/shop/cart"
+                    to="/store/cart"
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 md:py-3 px-4 rounded-xl font-semibold transition-all duration-300 text-center block text-sm md:text-base"
                   >
                     前往結帳
@@ -673,7 +673,7 @@ export default function ShopProductsPage() {
             <div className="text-base font-bold text-gray-900">NT$ {(totalPrice - groupBuySavings).toLocaleString()}</div>
           </div>
           <Link
-            to="/shop/cart"
+            to="/store/cart"
             className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold"
           >
             前往結帳

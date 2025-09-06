@@ -10,8 +10,9 @@ export default function EntryPage() {
         <div className="mt-6 grid grid-cols-1 gap-3">
           <Link to="/store" className="rounded-xl bg-brand-600 px-4 py-3 text-white hover:bg-brand-700">前往購物站</Link>
           <Link to="/login/member" className="rounded-xl bg-gray-900 px-4 py-3 text-white hover:bg-gray-800">會員登入</Link>
-          <Link to="/login" className="rounded-xl bg-gray-100 px-4 py-3 text-gray-800 hover:bg-gray-200">員工登入（派工系統）</Link>
+          <Link to="/register/member" className="rounded-xl bg-gray-100 px-4 py-3 text-gray-800 hover:bg-gray-200">註冊</Link>
         </div>
+        <div className="mt-4 text-xs text-gray-500">內部人員請使用專用入口（不公開連結）</div>
       </div>
     </div>
   )

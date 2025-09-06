@@ -145,7 +145,7 @@ export default function MemberOrdersPage() {
             <div className="font-semibold">首頁</div>
           </div>
         </Link>
-        <Link to="/shop/products" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 hover:bg-emerald-100/70 transition-colors">
+        <Link to="/store/products" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 hover:bg-emerald-100/70 transition-colors">
           <div className="flex items-center gap-2 text-emerald-900">
             <ShoppingBag className="h-5 w-5" />
             <div className="font-semibold">返回購物</div>
@@ -177,7 +177,7 @@ export default function MemberOrdersPage() {
       {tab==='reservations' && (
         <div className="space-y-3">
           {reservations.map((r:any)=>(
-            <Link to={`/member/orders/${encodeURIComponent(r.id)}`} className="block rounded-xl border border-amber-200 bg-amber-50 p-3 md:p-4 hover:bg-amber-100/70 transition-colors">
+            <Link to={`/store/member/orders/${encodeURIComponent(r.id)}`} className="block rounded-xl border border-amber-200 bg-amber-50 p-3 md:p-4 hover:bg-amber-100/70 transition-colors">
               <div className="flex items-center gap-2">
                 <div className="font-semibold text-sm md:text-base text-amber-900">預約單號 {r.id}</div>
                 <span className="ml-auto text-[11px] md:text-xs rounded px-2 py-0.5 bg-amber-200 text-amber-800">{r.status}</span>
@@ -224,7 +224,7 @@ export default function MemberOrdersPage() {
             const amount = Array.isArray(o.items) ? o.items.reduce((s:number,it:any)=> s + (Number(it.price)||0)*(Number(it.quantity)||0), 0) : 0
             const count = Array.isArray(o.items) ? o.items.reduce((n:number,it:any)=> n + (Number(it.quantity)||0), 0) : 0
             return (
-              <Link key={o.id} to={`/member/orders/${encodeURIComponent(o.order_number||o.id)}`} className="block rounded-xl border border-blue-200 bg-blue-50 p-3 md:p-4 hover:bg-blue-100/70 transition-colors">
+              <Link key={o.id} to={`/store/member/orders/${encodeURIComponent(o.order_number||o.id)}`} className="block rounded-xl border border-blue-200 bg-blue-50 p-3 md:p-4 hover:bg-blue-100/70 transition-colors">
                 <div className="flex items-center gap-2">
                   <div className="font-semibold text-sm md:text-base text-blue-900">訂單編號 {o.order_number || o.id}</div>
                   <span className="ml-auto text-[11px] md:text-xs rounded px-2 py-0.5 bg-blue-200 text-blue-800">{o.status}</span>

@@ -537,7 +537,7 @@ export default function ShopCartPage() {
         try { localStorage.setItem('lastOrderId', createdId) } catch {}
         try { localStorage.setItem('shopCart', JSON.stringify([])) } catch {}
         setCart([])
-        navigate(`/shop/order-success?order=${encodeURIComponent(createdId)}`)
+        navigate(`/store/order-success?order=${encodeURIComponent(createdId)}`)
         return
       }
 
@@ -570,7 +570,7 @@ export default function ShopCartPage() {
       try { localStorage.setItem('lastOrderId', order.id) } catch {}
       try { localStorage.setItem('shopCart', JSON.stringify([])) } catch {}
       setCart([])
-      navigate(`/shop/order-success?order=${encodeURIComponent(order.id)}`)
+      navigate(`/store/order-success?order=${encodeURIComponent(order.id)}`)
 
     } catch (error) {
       toast.error('提交訂單時發生錯誤')
@@ -623,7 +623,7 @@ export default function ShopCartPage() {
         <div className="mb-6 md:mb-8">
           <div className="flex items-center justify-between mb-3 md:mb-4">
             <Link
-              to="/shop/products"
+              to="/store/products"
               className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -664,7 +664,7 @@ export default function ShopCartPage() {
                   <p className="text-base md:text-lg mb-2">購物車是空的</p>
                   <p className="text-sm md:text-base mb-4">開始選購商品吧！</p>
                   <Link
-                    to="/shop/products"
+                    to="/store/products"
                     className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 md:px-6 md:py-3 rounded-lg font-medium transition-colors"
                   >
                     前往選購

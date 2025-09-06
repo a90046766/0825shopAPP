@@ -52,7 +52,7 @@ export default function MemberOrderDetailPage() {
   if (error) return (
     <div className="p-4">
       <div className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</div>
-      <div className="mt-3"><Link className="text-blue-600" to="/member/orders">返回我的訂單</Link></div>
+      <div className="mt-3"><Link className="text-blue-600" to="/store/member/orders">返回我的訂單</Link></div>
     </div>
   )
   if (!order) return null
@@ -91,7 +91,7 @@ export default function MemberOrderDetailPage() {
         localStorage.setItem('shopCart', JSON.stringify(merged))
       } catch { localStorage.setItem('shopCart', JSON.stringify(cart)) }
       if (unmatched.length>0) alert(`以下品項未能匹配商品，未加入購物車：\n${unmatched.join('、')}`)
-      navigate('/shop/cart')
+      navigate('/store/cart')
     } finally {
       setAdding(false)
     }
@@ -138,7 +138,7 @@ export default function MemberOrderDetailPage() {
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-base md:text-lg font-bold">訂單詳情</div>
-        <Link to="/member/orders" className="text-sm text-blue-600">返回我的訂單</Link>
+        <Link to="/store/member/orders" className="text-sm text-blue-600">返回我的訂單</Link>
       </div>
 
       <div className="rounded border p-3 md:p-4">

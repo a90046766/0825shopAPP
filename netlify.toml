@@ -26,6 +26,11 @@
   status = 200
 
 [[redirects]]
+  from = "/shop/*"
+  to = "/store/:splat"
+  status = 301
+
+[[redirects]]
   from = "/api/reservation-confirm/*"
   to = "/.netlify/functions/reservation-confirm/:splat"
   status = 200
@@ -45,6 +50,8 @@
   VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRla29wYm5wc3ZxbHp0YWJibHhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NzkxMDgsImV4cCI6MjA3MTQ1NTEwOH0.vGeRNxRag5H4UmfuEVcju9Pt5p-i36hwfnOZaCd0x8Q"
   VITE_STRICT_SUPABASE = "1"
   VITE_QUIET_BOOT = "1"
+  VITE_STORE_BASE_URL = "https://store.942clean.com.tw"
+  VITE_APP_BASE_URL = "https://app.942clean.com.tw"
 
 ## Cache headers：避免 index.html 舊版快取造成新 chunk 404
 [[headers]]

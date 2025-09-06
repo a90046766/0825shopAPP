@@ -40,7 +40,7 @@ export default function NewShopPage() {
     import('./ShopProducts').catch(() => {})
   }
 
-  // 檢查用戶登入狀態
+  // 顯示登入者資訊：會員與內部人員皆可顯示；用 isMember 區分是否會員
   useEffect(() => {
     const checkUser = () => {
       try {
@@ -56,13 +56,9 @@ export default function NewShopPage() {
               : null
         setCurrentUser(user)
         setIsMember(!!memberUser)
-      } catch (error) {
-        console.error('檢查用戶狀態失敗:', error)
-      }
+      } catch {}
     }
-    
     checkUser()
-    // 監聽 localStorage 變化
     window.addEventListener('storage', checkUser)
     return () => window.removeEventListener('storage', checkUser)
   }, [])
@@ -299,7 +295,7 @@ export default function NewShopPage() {
             </div>
             <div className="flex items-center space-x-3">
               <Link
-                to="/member/orders"
+                to="/store/member/orders"
                 className="inline-flex items-center px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors"
               >
                 我的訂單
@@ -311,7 +307,7 @@ export default function NewShopPage() {
               >
                 登出
               </button>
-              {!isMember && (
+              {!isMember && (currentUser?.role==='admin' || currentUser?.role==='support') && (
                 <Link
                   to="/dispatch"
                   className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
