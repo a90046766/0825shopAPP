@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 
 export default function MemberLoginPage() {
+  const [mode, setMode] = useState<'email'|'phone'>('email')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -15,9 +17,11 @@ export default function MemberLoginPage() {
     setError('')
 
     try {
-      // 先嘗試登入（避免 members 表尚未建立導致誤判）
+      // 先嘗試登入（支援 Email 或 手機）
+      const digits = (phone || '').replace(/\D/g, '')
+      const loginEmail = (mode === 'email') ? (email || '').toLowerCase() : (`m-${digits}@member.local`)
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase(),
+        email: loginEmail,
         password
       })
 
@@ -41,14 +45,14 @@ export default function MemberLoginPage() {
           const { data: m } = await supabase
             .from('members')
             .select('id, name, email, code, status')
-            .eq('email', email.toLowerCase())
+            .eq('email', (email || data.user.email || '').toLowerCase())
             .maybeSingle()
           if (m) resolved = m
           else {
             const { data: app } = await supabase
               .from('member_applications')
               .select('id, name, email, status')
-              .eq('email', email.toLowerCase())
+              .eq('email', (email || data.user.email || '').toLowerCase())
               .order('applied_at', { ascending: false })
               .maybeSingle()
             if (app) resolved = { ...app, status: app.status || 'pending' }
@@ -89,7 +93,11 @@ export default function MemberLoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-center mb-8">會員登入</h1>
+        <h1 className="text-2xl font-bold text-center mb-4">會員登入</h1>
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <button type="button" onClick={()=>setMode('email')} className={`rounded-lg px-3 py-2 text-sm ${mode==='email'?'bg-blue-600 text-white':'bg-gray-100'}`}>Email 登入</button>
+          <button type="button" onClick={()=>setMode('phone')} className={`rounded-lg px-3 py-2 text-sm ${mode==='phone'?'bg-emerald-600 text-white':'bg-gray-100'}`}>手機登入</button>
+        </div>
 
         {error && (
           <div className="mb-6 p-3 rounded border border-red-200 bg-red-50 text-sm text-red-700">
@@ -98,17 +106,31 @@ export default function MemberLoginPage() {
         )}
 
         <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">電子郵件</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-lg border px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="請輸入您的 Email"
-            />
-          </div>
+          {mode==='email' ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">電子郵件</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full rounded-lg border px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="請輸入您的 Email"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">手機號碼</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+                className="w-full rounded-lg border px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                placeholder="請輸入您的手機號碼"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">密碼</label>
             <input
@@ -134,7 +156,7 @@ export default function MemberLoginPage() {
           <Link to="/register/member" className="text-blue-600 hover:text-blue-700 ml-1">立即註冊</Link>
         </div>
         <div className="mt-2 text-center text-xs text-gray-500">
-          第一次登入密碼預設為手機後六碼；登入後將引導您變更密碼。
+          若用手機註冊，預設密碼為「手機後六碼」；若用 Email 註冊，預設密碼為「000000」。登入後會引導您變更密碼。
         </div>
       </div>
     </div>

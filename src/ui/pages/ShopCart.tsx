@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
   ShoppingCart, 
@@ -21,7 +21,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { checkMemberAuth, canCheckout } from '../../utils/memberAuth'
+import { checkMemberAuth } from '../../utils/memberAuth'
 import { loadAdapters } from '../../adapters'
 
 export default function ShopCartPage() {
@@ -40,12 +40,21 @@ export default function ShopCartPage() {
     preferredTime: '',
     referrer: '' // 介紹人欄位
   })
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [discountCode, setDiscountCode] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash')
   const [customerPoints, setCustomerPoints] = useState(0)
   const [usePoints, setUsePoints] = useState(false)
   const [pointsToUse, setPointsToUse] = useState(0)
   const [commitmentText, setCommitmentText] = useState('')
+
+  // 欄位 refs（用於捲動至第一個錯誤）
+  const nameRef = useRef<HTMLInputElement>(null)
+  const phoneRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const cityRef = useRef<HTMLSelectElement>(null)
+  const districtRef = useRef<HTMLSelectElement>(null)
+  const streetRef = useRef<HTMLInputElement>(null)
 
   // 台灣縣市/行政區（精簡版）
   const taiwanCities = [
@@ -413,11 +422,24 @@ export default function ShopCartPage() {
     // 組合完整地址
     const fullAddress = `${(customerInfo.city||'').trim()}${(customerInfo.district||'').trim()}${(customerInfo.street||'').trim()}`.trim()
 
-    // 驗證必填欄位
-    if (!customerInfo.name || !customerInfo.phone || !customerInfo.email || !fullAddress) {
+    // 驗證必填欄位（並捲動到第一個錯誤）
+    const newErrors: Record<string, string> = {}
+    if (!customerInfo.name.trim()) newErrors.name = '請填寫姓名'
+    if (!customerInfo.phone.trim()) newErrors.phone = '請填寫電話'
+    if (!customerInfo.email.trim()) newErrors.email = '請填寫 Email'
+    if (!customerInfo.city.trim()) newErrors.city = '請選擇縣市'
+    if (!customerInfo.district.trim()) newErrors.district = '請選擇區域'
+    if (!customerInfo.street.trim()) newErrors.street = '請填寫詳細地址'
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      const order = ['name','phone','email','city','district','street']
+      const first = order.find(k => newErrors[k])
+      const map: Record<string, any> = { name: nameRef, phone: phoneRef, email: emailRef, city: cityRef, district: districtRef, street: streetRef }
+      setTimeout(() => map[first!]?.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0)
       toast.error('請填寫所有必填欄位')
       return
     }
+    setErrors({})
     
     if (cart.length === 0) {
       toast.error('購物車是空的')
@@ -434,7 +456,7 @@ export default function ShopCartPage() {
             name: customerInfo.name,
             phone: customerInfo.phone,
             email: customerInfo.email,
-            address: customerInfo.address
+            address: fullAddress
           })
         })
       } catch {}
@@ -557,7 +579,7 @@ export default function ShopCartPage() {
   }
 
   // 計算可使用的最大積分
-  const maxUsablePoints = Math.min(customerPoints, Math.floor(getTotalPrice() * 10))
+  const maxUsablePoints = Math.min(customerPoints, Math.floor(getTotalPrice()))
 
   // 如果未登入會員，顯示提示
   if (!memberUser) {
@@ -734,11 +756,13 @@ export default function ShopCartPage() {
                       required
                       autoComplete="name"
                       inputMode="text"
+                      ref={nameRef}
                       value={customerInfo.name}
                       onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                       placeholder="請輸入姓名"
                     />
+                    {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">電話 <span className="text-red-500">*</span></label>
@@ -747,11 +771,13 @@ export default function ShopCartPage() {
                       required
                       autoComplete="tel"
                       inputMode="tel"
+                      ref={phoneRef}
                       value={customerInfo.phone}
                       onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                       placeholder="請輸入電話"
                     />
+                    {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
@@ -760,11 +786,13 @@ export default function ShopCartPage() {
                       required
                       autoComplete="email"
                       inputMode="email"
+                      ref={emailRef}
                       value={customerInfo.email}
                       onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                       placeholder="請輸入Email"
                     />
+                    {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
                   </div>
 
                   <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -772,26 +800,30 @@ export default function ShopCartPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">縣市 <span className="text-red-500">*</span></label>
                       <select
                         required
+                        ref={cityRef}
                         value={customerInfo.city}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value, district: '' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.city ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                       >
                         <option value="">請選擇縣市</option>
                         {taiwanCities.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
+                      {errors.city && <p className="mt-1 text-xs text-red-600">{errors.city}</p>}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">區域 <span className="text-red-500">*</span></label>
                       <select
                         required
+                        ref={districtRef}
                         value={customerInfo.district}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, district: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.district ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                         disabled={!customerInfo.city}
                       >
                         <option value="">請選擇區域</option>
                         {(taiwanDistricts[customerInfo.city] || []).map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
+                      {errors.district && <p className="mt-1 text-xs text-red-600">{errors.district}</p>}
                     </div>
                   </div>
                   <div className="md:col-span-2">
@@ -801,11 +833,13 @@ export default function ShopCartPage() {
                       required
                       autoComplete="street-address"
                       inputMode="text"
+                      ref={streetRef}
                       value={customerInfo.street}
                       onChange={(e) => setCustomerInfo({...customerInfo, street: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.street ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                       placeholder="例如：重慶南路一段100號6樓"
                     />
+                    {errors.street && <p className="mt-1 text-xs text-red-600">{errors.street}</p>}
                   </div>
 
                   <div>
@@ -929,7 +963,7 @@ export default function ShopCartPage() {
                           placeholder="輸入要使用的積分"
                         />
                         <div className="text-[11px] md:text-xs text-gray-500">
-                          每100積分可折抵NT$10，最多使用 {maxUsablePoints.toLocaleString()} 積分
+                          每1積分可折抵NT$1，最多使用 {maxUsablePoints.toLocaleString()} 積分
                         </div>
                       </div>
                     )}

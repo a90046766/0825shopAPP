@@ -7,6 +7,7 @@ export default function MemberRegisterPage() {
   const loc = useLocation()
   const params = new URLSearchParams(loc.search)
   const refFromUrl = params.get('ref') || ''
+  const [mode, setMode] = useState<'email'|'phone'>('email')
   const [form, setForm] = useState({ name: '', email: '', phone: '', refCode: refFromUrl })
   const [ok, setOk] = useState<boolean>(false)
   const [err, setErr] = useState('')
@@ -16,18 +17,26 @@ export default function MemberRegisterPage() {
     setErr('')
     try {
       const a = await loadAdapters()
-      // 所有三個欄位皆為必填
-      if (!form.name || !form.email || !form.phone) { setErr('請完整填寫姓名、Email、手機'); return }
-      // 預設密碼規則：手機後六碼
+      // 驗證（雙模式）
       const digits = (form.phone || '').replace(/\D/g, '')
-      const defaultPassword = digits.length >= 6 ? digits.slice(-6) : 'a123123'
+      if (!form.name) { setErr('請填寫姓名'); return }
+      if (mode === 'email') {
+        if (!form.email) { setErr('請填寫 Email'); return }
+      } else {
+        if (!digits) { setErr('請填寫手機'); return }
+      }
+      // 預設密碼：email 模式 000000；phone 模式 手機後六碼
+      const defaultPassword = (mode === 'email') ? '000000' : (digits.length >= 6 ? digits.slice(-6) : 'a123123')
 
       // 建立 Supabase Auth 帳號（若已存在則忽略錯誤）
       try {
+        const regEmail = (mode === 'email')
+          ? (form.email || '').toLowerCase()
+          : ((form.email || '').toLowerCase() || `m-${digits}@member.local`)
         const { error: signErr } = await supabase.auth.signUp({
-          email: (form.email||'').toLowerCase() || `${Date.now()}@placeholder.local`,
+          email: regEmail,
           password: defaultPassword,
-          options: { data: { user_type: 'member', name: form.name } }
+          options: { data: { user_type: 'member', name: form.name, phone: digits } }
         })
         if (signErr && !String(signErr.message || '').toLowerCase().includes('already registered')) {
           throw signErr
@@ -91,12 +100,27 @@ export default function MemberRegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-4">
       <form onSubmit={onSubmit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-card">
-        <div className="mb-4 text-center text-xl font-bold">會員註冊</div>
+        <div className="mb-2 text-center text-xl font-bold">會員註冊</div>
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <button type="button" onClick={()=>setMode('email')} className={`rounded-lg px-3 py-2 text-sm ${mode==='email'?'bg-blue-600 text-white':'bg-gray-100'}`}>使用 Email 註冊</button>
+          <button type="button" onClick={()=>setMode('phone')} className={`rounded-lg px-3 py-2 text-sm ${mode==='phone'?'bg-emerald-600 text-white':'bg-gray-100'}`}>使用手機註冊</button>
+        </div>
         {err && <div className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{err}</div>}
         <div className="space-y-3">
           <input className="w-full rounded-xl border px-4 py-3" placeholder="姓名（必填）" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="Email（選填）" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} />
-          <input className="w-full rounded-xl border px-4 py-3" placeholder="手機（必填）" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} required />
+          {mode==='email' ? (
+            <>
+              <input className="w-full rounded-xl border px-4 py-3" placeholder="Email（必填）" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required />
+              <input className="w-full rounded-xl border px-4 py-3" placeholder="手機（選填）" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} />
+              <div className="text-xs text-gray-500">預設密碼：000000（首次登入會引導變更）</div>
+            </>
+          ) : (
+            <>
+              <input className="w-full rounded-xl border px-4 py-3" placeholder="手機（必填）" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} required />
+              <input className="w-full rounded-xl border px-4 py-3" placeholder="Email（選填）" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} />
+              <div className="text-xs text-gray-500">預設密碼：手機後六碼（首次登入會引導變更）</div>
+            </>
+          )}
           <input className="w-full rounded-xl border px-4 py-3" placeholder="介紹人（自動帶入，可修改）" value={form.refCode} onChange={e=>setForm({...form,refCode:e.target.value})} />
           <button className="w-full rounded-xl bg-brand-500 py-3 text-white">送出</button>
         </div>

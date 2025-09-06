@@ -44,55 +44,53 @@ export default function MemberOrdersPage() {
     setLoading(true)
     setError('')
     try {
-      // 直接以 Supabase 為單一資料來源（穩定一致）
+      // 會員端：預約訂單讀取本地後端（以 customerId）
+      let resv: any[] = []
+      try {
+        const cid = (member as any)?.customerId || ''
+        if (cid) {
+          const r = await fetch(`/api/orders/member/${encodeURIComponent(cid)}/reservations`)
+          const j = await r.json(); if (j?.success) {
+            // 後端是逐品項；前端聚合為單一預約卡片
+            const grouped: Record<string, any> = {}
+            for (const row of j.data || []) {
+              const key = row.reservation_number
+              if (!grouped[key]) {
+                grouped[key] = {
+                  id: row.reservation_number,
+                  status: row.status,
+                  item_count: 0,
+                  total_price: 0,
+                  reservation_date: row.reservation_date,
+                  reservation_time: row.reservation_time,
+                  reservation_time_display: normalizeTimeSlot(row.reservation_time),
+                  payment_method: '',
+                  points_used: 0,
+                  points_deduct_amount: 0,
+                  address: row.customer_address || '',
+                  items: []
+                }
+              }
+              grouped[key].item_count += Number(row.quantity||0)
+              grouped[key].total_price += Number(row.service_price||0) * Number(row.quantity||0)
+              grouped[key].items.push({ service_name: row.service_name || '服務', quantity: row.quantity, price: row.service_price })
+            }
+            resv = Object.values(grouped)
+          }
+        }
+      } catch {}
+
+      // 正式訂單仍可讀 supabase（如已轉單）
       const emailLc = (member.email||'').toLowerCase()
       const { data, error } = await supabase.from('orders').select('*').eq('customer_email', emailLc).order('created_at', { ascending: false })
       if (error) throw error
-      const mapped = (data||[])
-      const supReservations = mapped.filter((o:any)=> (o.status||'')==='pending').map((o:any)=> ({
-        id: o.order_number || o.id,
-        status: o.status,
-        item_count: Array.isArray(o.service_items) ? o.service_items.reduce((n:number,it:any)=> n + (it.quantity||0), 0) : 0,
-        total_price: Array.isArray(o.service_items) ? o.service_items.reduce((s:number,it:any)=> s + ((it.unitPrice||0)*(it.quantity||0)), 0) : 0,
-        reservation_date: o.preferred_date || '',
-        reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
-        reservation_time_display: normalizeTimeSlot((o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || '')),
-        payment_method: o.payment_method || '',
-        points_used: o.points_used || 0,
-        points_deduct_amount: o.points_deduct_amount || 0,
-        address: o.customer_address || '',
-        items: Array.isArray(o.service_items) ? o.service_items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice })) : []
-      }))
-      const supOrders = mapped.filter((o:any)=> (o.status||'')!=='pending').map((o:any)=> ({
+      const supOrders = (data||[]).filter((o:any)=> (o.status||'')!=='pending').map((o:any)=> ({
         id: o.order_number || o.id,
         status: o.status,
         items: Array.isArray(o.service_items) ? o.service_items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice })) : []
       }))
 
-      // 本地預約資料（聚合：以訂單為單位）
-      let localReservations: any[] = []
-      try {
-        const all = JSON.parse(localStorage.getItem('reservationOrders') || '[]')
-        const email = (member.email || '').toLowerCase()
-        const mine = all.filter((o:any)=> (o?.customerInfo?.email||'').toLowerCase() === email)
-        localReservations = mine.map((o:any) => ({
-          id: o.id,
-          status: o.status || 'pending',
-          item_count: (o.items||[]).reduce((n:number, it:any)=> n + (it.quantity||0), 0),
-          total_price: Number(o.finalPrice || o.totalPrice || 0),
-          reservation_date: o.customerInfo?.preferredDate || '',
-          reservation_time: o.customerInfo?.preferredTime || '',
-          reservation_time_display: normalizeTimeSlot(o.customerInfo?.preferredTime || ''),
-          payment_method: o.paymentMethod || '',
-          points_used: o.pointsUsed || 0,
-          points_deduct_amount: o.pointsDiscount || 0,
-          address: o.customerInfo?.address || o.customerInfo?.street || '',
-          discount_code: o.discountCode || '',
-          items: (o.items||[]).map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.price }))
-        }))
-      } catch {}
-
-      setReservations([...(supReservations||[]), ...localReservations])
+      setReservations(resv)
       setOrders(supOrders)
     } catch (e: any) {
       setError(e?.message || '載入失敗')

@@ -15,8 +15,11 @@ export default function ReservationsPage() {
   const load = async () => { 
     if (!repos) return
     try {
-      const reservations = await (repos as any).reservationsRepo?.list?.() || []
-      setRows(reservations)
+      // 改為走本地後端 API，聚合為整筆預約單
+      const res = await fetch('/api/orders/reservations')
+      const j = await res.json()
+      if (j?.success) setRows(j.data || [])
+      else setRows([])
     } catch (error) {
       console.error('載入預約訂單失敗:', error)
       setRows([])
@@ -36,7 +39,7 @@ export default function ReservationsPage() {
     all: rows.length,
     pending: rows.filter(r => r.status === 'pending').length,
     confirmed: rows.filter(r => r.status === 'confirmed').length,
-    canceled: rows.filter(r => r.status === 'canceled').length,
+    canceled: rows.filter(r => r.status && r.status !== 'pending' && r.status !== 'confirmed').length,
   }
 
   const confirmReservation = async (reservation: any) => {
@@ -78,45 +81,50 @@ export default function ReservationsPage() {
         }
       }
       
-      // 將預約訂單轉換為正式訂單（DB 端會沿用相同 order_number）
+      // 將預約訂單轉換為正式訂單：改為呼叫本地 API 或 Supabase RPC
+      // 先嘗試後端 API 以整單號處理
       try {
-        const { supabase } = await import('../../utils/supabase')
-        const { data, error } = await supabase.rpc('confirm_reservation', { p_reservation_id: reservation.id })
-        if (error) throw error
-      } catch (e) {
-        console.error('confirm_reservation RPC 失敗，改用前端回退流程', e)
-        // 回退：直接建立訂單 + 標記 converted（不保證 order_number 相同）
-        const orderData = {
-          id: '',
-          customerName: reservation.customerName,
-          customerPhone: reservation.customerPhone,
-          customerAddress: reservation.customerAddress || '',
-          preferredDate: '',
-          preferredTimeStart: '09:00',
-          preferredTimeEnd: '12:00',
-          platform: 'cart',
-          referrerCode: '',
-          memberId: null,
-          serviceItems: reservation.items || [],
-          assignedTechnicians: [],
-          signatures: {},
-          photos: [],
-          photosBefore: [],
-          photosAfter: [],
-          paymentMethod: '',
-          paymentStatus: 'pending',
-          pointsUsed: 0,
-          pointsDeductAmount: 0,
-          category: 'service',
-          channel: 'cart',
-          status: 'confirmed',
-          workStartedAt: null,
-          workCompletedAt: null,
-          serviceFinishedAt: null,
-          canceledReason: '',
+        const res = await fetch(`/api/orders/reservations/${encodeURIComponent(reservation.reservationNumber||reservation.orderNumber||reservation.id)}/mark-confirmed`, { method: 'POST' })
+        const j = await res.json(); if (!j?.success) throw new Error(j?.error || '標記失敗')
+      } catch (apiErr) {
+        console.warn('API 標記失敗，回退到 RPC 或前端路徑', apiErr)
+        try {
+          const { supabase } = await import('../../utils/supabase')
+          const { error } = await supabase.rpc('confirm_reservation', { p_reservation_id: reservation.id })
+          if (error) throw error
+        } catch (e) {
+          console.error('confirm_reservation RPC 仍失敗，改為前端回退流程', e)
+          const orderData = {
+            id: '',
+            customerName: reservation.customerName,
+            customerPhone: reservation.customerPhone,
+            customerAddress: reservation.customerAddress || '',
+            preferredDate: '',
+            preferredTimeStart: '09:00',
+            preferredTimeEnd: '12:00',
+            platform: 'cart',
+            referrerCode: '',
+            memberId: null,
+            serviceItems: reservation.items || [],
+            assignedTechnicians: [],
+            signatures: {},
+            photos: [],
+            photosBefore: [],
+            photosAfter: [],
+            paymentMethod: '',
+            paymentStatus: 'pending',
+            pointsUsed: 0,
+            pointsDeductAmount: 0,
+            category: 'service',
+            channel: 'cart',
+            status: 'confirmed',
+            workStartedAt: null,
+            workCompletedAt: null,
+            serviceFinishedAt: null,
+            canceledReason: '',
+          }
+          await repos.orderRepo.create(orderData)
         }
-        await repos.orderRepo.create(orderData)
-        await (repos as any).reservationsRepo.update(reservation.id, { status: 'converted' })
       }
       
       // 發送會員站內通知
