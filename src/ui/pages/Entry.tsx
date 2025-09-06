@@ -12,7 +12,6 @@ export default function EntryPage() {
           <Link to="/login/member" className="rounded-xl bg-gray-900 px-4 py-3 text-white hover:bg-gray-800">會員登入</Link>
           <Link to="/register/member" className="rounded-xl bg-gray-100 px-4 py-3 text-gray-800 hover:bg-gray-200">註冊</Link>
         </div>
-        <div className="mt-4 text-xs text-gray-500">內部人員請使用專用入口（不公開連結）</div>
       </div>
     </div>
   )

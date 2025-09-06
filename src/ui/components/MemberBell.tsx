@@ -125,7 +125,7 @@ export default function MemberBell() {
                   >加入官方 LINE</a>
                   {orderId && (
                     <a
-                      href={`/member/orders/${encodeURIComponent(orderId)}`}
+                      href={`/store/member/orders/${encodeURIComponent(orderId)}`}
                       onClick={async()=>{ await readOne(n.id) }}
                       className="ml-2 inline-block rounded bg-gray-900 px-2 py-1 text-xs text-white hover:bg-gray-800"
                     >查看訂單</a>

@@ -130,7 +130,7 @@ export default function NewShopPage() {
         "完整防護",
         "快速到府"
       ],
-      link: "/shop/products?category=cleaning"
+      link: "/store/products?category=cleaning"
     },
     {
       name: "家電銷售服務",
@@ -144,7 +144,7 @@ export default function NewShopPage() {
         "專人諮詢",
         "快速到貨"
       ],
-      link: "/shop/products?category=new"
+      link: "/store/products?category=new"
     },
     {
       name: "二手家電服務",
@@ -158,7 +158,7 @@ export default function NewShopPage() {
         "功能保固",
         "安全可靠"
       ],
-      link: "/shop/products?category=used"
+      link: "/store/products?category=used"
     },
     {
       name: "居家清潔/消毒服務",
@@ -172,7 +172,7 @@ export default function NewShopPage() {
         "安全無毒配方",
         "彈性時段預約"
       ],
-      link: "/shop/products?category=home"
+      link: "/store/products?category=home"
     }
   ]
 
@@ -364,7 +364,7 @@ export default function NewShopPage() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Link
-                    to="/shop/products"
+                    to="/store/products"
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
                   >
                     瀏覽服務

@@ -120,21 +120,24 @@ createRoot(document.getElementById('root')!).render(
       <Route path="/login/member" element={<MemberLoginPage />} />
       <Route path="/login/member/reset" element={<MemberPasswordResetPage />} />
       {/* 對外入口與購物站 */}
-      <Route path="/" element={<EntryPage />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/store" element={<NewShopPage />} />
-      <Route path="/shop/products" element={<ShopProductsPage />} />
-      <Route path="/shop/cart" element={<ShopCartPage />} />
-      <Route path="/shop/order-success" element={<OrderSuccessPage />} />
+      <Route path="/store/products" element={<ShopProductsPage />} />
+      <Route path="/store/cart" element={<ShopCartPage />} />
+      <Route path="/store/order-success" element={<OrderSuccessPage />} />
       {/* 會員中心 */}
-      <Route path="/member/orders" element={<MemberOrdersPage />} />
-      <Route path="/member/orders/:id" element={<MemberOrderDetailPage />} />
+      <Route path="/store/member/orders" element={<MemberOrdersPage />} />
+      <Route path="/store/member/orders/:id" element={<MemberOrderDetailPage />} />
+      {/* 舊路徑相容 */}
+      <Route path="/shop/*" element={<Navigate to="/store" replace />} />
+      <Route path="/member/*" element={<Navigate to="/store/member/orders" replace />} />
       {/* 測試頁面 */}
       <Route path="/test/database" element={<DatabaseTestPage />} />
       
         {/* 私有路由 */}
         <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
-        {/* 導向公開入口 / */}
-        <Route path="/shop" element={<Navigate to="/" replace />} />
+        {/* 舊購物路徑導向 /store */}
+        <Route path="/shop" element={<Navigate to="/store" replace />} />
         <Route path="/dispatch" element={<PrivateRoute><PageDispatchHome /></PrivateRoute>} />
         <Route path="/orders/:id" element={<PrivateRoute permission="orders.read"><PageOrderDetail /></PrivateRoute>} />
         {/* 移除審核頁 */}
