@@ -298,7 +298,7 @@ export default function NewShopPage() {
               </Link>
               <MemberBell />
               <button
-                onClick={() => { try { localStorage.removeItem('member-auth-user') } catch {}; location.reload() }}
+                onClick={async()=>{ try{ const mod = await import('../../adapters/supabase/auth'); await mod.authRepo.logout(); localStorage.removeItem('member-auth-user'); location.href = '/store' }catch{ try{ localStorage.removeItem('member-auth-user'); }catch{} finally{ location.href = '/store' } }}}
                 className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors"
               >
                 登出

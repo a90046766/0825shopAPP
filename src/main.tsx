@@ -55,39 +55,12 @@ import { can } from './utils/permissions'
 // 頁面啟動前：放入最小 fallback，並確保根路由導向 /store
 try {
   const el = document.getElementById('root')
-  if (el && !el.innerHTML) {
-    el.innerHTML = '<div style="padding:16px;font-family:system-ui;color:#334155">系統啟動中...</div>'
-  }
   if (location.pathname === '/') {
     try { history.replaceState(null, '', '/store') } catch { location.assign('/store') }
   }
 } catch {}
 
-// 先行直渲染公開頁，避免任何初始化延遲導致空白
-let __HAS_RENDERED_PUBLIC__ = false
-try {
-  const path = window.location.pathname
-  const immediate = (() => {
-    if (path === '/store') return <NewShopPage />
-    if (path.startsWith('/shop/products')) return <ShopProductsPage />
-    if (path.startsWith('/shop/cart')) return <ShopCartPage />
-    if (path.startsWith('/shop/order-success')) return <OrderSuccessPage />
-    if (path.startsWith('/login/member')) return <MemberLoginPage />
-    if (path.startsWith('/register/member')) return <MemberRegisterPage />
-    if (path.startsWith('/member/orders')) return <MemberOrdersPage />
-    return null
-  })()
-  if (immediate) {
-    createRoot(document.getElementById('root')!).render(
-      <React.StrictMode>
-        <BrowserRouter>
-          {immediate}
-        </BrowserRouter>
-      </React.StrictMode>
-    )
-    __HAS_RENDERED_PUBLIC__ = true
-  }
-} catch {}
+// 移除直渲染 bypass，統一交由 Router 控制
 
 function getCurrentUserFromStorage(): any {
   try {
@@ -205,27 +178,11 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
       }
     })
   } catch {}
-  const path = window.location.pathname
-  const renderPublicBypass = (() => {
-    if (path === '/' || path === '/store') return <NewShopPage />
-    if (path.startsWith('/shop/products')) return <ShopProductsPage />
-    if (path.startsWith('/shop/cart')) return <ShopCartPage />
-    if (path.startsWith('/shop/order-success')) return <OrderSuccessPage />
-    if (path.startsWith('/login/member')) return <MemberLoginPage />
-    if (path.startsWith('/register/member')) return <MemberRegisterPage />
-    if (path.startsWith('/member/orders')) return <MemberOrdersPage />
-    return null
-  })()
-
-  // 若已先直渲染公開頁，就不重覆覆蓋
-  if (__HAS_RENDERED_PUBLIC__) return
+  // 直接 Render Router
   createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      {renderPublicBypass ? (
-        renderPublicBypass
-      ) : (
-        <BrowserRouter>
-          <Routes>
+      <BrowserRouter>
+        <Routes>
         {/* 公開路由 */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -280,9 +237,8 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
         </Route>
           {/* 萬用路由：任何未知路徑導回購物站 */}
           <Route path="*" element={<Navigate to="/store" replace />} />
-          </Routes>
-        </BrowserRouter>
-      )}
+        </Routes>
+      </BrowserRouter>
     </React.StrictMode>
   )
   } catch (err: any) {

@@ -34,9 +34,7 @@ export const getMemberUser = (): MemberUser | null => {
 export const checkMemberAuth = (): MemberUser | null => {
   const member = getMemberUser()
   if (!member) {
-    // 清除可能存在的其他用戶資訊
-    localStorage.removeItem('supabase-auth-user')
-    localStorage.removeItem('local-auth-user')
+    // 僅回傳 null，不清除後台登入態，避免無法返回派工系統
     return null
   }
   return member
