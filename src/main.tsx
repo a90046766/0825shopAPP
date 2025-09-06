@@ -4,48 +4,48 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles.css'
 
 // 頁面
-import LoginPage from './ui/pages/Login'
-import TechnicianApplyPage from './ui/pages/TechnicianApply'
-import StaffApplyPage from './ui/pages/StaffApply'
+const LoginPage = React.lazy(() => import('./ui/pages/Login'))
+const TechnicianApplyPage = React.lazy(() => import('./ui/pages/TechnicianApply'))
+const StaffApplyPage = React.lazy(() => import('./ui/pages/StaffApply'))
 // 移除會員申請/審核頁
-// import MemberApplyPage from './ui/pages/MemberApply'
-// import ApprovalsPage from './ui/pages/Approvals'
-import AppShell from './ui/AppShell'
-import PageDispatchHome from './ui/pages/DispatchHome'
-import PageOrderDetail from './ui/pages/OrderDetail'
-import PageProfile from './ui/pages/Profile'
-import ResetPasswordPage from './ui/pages/ResetPassword'
-import NotificationsPage from './ui/pages/Notifications'
-import TechnicianSchedulePage from './ui/pages/TechnicianSchedule'
-import MemberRegisterPage from './ui/pages/MemberRegister'
-import MemberLoginPage from './ui/pages/MemberLogin'
-import MemberPasswordResetPage from './ui/pages/MemberPasswordReset'
-import ProductsPage from './ui/pages/Products'
-import InventoryPage from './ui/pages/Inventory'
-import TechnicianManagementPage from './ui/pages/TechnicianManagement'
-import PromotionsPage from './ui/pages/Promotions'
-import OrderManagementPage from './ui/pages/OrderManagement'
-import ReservationsPage from './ui/pages/Reservations'
-import StaffManagementPage from './ui/pages/StaffManagement'
-import DocumentsPage from './ui/pages/Documents'
-import ModelsPage from './ui/pages/Models'
-import MembersPage from './ui/pages/Members'
-import CustomersPage from './ui/pages/Customers'
-import PayrollPage from './ui/pages/Payroll'
-import ReportsPage from './ui/pages/Reports'
-import ReportCenterPage from './ui/pages/ReportCenter'
-import UsedItemsPage from './ui/pages/UsedItems'
-import QuotesPage from './ui/pages/Quotes'
-import NewShopPage from './ui/pages/NewShop'
-import ShopProductsPage from './ui/pages/ShopProducts'
-import ShopCartPage from './ui/pages/ShopCart'
-import OrderSuccessPage from './ui/pages/OrderSuccess'
-import DatabaseTestPage from './ui/pages/DatabaseTest'
-import AdminContentPage from './ui/pages/AdminContent'
-import AdminSettingsPage from './ui/pages/AdminSettings'
-import AdminBroadcastPage from './ui/pages/AdminBroadcast'
-import MemberOrdersPage from './ui/pages/MemberOrders'
-import MemberOrderDetailPage from './ui/pages/MemberOrderDetail'
+// const MemberApplyPage = React.lazy(() => import('./ui/pages/MemberApply'))
+// const ApprovalsPage = React.lazy(() => import('./ui/pages/Approvals'))
+const AppShell = React.lazy(() => import('./ui/AppShell'))
+const PageDispatchHome = React.lazy(() => import('./ui/pages/DispatchHome'))
+const PageOrderDetail = React.lazy(() => import('./ui/pages/OrderDetail'))
+const PageProfile = React.lazy(() => import('./ui/pages/Profile'))
+const ResetPasswordPage = React.lazy(() => import('./ui/pages/ResetPassword'))
+const NotificationsPage = React.lazy(() => import('./ui/pages/Notifications'))
+const TechnicianSchedulePage = React.lazy(() => import('./ui/pages/TechnicianSchedule'))
+const MemberRegisterPage = React.lazy(() => import('./ui/pages/MemberRegister'))
+const MemberLoginPage = React.lazy(() => import('./ui/pages/MemberLogin'))
+const MemberPasswordResetPage = React.lazy(() => import('./ui/pages/MemberPasswordReset'))
+const ProductsPage = React.lazy(() => import('./ui/pages/Products'))
+const InventoryPage = React.lazy(() => import('./ui/pages/Inventory'))
+const TechnicianManagementPage = React.lazy(() => import('./ui/pages/TechnicianManagement'))
+const PromotionsPage = React.lazy(() => import('./ui/pages/Promotions'))
+const OrderManagementPage = React.lazy(() => import('./ui/pages/OrderManagement'))
+const ReservationsPage = React.lazy(() => import('./ui/pages/Reservations'))
+const StaffManagementPage = React.lazy(() => import('./ui/pages/StaffManagement'))
+const DocumentsPage = React.lazy(() => import('./ui/pages/Documents'))
+const ModelsPage = React.lazy(() => import('./ui/pages/Models'))
+const MembersPage = React.lazy(() => import('./ui/pages/Members'))
+const CustomersPage = React.lazy(() => import('./ui/pages/Customers'))
+const PayrollPage = React.lazy(() => import('./ui/pages/Payroll'))
+const ReportsPage = React.lazy(() => import('./ui/pages/Reports'))
+const ReportCenterPage = React.lazy(() => import('./ui/pages/ReportCenter'))
+const UsedItemsPage = React.lazy(() => import('./ui/pages/UsedItems'))
+const QuotesPage = React.lazy(() => import('./ui/pages/Quotes'))
+const NewShopPage = React.lazy(() => import('./ui/pages/NewShop'))
+const ShopProductsPage = React.lazy(() => import('./ui/pages/ShopProducts'))
+const ShopCartPage = React.lazy(() => import('./ui/pages/ShopCart'))
+const OrderSuccessPage = React.lazy(() => import('./ui/pages/OrderSuccess'))
+const DatabaseTestPage = React.lazy(() => import('./ui/pages/DatabaseTest'))
+const AdminContentPage = React.lazy(() => import('./ui/pages/AdminContent'))
+const AdminSettingsPage = React.lazy(() => import('./ui/pages/AdminSettings'))
+const AdminBroadcastPage = React.lazy(() => import('./ui/pages/AdminBroadcast'))
+const MemberOrdersPage = React.lazy(() => import('./ui/pages/MemberOrders'))
+const MemberOrderDetailPage = React.lazy(() => import('./ui/pages/MemberOrderDetail'))
 import { supabase } from './utils/supabase'
 
 // 權限保護
@@ -182,6 +182,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
   createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <BrowserRouter>
+        <React.Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-#F5F7FB p-6"><div className="rounded-2xl bg-white p-6 shadow-card text-center text-sm text-gray-600">載入中…</div></div>}>
         <Routes>
         {/* 公開路由 */}
         <Route path="/login" element={<LoginPage />} />
@@ -238,6 +239,7 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
           {/* 萬用路由：任何未知路徑導回購物站 */}
           <Route path="*" element={<Navigate to="/store" replace />} />
         </Routes>
+        </React.Suspense>
       </BrowserRouter>
     </React.StrictMode>
   )

@@ -7,6 +7,17 @@ export default defineConfig({
     port: 3000,
     open: true
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
+          ui: ['lucide-react']
+        }
+      }
+    }
+  },
   define: {
     // 強制設定環境變數，確保建置時不會丟失
     'import.meta.env.VITE_USE_SUPABASE': '"1"',

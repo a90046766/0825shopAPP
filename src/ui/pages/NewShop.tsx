@@ -32,6 +32,14 @@ export default function NewShopPage() {
   const [cmsContacts, setCmsContacts] = useState<any | null>(null)
   const [cmsFaqs, setCmsFaqs] = useState<any[] | null>(null)
 
+  // 預取產品頁 chunk（滑入/觸控即預載）
+  const prefetchOnceRef = React.useRef(false)
+  const prefetchProducts = () => {
+    if (prefetchOnceRef.current) return
+    prefetchOnceRef.current = true
+    import('./ShopProducts').catch(() => {})
+  }
+
   // 檢查用戶登入狀態
   useEffect(() => {
     const checkUser = () => {
@@ -427,6 +435,8 @@ export default function NewShopPage() {
                 </div>
                 <Link
                   to={service.link}
+                  onMouseEnter={prefetchProducts}
+                  onTouchStart={prefetchProducts}
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2 px-4 rounded-xl font-semibold transition-all duration-300 text-center block text-xs"
                 >
                   瀏覽服務
