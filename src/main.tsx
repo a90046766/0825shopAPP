@@ -63,6 +63,28 @@ try {
   }
 } catch {}
 
+// 先行直渲染公開頁，避免任何初始化延遲導致空白
+let __HAS_RENDERED_PUBLIC__ = false
+try {
+  const path = window.location.pathname
+  const immediate = (() => {
+    if (path === '/store') return <NewShopPage />
+    if (path.startsWith('/shop/products')) return <ShopProductsPage />
+    if (path.startsWith('/shop/cart')) return <ShopCartPage />
+    if (path.startsWith('/shop/order-success')) return <OrderSuccessPage />
+    if (path.startsWith('/login/member')) return <MemberLoginPage />
+    if (path.startsWith('/register/member')) return <MemberRegisterPage />
+    if (path.startsWith('/member/orders')) return <MemberOrdersPage />
+    return null
+  })()
+  if (immediate) {
+    createRoot(document.getElementById('root')!).render(
+      <React.StrictMode>{immediate}</React.StrictMode>
+    )
+    __HAS_RENDERED_PUBLIC__ = true
+  }
+} catch {}
+
 function getCurrentUserFromStorage(): any {
   try {
     const supa = localStorage.getItem('supabase-auth-user')
@@ -191,6 +213,8 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
     return null
   })()
 
+  // 若已先直渲染公開頁，就不重覆覆蓋
+  if (__HAS_RENDERED_PUBLIC__) return
   createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       {renderPublicBypass ? (
