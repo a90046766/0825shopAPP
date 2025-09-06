@@ -17,6 +17,16 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+[[redirects]]
+  from = "/api/reservations"
+  to = "/.netlify/functions/reservations"
+  status = 200
+
+[[redirects]]
+  from = "/api/reservation-confirm/*"
+  to = "/.netlify/functions/reservation-confirm/:splat"
+  status = 200
   force = true
 
 # 單點函式測試（可選，保險）

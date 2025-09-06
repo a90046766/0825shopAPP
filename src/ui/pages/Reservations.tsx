@@ -81,10 +81,10 @@ export default function ReservationsPage() {
         }
       }
       
-      // 將預約訂單轉換為正式訂單：改為呼叫本地 API 或 Supabase RPC
-      // 先嘗試後端 API 以整單號處理
+      // 將預約訂單轉換為正式訂單：優先呼叫 Netlify Function（雲端內部）
       try {
-        const res = await fetch(`/api/orders/reservations/${encodeURIComponent(reservation.reservationNumber||reservation.orderNumber||reservation.id)}/mark-confirmed`, { method: 'POST' })
+        const orderNo = reservation.reservationNumber||reservation.orderNumber||reservation.id
+        const res = await fetch(`/api/reservation-confirm/${encodeURIComponent(orderNo)}`, { method: 'POST' })
         const j = await res.json(); if (!j?.success) throw new Error(j?.error || '標記失敗')
       } catch (apiErr) {
         console.warn('API 標記失敗，回退到 RPC 或前端路徑', apiErr)
