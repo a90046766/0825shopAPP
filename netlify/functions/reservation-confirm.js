@@ -16,8 +16,33 @@ exports.handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ success: false, error: 'Bad Request' }) }
     }
     const supabase = createClient(url, key)
-    const { error } = await supabase.from('orders').update({ status: 'confirmed' }).eq('order_number', orderNumber).eq('status', 'pending')
+    // 標記為 confirmed
+    const { data: updated, error } = await supabase
+      .from('orders')
+      .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+      .eq('order_number', orderNumber)
+      .eq('status', 'pending')
+      .select('id, order_number, customer_name, customer_email, preferred_date, preferred_time_start, preferred_time_end')
+      .single()
     if (error) throw error
+
+    // 會員通知（回傳到 APP）
+    try {
+      const ord = updated || {}
+      const email = (ord.customer_email || '').toLowerCase()
+      if (email) {
+        await supabase.from('notifications').insert({
+          title: '訂單成立通知',
+          body: `親愛的${ord.customer_name||''}您好，感謝您的惠顧！您${ord.preferred_date||''}的服務已確認，訂單編號 ${ord.order_number}。技師將於 ${(ord.preferred_time_start||'')}-${(ord.preferred_time_end||'')} 抵達，請保持電話暢通。建議加入官方 LINE：@942clean，以利溝通與留存紀錄。`,
+          level: 'info',
+          target: 'user',
+          target_user_email: email,
+          sent_at: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        })
+      }
+    } catch {}
+
     return { statusCode: 200, body: JSON.stringify({ success: true }) }
   } catch (e) {
     return { statusCode: 200, body: JSON.stringify({ success: false }) }

@@ -71,14 +71,10 @@ function TabBar() {
     return null
   }
   return (
-    <div className="sticky bottom-0 z-20 grid grid-cols-5 border-t bg-white py-2 text-center text-sm">
+    <div className="sticky bottom-0 z-20 grid grid-cols-4 border-t bg-white py-2 text-center text-sm">
       <Link to="/dispatch" className={`${active('/dispatch')}`}>派工</Link>
       <Link to="/orders" className={`${active('/orders')}`}>訂單</Link>
       <Link to="/schedule" className={`${active('/schedule')}`}>排班</Link>
-      <Link to="/notifications" className={`relative ${active('/notifications')}`}>
-        通知
-        {unreadCount > 0 && (<span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />)}
-      </Link>
       <Link to="/me" className={`${active('/me')}`}>個人</Link>
     </div>
   )
@@ -118,10 +114,7 @@ function DesktopNav() {
   { to: '/reservations', label: '預約訂單', perm: 'reservations.manage' },
   { to: '/', label: '購物站', perm: 'dashboard.view' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
-  { to: '/notifications', label: '通知中心', perm: 'notifications.read' },
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
-  { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
-  { to: '/approvals', label: '待審核', perm: 'approvals.manage' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
   { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
   { to: '/documents', label: '文件管理', perm: 'documents.manage' },
@@ -133,12 +126,11 @@ function DesktopNav() {
     { to: '/technicians', label: '技師管理', perm: 'technicians.manage' },
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
     { to: '/reports', label: '報表', perm: 'reports.manage' },
-    // 僅管理員/客服可見
-    { to: '/members', label: '會員管理', perm: 'customers.manage' },
-    // 商品管理：僅 admin/support 可見（技師隱藏）
+    { to: '/models', label: '機型管理', perm: 'models.manage' },
+    { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
     { to: '/products', label: '商品管理', perm: 'products.manage' },
-    // 廣播
-    { to: '/admin/broadcast', label: '站內廣播', perm: 'bulletin.manage' }
+    { to: '/admin/broadcast', label: '站內廣播 📢', perm: 'bulletin.manage' },
+    { to: '/approvals', label: '待審核', perm: 'approvals.manage' }
   ]
 
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -146,22 +138,19 @@ function DesktopNav() {
   useEffect(() => {
     (async()=>{
       try {
+        // 以穩定來源計數：
+        // - 預約：/api/reservations pending 筆數
+        // - 訂單：orders confirmed & 未開工
+        // - 回報中心：僅未結案且對當前使用者可見
         const a = await loadAdapters()
-        const [orders, reservations, threads] = await Promise.all([
+        const [ordersAll, threads, resR] = await Promise.all([
           a.orderRepo?.list?.() ?? [],
-          (a as any)?.reservationsRepo?.list?.() ?? [],
           (a as any)?.reportsRepo?.list?.() ?? [],
+          fetch('/api/reservations').then(r=>r.json()).catch(()=>({success:true,data:[]}))
         ])
-        const [memberApps, techApps, staffApps] = await Promise.all([
-          (a as any)?.memberApplicationRepo?.listPending?.() ?? [],
-          (a as any)?.technicianApplicationRepo?.listPending?.() ?? [],
-          (a as any)?.staffApplicationRepo?.listPending?.() ?? [],
-        ])
-        const approvals = (memberApps?.length || 0) + (techApps?.length || 0) + (staffApps?.length || 0)
-        const ordersNew = (orders||[]).filter((o:any)=> o.status==='confirmed' && !o.workStartedAt).length
-        const needAssign = (orders||[]).filter((o:any)=> o.status==='confirmed' && (!Array.isArray(o.assignedTechnicians) || o.assignedTechnicians.length===0)).length
-        const rsvPending = (reservations||[]).filter((r:any)=> r.status==='pending').length
-        // 回報中心：僅計算對當前使用者可見且未結案的數量
+        const ordersNew = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && !o.workStartedAt).length
+        const needAssign = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && (!Array.isArray(o.assignedTechnicians) || o.assignedTechnicians.length===0)).length
+        const rsvPending = Array.isArray(resR?.data) ? resR.data.filter((r:any)=> r.status==='pending').length : 0
         const emailLc = (user?.email||'').toLowerCase()
         const visible = (threads||[]).filter((t:any)=>{
           if (t.status !== 'open') return false
@@ -174,19 +163,20 @@ function DesktopNav() {
           }
           return false
         }).length
-        setCounts({ approvals, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: visible })
+        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: visible }))
       } catch {}
     })()
   }, [loc.pathname])
 
   const renderItem = (to: string, label: string, perm: any) => {
-    const allowed = can(user, perm as any)
+    let allowed = can(user, perm as any)
+    // 待審核：僅 admin 顯示
+    if (to === '/approvals') allowed = allowed && (user?.role === 'admin')
     const rawBadge = to==='/approvals' ? (counts.approvals||0)
       : to==='/orders' ? (counts.orders||0)
       : to==='/schedule' ? (counts.schedule||0)
       : to==='/reservations' ? (counts.reservations||0)
       : to==='/report-center' ? (counts.reports||0)
-      : to==='/notifications' ? (unreadCount||0)
       : undefined
     const badge = rawBadge && rawBadge > 0 ? rawBadge : undefined
     return <Item key={to} to={to} label={label} badge={badge} disabled={!allowed} />
@@ -281,7 +271,7 @@ export default function AppShell() {
       <DesktopNav />
       <main className="flex-1">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/80 px-4 py-3 backdrop-blur">
-          <div className="text-base font-semibold text-gray-800">洗濯派工系統 <span className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[10px]">v1.1.2</span></div>
+          <div className="text-base font-semibold text-gray-800">洗濯派工系統 <span className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[10px]">v1.1.3</span></div>
           <div className="flex items-center gap-3">
             <div className="text-sm text-gray-700">{getCurrentUser()?.name || ''}</div>
             <button onClick={async ()=>{ 

@@ -24,6 +24,11 @@
   from = "/api/reservations"
   to = "/.netlify/functions/reservations"
   status = 200
+[[redirects]]
+  from = "/api/member-reservations/*"
+  to = "/.netlify/functions/member-reservations/:splat"
+  status = 200
+
 
 [[redirects]]
   from = "/shop/*"

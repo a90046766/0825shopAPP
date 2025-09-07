@@ -22,7 +22,7 @@ const PageDispatchHome = React.lazy(() => import('./ui/pages/DispatchHome'))
 const PageOrderDetail = React.lazy(() => import('./ui/pages/OrderDetail'))
 const PageProfile = React.lazy(() => import('./ui/pages/Profile'))
 const ResetPasswordPage = React.lazy(() => import('./ui/pages/ResetPassword'))
-const NotificationsPage = React.lazy(() => import('./ui/pages/Notifications'))
+// const NotificationsPage = React.lazy(() => import('./ui/pages/Notifications'))
 const TechnicianSchedulePage = React.lazy(() => import('./ui/pages/TechnicianSchedule'))
 const MemberRegisterPage = React.lazy(() => import('./ui/pages/MemberRegister'))
 const MemberLoginPage = React.lazy(() => import('./ui/pages/MemberLogin'))
@@ -140,8 +140,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/shop" element={<Navigate to="/store" replace />} />
         <Route path="/dispatch" element={<PrivateRoute><PageDispatchHome /></PrivateRoute>} />
         <Route path="/orders/:id" element={<PrivateRoute permission="orders.read"><PageOrderDetail /></PrivateRoute>} />
-        {/* 移除審核頁 */}
-        <Route path="/notifications" element={<PrivateRoute><NotificationsPage /></PrivateRoute>} />
+        {/* 通知中心頁面已移除（保留站內廣播） */}
         <Route path="/schedule" element={<PrivateRoute permission="technicians.schedule.view"><TechnicianSchedulePage /></PrivateRoute>} />
         <Route path="/products" element={<PrivateRoute permission="products.manage"><ProductsPage /></PrivateRoute>} />
         <Route path="/inventory" element={<PrivateRoute permission="inventory.manage"><InventoryPage /></PrivateRoute>} />
@@ -154,6 +153,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/models" element={<PrivateRoute permission="models.manage"><ModelsPage /></PrivateRoute>} />
         <Route path="/members" element={<PrivateRoute permission="customers.manage"><MembersPage /></PrivateRoute>} />
         <Route path="/customers" element={<PrivateRoute permission="customers.manage"><CustomersPage /></PrivateRoute>} />
+        {/* Approvals 僅限 admin 可見，權限已在選單側控制 */}
         <Route path="/approvals" element={<PrivateRoute permission="approvals.manage"><ApprovalsPage /></PrivateRoute>} />
         <Route path="/payroll" element={<PrivateRoute permission="payroll.view"><PayrollPage /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute permission="reports.view"><ReportsPage /></PrivateRoute>} />

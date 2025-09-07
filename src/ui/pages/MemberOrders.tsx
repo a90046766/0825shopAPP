@@ -44,41 +44,76 @@ export default function MemberOrdersPage() {
     setLoading(true)
     setError('')
     try {
-      // 會員端：預約訂單讀取本地後端（以 customerId）
+      // 會員端：預約訂單讀取雲端（customerId 與 email 皆可）
       let resv: any[] = []
       try {
         const cid = (member as any)?.customerId || ''
-        if (cid) {
-          const r = await fetch(`/api/orders/member/${encodeURIComponent(cid)}/reservations`)
-          const j = await r.json(); if (j?.success) {
-            // 後端是逐品項；前端聚合為單一預約卡片
-            const grouped: Record<string, any> = {}
-            for (const row of j.data || []) {
-              const key = row.reservation_number
-              if (!grouped[key]) {
-                grouped[key] = {
-                  id: row.reservation_number,
-                  status: row.status,
-                  item_count: 0,
-                  total_price: 0,
-                  reservation_date: row.reservation_date,
-                  reservation_time: row.reservation_time,
-                  reservation_time_display: normalizeTimeSlot(row.reservation_time),
-                  payment_method: '',
-                  points_used: 0,
-                  points_deduct_amount: 0,
-                  address: row.customer_address || '',
-                  items: []
-                }
+        const pathId = cid ? encodeURIComponent(cid) : '0'
+        const r = await fetch(`/api/member-reservations/${pathId}?email=${encodeURIComponent((member.email||'').toLowerCase())}`)
+        const j = await r.json(); if (j?.success) {
+          // 後端是逐品項；前端聚合為單一預約卡片
+          const grouped: Record<string, any> = {}
+          for (const row of j.data || []) {
+            const key = row.reservation_number
+            if (!grouped[key]) {
+              grouped[key] = {
+                id: row.reservation_number,
+                status: row.status,
+                item_count: 0,
+                total_price: 0,
+                reservation_date: row.reservation_date,
+                reservation_time: row.reservation_time,
+                reservation_time_display: normalizeTimeSlot(row.reservation_time),
+                payment_method: '',
+                points_used: 0,
+                points_deduct_amount: 0,
+                address: row.customer_address || '',
+                items: []
               }
-              grouped[key].item_count += Number(row.quantity||0)
-              grouped[key].total_price += Number(row.service_price||0) * Number(row.quantity||0)
-              grouped[key].items.push({ service_name: row.service_name || '服務', quantity: row.quantity, price: row.service_price })
             }
-            resv = Object.values(grouped)
+            grouped[key].item_count += Number(row.quantity||0)
+            grouped[key].total_price += Number(row.service_price||0) * Number(row.quantity||0)
+            grouped[key].items.push({ service_name: row.service_name || '服務', quantity: row.quantity, price: row.service_price })
           }
+          resv = Object.values(grouped)
         }
       } catch {}
+
+      // 若 API 無資料，直接以 email 從 orders(status=pending) 補抓
+      if (!resv || resv.length === 0) {
+        try {
+          const emailLc = (member.email||'').toLowerCase()
+          const { data: pendings, error: perr } = await supabase
+            .from('orders')
+            .select('id, order_number, customer_address, preferred_date, preferred_time_start, preferred_time_end, status, service_items, created_at, payment_method, points_used, points_deduct_amount')
+            .eq('status', 'pending')
+            .eq('customer_email', emailLc)
+            .order('created_at', { ascending: false })
+          if (!perr && Array.isArray(pendings)) {
+            const tmp: any[] = []
+            for (const o of pendings) {
+              const items = Array.isArray(o.service_items) ? o.service_items : []
+              const amount = items.reduce((s: number, it: any) => s + Number(it.unitPrice||0) * Number(it.quantity||0), 0)
+              const count = items.reduce((n: number, it: any) => n + Number(it.quantity||0), 0)
+              tmp.push({
+                id: o.order_number || o.id,
+                status: o.status || 'pending',
+                item_count: count,
+                total_price: amount,
+                reservation_date: o.preferred_date || '',
+                reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
+                reservation_time_display: normalizeTimeSlot((o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || '')),
+                payment_method: o.payment_method || '',
+                points_used: o.points_used || 0,
+                points_deduct_amount: o.points_deduct_amount || 0,
+                address: o.customer_address || '',
+                items: items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice }))
+              })
+            }
+            resv = tmp
+          }
+        } catch {}
+      }
 
       // 正式訂單仍可讀 supabase（如已轉單）
       const emailLc = (member.email||'').toLowerCase()
@@ -118,6 +153,11 @@ export default function MemberOrdersPage() {
   }
 
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    // 每 30 秒自動刷新一次，讓「預約→正式」轉換能回傳到會員端列表
+    const t = setInterval(() => { load().catch(()=>{}) }, 30000)
+    return () => clearInterval(t)
+  }, [])
 
   if (!member) {
     return (

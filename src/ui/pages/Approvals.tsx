@@ -14,6 +14,7 @@ export default function Approvals() {
   const navigate = useNavigate()
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
   const user = getCurrentUser()
+  // 會員審核已取消
   const [memberApplicationRepo, setMemberApplicationRepo] = useState<any>(null)
   const [technicianApplicationRepo, setTechnicianApplicationRepo] = useState<any>(null)
   const [staffApplicationRepo, setStaffApplicationRepo] = useState<any>(null)
@@ -37,7 +38,7 @@ export default function Approvals() {
       return
     }
     loadAdapters().then(adapters => {
-      setMemberApplicationRepo(adapters.memberApplicationRepo)
+      // setMemberApplicationRepo(adapters.memberApplicationRepo)
       setTechnicianApplicationRepo(adapters.technicianApplicationRepo)
       setStaffApplicationRepo(adapters.staffApplicationRepo)
     })
@@ -46,15 +47,14 @@ export default function Approvals() {
   useEffect(() => { loadApplications() }, [memberApplicationRepo, technicianApplicationRepo, staffApplicationRepo])
 
   const loadApplications = async () => {
-    if (!memberApplicationRepo || !technicianApplicationRepo || !staffApplicationRepo) return
+    if (!technicianApplicationRepo || !staffApplicationRepo) return
     try {
       setLoading(true)
-      const [members, technicians, staff] = await Promise.all([
-        memberApplicationRepo.listPending(),
+      const [technicians, staff] = await Promise.all([
         technicianApplicationRepo.listPending(),
         staffApplicationRepo.listPending()
       ])
-      setMemberApplications(members)
+      setMemberApplications([])
       setTechnicianApplications(technicians)
       setStaffApplications(staff)
     } catch (error) {
@@ -139,7 +139,7 @@ export default function Approvals() {
     return <div className="p-4">載入中...</div>
   }
 
-  const totalPending = memberApplications.length + technicianApplications.length + staffApplications.length
+  const totalPending = technicianApplications.length + staffApplications.length
 
   return (
     <div className="p-4 space-y-6">
@@ -151,45 +151,7 @@ export default function Approvals() {
         </div>
       </div>
 
-      {/* 會員申請 */}
-      <Card>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">會員申請</h2>
-          <Badge color="yellow">{memberApplications.length}</Badge>
-        </div>
-        
-        {memberApplications.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">暫無待審核的會員申請</p>
-        ) : (
-          <div className="space-y-3">
-            {memberApplications.map((app) => (
-              <div key={app.id} className="border rounded-lg p-4 flex justify-between items-center">
-                <div>
-                  <div className="font-medium">{app.name}</div>
-                  <div className="text-sm text-gray-600">
-                    {app.email && `信箱: ${app.email}`}
-                    {app.phone && `電話: ${app.phone}`}
-                    {app.referrerCode && `推薦人: ${app.referrerCode}`}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    申請時間: {new Date(app.appliedAt).toLocaleString()}
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {getStatusBadge(app.status)}
-                  <Button 
-                    size="sm" 
-                    onClick={() => handleReview('member', app)}
-                    disabled={app.status !== 'pending'}
-                  >
-                    審核
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      {/* 會員申請：已取消 */}
 
       {/* 技師申請 */}
       <Card>
