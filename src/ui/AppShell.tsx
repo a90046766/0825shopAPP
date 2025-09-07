@@ -112,7 +112,7 @@ function DesktopNav() {
   { to: '/dispatch', label: '派工總覽', perm: 'dashboard.view' },
   { to: '/orders', label: '訂單管理', perm: 'orders.list' },
   { to: '/reservations', label: '預約訂單', perm: 'reservations.manage' },
-  { to: '/', label: '購物站', perm: 'dashboard.view' },
+  { to: '/store', label: '購物站', perm: 'dashboard.view' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
@@ -271,7 +271,7 @@ export default function AppShell() {
       <DesktopNav />
       <main className="flex-1">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/80 px-4 py-3 backdrop-blur">
-          <div className="text-base font-semibold text-gray-800">洗濯派工系統 <span className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[10px]">v1.1.3</span></div>
+          <div className="text-base font-semibold text-gray-800">日式洗濯家電服務 <span className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[10px]">v1.1.3</span></div>
           <div className="flex items-center gap-3">
             <div className="text-sm text-gray-700">{getCurrentUser()?.name || ''}</div>
             <button onClick={async ()=>{ 

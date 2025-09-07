@@ -120,7 +120,20 @@ createRoot(document.getElementById('root')!).render(
       <Route path="/login/member" element={<MemberLoginPage />} />
       <Route path="/login/member/reset" element={<MemberPasswordResetPage />} />
       {/* 對外入口與購物站 */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* 根路由：store 子網域進購物站，其餘進員工登入 */}
+      <Route
+        path="/"
+        element={(() => {
+          try {
+            const host = typeof window !== 'undefined' ? window.location.hostname : ''
+            const envStoreHost = (() => { try { return new URL((import.meta as any).env?.VITE_STORE_BASE_URL || '').hostname } catch { return '' } })()
+            const isStoreHost = !!host && (host === 'store.942clean.com.tw' || host.startsWith('store.') || (envStoreHost && host === envStoreHost))
+            return <Navigate to={isStoreHost ? '/store' : '/login'} replace />
+          } catch {
+            return <Navigate to="/login" replace />
+          }
+        })()}
+      />
       <Route path="/store" element={<NewShopPage />} />
       <Route path="/store/products" element={<ShopProductsPage />} />
       <Route path="/store/cart" element={<ShopCartPage />} />

@@ -7,7 +7,7 @@ const WANT_SUPABASE = RAW === '1' || RAW === 'true' || RAW === '' // 空字串�
 const HAS_SUPABASE_KEYS = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
 const USE_SUPABASE = WANT_SUPABASE && HAS_SUPABASE_KEYS
 const STRICT = RAW_STRICT === '1' || RAW_STRICT === 'true'
-const QUIET_BOOT = String(import.meta.env.VITE_QUIET_BOOT || '1').toLowerCase() === '1'
+const QUIET_BOOT = String(import.meta.env.VITE_QUIET_BOOT || '0').toLowerCase() === '1'
 
 export async function loadAdapters() {
   if (!QUIET_BOOT) {
@@ -38,17 +38,19 @@ export async function loadAdapters() {
       // 連線探測 + 首次種子。嚴格模式：失敗直接拋錯；一般模式：回退本地
       try {
         if (!QUIET_BOOT) console.log('🔍 測試 Supabase 資料存取...')
-        const withTimeout = <T,>(p: Promise<T>, ms = 2500) => Promise.race<T>([
+        const withTimeout = <T,>(p: Promise<T>, ms = 5000) => Promise.race<T>([
           p,
           new Promise<T>((_, rej) => setTimeout(() => rej(new Error('SUPABASE_DATA_TEST_TIMEOUT')), ms))
         ])
 
         let list: any[] = []
+        const fetchProducts = async () => await withTimeout(a.productRepo.list(), 5000)
         try {
-          const out = await withTimeout(a.productRepo.list(), 2500)
-          // @ts-ignore
+          let out: any[] | undefined
+          for (let i = 0; i < 2; i++) {
+            try { out = await fetchProducts(); break } catch { await new Promise(r=>setTimeout(r, 400)) }
+          }
           if (!QUIET_BOOT) console.log('📦 產品列表載入成功，數量:', out?.length || 0)
-          // @ts-ignore
           list = Array.isArray(out) ? out : []
         } catch (e: any) {
           if (!QUIET_BOOT) console.warn('⚠️ 產品列表讀取失敗或逾時，跳過資料探測：', e?.message || e)
