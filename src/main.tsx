@@ -67,7 +67,17 @@ import { can } from './utils/permissions'
 function getCurrentUserFromStorage(): any {
   try {
     const supa = localStorage.getItem('supabase-auth-user')
-    if (supa) return JSON.parse(supa)
+    if (supa) {
+      // 防止「假登入」：若沒有 Supabase 的 session 存檔，視為未登入
+      try {
+        const sb = localStorage.getItem('sb-0825shopapp-auth')
+        if (!sb) {
+          localStorage.removeItem('supabase-auth-user')
+          return null
+        }
+      } catch {}
+      return JSON.parse(supa)
+    }
   } catch {}
   try {
     const local = localStorage.getItem('local-auth-user')

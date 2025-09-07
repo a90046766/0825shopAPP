@@ -9,10 +9,6 @@ function getCurrentUser(): any {
     const s = localStorage.getItem('supabase-auth-user')
     if (s) return JSON.parse(s)
   } catch {}
-  try {
-    const l = localStorage.getItem('local-auth-user')
-    if (l) return JSON.parse(l)
-  } catch {}
   return null
 }
 
@@ -277,8 +273,9 @@ export default function AppShell() {
             <button onClick={async ()=>{ 
               try { const a = await loadAdapters(); await a.authRepo.logout() } catch {}
               try { const mod = await import('../utils/supabase'); await mod.supabase.auth.signOut().catch(()=>{}) } catch {}
-              try { localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('member-auth-user'); localStorage.removeItem('local-auth-user') } catch {}
-              window.location.href='/login'
+              try { localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('member-auth-user'); localStorage.removeItem('local-auth-user'); localStorage.removeItem('sb-0825shopapp-auth') } catch {}
+              try { sessionStorage.clear() } catch {}
+              window.location.replace('/login')
             }} className="rounded bg-gray-100 px-3 py-1 text-sm text-gray-700">登出</button>
           </div>
         </div>

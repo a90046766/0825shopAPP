@@ -87,24 +87,21 @@ export async function loadAdapters() {
       } catch (error) {
         if (!QUIET_BOOT) console.error('❌ Supabase 初始化失敗:', error)
         if (STRICT) throw error
-        if (!QUIET_BOOT) console.log('🔄 回退至本地模式...')
-        try { localStorage.setItem('adapter-mode', 'local') } catch {}
-        return await import('./local/_exports')
+        // 雲端唯一模式：不再回退本地，直接拋錯（避免混淆）
+        try { localStorage.setItem('adapter-mode', 'supabase') } catch {}
+        throw error
       }
     } catch (error) {
       if (!QUIET_BOOT) console.error('❌ Supabase adapter 載入失敗:', error)
       if (STRICT) throw error
-      if (!QUIET_BOOT) console.log('🔄 回退至本地模式...')
-      try { localStorage.setItem('adapter-mode', 'local') } catch {}
-      return await import('./local/_exports')
+      try { localStorage.setItem('adapter-mode', 'supabase') } catch {}
+      throw error
     }
   }
   
   // 只有在明確設定 VITE_USE_SUPABASE=false 時才使用本地模式
-  if (STRICT) throw new Error('STRICT_SUPABASE_ENABLED_NO_FALLBACK')
-  if (!QUIET_BOOT) console.log('💾 使用本地模式（僅在開發測試時使用）')
-  try { localStorage.setItem('adapter-mode', 'local') } catch {}
-  return await import('./local/_exports')
+  // 強制雲端：不支援本地 fallback，避免外部使用者誤用本地模式
+  throw new Error('SUPABASE_ONLY_MODE')
 }
 
 // 添加 useAuth hook
