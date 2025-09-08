@@ -20,6 +20,8 @@ export default function OrderManagementPage() {
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
   const user = getCurrentUser()
   const [q, setQ] = useState('')
+  const [yy, setYy] = useState('')
+  const [mm, setMm] = useState('')
   const [statusTab, setStatusTab] = useState<'all'|'pending'|'confirmed'|'completed'|'closed'|'invoice'>('all')
   const [pf, setPf] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
@@ -58,16 +60,20 @@ export default function OrderManagementPage() {
     const hit = !q || o.id.includes(q) || (o.customerName||'').includes(q)
     const pfKeys = Object.keys(pf).filter(k=>pf[k])
     const byPf = pfKeys.length===0 || pfKeys.includes(o.platform)
+    const dateKey = (o.workCompletedAt || o.createdAt || '').slice(0,7)
+    const y = dateKey.slice(0,4)
+    const m = dateKey.slice(5,7)
+    const byDate = (!yy || y===yy) && (!mm || m===mm)
     const byStatus = (()=>{
       if (statusTab==='all') return true
       if (statusTab==='pending') return o.status==='draft'
       if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
       if (statusTab==='completed') return o.status==='completed'
-      if (statusTab==='closed') return (o.status==='canceled' || (o as any).status==='unservice')
+      if (statusTab==='closed') return ((o.status==='canceled' || (o as any).status==='unservice') || !!o.closedAt)
       if (statusTab==='invoice') return o.status==='completed' && !o.invoiceCode
       return true
     })()
-    return hit && byPf && byStatus && isOwner(o)
+    return hit && byPf && byDate && byStatus && isOwner(o)
   })
 
   // 技師卡牌式統計
@@ -80,6 +86,7 @@ export default function OrderManagementPage() {
     closed: ownRows.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
     invoice: ownRows.filter(o=> o.status==='completed' && !o.invoiceCode).length,
   } as any
+  const yearOptions = Array.from(new Set((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean))).sort()
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -93,11 +100,32 @@ export default function OrderManagementPage() {
           ['invoice','發票未寄送'],
           ['closed','已結案'],
         ] as any[]).map(([key,label])=> (
-          <button key={key} onClick={()=>setStatusTab(key)} className={`rounded-full px-2.5 py-1 ${statusTab===key? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'}`}>{label}</button>
+          <button
+            key={key}
+            onClick={()=>setStatusTab(key)}
+            className={`rounded-full px-3 py-1.5 font-medium shadow-sm transition ${statusTab===key? 'bg-gray-900 text-white ring-2 ring-gray-700' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50'}`}
+          >{label}</button>
         ))}
       </div>
         <div className="flex items-center gap-2">
           <input placeholder="搜尋ID/客戶" className="rounded border px-2 py-1 text-sm" value={q} onChange={e=>setQ(e.target.value)} />
+          <select className="rounded border px-2 py-1 text-sm" value={yy} onChange={e=>setYy(e.target.value)}>
+            <option value="">全部年份</option>
+            {yearOptions.map(y=> <option key={y} value={y}>{y}</option>)}
+          </select>
+          <select className="rounded border px-2 py-1 text-sm" value={mm} onChange={e=>setMm(e.target.value)}>
+            <option value="">全部月份</option>
+            {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m=> <option key={m} value={m}>{m}</option>)}
+          </select>
+          <input type="month" className="rounded border px-2 py-1 text-sm" onChange={e=>{
+            const ym = e.target.value
+            if (!ym) { load(); return }
+            const list = (rows||[]).filter((o:any)=>{
+              const d = (o.workCompletedAt||o.createdAt||'').slice(0,7)
+              return d === ym
+            })
+            setRows(list as any)
+          }} />
           {can(user,'orders.create') && <button onClick={()=>setCreating(true)} className="rounded-lg bg-brand-500 px-3 py-1 text-white">新建訂單</button>}
           <button onClick={async()=>{
             const input = document.createElement('input')

@@ -264,7 +264,8 @@ createRoot(document.getElementById('root')!).render(
 
       try {
         const path = location.pathname
-        if (path === '/login' || path === '/' || path.startsWith('/store')) {
+        // 僅在登入頁或根路徑時導向 /dispatch；不再攔截 /store 路徑
+        if (path === '/login' || path === '/') {
           location.replace('/dispatch')
         }
       } catch {}

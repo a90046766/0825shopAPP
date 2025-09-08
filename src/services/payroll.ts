@@ -28,7 +28,7 @@ export async function computeMonthlyPayroll(month: string): Promise<TechnicianMo
   const allOrders = await a.orderRepo.list()
   const completedInMonth = allOrders.filter(o => {
     if (o.status !== 'completed') return false
-    const m = getMonthFromString(o.workCompletedAt) || getMonthFromString(o.createdAt)
+    const m = getMonthFromString(o.workCompletedAt) || null
     return m === month
   })
   const technicians = await a.technicianRepo.list()

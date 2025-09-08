@@ -145,34 +145,7 @@ class LocalOrderRepo implements OrderRepo {
 
   async finishWork(id: string, at: string): Promise<void> {
     await this.update(id, { workCompletedAt: at, status: 'completed' })
-    // 完工時計分：介紹人 + 規則
-    try {
-      const order = await this.get(id)
-      if (!order) return
-      const amount = order.serviceItems.reduce((sum, it) => sum + it.unitPrice * it.quantity, 0)
-      const netAmount = Math.max(0, amount - (order.pointsDeductAmount || 0))
-      const ref = (order.referrerCode || '').toUpperCase()
-      // 會員：100 元 = 1 點
-      if (order.memberId) {
-        const m = await memberRepo.get(order.memberId)
-        if (m) {
-          const used = Math.max(0, order.pointsUsed || 0)
-          const earned = Math.floor(netAmount / 100)
-          const nextPts = Math.max(0, (m.points || 0) - used + earned)
-          await memberRepo.upsert({ ...m, points: nextPts })
-        }
-      }
-      // 技師/業務介紹（每滿 300 元 +1）
-      if (ref.startsWith('SR')) {
-        const techs = await technicianRepo.list()
-        const t = techs.find(x => x.code.toUpperCase() === ref)
-        if (t) await technicianRepo.upsert({ id: t.id, name: t.name, shortName: t.shortName, email: t.email, phone: t.phone, region: t.region, status: t.status, points: (t.points || 0) + Math.floor(netAmount / 300) })
-      } else if (ref.startsWith('SE')) {
-        const staffs = await staffRepo.list()
-        const s = staffs.find(x => (x.refCode || '').toUpperCase() === ref)
-        if (s) await staffRepo.upsert({ name: s.name, shortName: s.shortName, email: s.email, phone: s.phone, role: s.role, status: s.status, points: (s.points || 0) + Math.floor(netAmount / 300) } as any)
-      }
-    } catch {}
+    // 移除本地時計分發放，統一由 UI 結案流程呼叫 points 服務處理
 
     // 完工扣庫：優先以 productId 對應，否則以名稱對應
     try {

@@ -904,6 +904,11 @@ export default function PageOrderDetail() {
                   if (!hasSignature) { alert('請先完成客戶與技師雙簽名'); return }
                   if (!confirm('是否確認服務完成並結案？')) return
                   await repos.orderRepo.finishWork(order.id, new Date().toISOString())
+                  try {
+                    const { applyPointsOnOrderCompletion } = await import('../../services/points')
+                    const fresh = await repos.orderRepo.get(order.id)
+                    if (fresh) await applyPointsOnOrderCompletion(fresh, repos)
+                  } catch (e) { console.warn('apply points failed', e) }
                   const o=await repos.orderRepo.get(order.id); setOrder(o)
                 }}
                 className={`rounded px-3 py-1 text-white ${canClose? 'bg-gray-900' : 'bg-gray-400'}`}

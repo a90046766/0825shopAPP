@@ -31,7 +31,7 @@ class SupabaseStaffRepo implements StaffRepo {
   async list(): Promise<Staff[]> {
     const { data, error } = await supabase
       .from('staff')
-      .select('id,name,short_name,email,phone,role,status,points,ref_code,temp_contact,updated_at')
+      .select('id,name,email,phone,role,status,points,updated_at')
       .order('updated_at', { ascending: false })
     if (error) throw error
     return (data || []).map(fromStaffRow)
