@@ -308,13 +308,34 @@ export default function NewShopPage() {
                 登出
               </button>
               {!isMember && (currentUser?.role==='admin' || currentUser?.role==='support') && (
-                <Link
-                  to="/dispatch"
+                <button
+                  onClick={async()=>{ 
+                    try{ 
+                      // 強制登出所有認證
+                      const mod = await import('../../adapters/supabase/auth'); 
+                      await mod.authRepo.logout(); 
+                      localStorage.removeItem('member-auth-user');
+                      localStorage.removeItem('supabase-auth-user');
+                      localStorage.removeItem('local-auth-user');
+                      // 跳轉到登入頁面
+                      location.href = '/login';
+                    }catch{ 
+                      try{ 
+                        // 即使 Supabase 登出失敗，也要清除本地認證
+                        localStorage.removeItem('member-auth-user');
+                        localStorage.removeItem('supabase-auth-user');
+                        localStorage.removeItem('local-auth-user');
+                      }catch{} 
+                      finally{ 
+                        location.href = '/login';
+                      } 
+                    }
+                  }}
                   className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <ArrowRight className="h-3 w-3 mr-2 rotate-180" />
                   返回派工系統
-                </Link>
+                </button>
               )}
             </div>
           </div>

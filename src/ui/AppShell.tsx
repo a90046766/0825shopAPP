@@ -28,7 +28,7 @@ function AppBar() {
   } as Record<string,string>
   const loc = useLocation()
   const navigate = useNavigate()
-  const t = title[loc.pathname] || '訂單內容'
+  const t = title[loc.pathname] || '系統'
   const u = getCurrentUser()
   const isTechnician = u?.role === 'technician'
   
@@ -79,9 +79,8 @@ function TabBar() {
     return null
   }
   return (
-    <div className="sticky bottom-0 z-20 grid grid-cols-4 border-t bg-white py-2 text-center text-sm">
+    <div className="sticky bottom-0 z-20 grid grid-cols-3 border-t bg-white py-2 text-center text-sm">
       <Link to="/dispatch" className={`${active('/dispatch')}`}>派工</Link>
-      <Link to="/orders" className={`${active('/orders')}`}>訂單</Link>
       <Link to="/schedule" className={`${active('/schedule')}`}>排班</Link>
       <Link to="/me" className={`${active('/me')}`}>個人</Link>
     </div>
@@ -119,26 +118,26 @@ function DesktopNav() {
  const menuTop = [
   { to: '/dispatch', label: '派工總覽', perm: 'dashboard.view' },
   { to: '/orders', label: '訂單管理', perm: 'orders.list' },
-  { to: '/store', label: '購物站', perm: 'dashboard.view' },
-  { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
-  { to: '/leave-management', label: '請假管理', perm: 'admin' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
-  { to: '/products', label: '商品管理', perm: 'products.manage' },
   { to: '/admin/broadcast', label: '站內廣播', perm: 'bulletin.manage' },
-  { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
-  { to: '/salary', label: '我的薪資', perm: 'dashboard.view' },
+  { to: '/leave-management', label: '請假管理', perm: 'leave.manage' },
+  { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/documents', label: '文件管理', perm: 'documents.manage' },
-  { to: '/cms', label: 'CMS 編輯', perm: 'promotions.manage' },
+  { to: '/salary', label: '我的薪資', perm: 'dashboard.view' },
   { to: '/quotes', label: '職人語錄', perm: 'dashboard.view' },
+  { to: '/store', label: '購物站', perm: 'dashboard.view' },
+  { to: '/cms', label: 'CMS 編輯', perm: 'promotions.manage' },
+  { to: '/products', label: '商品管理', perm: 'products.manage' },
   { to: '/me', label: '個人設定', perm: 'dashboard.view' }
 ]
   const menuBottom = [
     { to: '/technicians', label: '技師管理', perm: 'technicians.manage' },
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
-    { to: '/reports', label: '報表管理', perm: 'reports.manage' },
     { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
-    { to: '/approvals', label: '待審核', perm: 'approvals.manage' }
+    { to: '/approvals', label: '待審核', perm: 'approvals.manage' },
+    { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
+    { to: '/reports', label: '報表管理', perm: 'reports.manage' }
   ]
 
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -155,7 +154,8 @@ function DesktopNav() {
           a.orderRepo?.list?.() ?? [],
           (a as any)?.reportsRepo?.list?.() ?? []
         ])
-        const ordersNew = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && !o.workStartedAt).length
+        const ordersNew = (ordersAll||[]).filter((o:any)=> o.status==='draft').length
+        // 排班/派工：顯示已確認但未指派技師的訂單數量
         const needAssign = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && (!Array.isArray(o.assignedTechnicians) || o.assignedTechnicians.length===0)).length
         const emailLc = (user?.email||'').toLowerCase()
         const visible = (threads||[]).filter((t:any)=>{

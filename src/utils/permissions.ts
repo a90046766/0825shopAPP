@@ -25,6 +25,7 @@ export type Permission =
   | 'bulletin.send_all'
   | 'bulletin.send_user'
   | 'shop.manage'
+  | 'leave.manage'
 
 // 角色權限矩陣
 const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
@@ -44,7 +45,8 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     'schedule.view',
     'inventory.manage',
     'reports.view', 'reports.manage',
-    'bulletin.manage', 'bulletin.send_all', 'bulletin.send_user'
+    'bulletin.manage', 'bulletin.send_all', 'bulletin.send_user',
+    'leave.manage'
   ],
   support: [
     'dashboard.view',
@@ -62,7 +64,8 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     'schedule.view',
     'inventory.manage',
     'reports.view',
-    'bulletin.manage', 'bulletin.send_user'
+    'bulletin.manage', 'bulletin.send_user',
+    'leave.manage'
   ],
   sales: [
     'dashboard.view',
@@ -75,7 +78,9 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     // 回報與薪資
     'reports.view', 'payroll.view',
     // 檔案/機型/個人
-    'documents.manage', 'models.manage'
+    'documents.manage', 'models.manage',
+    // 請假管理
+    'leave.manage'
   ],
   technician: [
     'dashboard.view',
@@ -84,7 +89,8 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     'notifications.read',
     'schedule.view',
     'payroll.view',
-    'reports.view'
+    'reports.view',
+    'leave.manage'
   ],
   member: [
     'notifications.read'
