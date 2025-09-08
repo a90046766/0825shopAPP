@@ -1,5 +1,8 @@
 import { checkSupabaseConnection } from '../utils/supabase'
 
+// 單例快取：避免跨頁重複初始化/探測
+let adaptersPromise: Promise<any> | null = null
+
 // 修改預設行為：優先使用 Supabase。若設定嚴格模式，連線失敗時不回退本地，直接拋錯
 const RAW = String(import.meta.env.VITE_USE_SUPABASE || '').toLowerCase()
 const RAW_STRICT = String(import.meta.env.VITE_STRICT_SUPABASE || '').toLowerCase()
@@ -10,6 +13,7 @@ const STRICT = RAW_STRICT === '1' || RAW_STRICT === 'true'
 const QUIET_BOOT = String(import.meta.env.VITE_QUIET_BOOT || '0').toLowerCase() === '1'
 
 export async function loadAdapters() {
+  if (adaptersPromise) return adaptersPromise
   if (!QUIET_BOOT) {
     console.log('🔧 載入 Adapters...')
     console.log('VITE_USE_SUPABASE:', import.meta.env.VITE_USE_SUPABASE)
@@ -17,91 +21,45 @@ export async function loadAdapters() {
     console.log('USE_SUPABASE:', USE_SUPABASE)
     console.log('STRICT_SUPABASE:', STRICT)
   }
-
-  if (USE_SUPABASE) {
-    try {
-      if (!QUIET_BOOT) console.log('🌐 嘗試連線 Supabase...')
-      
-      // 先檢查連線狀態
-      const isConnected = await checkSupabaseConnection()
-      if (!isConnected) {
-        const msg = '❌ Supabase 連線失敗' + (STRICT ? '（嚴格模式）' : '，回退至本地模式')
-        console.warn(msg)
-        if (STRICT) throw new Error('SUPABASE_CONNECTION_FAILED')
-        try { localStorage.setItem('adapter-mode', 'local') } catch {}
-        return await import('./local/_exports')
-      }
-
-      if (!QUIET_BOOT) console.log('✅ Supabase 連線成功，載入雲端 adapters...')
-      const a = await import('./supabase/_exports')
-      
-      // 連線探測 + 首次種子。嚴格模式：失敗直接拋錯；一般模式：回退本地
+  adaptersPromise = (async () => {
+    if (USE_SUPABASE) {
       try {
-        if (!QUIET_BOOT) console.log('🔍 測試 Supabase 資料存取...')
-        const withTimeout = <T,>(p: Promise<T>, ms = 5000) => Promise.race<T>([
-          p,
-          new Promise<T>((_, rej) => setTimeout(() => rej(new Error('SUPABASE_DATA_TEST_TIMEOUT')), ms))
-        ])
-
-        let list: any[] = []
-        const fetchProducts = async () => await withTimeout(a.productRepo.list(), 5000)
-        try {
-          let out: any[] | undefined
-          for (let i = 0; i < 2; i++) {
-            try { out = await fetchProducts(); break } catch { await new Promise(r=>setTimeout(r, 400)) }
-          }
-          if (!QUIET_BOOT) console.log('📦 產品列表載入成功，數量:', out?.length || 0)
-          list = Array.isArray(out) ? out : []
-        } catch (e: any) {
-          if (!QUIET_BOOT) console.warn('⚠️ 產品列表讀取失敗或逾時，跳過資料探測：', e?.message || e)
+        if (!QUIET_BOOT) console.log('🌐 嘗試連線 Supabase...')
+        const isConnected = await checkSupabaseConnection()
+        if (!isConnected) {
+          const msg = '❌ Supabase 連線失敗' + (STRICT ? '（嚴格模式）' : '，回退至本地模式')
+          console.warn(msg)
+          if (STRICT) throw new Error('SUPABASE_CONNECTION_FAILED')
+          try { localStorage.setItem('adapter-mode', 'local') } catch {}
+          return await import('./local/_exports')
         }
 
-        if ((!list || list.length === 0) && !STRICT) {
-          try {
-            if (!QUIET_BOOT) console.log('🌱 初始化預設產品資料（非嚴格模式）...')
-            await a.productRepo.upsert({ id: '', name: '分離式冷氣清洗', unitPrice: 1800, groupPrice: 1600, groupMinQty: 2, description: '室內外機標準清洗，包含濾網、蒸發器、冷凝器清潔', imageUrls: [], safeStock: 20 } as any)
-            await a.productRepo.upsert({ id: '', name: '洗衣機清洗（滾筒）', unitPrice: 1999, groupPrice: 1799, groupMinQty: 2, description: '滾筒式洗衣機拆洗保養，包含內筒、外筒、管路清潔', imageUrls: [], safeStock: 20 } as any)
-            await a.productRepo.upsert({ id: '', name: '倒T型抽油煙機清洗', unitPrice: 2200, groupPrice: 2000, groupMinQty: 2, description: '不鏽鋼倒T型抽油煙機，包含內部機械清洗', imageUrls: [], safeStock: 20 } as any)
-            await a.productRepo.upsert({ id: '', name: '傳統雙渦輪抽油煙機清洗', unitPrice: 1800, groupPrice: 1600, groupMinQty: 2, description: '傳統型雙渦輪抽油煙機清洗保養', imageUrls: [], safeStock: 20 } as any)
-          } catch (seedErr) {
-            if (!QUIET_BOOT) console.warn('⚠️ 預設產品初始化失敗：', seedErr)
-          }
-        }
-
-        // 首次技師資料（空表時種子兩名預設技師）僅在非嚴格模式
-        if (!STRICT) {
+        if (!QUIET_BOOT) console.log('✅ Supabase 連線成功，載入雲端 adapters...')
+        const a = await import('./supabase/_exports')
+        try { localStorage.setItem('adapter-mode', 'supabase') } catch {}
+        // 將資料探測與種子移至背景，不阻塞首屏
+        setTimeout(async () => {
+          if (STRICT) return
           try {
             const techs = await (a as any).technicianRepo?.list?.()
             if (Array.isArray(techs) && techs.length === 0) {
-              if (!QUIET_BOOT) console.log('👨‍🔧 初始化預設技師資料（非嚴格模式）...')
               await (a as any).technicianRepo.upsert({ name: '楊小飛', shortName: '小飛', email: 'jason660628@yahoo.com.tw', phone: '0913788051', region: 'north', status: 'active' })
               await (a as any).technicianRepo.upsert({ name: '洗小濯', shortName: '小濯', email: 'xiaofu888@yahoo.com.tw', phone: '0986985725', region: 'north', status: 'active' })
             }
-          } catch (techError) {
-            if (!QUIET_BOOT) console.warn('⚠️ 技師資料初始化失敗（非嚴格模式）：', techError)
-          }
-        }
-        try { localStorage.setItem('adapter-mode', 'supabase') } catch {}
-        if (!QUIET_BOOT) console.log('✅ Supabase 模式初始化完成')
+          } catch {}
+        }, 0)
         return a
       } catch (error) {
         if (!QUIET_BOOT) console.error('❌ Supabase 初始化失敗:', error)
         if (STRICT) throw error
-        // 雲端唯一模式：不再回退本地，直接拋錯（避免混淆）
         try { localStorage.setItem('adapter-mode', 'supabase') } catch {}
         throw error
       }
-    } catch (error) {
-      if (!QUIET_BOOT) console.error('❌ Supabase adapter 載入失敗:', error)
-      if (STRICT) throw error
-      try { localStorage.setItem('adapter-mode', 'supabase') } catch {}
-      throw error
     }
-  }
-  
-  // 只有在明確設定 VITE_USE_SUPABASE=false 時才使用本地模式
-  // 強制雲端：不支援本地 fallback，避免外部使用者誤用本地模式
-  throw new Error('SUPABASE_ONLY_MODE')
+    // 強制雲端：不支援本地 fallback
+    throw new Error('SUPABASE_ONLY_MODE')
+  })()
+  return adaptersPromise
 }
 
 // 添加 useAuth hook

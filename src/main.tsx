@@ -47,6 +47,7 @@ import EntryPage from './ui/pages/Entry'
 const ShopProductsPage = React.lazy(() => import('./ui/pages/ShopProducts'))
 const ShopCartPage = React.lazy(() => import('./ui/pages/ShopCart'))
 const OrderSuccessPage = React.lazy(() => import('./ui/pages/OrderSuccess'))
+const SalaryPage = React.lazy(() => import('./ui/pages/Salary'))
 const DatabaseTestPage = React.lazy(() => import('./ui/pages/DatabaseTest'))
 const AdminContentPage = React.lazy(() => import('./ui/pages/AdminContent'))
 const AdminSettingsPage = React.lazy(() => import('./ui/pages/AdminSettings'))
@@ -185,6 +186,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/used-items" element={<PrivateRoute permission="inventory.manage"><UsedItemsPage /></PrivateRoute>} />
         <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
         <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
+        <Route path="/salary" element={<PrivateRoute><SalaryPage /></PrivateRoute>} />
         <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
         <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
       </Route>
