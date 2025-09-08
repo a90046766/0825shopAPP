@@ -10,7 +10,7 @@ function fromStaffRow(r: any): Staff {
     phone: r.phone || undefined,
     role: r.role,
     status: r.status,
-    points: r.points ?? 0,
+    points: 0, // staff 表沒有 points 欄位，預設為 0
     refCode: r.ref_code || undefined,
     // @ts-ignore
     tempContact: r.temp_contact || undefined,
@@ -31,7 +31,7 @@ class SupabaseStaffRepo implements StaffRepo {
   async list(): Promise<Staff[]> {
     const { data, error } = await supabase
       .from('staff')
-      .select('id,name,email,phone,role,status,points,updated_at')
+      .select('id,name,email,phone,role,status,updated_at')
       .order('updated_at', { ascending: false })
     if (error) throw error
     return (data || []).map(fromStaffRow)

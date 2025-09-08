@@ -274,38 +274,22 @@ export default function OrderManagementPage() {
                 {o.customerName}｜{o.preferredDate} {o.preferredTimeStart}~{o.preferredTimeEnd}｜推薦碼 {o.referrerCode||'-'} 
                 {o.referrerCode && <button onClick={(e)=>{e.preventDefault(); navigator.clipboard.writeText(o.referrerCode)}} className="ml-1 rounded bg-gray-100 px-2 py-0.5">複製</button>}
                 <br />
-                訂單狀態：
-                <select
-                  className="ml-1 rounded border px-1 py-0.5 text-xs"
-                  value={o.status}
-                  onChange={async (e) => {
-                    e.stopPropagation() // 防止觸發 Link 點擊
-                    const newStatus = e.target.value
-                    const patch: any = { status: newStatus }
-                    // 自動設定完成時間
-                    if (newStatus === 'completed' && !o.workCompletedAt) {
-                      patch.workCompletedAt = new Date().toISOString()
-                    }
-                    // 已結案時設定結案時間
-                    if (newStatus === 'closed' && !o.closedAt) {
-                      patch.closedAt = new Date().toISOString()
-                    }
-                    try {
-                      await repos.orderRepo.update(o.id, patch)
-                      load() // 重新載入訂單列表
-                    } catch (error) {
-                      console.error('更新訂單狀態失敗:', error)
-                      alert('更新訂單狀態失敗')
-                    }
-                  }}
-                >
-                  <option value="draft">待確認</option>
-                  <option value="confirmed">已確認</option>
-                  <option value="in_progress">服務中</option>
-                  <option value="completed">已完工</option>
-                  <option value="closed">已結案</option>
-                  <option value="canceled">已取消</option>
-                </select>
+                狀態：<span className={`ml-1 rounded px-1 py-0.5 text-[10px] ${
+                  o.status==='draft' ? 'bg-yellow-100 text-yellow-700' :
+                  o.status==='confirmed' ? 'bg-blue-100 text-blue-700' :
+                  o.status==='in_progress' ? 'bg-purple-100 text-purple-700' :
+                  o.status==='completed' ? 'bg-green-100 text-green-700' :
+                  o.status==='closed' ? 'bg-gray-100 text-gray-700' :
+                  o.status==='canceled' ? 'bg-red-100 text-red-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {o.status==='draft' ? '待確認' :
+                   o.status==='confirmed' ? '已確認' :
+                   o.status==='in_progress' ? '服務中' :
+                   o.status==='completed' ? '已完工' :
+                   o.status==='closed' ? '已結案' :
+                   o.status==='canceled' ? '已取消' : o.status}
+                </span>
               </div>
               {Array.isArray(o.assignedTechnicians) && o.assignedTechnicians.length>0 && (
                 <div className="mt-1 text-[11px] text-gray-500">技師：{o.assignedTechnicians.join('、')}</div>
