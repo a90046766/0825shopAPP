@@ -47,6 +47,7 @@ function toDbRow(input: Partial<Order>): any {
     workCompletedAt: 'work_completed_at',
     serviceFinishedAt: 'service_finished_at',
     canceledReason: 'canceled_reason',
+    createdBy: 'created_by',
   }
   const row: any = {}
   for (const [camel, snake] of Object.entries(map)) {
@@ -100,13 +101,14 @@ function fromDbRow(row: any): Order {
     serviceFinishedAt: pick('serviceFinishedAt', 'service_finished_at'),
     canceledReason: pick('canceledReason', 'canceled_reason'),
     closedAt: pick('closedAt', 'closed_at'),
+    createdBy: pick('createdBy', 'created_by'),
     createdAt: pick('createdAt', 'created_at') || new Date().toISOString(),
     updatedAt: pick('updatedAt', 'updated_at') || new Date().toISOString(),
   }
 }
 
 const ORDERS_COLUMNS =
-  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,photos,photos_before,photos_after,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_at,updated_at'
+  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,photos,photos_before,photos_after,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_by,created_at,updated_at'
 
 class SupabaseOrderRepo implements OrderRepo {
   async list(): Promise<Order[]> {

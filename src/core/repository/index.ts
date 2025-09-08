@@ -110,6 +110,7 @@ export interface Order {
   serviceFinishedAt?: string
   canceledReason?: string
   closedAt?: string
+  createdBy?: string
   // 電子發票（前端狀態欄位）
   invoiceCode?: string
   invoiceStatus?: 'pending' | 'issued' | 'cancelled'
