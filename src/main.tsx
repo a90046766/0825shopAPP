@@ -88,6 +88,14 @@ function getCurrentUserFromStorage(): any {
 
 function PrivateRoute({ children, permission }: { children: React.ReactNode; permission?: string }) {
   const user = getCurrentUserFromStorage()
+  // 追加：若無 Supabase session，視為未登入，避免假登入
+  try {
+    const sb = localStorage.getItem('sb-0825shopapp-auth')
+    if (!sb) {
+      try { localStorage.removeItem('supabase-auth-user') } catch {}
+      return <Navigate to="/login" replace />
+    }
+  } catch {}
   
   if (!user) {
     return <Navigate to="/login" replace />
@@ -232,17 +240,34 @@ createRoot(document.getElementById('root')!).render(
       } as any
 
       const displayName = (PRIMARY as any)[email]?.name ?? tech?.name ?? staff?.name ?? session.user.email ?? ''
-      const inferredRole = ((PRIMARY as any)[email]?.role ?? (tech ? 'technician' : (staff?.role as any) ?? null)) as any
+      let inferredRole = ((PRIMARY as any)[email]?.role ?? (tech ? 'technician' : (staff?.role as any) ?? null)) as any
 
-      // 非內部人員（未命中 PRIMARY/technicians/staff）不建立後台登入態
+      // 自動補錄：若非內部資料，預設建立為 support（避免假登入但無權限的狀況）
+      if (!inferredRole) {
+        try {
+          await supabase.from('staff').upsert({
+            id: session.user.id,
+            name: displayName || session.user.email || '',
+            email,
+            phone: (staff as any)?.phone || '',
+            role: 'support',
+            status: 'active'
+          }, { onConflict: 'email' })
+          inferredRole = 'support'
+        } catch {}
+      }
+
       if (!inferredRole) return
 
       const user = { id: session.user.id, email: session.user.email, name: displayName, role: inferredRole, phone: (staff as any)?.phone || (tech as any)?.phone, passwordSet: true }
       try { localStorage.setItem('supabase-auth-user', JSON.stringify(user)) } catch {}
 
-      if (location.pathname === '/login') {
-        location.href = '/dispatch'
-      }
+      try {
+        const path = location.pathname
+        if (path === '/login' || path === '/' || path.startsWith('/store')) {
+          location.replace('/dispatch')
+        }
+      } catch {}
 
       if ((PRIMARY as any)[email] && !staff) {
         try {
@@ -263,6 +288,12 @@ createRoot(document.getElementById('root')!).render(
   try {
     const { data } = await supabase.auth.getSession()
     if (data?.session) await mapSessionToLocalUser(data.session)
+    // 若 local 有 supabase-auth-user 但無 session，視為假登入，清除
+    try {
+      const local = localStorage.getItem('supabase-auth-user')
+      const sb = localStorage.getItem('sb-0825shopapp-auth')
+      if (local && !sb) localStorage.removeItem('supabase-auth-user')
+    } catch {}
   } catch {}
 
   // 監聽後續的簽入/刷新事件
