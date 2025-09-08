@@ -44,6 +44,15 @@ export default function Payroll() {
     }
   }, [payrollRepo, staffRepo, technicianRepo, month])
 
+  // 監聽員工更新事件
+  useEffect(() => {
+    const handleStaffUpdate = () => {
+      loadData()
+    }
+    window.addEventListener('staff-updated', handleStaffUpdate)
+    return () => window.removeEventListener('staff-updated', handleStaffUpdate)
+  }, [])
+
   const loadData = async () => {
     if (!payrollRepo || !staffRepo || !technicianRepo) return
     try {

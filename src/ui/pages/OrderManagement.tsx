@@ -270,17 +270,48 @@ export default function OrderManagementPage() {
           <Link key={o.id} to={`/orders/${o.id}`} className="flex items-center justify-between border-b p-3 text-sm">
             <div>
               <div className="font-semibold">{o.id} <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] ${o.platform==='日'?'bg-blue-100 text-blue-700':o.platform==='同'?'bg-purple-100 text-purple-700':o.platform==='黃'?'bg-amber-100 text-amber-700':'bg-green-100 text-green-700'}`}>{o.platform}</span></div>
-              <div className="text-xs text-gray-500">{o.customerName}｜{o.preferredDate} {o.preferredTimeStart}~{o.preferredTimeEnd}｜推薦碼 {o.referrerCode||'-'} {o.referrerCode && <button onClick={(e)=>{e.preventDefault(); navigator.clipboard.writeText(o.referrerCode)}} className="ml-1 rounded bg-gray-100 px-2 py-0.5">複製</button>}</div>
+              <div className="text-xs text-gray-500">
+                {o.customerName}｜{o.preferredDate} {o.preferredTimeStart}~{o.preferredTimeEnd}｜推薦碼 {o.referrerCode||'-'} 
+                {o.referrerCode && <button onClick={(e)=>{e.preventDefault(); navigator.clipboard.writeText(o.referrerCode)}} className="ml-1 rounded bg-gray-100 px-2 py-0.5">複製</button>}
+                <br />
+                訂單狀態：
+                <select
+                  className="ml-1 rounded border px-1 py-0.5 text-xs"
+                  value={o.status}
+                  onChange={async (e) => {
+                    e.stopPropagation() // 防止觸發 Link 點擊
+                    const newStatus = e.target.value
+                    const patch: any = { status: newStatus }
+                    // 自動設定完成時間
+                    if (newStatus === 'completed' && !o.workCompletedAt) {
+                      patch.workCompletedAt = new Date().toISOString()
+                    }
+                    // 已結案時設定結案時間
+                    if (newStatus === 'closed' && !o.closedAt) {
+                      patch.closedAt = new Date().toISOString()
+                    }
+                    try {
+                      await repos.orderRepo.update(o.id, patch)
+                      load() // 重新載入訂單列表
+                    } catch (error) {
+                      console.error('更新訂單狀態失敗:', error)
+                      alert('更新訂單狀態失敗')
+                    }
+                  }}
+                >
+                  <option value="draft">待確認</option>
+                  <option value="confirmed">已確認</option>
+                  <option value="in_progress">服務中</option>
+                  <option value="completed">已完工</option>
+                  <option value="closed">已結案</option>
+                  <option value="canceled">已取消</option>
+                </select>
+              </div>
               {Array.isArray(o.assignedTechnicians) && o.assignedTechnicians.length>0 && (
                 <div className="mt-1 text-[11px] text-gray-500">技師：{o.assignedTechnicians.join('、')}</div>
               )}
             </div>
             <div className="flex items-center gap-2">
-              {o.status==='draft' && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">草稿</span>}
-              {o.status==='confirmed' && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700">已確認</span>}
-              {o.status==='in_progress' && <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700">服務中</span>}
-              {o.status==='completed' && <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] text-green-700">完成</span>}
-              {o.status==='canceled' && <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-700">取消</span>}
               <div className="text-gray-600">›</div>
             </div>
           </Link>

@@ -88,7 +88,15 @@ export default function StaffManagementPage() {
       toast.success('客服帳號建立成功！')
       setShowAddModal(false)
       setFormData({ name: '', email: '', phone: '', role: 'support', password: '' })
-      loadStaffList()
+      
+      // 重新載入員工列表
+      await loadStaffList()
+      
+      // 觸發薪資系統重新載入（如果有薪資頁面開啟）
+      try {
+        const event = new CustomEvent('staff-updated', { detail: { action: 'create', staff: formData } })
+        window.dispatchEvent(event)
+      } catch {}
     } catch (error: any) {
       toast.error(error.message || '建立客服帳號失敗')
     } finally {

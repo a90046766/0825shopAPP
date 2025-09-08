@@ -158,7 +158,7 @@ export default function PageOrderDetail() {
   const isAdminOrSupport = user?.role==='admin' || user?.role==='support'
   const isAssignedTech = user?.role==='technician' && Array.isArray(order.assignedTechnicians) && order.assignedTechnicians.includes(user?.name || '')
   const isTechnician = user?.role === 'technician'
-  const statusText = (s: string) => s==='draft' ? '待確認' : s==='confirmed' ? '已確認' : s==='in_progress' ? '服務中' : s==='completed' ? '已完成' : s==='canceled' ? '已取消' : s
+  const statusText = (s: string) => s==='draft' ? '待確認' : s==='confirmed' ? '已確認' : s==='in_progress' ? '服務中' : s==='completed' ? '已完成' : s==='closed' ? '已結案' : s==='canceled' ? '已取消' : s
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n || 0)
   const subTotal = (order.serviceItems||[]).reduce((s:number,it:any)=>s+it.unitPrice*it.quantity,0)
   const amountDue = Math.max(0, subTotal - (order.pointsDeductAmount||0))

@@ -68,20 +68,50 @@ function fromPurchaseRequestDbRow(row: any): PurchaseRequest {
 
 class SupabaseInventoryRepo implements InventoryRepo {
   async list(): Promise<InventoryItem[]> {
-    const { data, error } = await supabase.from('inventory').select('*').order('updated_at', { ascending: false })
-    if (error) throw error
-    return (data || []).map(fromDbRow)
+    try {
+      const { data, error } = await supabase.from('inventory').select('*').order('updated_at', { ascending: false })
+      if (error) {
+        console.warn('Inventory table error:', error)
+        // 如果表不存在，返回空陣列
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          return []
+        }
+        throw error
+      }
+      return (data || []).map(fromDbRow)
+    } catch (error) {
+      console.warn('Failed to load inventory:', error)
+      return []
+    }
   }
 
   async upsert(item: Omit<InventoryItem, 'updatedAt'>): Promise<InventoryItem> {
-    const now = new Date().toISOString()
-    const row: any = { ...toDbRow(item), updated_at: now }
-    if (!row.id || row.id === '') {
-      row.id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : `${Date.now()}`
+    try {
+      const now = new Date().toISOString()
+      const row: any = { ...toDbRow(item), updated_at: now }
+      if (!row.id || row.id === '') {
+        row.id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : `${Date.now()}`
+      }
+      
+      // 確保必要欄位存在
+      if (!row.name) row.name = ''
+      if (row.quantity === undefined) row.quantity = 0
+      if (row.safe_stock === undefined) row.safe_stock = 0
+      if (!row.description) row.description = ''
+      if (!row.category) row.category = ''
+      if (row.unit_price === undefined) row.unit_price = 0
+      if (!row.image_urls) row.image_urls = []
+      
+      const { data, error } = await supabase.from('inventory').upsert(row).select().single()
+      if (error) {
+        console.error('Inventory upsert error:', error)
+        throw new Error(`儲存失敗: ${error.message}`)
+      }
+      return fromDbRow(data)
+    } catch (error) {
+      console.error('Failed to upsert inventory:', error)
+      throw error
     }
-    const { data, error } = await supabase.from('inventory').upsert(row).select().single()
-    if (error) throw error
-    return fromDbRow(data)
   }
 
   async remove(id: string): Promise<void> {

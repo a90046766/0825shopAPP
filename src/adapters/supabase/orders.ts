@@ -194,12 +194,29 @@ class SupabaseOrderRepo implements OrderRepo {
       // 回退流程（兩段式）：先產生單號再插入
       const row = toDbRow(draft)
       row.id = generateUUID()
-      const { data: orderNumberData, error: orderNumberError } = await supabase.rpc('generate_order_number')
-      if (orderNumberError) {
-        console.error('產生訂單編號失敗:', orderNumberError)
-        throw new Error('產生訂單編號失敗')
+      
+      // 生成唯一的訂單編號
+      const timestamp = Date.now()
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+      row.order_number = `OD${timestamp}${random}`
+      
+      // 檢查是否重複，如果重複則重新生成
+      let attempts = 0
+      while (attempts < 5) {
+        const { data: existing } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('order_number', row.order_number)
+          .single()
+        
+        if (!existing) break // 沒有重複，可以使用
+        
+        // 重複了，重新生成
+        const newTimestamp = Date.now()
+        const newRandom = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+        row.order_number = `OD${newTimestamp}${newRandom}`
+        attempts++
       }
-      row.order_number = orderNumberData
 
       const { data, error } = await supabase.from('orders').insert(row).select(ORDERS_COLUMNS).single()
       if (error) {

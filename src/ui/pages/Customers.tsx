@@ -14,19 +14,20 @@ export default function CustomersPage() {
       const a = await loadAdapters(); 
       setRepos(a); 
       
-      // 載入客戶資料
+      // 先載入客戶資料
       const customers = await (a as any).customerRepo.list()
       setRows(customers)
-      
-      // 載入訂單資料（用於服務紀錄）
-      try {
-        const orderList = await (a as any).orderRepo.list()
-        setOrders(orderList)
-      } catch (error) {
-        console.log('無法載入訂單資料:', error)
-      }
-      
       setLoading(false)
+      
+      // 背景載入訂單資料（不阻塞UI）
+      setTimeout(async () => {
+        try {
+          const orderList = await (a as any).orderRepo.list()
+          setOrders(orderList)
+        } catch (error) {
+          console.log('無法載入訂單資料:', error)
+        }
+      }, 100)
     })() 
   }, [])
 
