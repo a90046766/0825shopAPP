@@ -542,6 +542,12 @@ export default function PageOrderDetail() {
                   onChange={async (e)=>{
                     const v = e.target.value as any
                     const patch: any = { status: v }
+                    
+                    // 建單人邏輯：商城/業務單轉確認時設定建單人
+                    if (v === 'confirmed' && !order.createdBy) {
+                      patch.createdBy = user?.name || '系統'
+                    }
+                    
                     // 自動設定完成時間
                     if (v === 'completed' && !order.workCompletedAt) {
                       patch.workCompletedAt = new Date().toISOString()
@@ -901,7 +907,25 @@ export default function PageOrderDetail() {
           )}
           <div className="flex flex-wrap items-center gap-2">
             {order.status==='confirmed' && (
-              <button onClick={()=>setPromiseOpen(true)} className="rounded bg-brand-500 px-3 py-1 text-white">開始服務</button>
+              <button 
+                onClick={async()=>{
+                  if (!confirm('是否確認開始服務？')) return
+                  const now = new Date().toISOString()
+                  await repos.orderRepo.update(order.id, { 
+                    status: 'in_progress', 
+                    workStartedAt: now
+                  })
+                  const o=await repos.orderRepo.get(order.id); setOrder(o)
+                }}
+                className="rounded bg-brand-500 px-3 py-1 text-white"
+              >
+                開始服務
+                {order.workStartedAt && (
+                  <span className="ml-2 text-xs">
+                    {new Date(order.workStartedAt).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}號 {new Date(order.workStartedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </button>
             )}
             {order.status==='in_progress' && timeLeftSec===0 && (
               <button
@@ -915,10 +939,14 @@ export default function PageOrderDetail() {
                   const o=await repos.orderRepo.get(order.id); setOrder(o)
                 }}
                 className="rounded bg-green-600 px-3 py-1 text-white"
-              >服務完成</button>
-            )}
-            {(order.status==='confirmed' || order.status==='in_progress') && (
-              <button onClick={()=>setUnserviceOpen(true)} className="rounded bg-amber-600 px-3 py-1 text-white">無法服務</button>
+              >
+                服務完成
+                {order.workCompletedAt && (
+                  <span className="ml-2 text-xs">
+                    {new Date(order.workCompletedAt).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}號 {new Date(order.workCompletedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </button>
             )}
             {(order.status==='in_progress' || order.status==='unservice' || order.status==='completed') && (
               <button
