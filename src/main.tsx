@@ -32,7 +32,6 @@ const InventoryPage = React.lazy(() => import('./ui/pages/Inventory'))
 const TechnicianManagementPage = React.lazy(() => import('./ui/pages/TechnicianManagement'))
 const PromotionsPage = React.lazy(() => import('./ui/pages/Promotions'))
 const OrderManagementPage = React.lazy(() => import('./ui/pages/OrderManagement'))
-const ReservationsPage = React.lazy(() => import('./ui/pages/Reservations'))
 const StaffManagementPage = React.lazy(() => import('./ui/pages/StaffManagement'))
 const DocumentsPage = React.lazy(() => import('./ui/pages/Documents'))
 const ModelsPage = React.lazy(() => import('./ui/pages/Models'))
@@ -168,12 +167,12 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/products" element={<PrivateRoute permission="products.manage"><ProductsPage /></PrivateRoute>} />
         <Route path="/inventory" element={<PrivateRoute permission="inventory.manage"><InventoryPage /></PrivateRoute>} />
         <Route path="/orders" element={<PrivateRoute permission="orders.list"><OrderManagementPage /></PrivateRoute>} />
-        <Route path="/reservations" element={<PrivateRoute permission="reservations.manage"><ReservationsPage /></PrivateRoute>} />
+        <Route path="/reservations" element={<Navigate to="/orders" replace />} />
         <Route path="/staff" element={<PrivateRoute permission="staff.manage"><StaffManagementPage /></PrivateRoute>} />
         <Route path="/technicians" element={<PrivateRoute permission="technicians.manage"><TechnicianManagementPage /></PrivateRoute>} />
         <Route path="/promotions" element={<PrivateRoute permission="promotions.manage"><PromotionsPage /></PrivateRoute>} />
         <Route path="/documents" element={<PrivateRoute permission="documents.manage"><DocumentsPage /></PrivateRoute>} />
-        <Route path="/models" element={<PrivateRoute permission="models.manage"><ModelsPage /></PrivateRoute>} />
+        <Route path="/models" element={<Navigate to="/cms" replace />} />
         <Route path="/members" element={<PrivateRoute permission="customers.manage"><MembersPage /></PrivateRoute>} />
         <Route path="/customers" element={<PrivateRoute permission="customers.manage"><CustomersPage /></PrivateRoute>} />
         {/* Approvals 僅限 admin 可見，權限已在選單側控制 */}
@@ -187,6 +186,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
         <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
         <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
+        <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
       </Route>
         {/* 萬用路由：任何未知路徑導回購物站 */}
         <Route path="*" element={<Navigate to="/" replace />} />

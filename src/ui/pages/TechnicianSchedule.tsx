@@ -213,14 +213,27 @@ export default function TechnicianSchedulePage() {
     }
 
     try {
-      // 將技師 ID 轉換為技師名稱
-      const selectedTechNames = selectedTechs.map(techId => {
+      // 將技師 ID 轉換為技師名稱與 Email
+      const selectedTechInfos = selectedTechs.map(techId => {
         const tech = techs.find(t => t.id === techId)
-        return tech ? tech.name : techId
+        return { name: tech ? tech.name : techId, email: (tech?.email || '').toLowerCase() }
       })
 
-      // 更新訂單的指派技師
-      await repos.orderRepo.update(orderId, { assignedTechnicians: selectedTechNames })
+      // 更新訂單的指派技師（名稱）
+      await repos.orderRepo.update(orderId, { assignedTechnicians: selectedTechInfos.map(i=>i.name) })
+
+      // 同步寫入工作記錄（避免重疊由前端篩選保障）
+      for (const info of selectedTechInfos) {
+        try {
+          await repos.scheduleRepo.saveWork({
+            technicianEmail: info.email,
+            date,
+            startTime: start,
+            endTime: end,
+            orderId
+          })
+        } catch {}
+      }
       alert('已指派，返回訂單選擇簽名技師')
       navigate(`/orders/${orderId}`)
     } catch (error) {

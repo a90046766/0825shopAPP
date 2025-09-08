@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { computeMonthlyPayroll } from '../../services/payroll'
+import { loadAdapters } from '../../adapters'
 
 export default function ReportsPage() {
   const [month, setMonth] = useState<string>(new Date().toISOString().slice(0,7))
@@ -9,14 +10,18 @@ export default function ReportsPage() {
   const [region, setRegion] = useState<string>('')
   const [platform, setPlatform] = useState<string>('')
   const [summary, setSummary] = useState<{ revenue: number; orders: number }>({ revenue: 0, orders: 0 })
+  const [completedOrders, setCompletedOrders] = useState<any[]>([])
   useEffect(() => { computeMonthlyPayroll(month).then(setPayroll) }, [month])
   useEffect(() => {
     (async()=>{
-      const { orderRepo } = await import('../../adapters/local/orders')
-      const list = await orderRepo.list()
-      const done = list.filter((o:any)=>o.status==='completed' && (o.workCompletedAt||o.createdAt||'').slice(0,7)===month)
-      const revenue = done.reduce((s:number,o:any)=> s + (o.serviceItems||[]).reduce((ss:number,it:any)=>ss+it.unitPrice*it.quantity,0), 0)
-      setSummary({ revenue, orders: done.length })
+      try {
+        const a = await loadAdapters()
+        const list = await a.orderRepo.list()
+        const done = list.filter((o:any)=>o.status==='completed' && (o.workCompletedAt||o.createdAt||'').slice(0,7)===month)
+        const revenue = done.reduce((s:number,o:any)=> s + (o.serviceItems||[]).reduce((ss:number,it:any)=>ss+it.unitPrice*it.quantity,0), 0)
+        setSummary({ revenue, orders: done.length })
+        setCompletedOrders(done)
+      } catch {}
     })()
   }, [month])
   return (
@@ -106,6 +111,21 @@ export default function ReportsPage() {
               a.click()
               URL.revokeObjectURL(url)
             }} className="rounded-lg bg-gray-900 px-3 py-1 text-sm text-white">匯出分潤 CSV</button>
+            <button onClick={()=>{
+              const header = ['訂單ID','日期','平台','客戶','金額','品項數量','技師']
+              const lines = completedOrders.map((o:any)=>{
+                const amount = (o.serviceItems||[]).reduce((s:number,it:any)=> s + it.unitPrice*it.quantity, 0)
+                const qty = (o.serviceItems||[]).reduce((s:number,it:any)=> s + it.quantity, 0)
+                return [o.id, (o.workCompletedAt||o.createdAt||'').slice(0,10), o.platform||'', o.customerName||'', amount, qty, (o.assignedTechnicians||[]).join('、')].join(',')
+              })
+              const csv = [header.join(','),...lines].join('\n')
+              const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `completed-orders-${month}.csv`
+              a.click(); URL.revokeObjectURL(url)
+            }} className="ml-2 rounded-lg bg-blue-600 px-3 py-1 text-sm text-white">匯出完成訂單 CSV</button>
             <button onClick={()=>{
               const header = ['名稱','編碼','區域','方案','個人額','底薪','獎金','合計']
               const rowsHtml = payroll.map((p:any)=>`<tr><td>${p.technician.name}</td><td>${(p.technician as any).code||''}</td><td>${p.technician.region||''}</td><td>${p.scheme}</td><td>${p.perTechTotal}</td><td>${p.baseSalary}</td><td>${p.bonus}</td><td>${p.total}</td></tr>`).join('')

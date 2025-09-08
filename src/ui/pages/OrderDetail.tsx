@@ -39,6 +39,16 @@ export default function PageOrderDetail() {
   const [unserviceOpen, setUnserviceOpen] = useState(false)
   const [unserviceFare, setUnserviceFare] = useState<'none'|'fare400'>('none')
   const [unserviceReason, setUnserviceReason] = useState('')
+  // 電子發票編輯
+  const [invoiceOpen, setInvoiceOpen] = useState(false)
+  const [invoiceBuyerName, setInvoiceBuyerName] = useState('')
+  const [invoiceEmail, setInvoiceEmail] = useState('')
+  const [invoiceCompanyTitle, setInvoiceCompanyTitle] = useState('')
+  const [invoiceTaxId, setInvoiceTaxId] = useState('')
+  const [invoiceCarrierPhone, setInvoiceCarrierPhone] = useState('')
+  const [invoiceOrderCode, setInvoiceOrderCode] = useState('')
+  const [invoiceDonation, setInvoiceDonation] = useState(false)
+  const [invoiceTaxState, setInvoiceTaxState] = useState<'0'|'1'>('0') // 0:含稅 1:未稅
   const user = authRepo.getCurrentUser()
   const [repos, setRepos] = useState<any>(null)
   const [techs, setTechs] = useState<any[]>([])
@@ -148,7 +158,7 @@ export default function PageOrderDetail() {
   const isAdminOrSupport = user?.role==='admin' || user?.role==='support'
   const isAssignedTech = user?.role==='technician' && Array.isArray(order.assignedTechnicians) && order.assignedTechnicians.includes(user?.name || '')
   const isTechnician = user?.role === 'technician'
-  const statusText = (s: string) => s==='draft' ? '草稿' : s==='confirmed' ? '已確認' : s==='in_progress' ? '服務中' : s==='completed' ? '已完成' : s==='canceled' ? '已取消' : s
+  const statusText = (s: string) => s==='draft' ? '待確認' : s==='confirmed' ? '已確認' : s==='in_progress' ? '服務中' : s==='completed' ? '已完成' : s==='canceled' ? '已取消' : s
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n || 0)
   const subTotal = (order.serviceItems||[]).reduce((s:number,it:any)=>s+it.unitPrice*it.quantity,0)
   const amountDue = Math.max(0, subTotal - (order.pointsDeductAmount||0))
@@ -216,7 +226,7 @@ export default function PageOrderDetail() {
                 setOrder(o)
               }}
             >
-              <option value="draft">草稿</option>
+              <option value="draft">待確認</option>
               <option value="confirmed">已確認</option>
               <option value="completed">已完成</option>
             </select>
@@ -307,6 +317,64 @@ export default function PageOrderDetail() {
           <div>會員編號：<span className="text-gray-700">{memberCode||'—'}</span></div>
         </div>
       </div>
+      {/* 電子發票操作：僅管理員/客服、且訂單完成時顯示 */}
+      {isAdminOrSupport && order.status==='completed' && (
+        <div className="mt-3 flex items-center justify-between rounded-2xl bg-white p-4 shadow-card">
+          <div className="text-sm text-gray-700">電子發票：{order.invoiceCode ? <span className="text-emerald-700">已開立（{order.invoiceCode}）</span> : <span className="text-rose-700">未開立</span>}</div>
+          <div className="flex items-center gap-2">
+            {!order.invoiceCode && (
+              <button
+                onClick={()=>{
+                  try {
+                    setInvoiceBuyerName(order.customerName||'')
+                    setInvoiceEmail((order as any).customerEmail||'')
+                    setInvoiceCompanyTitle((order as any).customerTitle||'')
+                    setInvoiceTaxId((order as any).customerTaxId||'')
+                    setInvoiceCarrierPhone('')
+                    setInvoiceOrderCode(order.id||'')
+                    setInvoiceDonation(false)
+                    setInvoiceTaxState('0')
+                  } catch {}
+                  setInvoiceOpen(true)
+                }}
+                className="rounded bg-gray-900 px-3 py-1 text-white"
+              >開立發票</button>
+            )}
+            {order.invoiceCode && (
+              <>
+                <button
+                  onClick={async()=>{
+                    try{
+                      const svc = await import('../../services/eInvoice')
+                      const res: any = await (svc as any).EInvoice.print(order.invoiceCode)
+                      const url = res?.url
+                      if (url) {
+                        try { window.open(url, '_blank', 'noopener,noreferrer') } catch {}
+                      } else {
+                        alert('已送出列印請求')
+                      }
+                    }catch{ alert('列印請求已送出') }
+                  }}
+                  className="rounded bg-gray-100 px-3 py-1"
+                >列印</button>
+                <button
+                  onClick={async()=>{
+                    if (!confirm('確定作廢此發票？')) return
+                    try{
+                      const svc = await import('../../services/eInvoice')
+                      await (svc as any).EInvoice.cancel(order.invoiceCode)
+                      await repos.orderRepo.update(order.id, { invoiceStatus: 'cancelled' as any })
+                      const o = await repos.orderRepo.get(order.id); setOrder(o)
+                      alert('已申請作廢')
+                    }catch(err:any){ alert('作廢失敗：' + (err?.message||'未知錯誤')) }
+                  }}
+                  className="rounded bg-rose-600 px-3 py-1 text-white"
+                >作廢</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl bg-white p-4 shadow-card">
         <SectionTitle>服務內容</SectionTitle>
@@ -639,6 +707,119 @@ export default function PageOrderDetail() {
           </div>
         </div>
       </div>
+
+      {/* 電子發票編輯與一鍵送出 */}
+      {invoiceOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-card">
+            <div className="mb-2 text-lg font-semibold">電子發票</div>
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-xs text-gray-600 mb-1">買受人姓名/公司</div>
+                  <input className="w-full rounded border px-2 py-1" value={invoiceBuyerName} onChange={e=>setInvoiceBuyerName(e.target.value)} />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600 mb-1">Email</div>
+                  <input className="w-full rounded border px-2 py-1" value={invoiceEmail} onChange={e=>setInvoiceEmail(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-xs text-gray-600 mb-1">抬頭</div>
+                  <input className="w-full rounded border px-2 py-1" value={invoiceCompanyTitle} onChange={e=>setInvoiceCompanyTitle(e.target.value)} />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600 mb-1">統一編號</div>
+                  <input className="w-full rounded border px-2 py-1" value={invoiceTaxId} onChange={e=>setInvoiceTaxId(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-xs text-gray-600 mb-1">手機載具（/開頭8碼）</div>
+                  <input className="w-full rounded border px-2 py-1" placeholder="/1234ABCD" value={invoiceCarrierPhone} onChange={e=>setInvoiceCarrierPhone(e.target.value)} />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600 mb-1">會員/訂單編號載具</div>
+                  <input className="w-full rounded border px-2 py-1" value={invoiceOrderCode} onChange={e=>setInvoiceOrderCode(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-xs text-gray-700">
+                <label className="inline-flex items-center gap-1">
+                  <input type="checkbox" checked={invoiceDonation} onChange={e=>setInvoiceDonation(e.target.checked)} />捐贈發票
+                </label>
+                <label className="inline-flex items-center gap-1">
+                  單價含稅
+                  <select className="rounded border px-2 py-0.5" value={invoiceTaxState} onChange={e=>setInvoiceTaxState(e.target.value as any)}>
+                    <option value="0">含稅</option>
+                    <option value="1">未稅</option>
+                  </select>
+                </label>
+              </div>
+
+              {/* 預覽金額與品項（可編輯） */}
+              <div>
+                <div className="text-xs text-gray-600 mb-1">品項</div>
+                <div className="space-y-1">
+                  {(order.serviceItems||[]).map((it:any, i:number)=>{
+                    return (
+                      <div key={i} className="grid grid-cols-5 items-center gap-2">
+                        <input className="col-span-2 rounded border px-2 py-1" value={it.name} onChange={e=>{ const arr=[...(order.serviceItems||[])]; arr[i] = { ...arr[i], name: e.target.value }; setOrder({ ...order, serviceItems: arr }); }} />
+                        <input type="number" className="rounded border px-2 py-1" value={it.quantity} onChange={e=>{ const arr=[...(order.serviceItems||[])]; arr[i] = { ...arr[i], quantity: Number(e.target.value)||1 }; setOrder({ ...order, serviceItems: arr }); }} />
+                        <input type="number" className="rounded border px-2 py-1" value={it.unitPrice} onChange={e=>{ const arr=[...(order.serviceItems||[])]; arr[i] = { ...arr[i], unitPrice: Number(e.target.value)||0 }; setOrder({ ...order, serviceItems: arr }); }} />
+                        <div className="text-right text-xs text-gray-600">{(it.quantity||0)*(it.unitPrice||0)}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="text-right text-sm font-semibold">結案金額：{(order.serviceItems||[]).reduce((s:number,it:any)=> s + it.unitPrice*it.quantity, 0) - (order.pointsDeductAmount||0)}</div>
+            </div>
+            <div className="mt-3 flex justify-between gap-2">
+              <button onClick={()=>setInvoiceOpen(false)} className="rounded bg-gray-100 px-3 py-1">取消</button>
+              <button
+                onClick={async()=>{
+                  try{
+                    const svc = await import('../../services/eInvoice')
+                    const amount = (order.serviceItems||[]).reduce((s:number,it:any)=> s + it.unitPrice*it.quantity, 0) - (order.pointsDeductAmount||0)
+                    const payload = {
+                      orderId: order.id,
+                      buyer: { name: invoiceBuyerName, email: invoiceEmail, phone: order.customerPhone||'' },
+                      items: (order.serviceItems||[]).map((it:any)=>({ name: it.name, quantity: it.quantity, unitPrice: it.unitPrice })),
+                      amount,
+                      donation: invoiceDonation,
+                      phoneCarrier: invoiceCarrierPhone,
+                      orderCode: invoiceOrderCode,
+                      note: (order as any).note || ''
+                    }
+                    let res: any
+                    if (invoiceTaxId) {
+                      // B2B
+                      res = await (svc as any).EInvoice.createB2B({
+                        buyer: { companyName: invoiceCompanyTitle||invoiceBuyerName, taxId: invoiceTaxId, email: invoiceEmail },
+                        items: payload.items,
+                        totalFee: amount,
+                        amount: Math.round(amount - amount/1.05),
+                        sales: Math.round(amount/1.05),
+                        taxState: invoiceTaxState
+                      })
+                    } else {
+                      // B2C
+                      res = await (svc as any).EInvoice.createB2C(payload)
+                    }
+                    const code = res?.invoiceNumber || res?.code || 'INV-' + String(Math.random()).slice(2,8)
+                    await repos.orderRepo.update(order.id, { invoiceCode: code, invoiceStatus: 'issued' as any })
+                    const o = await repos.orderRepo.get(order.id); setOrder(o)
+                    setInvoiceOpen(false)
+                    alert('已開立電子發票：' + code)
+                  }catch(err:any){ alert('開立失敗：' + (err?.message||'未知錯誤')) }
+                }}
+                className="rounded bg-gray-900 px-3 py-1 text-white"
+              >一鍵送出</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 簽名畫布：技師/客戶通用 */}
       <SignatureModal

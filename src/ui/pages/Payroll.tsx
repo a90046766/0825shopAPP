@@ -615,13 +615,13 @@ export default function Payroll() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">獎金比例</label>
-                                 <Select
-                   value={String(editingRecord.bonusRate || 10)}
-                   onChange={(e) => setEditingRecord({
-                     ...editingRecord,
-                     bonusRate: Number(e.target.value) as 10 | 20 | 30
-                   })}
-                 >
+                <Select
+                  value={String(editingRecord.bonusRate || 10)}
+                  onChange={(e) => setEditingRecord({
+                    ...editingRecord,
+                    bonusRate: Number(e.target.value) as 10 | 20 | 30
+                  })}
+                >
                   <option value={10}>10%</option>
                   <option value={20}>20%</option>
                   <option value={30}>30%</option>
@@ -668,38 +668,45 @@ export default function Payroll() {
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            此功能適用於年終獎金等批量調整。選擇要調整的項目和金額，系統將自動套用到所有客服人員。
+            適用於年終獎金或臨時補貼的批量調整。選擇對象、項目與金額後套用。
           </p>
           
-          <div className="grid grid-cols-2 gap-4">
-                         <div>
-               <label className="block text-sm font-medium mb-1">調整項目</label>
-               <Select value="" onChange={() => {}}>
-                 <option value="">選擇項目</option>
-                 <option value="baseSalary">基本薪資</option>
-                 <option value="bonus">獎金</option>
-                 <option value="allowances.fuel">油資補貼</option>
-                 <option value="allowances.holiday">節金</option>
-                 <option value="allowances.duty">職務加給</option>
-               </Select>
-             </div>
-            
-                         <div>
-               <label className="block text-sm font-medium mb-1">調整金額</label>
-               <Input
-                 type="number"
-                 value=""
-                 onChange={() => {}}
-                 placeholder="輸入金額"
-               />
-             </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">套用對象</label>
+              <Select value={bulkRole} onChange={(e)=>setBulkRole(e.target.value as any)}>
+                <option value="all">全部</option>
+                <option value="support">客服</option>
+                <option value="sales">業務</option>
+                <option value="technician">技師</option>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">調整項目</label>
+              <Select value={bulkField} onChange={(e)=>setBulkField(e.target.value)}>
+                <option value="bonus">獎金</option>
+                <option value="baseSalary">基本薪資</option>
+                <option value="allowances.fuel">油資補貼</option>
+                <option value="allowances.holiday">節金</option>
+                <option value="allowances.duty">職務加給</option>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">調整金額</label>
+              <Input
+                type="number"
+                value={bulkAmount}
+                onChange={(e)=>setBulkAmount(e.target.value)}
+                placeholder="輸入金額"
+              />
+            </div>
           </div>
           
           <div className="flex justify-end space-x-2">
             <Button variant="outline" onClick={() => setShowBulkEditModal(false)}>
               取消
             </Button>
-            <Button>
+            <Button onClick={applyBulk}>
               套用到所有人
             </Button>
           </div>

@@ -13,7 +13,19 @@ function getCurrentUser(): any {
 }
 
 function AppBar() {
-  const title = { '/dispatch': '派工', '/me': '個人', '/notifications': '通知', '/schedule': '排班', '/customers': '客戶', '/payroll': '薪資', '/reports': '回報', '/report-center': '回報' } as Record<string,string>
+  const title = { 
+    '/dispatch': '派工', 
+    '/me': '個人', 
+    '/notifications': '通知', 
+    '/schedule': '排班', 
+    '/customers': '客戶', 
+    '/payroll': '薪資', 
+    '/salary': '我的薪資',
+    '/reports': '回報', 
+    '/report-center': '回報',
+    '/leave-management': '請假管理',
+    '/cms': 'CMS 編輯'
+  } as Record<string,string>
   const loc = useLocation()
   const navigate = useNavigate()
   const t = title[loc.pathname] || '訂單內容'
@@ -107,25 +119,25 @@ function DesktopNav() {
  const menuTop = [
   { to: '/dispatch', label: '派工總覽', perm: 'dashboard.view' },
   { to: '/orders', label: '訂單管理', perm: 'orders.list' },
-  { to: '/reservations', label: '預約訂單', perm: 'reservations.manage' },
   { to: '/store', label: '購物站', perm: 'dashboard.view' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
+  { to: '/leave-management', label: '請假管理', perm: 'admin' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
+  { to: '/products', label: '商品管理', perm: 'products.manage' },
+  { to: '/admin/broadcast', label: '站內廣播', perm: 'bulletin.manage' },
   { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
+  { to: '/salary', label: '我的薪資', perm: 'dashboard.view' },
   { to: '/documents', label: '文件管理', perm: 'documents.manage' },
-  { to: '/models', label: '機型管理', perm: 'models.manage' },
+  { to: '/cms', label: 'CMS 編輯', perm: 'promotions.manage' },
   { to: '/quotes', label: '職人語錄', perm: 'dashboard.view' },
   { to: '/me', label: '個人設定', perm: 'dashboard.view' }
 ]
   const menuBottom = [
     { to: '/technicians', label: '技師管理', perm: 'technicians.manage' },
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
-    { to: '/reports', label: '報表', perm: 'reports.manage' },
-    { to: '/models', label: '機型管理', perm: 'models.manage' },
+    { to: '/reports', label: '報表管理', perm: 'reports.manage' },
     { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
-    { to: '/products', label: '商品管理', perm: 'products.manage' },
-    { to: '/admin/broadcast', label: '站內廣播 📢', perm: 'bulletin.manage' },
     { to: '/approvals', label: '待審核', perm: 'approvals.manage' }
   ]
 
@@ -139,14 +151,12 @@ function DesktopNav() {
         // - 訂單：orders confirmed & 未開工
         // - 回報中心：僅未結案且對當前使用者可見
         const a = await loadAdapters()
-        const [ordersAll, threads, resR] = await Promise.all([
+        const [ordersAll, threads] = await Promise.all([
           a.orderRepo?.list?.() ?? [],
-          (a as any)?.reportsRepo?.list?.() ?? [],
-          fetch('/api/reservations').then(r=>r.json()).catch(()=>({success:true,data:[]}))
+          (a as any)?.reportsRepo?.list?.() ?? []
         ])
         const ordersNew = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && !o.workStartedAt).length
         const needAssign = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && (!Array.isArray(o.assignedTechnicians) || o.assignedTechnicians.length===0)).length
-        const rsvPending = Array.isArray(resR?.data) ? resR.data.filter((r:any)=> r.status==='pending').length : 0
         const emailLc = (user?.email||'').toLowerCase()
         const visible = (threads||[]).filter((t:any)=>{
           if (t.status !== 'open') return false
@@ -159,7 +169,7 @@ function DesktopNav() {
           }
           return false
         }).length
-        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: visible }))
+        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reports: visible }))
       } catch {}
     })()
   }, [loc.pathname])
@@ -171,7 +181,6 @@ function DesktopNav() {
     const rawBadge = to==='/approvals' ? (counts.approvals||0)
       : to==='/orders' ? (counts.orders||0)
       : to==='/schedule' ? (counts.schedule||0)
-      : to==='/reservations' ? (counts.reservations||0)
       : to==='/report-center' ? (counts.reports||0)
       : undefined
     const badge = rawBadge && rawBadge > 0 ? rawBadge : undefined

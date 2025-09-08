@@ -21,12 +21,24 @@
   status = 200
 
 [[redirects]]
-  from = "/api/reservations"
-  to = "/.netlify/functions/reservations"
+  from = "/api/einvoice/create-b2c"
+  to = "/.netlify/functions/einvoice-create-b2c"
   status = 200
 [[redirects]]
-  from = "/api/member-reservations/*"
-  to = "/.netlify/functions/member-reservations/:splat"
+  from = "/api/einvoice/create-b2b"
+  to = "/.netlify/functions/einvoice-create-b2b"
+  status = 200
+[[redirects]]
+  from = "/api/einvoice/cancel"
+  to = "/.netlify/functions/einvoice-cancel"
+  status = 200
+[[redirects]]
+  from = "/api/einvoice/query"
+  to = "/.netlify/functions/einvoice-query"
+  status = 200
+[[redirects]]
+  from = "/api/einvoice/print"
+  to = "/.netlify/functions/einvoice-print"
   status = 200
 
 
@@ -35,11 +47,7 @@
   to = "/store/:splat"
   status = 301
 
-[[redirects]]
-  from = "/api/reservation-confirm/*"
-  to = "/.netlify/functions/reservation-confirm/:splat"
-  status = 200
-  force = true
+
 
 [[redirects]]
   from = "/"
@@ -64,6 +72,10 @@
   VITE_QUIET_BOOT = "0"
   VITE_STORE_BASE_URL = "https://store.942clean.com.tw"
   VITE_APP_BASE_URL = "https://app.942clean.com.tw"
+  # Giveme 電子發票 API（僅供 Functions 使用，避免暴露於前端）
+  EINVOICE_IDNO = "api_90046766"
+  EINVOICE_PASSWORD = "Api942Clean!2024"
+  EINVOICE_UNCODE = "90046766"
 
 ## Cache headers：避免 index.html 舊版快取造成新 chunk 404
 [[headers]]

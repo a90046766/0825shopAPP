@@ -81,6 +81,22 @@ export default function TechnicianManagementPage() {
             <div className="mb-2 text-lg font-semibold">編輯技師</div>
             <div className="space-y-2 text-sm">
               <div>姓名：<input className="w-full rounded border px-2 py-1" value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})} /></div>
+              <div>
+                區域：
+                <select className="w-full rounded border px-2 py-1" value={edit.region||'all'} onChange={e=>setEdit({...edit,region:e.target.value})}>
+                  <option value="all">全區</option>
+                  <option value="north">北區</option>
+                  <option value="central">中區</option>
+                  <option value="south">南區</option>
+                </select>
+              </div>
+              <div>
+                狀態：
+                <select className="w-full rounded border px-2 py-1" value={edit.status||'active'} onChange={e=>setEdit({...edit,status:e.target.value})}>
+                  <option value="active">啟用</option>
+                  <option value="suspended">停用</option>
+                </select>
+              </div>
               <div>方案：
                 <select className="w-full rounded border px-2 py-1" value={edit.revenueShareScheme||''} onChange={e=>setEdit({...edit,revenueShareScheme:e.target.value})}>
                   <option value="">未指定</option>

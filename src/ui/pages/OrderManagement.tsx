@@ -20,7 +20,7 @@ export default function OrderManagementPage() {
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
   const user = getCurrentUser()
   const [q, setQ] = useState('')
-  const [statusTab, setStatusTab] = useState<'all'|'pending'|'completed'|'closed'>('all')
+  const [statusTab, setStatusTab] = useState<'all'|'pending'|'confirmed'|'completed'|'closed'|'invoice'>('all')
   const [pf, setPf] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<any>({ 
@@ -60,9 +60,11 @@ export default function OrderManagementPage() {
     const byPf = pfKeys.length===0 || pfKeys.includes(o.platform)
     const byStatus = (()=>{
       if (statusTab==='all') return true
-      if (statusTab==='pending') return ['draft','confirmed','in_progress'].includes(o.status)
+      if (statusTab==='pending') return o.status==='draft'
+      if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
       if (statusTab==='completed') return o.status==='completed'
       if (statusTab==='closed') return (o.status==='canceled' || (o as any).status==='unservice')
+      if (statusTab==='invoice') return o.status==='completed' && !o.invoiceCode
       return true
     })()
     return hit && byPf && byStatus && isOwner(o)
@@ -72,10 +74,12 @@ export default function OrderManagementPage() {
   const ownRows = rows.filter(isOwner)
   const counts = {
     all: ownRows.length,
-    pending: ownRows.filter(o=> ['draft','confirmed','in_progress'].includes(o.status)).length,
+    pending: ownRows.filter(o=> o.status==='draft').length,
+    confirmed: ownRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
     completed: ownRows.filter(o=> o.status==='completed').length,
     closed: ownRows.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
-  }
+    invoice: ownRows.filter(o=> o.status==='completed' && !o.invoiceCode).length,
+  } as any
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -83,8 +87,10 @@ export default function OrderManagementPage() {
       <div className="flex items-center gap-2 text-xs">
         {([
           ['all','全部'],
-          ['pending','待服務'],
+          ['pending','待確認'],
+          ['confirmed','待服務'],
           ['completed','已完成'],
+          ['invoice','發票未寄送'],
           ['closed','已結案'],
         ] as any[]).map(([key,label])=> (
           <button key={key} onClick={()=>setStatusTab(key)} className={`rounded-full px-2.5 py-1 ${statusTab===key? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'}`}>{label}</button>
@@ -145,10 +151,12 @@ export default function OrderManagementPage() {
       {/* 技師卡牌式入口：顯示各分類數量，可點擊切換 */}
       {isTech && (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {([
+          {([ 
             ['all','全部', counts.all],
-            ['pending','待服務', counts.pending],
+            ['pending','待確認', counts.pending],
+            ['confirmed','待服務', counts.confirmed],
             ['completed','已完成', counts.completed],
+            ['invoice','發票未寄送', counts.invoice],
             ['closed','已結案', counts.closed],
           ] as any[]).map(([key,label,num])=> (
             <button key={key} onClick={()=>setStatusTab(key)} className={`rounded-2xl border p-4 text-left shadow-card ${statusTab===key? 'ring-2 ring-brand-400' : ''}`}>
