@@ -203,46 +203,6 @@ export default function PageOrderDetail() {
           </div>
         </div>
         
-        {/* 來源平台和訂單狀態編輯 - 僅管理員和客服可見 */}
-        {isAdminOrSupport && (
-          <div className="mt-2 text-xs text-gray-600">
-            來源平台：
-            <select className="ml-1 rounded border px-2 py-0.5" value={order.platform||'日'} onChange={async e=>{ await repos.orderRepo.update(order.id, { platform: e.target.value as any }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
-              {['日','同','黃','今'].map(p=> <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-        )}
-        {isAdminOrSupport && (
-          <div className="mt-2 text-xs text-gray-600">
-            訂單狀態：
-            <select
-              className="ml-1 rounded border px-2 py-0.5"
-              value={order.status}
-              onChange={async (e)=>{
-                const v = e.target.value as any
-                const patch: any = { status: v }
-                // 自動設定完成時間
-                if (v === 'completed' && !order.workCompletedAt) {
-                  patch.workCompletedAt = new Date().toISOString()
-                }
-                // 已結案時設定結案時間
-                if (v === 'closed' && !order.closedAt) {
-                  patch.closedAt = new Date().toISOString()
-                }
-                await repos.orderRepo.update(order.id, patch)
-                const o = await repos.orderRepo.get(order.id)
-                setOrder(o)
-              }}
-            >
-              <option value="draft">待確認</option>
-              <option value="confirmed">已確認</option>
-              <option value="in_progress">服務中</option>
-              <option value="completed">已完工</option>
-              <option value="closed">已結案</option>
-              <option value="canceled">已取消</option>
-            </select>
-          </div>
-        )}
         
         <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
           <div>姓名：<input className="w-full rounded border px-2 py-1" value={customerNameEdit} onChange={e=>setCustomerNameEdit(e.target.value)} onBlur={async()=>{ if (customerNameEdit===order.customerName) return; await repos.orderRepo.update(order.id, { customerName: customerNameEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} /></div>
@@ -564,8 +524,47 @@ export default function PageOrderDetail() {
         <div className="mt-3 space-y-2 text-sm">
           <div className="grid grid-cols-2 gap-2">
             <div>下單時間：<input type="datetime-local" className="w-full rounded border px-2 py-1" value={createdAtEdit} readOnly /></div>
-            <div />
+            <div>建單人：<input className="w-full rounded border px-2 py-1 bg-gray-50" value={order.createdBy || '—'} readOnly /></div>
           </div>
+          
+          {/* 來源平台和訂單狀態編輯 - 僅管理員和客服可見 */}
+          {isAdminOrSupport && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>來源平台：
+                <select className="ml-1 rounded border px-2 py-0.5" value={order.platform||'日'} onChange={async e=>{ await repos.orderRepo.update(order.id, { platform: e.target.value as any }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
+                  {['日','同','黃','今'].map(p=> <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>訂單狀態：
+                <select
+                  className="ml-1 rounded border px-2 py-0.5"
+                  value={order.status}
+                  onChange={async (e)=>{
+                    const v = e.target.value as any
+                    const patch: any = { status: v }
+                    // 自動設定完成時間
+                    if (v === 'completed' && !order.workCompletedAt) {
+                      patch.workCompletedAt = new Date().toISOString()
+                    }
+                    // 已結案時設定結案時間
+                    if (v === 'closed' && !order.closedAt) {
+                      patch.closedAt = new Date().toISOString()
+                    }
+                    await repos.orderRepo.update(order.id, patch)
+                    const o = await repos.orderRepo.get(order.id)
+                    setOrder(o)
+                  }}
+                >
+                  <option value="draft">待確認</option>
+                  <option value="confirmed">已確認</option>
+                  <option value="in_progress">服務中</option>
+                  <option value="completed">已完工</option>
+                  <option value="closed">已結案</option>
+                  <option value="canceled">已取消</option>
+                </select>
+              </div>
+            </div>
+          )}
           <div>服務日期：
             <div className="mt-1 grid grid-cols-3 gap-2">
               <input type="date" className="rounded border px-2 py-1" value={dateEdit} disabled={isTechnician} onChange={e=>setDateEdit(e.target.value)} onBlur={async()=>{ if(isTechnician) return; await repos.orderRepo.update(order.id, { preferredDate: dateEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} />
