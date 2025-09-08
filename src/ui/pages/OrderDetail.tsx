@@ -49,7 +49,8 @@ export default function PageOrderDetail() {
   const [invoiceOrderCode, setInvoiceOrderCode] = useState('')
   const [invoiceDonation, setInvoiceDonation] = useState(false)
   const [invoiceTaxState, setInvoiceTaxState] = useState<'0'|'1'>('0') // 0:含稅 1:未稅
-  const user = authRepo.getCurrentUser()
+  const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
+  const user = getCurrentUser()
   const [repos, setRepos] = useState<any>(null)
   const [techs, setTechs] = useState<any[]>([])
   const [uploadingBefore, setUploadingBefore] = useState(false)
@@ -202,7 +203,7 @@ export default function PageOrderDetail() {
           </div>
         </div>
         
-        {/* 來源平台調整到上方（僅客服/管理員可修改） */}
+        {/* 來源平台和訂單狀態編輯 - 僅管理員和客服可見 */}
         {isAdminOrSupport && (
           <div className="mt-2 text-xs text-gray-600">
             來源平台：
@@ -902,6 +903,20 @@ export default function PageOrderDetail() {
           <div className="flex flex-wrap items-center gap-2">
             {order.status==='confirmed' && (
               <button onClick={()=>setPromiseOpen(true)} className="rounded bg-brand-500 px-3 py-1 text-white">開始服務</button>
+            )}
+            {order.status==='in_progress' && timeLeftSec===0 && (
+              <button
+                onClick={async()=>{
+                  if (!confirm('是否確認服務完成？')) return
+                  const now = new Date().toISOString()
+                  await repos.orderRepo.update(order.id, { 
+                    status: 'completed', 
+                    workCompletedAt: now
+                  })
+                  const o=await repos.orderRepo.get(order.id); setOrder(o)
+                }}
+                className="rounded bg-green-600 px-3 py-1 text-white"
+              >服務完成</button>
             )}
             {(order.status==='confirmed' || order.status==='in_progress') && (
               <button onClick={()=>setUnserviceOpen(true)} className="rounded bg-amber-600 px-3 py-1 text-white">無法服務</button>
