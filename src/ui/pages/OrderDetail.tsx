@@ -171,7 +171,7 @@ export default function PageOrderDetail() {
     ? order.assignedTechnicians
     : (derivedAssigned || [])
   const canClose = (
-    (order.status==='in_progress' || order.status==='unservice') &&
+    (order.status==='in_progress' || order.status==='unservice' || order.status==='completed') &&
     timeLeftSec===0 &&
     hasSignature &&
     (!!payMethod || payStatus==='nopay') &&
@@ -179,7 +179,7 @@ export default function PageOrderDetail() {
     requirePhotosOk
   )
   const closeDisabledReason = (()=>{
-    if (!(order.status==='in_progress' || order.status==='unservice')) return '尚未開始/或已標記無法服務'
+    if (!(order.status==='in_progress' || order.status==='unservice' || order.status==='completed')) return '尚未開始/或已標記無法服務'
     if (timeLeftSec>0) return `剩餘 ${String(Math.floor(timeLeftSec/60)).padStart(2,'0')}:${String(timeLeftSec%60).padStart(2,'0')}`
     if (!hasTechSignature || !hasCustomerSignature) return '需完成雙簽名'
     if (!(payStatus==='paid' || payStatus==='nopay')) return '需完成付款或標記不用付款'
@@ -220,7 +220,14 @@ export default function PageOrderDetail() {
               onChange={async (e)=>{
                 const v = e.target.value as any
                 const patch: any = { status: v }
-                if (v === 'completed' && !order.workCompletedAt) patch.workCompletedAt = new Date().toISOString()
+                // 自動設定完成時間
+                if (v === 'completed' && !order.workCompletedAt) {
+                  patch.workCompletedAt = new Date().toISOString()
+                }
+                // 已結案時設定結案時間
+                if (v === 'closed' && !order.closedAt) {
+                  patch.closedAt = new Date().toISOString()
+                }
                 await repos.orderRepo.update(order.id, patch)
                 const o = await repos.orderRepo.get(order.id)
                 setOrder(o)
@@ -228,7 +235,10 @@ export default function PageOrderDetail() {
             >
               <option value="draft">待確認</option>
               <option value="confirmed">已確認</option>
-              <option value="completed">已完成</option>
+              <option value="in_progress">服務中</option>
+              <option value="completed">已完工</option>
+              <option value="closed">已結案</option>
+              <option value="canceled">已取消</option>
             </select>
           </div>
         )}
@@ -695,7 +705,7 @@ export default function PageOrderDetail() {
           <div className="rounded border p-2">
             <div className="text-xs text-gray-600">客戶簽名</div>
             <div className="mt-1 flex items-center gap-2">
-              <div className={`h-16 w-32 cursor-pointer rounded border ${hasCustomerSignature?'bg-white':'bg-gray-50'}`} onClick={()=>{ if(hasCustomerSignature) return; setSignAs('customer'); setSignOpen(true) }}>
+              <div className={`h-16 w-32 cursor-pointer rounded border ${hasCustomerSignature?'bg-white':'bg-gray-50'}`} onClick={()=>{ if(hasCustomerSignature) return; setSignAs('customer'); setPromiseOpen(true) }}>
                 {hasCustomerSignature && (order as any)?.signatures?.customer ? (
                   <img src={(order as any).signatures.customer} className="h-full w-full object-contain" />
                 ) : (
@@ -896,14 +906,20 @@ export default function PageOrderDetail() {
             {(order.status==='confirmed' || order.status==='in_progress') && (
               <button onClick={()=>setUnserviceOpen(true)} className="rounded bg-amber-600 px-3 py-1 text-white">無法服務</button>
             )}
-            {(order.status==='in_progress' || order.status==='unservice') && (
+            {(order.status==='in_progress' || order.status==='unservice' || order.status==='completed') && (
               <button
                 disabled={!canClose}
                 title={canClose ? '' : closeDisabledReason}
                 onClick={async()=>{
                   if (!hasSignature) { alert('請先完成客戶與技師雙簽名'); return }
                   if (!confirm('是否確認服務完成並結案？')) return
-                  await repos.orderRepo.finishWork(order.id, new Date().toISOString())
+                  // 直接設定為已結案狀態，並觸發積分計算
+                  const now = new Date().toISOString()
+                  await repos.orderRepo.update(order.id, { 
+                    status: 'closed', 
+                    workCompletedAt: order.workCompletedAt || now,
+                    closedAt: now
+                  })
                   try {
                     const { applyPointsOnOrderCompletion } = await import('../../services/points')
                     const fresh = await repos.orderRepo.get(order.id)
@@ -996,7 +1012,7 @@ export default function PageOrderDetail() {
       {promiseOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-card">
-            <div className="mb-2 text-lg font-semibold">開始服務前：我們的承諾</div>
+            <div className="mb-2 text-lg font-semibold">{signAs === 'customer' ? '客戶簽名前：我們的承諾' : '開始服務前：我們的承諾'}</div>
             <div className="text-center">
               <img
                 alt="我們的承諾 QR"
@@ -1020,7 +1036,20 @@ export default function PageOrderDetail() {
             </div>
             <div className="mt-3 flex justify-between gap-2">
               <button onClick={()=>setPromiseOpen(false)} className="rounded bg-gray-100 px-3 py-1">取消</button>
-              <button onClick={async()=>{ setPromiseOpen(false); const nowIso=new Date().toISOString(); await repos.orderRepo.startWork(order.id, nowIso); const o=await repos.orderRepo.get(order.id); setOrder(o); try{ alert('已開始服務：'+ new Date(nowIso).toLocaleString()) }catch{} }} className="rounded bg-brand-500 px-3 py-1 text-white">我知道了，開始</button>
+              <button onClick={async()=>{ 
+                setPromiseOpen(false); 
+                if (signAs === 'customer') {
+                  // 客戶簽名流程：先看承諾，再開啟簽名畫布
+                  setSignOpen(true);
+                } else {
+                  // 技師開始服務流程
+                  const nowIso=new Date().toISOString(); 
+                  await repos.orderRepo.startWork(order.id, nowIso); 
+                  const o=await repos.orderRepo.get(order.id); 
+                  setOrder(o); 
+                  try{ alert('已開始服務：'+ new Date(nowIso).toLocaleString()) }catch{} 
+                }
+              }} className="rounded bg-brand-500 px-3 py-1 text-white">{signAs === 'customer' ? '我知道了，開始簽名' : '我知道了，開始'}</button>
             </div>
           </div>
         </div>

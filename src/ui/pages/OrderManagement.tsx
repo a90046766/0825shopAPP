@@ -69,8 +69,8 @@ export default function OrderManagementPage() {
       if (statusTab==='pending') return o.status==='draft'
       if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
       if (statusTab==='completed') return o.status==='completed'
-      if (statusTab==='closed') return ((o.status==='canceled' || (o as any).status==='unservice') || !!o.closedAt)
-      if (statusTab==='invoice') return o.status==='completed' && !o.invoiceCode
+      if (statusTab==='closed') return o.status==='closed' || o.status==='canceled' || (o as any).status==='unservice'
+      if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
       return true
     })()
     return hit && byPf && byDate && byStatus && isOwner(o)

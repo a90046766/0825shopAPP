@@ -48,6 +48,7 @@ const ShopProductsPage = React.lazy(() => import('./ui/pages/ShopProducts'))
 const ShopCartPage = React.lazy(() => import('./ui/pages/ShopCart'))
 const OrderSuccessPage = React.lazy(() => import('./ui/pages/OrderSuccess'))
 const SalaryPage = React.lazy(() => import('./ui/pages/Salary'))
+const LeaveManagementPage = React.lazy(() => import('./ui/pages/LeaveManagement'))
 const DatabaseTestPage = React.lazy(() => import('./ui/pages/DatabaseTest'))
 const AdminContentPage = React.lazy(() => import('./ui/pages/AdminContent'))
 const AdminSettingsPage = React.lazy(() => import('./ui/pages/AdminSettings'))
@@ -195,6 +196,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
         <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
         <Route path="/salary" element={<PrivateRoute><SalaryPage /></PrivateRoute>} />
+        <Route path="/leave-management" element={<PrivateRoute permission="leave.manage"><LeaveManagementPage /></PrivateRoute>} />
         <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
         <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
       </Route>

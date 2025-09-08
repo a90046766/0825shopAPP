@@ -161,7 +161,18 @@ export default function InventoryPage() {
         <div className="text-lg font-semibold">工具設備管理（內部用）</div>
         {can(u, 'inventory.create') && (
           <button 
-            onClick={() => setCreating(true)} 
+            onClick={() => {
+              setCreating(true)
+              setEdit({
+                name: '',
+                description: '',
+                category: '',
+                quantity: 0,
+                safeStock: 0,
+                unitPrice: 0,
+                imageUrls: []
+              })
+            }} 
             className="rounded-lg bg-brand-500 px-3 py-1 text-white hover:bg-brand-600"
           >
             新增工具設備
