@@ -13,7 +13,11 @@ export default function LeaveManagementPage() {
   const [creating, setCreating] = useState(false)
   const [edit, setEdit] = useState<any | null>(null)
   
-  const load = async () => { if(!repos) return; setRows(await repos.leaveRepo?.list?.() || []) }
+  const load = async () => { 
+    if(!repos) return; 
+    // 載入所有人的請假申請
+    setRows(await repos.leaveRepo?.list?.() || [])
+  }
   useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a) })() }, [])
   useEffect(() => { if(repos) load() }, [repos])
 
@@ -21,24 +25,22 @@ export default function LeaveManagementPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">請假管理</div>
-        {can(u, 'leave.create') && (
-          <button 
-            onClick={() => {
-              setCreating(true)
-              setEdit({
-                technicianEmail: u?.email || '',
-                date: '',
-                fullDay: true,
-                startTime: '',
-                endTime: '',
-                reason: ''
-              })
-            }} 
-            className="rounded-lg bg-brand-500 px-3 py-1 text-white hover:bg-brand-600"
-          >
-            新增請假申請
-          </button>
-        )}
+        <button 
+          onClick={() => {
+            setCreating(true)
+            setEdit({
+              technicianEmail: u?.email || '',
+              date: '',
+              fullDay: true,
+              startTime: '',
+              endTime: '',
+              reason: ''
+            })
+          }} 
+          className="rounded-lg bg-brand-500 px-3 py-1 text-white hover:bg-brand-600"
+        >
+          新增請假申請
+        </button>
       </div>
 
       <div className="space-y-3">
@@ -71,7 +73,8 @@ export default function LeaveManagementPage() {
                    leave.status === 'rejected' ? '已拒絕' : '待審核'}
                 </span>
                 
-                {can(u, 'leave.approve') && leave.status === 'pending' && (
+                {/* 管理員可以核准/拒絕待審核的請假 */}
+                {u?.role === 'admin' && leave.status === 'pending' && (
                   <div className="flex gap-1">
                     <button 
                       onClick={async()=>{ 
@@ -95,6 +98,30 @@ export default function LeaveManagementPage() {
                     </button>
                   </div>
                 )}
+                
+                {/* 申請者可以編輯/取消自己的待審核請假 */}
+                {leave.technicianEmail === u?.email && leave.status === 'pending' && (
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={() => setEdit(leave)} 
+                      className="rounded bg-blue-500 px-2 py-1 text-white text-xs"
+                    >
+                      編輯
+                    </button>
+                    <button 
+                      onClick={async()=>{ 
+                        if(!repos) return; 
+                        if(confirm('確認取消此請假申請？')) {
+                          await repos.leaveRepo?.cancel?.(leave.id); 
+                          load() 
+                        }
+                      }} 
+                      className="rounded bg-gray-500 px-2 py-1 text-white text-xs"
+                    >
+                      取消
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -104,6 +131,105 @@ export default function LeaveManagementPage() {
       {rows.length === 0 && (
         <div className="text-center text-gray-500 py-8">
           尚無請假申請
+        </div>
+      )}
+
+      {/* 編輯請假申請模態框 */}
+      {edit && !creating && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-card">
+            <div className="mb-4 text-lg font-semibold">編輯請假申請</div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">請假日期 *</label>
+                <input 
+                  type="date"
+                  className="w-full rounded border px-3 py-2" 
+                  value={edit?.date || ''} 
+                  onChange={e=>setEdit({...edit,date:e.target.value})} 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">請假類型</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center">
+                    <input 
+                      type="radio" 
+                      name="type" 
+                      checked={edit?.fullDay} 
+                      onChange={()=>setEdit({...edit,fullDay:true})}
+                    />
+                    <span className="ml-2">全天</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input 
+                      type="radio" 
+                      name="type" 
+                      checked={!edit?.fullDay} 
+                      onChange={()=>setEdit({...edit,fullDay:false})}
+                    />
+                    <span className="ml-2">部分時段</span>
+                  </label>
+                </div>
+              </div>
+              
+              {!edit?.fullDay && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">開始時間</label>
+                    <input 
+                      type="time"
+                      className="w-full rounded border px-3 py-2" 
+                      value={edit?.startTime || ''} 
+                      onChange={e=>setEdit({...edit,startTime:e.target.value})} 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">結束時間</label>
+                    <input 
+                      type="time"
+                      className="w-full rounded border px-3 py-2" 
+                      value={edit?.endTime || ''} 
+                      onChange={e=>setEdit({...edit,endTime:e.target.value})} 
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">請假原因 *</label>
+                <textarea 
+                  className="w-full rounded border px-3 py-2" 
+                  placeholder="請輸入請假原因"
+                  rows={3}
+                  value={edit?.reason || ''} 
+                  onChange={e=>setEdit({...edit,reason:e.target.value})} 
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button 
+                onClick={() => setEdit(null)} 
+                className="rounded-lg bg-gray-100 px-4 py-2 hover:bg-gray-200"
+              >
+                取消
+              </button>
+              <button 
+                onClick={async()=>{ 
+                  if(!repos || !edit?.date || !edit?.reason) return; 
+                  await repos.leaveRepo?.update?.(edit.id, edit); 
+                  setEdit(null)
+                  load() 
+                }} 
+                className="rounded-lg bg-brand-500 px-4 py-2 text-white hover:bg-brand-600"
+              >
+                更新申請
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

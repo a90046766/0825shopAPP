@@ -196,7 +196,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
         <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
         <Route path="/salary" element={<PrivateRoute><SalaryPage /></PrivateRoute>} />
-        <Route path="/leave-management" element={<PrivateRoute permission="leave.manage"><LeaveManagementPage /></PrivateRoute>} />
+        <Route path="/leave-management" element={<PrivateRoute><LeaveManagementPage /></PrivateRoute>} />
         <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
         <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
       </Route>

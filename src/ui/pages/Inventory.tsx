@@ -159,7 +159,7 @@ export default function InventoryPage() {
       {/* 標題和新增按鈕 */}
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">工具設備管理（內部用）</div>
-        {can(u, 'inventory.create') && (
+        <div className="flex items-center gap-2">
           <button 
             onClick={() => {
               setCreating(true)
@@ -177,7 +177,7 @@ export default function InventoryPage() {
           >
             新增工具設備
           </button>
-        )}
+        </div>
       </div>
 
       {/* 搜索和過濾 */}
@@ -283,7 +283,7 @@ export default function InventoryPage() {
                   </button>
                 )}
                 
-                {can(u, 'inventory.edit') && (
+                {(u?.role === 'admin' || u?.role === 'support') && (
                   <button 
                     onClick={() => setEdit(item)} 
                     className="rounded-lg bg-gray-900 px-3 py-1 text-white text-sm hover:bg-gray-800"
@@ -292,7 +292,7 @@ export default function InventoryPage() {
                   </button>
                 )}
                 
-                {can(u, 'inventory.delete') && (
+                {(u?.role === 'admin' || u?.role === 'support') && (
                   <button 
                     onClick={async()=>{ 
                       const { confirmTwice } = await import('../kit'); 
