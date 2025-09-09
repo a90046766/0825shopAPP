@@ -9,7 +9,10 @@ function toDbRow(item: Partial<InventoryItem>): any {
     safeStock: 'safe_stock',
   }
   for (const [camel, snake] of Object.entries(map)) {
-    if (camel in r) r[snake] = (r as any)[camel]
+    if (camel in r) {
+      r[snake] = (r as any)[camel]
+      delete r[camel] // 移除原始欄位
+    }
   }
   return r
 }
