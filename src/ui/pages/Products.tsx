@@ -14,6 +14,7 @@ export default function ProductsPage() {
   const [cats, setCats] = useState<Array<{id:string;name:string}>>([])
   const [catMngOpen, setCatMngOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const REGION_GROUPS = ['北北基','桃竹苗','中彰投','南高']
   const PRESET_CATEGORIES = [
     '專業清洗服務',
     '家電購買服務',
@@ -213,7 +214,30 @@ export default function ProductsPage() {
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!edit.published} onChange={e=>setEdit({...edit,published:e.target.checked})} />上架（顯示於購物車）</label>
               <div>排序：<input type="number" className="w-full rounded border px-2 py-1" value={edit.storeSort||0} onChange={e=>setEdit({...edit,storeSort:Number(e.target.value)||0})} /></div>
               <div>內容：<textarea className="w-full rounded border px-2 py-1" rows={3} value={edit.content || ''} onChange={e=>setEdit({...edit,content:e.target.value})} placeholder="產品詳細內容描述..." /></div>
-              <div>地區：<input className="w-full rounded border px-2 py-1" value={edit.region || ''} onChange={e=>setEdit({...edit,region:e.target.value})} placeholder="服務地區..." /></div>
+              <div>
+                服務地區（可複選，可留空）：
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {REGION_GROUPS.map(g => {
+                    const picked = (edit.region||'').split(/[\s,、]+/).filter(Boolean)
+                    const on = picked.includes(g)
+                    return (
+                      <button
+                        key={g}
+                        onClick={() => {
+                          const set = new Set(picked)
+                          if (on) set.delete(g); else set.add(g)
+                          setEdit({ ...edit, region: Array.from(set).join(' ') })
+                        }}
+                        className={`rounded px-3 py-1 text-sm ${on? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                      >{g}</button>
+                    )
+                  })}
+                  <button
+                    onClick={()=> setEdit({ ...edit, region: '' })}
+                    className="rounded px-3 py-1 text-sm bg-gray-100 text-gray-600"
+                  >清空</button>
+                </div>
+              </div>
               <div>預設數量：<input type="number" className="w-full rounded border px-2 py-1" value={edit.defaultQuantity||1} onChange={e=>setEdit({...edit,defaultQuantity:Math.max(1, Number(e.target.value)||1)})} /></div>
               <div>安全庫存：<input type="number" className="w-full rounded border px-2 py-1" value={edit.safeStock||0} onChange={e=>setEdit({...edit,safeStock:Number(e.target.value)})} /></div>
               <div className="text-xs text-gray-500">保存後可於訂單項目引用此產品（帶入單價）。</div>
