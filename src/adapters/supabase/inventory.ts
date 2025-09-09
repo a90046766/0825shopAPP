@@ -15,6 +15,9 @@ function toDbRow(item: Partial<InventoryItem>): any {
       delete r[camel] // 移除原始欄位
     }
   }
+  // 清除不存在於資料庫的駝峰欄位，避免 PGRST204（schema cache 找不到欄位）
+  delete (r as any).updatedAt
+  delete (r as any).createdAt
   return r
 }
 
