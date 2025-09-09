@@ -611,13 +611,13 @@ export default function NewShopPage() {
                 <div className="text-orange-100">積分永久有效</div>
               </div>
             </div>
-                                    <Link
-                          to="/shop/products?category=cleaning"
-                          className="bg-white text-orange-600 hover:bg-gray-100 px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 inline-flex items-center"
-                        >
-                          瀏覽清洗服務
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
+            <Link
+              to="/store/products?category=cleaning"
+              className="bg-white text-orange-600 hover:bg-gray-100 px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 inline-flex items-center"
+            >
+              瀏覽清洗服務
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
           </div>
         </div>
       </section>
@@ -651,7 +651,7 @@ export default function NewShopPage() {
               </div>
             </div>
             <Link
-              to="/shop/products"
+              to="/store/products"
               className="bg-white text-purple-600 hover:bg-gray-100 px-6 py-3 rounded-full text-base font-semibold transition-all duration-300 inline-flex items-center"
             >
               開始累積積分
