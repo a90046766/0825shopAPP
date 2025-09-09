@@ -19,6 +19,7 @@ import {
   HelpCircle
 } from 'lucide-react'
 import MemberBell from '../components/MemberBell'
+import { supabase } from '../../utils/supabase'
 
 export default function NewShopPage() {
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -70,6 +71,50 @@ export default function NewShopPage() {
     }, 5000)
     return () => clearInterval(timer)
   }, [])
+
+  // 保證會員存在並補配編號，支援 m-手機@member.local
+  useEffect(() => {
+    const extractPhoneFromMemberLocal = (email?: string | null): string | null => {
+      if (!email) return null
+      const m = /^m-(\d{8,15})@member\.local$/i.exec(email)
+      return m ? m[1] : null
+    }
+    (async () => {
+      try {
+        const memberRaw = localStorage.getItem('member-auth-user')
+        if (!memberRaw) return
+        const m = JSON.parse(memberRaw)
+        const email: string | null = m?.email || null
+        const phone: string | null = m?.phone || extractPhoneFromMemberLocal(m?.email) || null
+        if (!email && !phone) return
+        // RPC 補配
+        try {
+          await supabase.rpc('ensure_member_exists_and_code', {
+            p_email: email,
+            p_phone: phone,
+            p_name: m?.name || phone || email || '會員'
+          })
+        } catch {}
+        // 查資料並同步
+        const conds: string[] = []
+        if (email) conds.push(`email.eq.${email}`)
+        if (phone) conds.push(`phone.eq.${phone}`)
+        if (conds.length === 0) return
+        const { data } = await supabase
+          .from('members')
+          .select('id,name,code,email,phone')
+          .or(conds.join(','))
+          .limit(1)
+          .maybeSingle()
+        if (data) {
+          const next = { ...(m || {}), role: 'member', name: data.name || m?.name, email: data.email || m?.email, phone: data.phone || m?.phone, code: data.code }
+          try { localStorage.setItem('member-auth-user', JSON.stringify(next)) } catch {}
+          setCurrentUser(next)
+          setIsMember(true)
+        }
+      } catch {}
+    })()
+  }, [currentUser])
 
   // 載入 CMS 內容（失敗則用本地預設）
   useEffect(() => {
