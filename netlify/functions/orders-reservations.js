@@ -1,27 +1,51 @@
 /* Netlify Function: /api/orders/reservations
-   Purpose: Receive reservation payload from前端並作為保險存檔（不阻斷主流程）
-   Behavior:
-   - 若設有 SUPABASE_SERVICE_ROLE_KEY，則寫入 Supabase 表 relay_reservations
-   - 否則僅回傳 success:true
+   行為：
+   - 支援 GET/POST，POST 讀 body，GET 讀 query
+   - 若有 Service Role，優先呼叫 Supabase RPC: create_reservation_order(p_member_id, p_payload)
+   - 同時嘗試寫入 relay_reservations 作為備援（失敗忽略）
+   - 任何狀況皆回 200，避免前端流程中斷
 */
 
-const { createClient } = require('@supabase/supabase-js')
+const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method Not Allowed' }) }
+  const method = event.httpMethod || 'GET';
+  if (method !== 'POST' && method !== 'GET') {
+    return { statusCode: 405, body: JSON.stringify({ ok: false, error: 'Method Not Allowed' }) };
   }
-  try {
-    const payload = JSON.parse(event.body || '{}')
 
-    const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
+  try {
+    const isJson = (event.headers?.['content-type'] || '').includes('application/json');
+    const payload = method === 'POST'
+      ? (isJson ? JSON.parse(event.body || '{}') : {})
+      : (event.queryStringParameters || {});
+
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+    let rpcOk = false;
+    let rpcData = null;
+    let relayOk = false;
 
     if (url && key) {
-      const supabase = createClient(url, key)
-      // 確保表存在（若無權限/不存在則忽略錯誤）
+      const supabase = createClient(url, key, { auth: { persistSession: false } });
+
+      // 1) 優先 RPC 建單（若後端尚未建立 RPC，這段會失敗但不影響回傳）
       try {
-        // 直接寫入一筆 relay（僅保留必要欄位）
+        const { data, error } = await supabase.rpc('create_reservation_order', {
+          p_member_id: payload.memberId || payload.member_id || null,
+          p_payload: payload || {}
+        });
+        if (!error) {
+          rpcOk = true;
+          rpcData = data || null;
+        }
+      } catch (_) {
+        // 忽略 RPC 錯誤，走備援
+      }
+
+      // 2) 備援：寫入 relay_reservations（若表不存在/權限不足，忽略）
+      try {
         const row = {
           customer_name: payload?.customer?.name || null,
           customer_phone: payload?.customer?.phone || null,
@@ -30,18 +54,32 @@ exports.handler = async (event) => {
           preferred_date: payload?.preferredDate || null,
           preferred_time: payload?.preferredTime || null,
           note: payload?.note || null,
-          items_json: JSON.stringify(payload?.items || []),
-        }
-        await supabase.from('relay_reservations').insert(row)
-      } catch (e) {
-        console.warn('relay_reservations insert ignored:', e?.message || e)
+          items_json: JSON.stringify(payload?.items || [])
+        };
+        const { error: relayErr } = await supabase.from('relay_reservations').insert(row);
+        if (!relayErr) relayOk = true;
+      } catch (_) {
+        // 忽略備援寫入錯誤
       }
     }
 
-    return { statusCode: 200, body: JSON.stringify({ success: true }) }
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({
+        ok: true,
+        source: rpcOk ? 'rpc' : 'fallback',
+        rpc: rpcOk,
+        data: rpcData,
+        relay: relayOk ? 'ok' : 'skipped'
+      })
+    };
   } catch (e) {
-    return { statusCode: 200, body: JSON.stringify({ success: true }) }
+    // 最終保險：依然回 200，避免前端中斷
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ ok: true, source: 'fallback', error: String(e?.message || e) })
+    };
   }
-}
-
-
+};
