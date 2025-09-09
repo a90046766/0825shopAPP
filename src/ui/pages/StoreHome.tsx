@@ -35,7 +35,7 @@ export default function StoreHomePage(){
                 <div className="mt-4 flex flex-wrap gap-2 text-sm">
                   <Link to="/store/products?category=專業清洗" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">專業清洗</Link>
                   <Link to="/store/products?category=居家清潔" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">居家清潔</Link>
-                  <Link to="/store/products?category=家電購買" className="rounded bg白/90 px-3 py-1 text-brand-600 hover:bg-white">家電購買</Link>
+                  <Link to="/store/products?category=家電購買" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">家電購買</Link>
                   <Link to="/store/products?category=二手家電" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">二手家電</Link>
                   <Link to="/store" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">立即預約</Link>
                 </div>
@@ -84,7 +84,7 @@ export default function StoreHomePage(){
       </section>
 
       {isEditor && (
-        <section className="rounded-2xl border bg白 p-4 shadow-card">
+        <section className="rounded-2xl border bg-white p-4 shadow-card">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-lg font-semibold">首頁管理</div>
             <button onClick={()=>setEditMode(v=>!v)} className="rounded bg-gray-100 px-3 py-1 text-sm">{editMode?'關閉':'管理模式'}</button>
@@ -134,4 +134,3 @@ export default function StoreHomePage(){
     </div>
   )
 }
-
