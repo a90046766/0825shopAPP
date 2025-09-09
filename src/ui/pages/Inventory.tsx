@@ -283,7 +283,7 @@ export default function InventoryPage() {
                   </button>
                 )}
                 
-                {(u?.role === 'admin' || u?.role === 'support') && (
+                {can(u, 'inventory.edit') && (
                   <button 
                     onClick={() => setEdit(item)} 
                     className="rounded-lg bg-gray-900 px-3 py-1 text-white text-sm hover:bg-gray-800"
@@ -292,7 +292,7 @@ export default function InventoryPage() {
                   </button>
                 )}
                 
-                {(u?.role === 'admin' || u?.role === 'support') && (
+                {can(u, 'inventory.delete') && (
                   <button 
                     onClick={async()=>{ 
                       const { confirmTwice } = await import('../kit'); 
