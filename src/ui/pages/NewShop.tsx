@@ -33,6 +33,9 @@ export default function NewShopPage() {
   const [cmsContacts, setCmsContacts] = useState<any | null>(null)
   const [cmsFaqs, setCmsFaqs] = useState<any[] | null>(null)
 
+  // 關閉 CMS 載入，避免覆蓋為舊樣式（保留漂亮版本）
+  const enableCms = false
+
   // 預取產品頁 chunk（滑入/觸控即預載）
   const prefetchOnceRef = React.useRef(false)
   const prefetchProducts = () => {
@@ -116,9 +119,10 @@ export default function NewShopPage() {
     })()
   }, [currentUser])
 
-  // 載入 CMS 內容（失敗則用本地預設）
+  // 載入 CMS 內容（預設停用；只在未來需要 CMS 編輯時再啟用）
   useEffect(() => {
-    (async () => {
+    if (!enableCms) return
+    ;(async () => {
       try {
         const mod = await import('../../adapters/supabase/cms')
         const [h, s, a, p, l, c, f] = await Promise.all([
@@ -139,7 +143,7 @@ export default function NewShopPage() {
         if (Array.isArray(f) && f.length>0) setCmsFaqs(f as any)
       } catch {}
     })()
-  }, [])
+  }, [enableCms])
 
   const heroSlides = cmsHero || [
     {
@@ -486,7 +490,7 @@ export default function NewShopPage() {
                   {service.description}
                 </p>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
-                  {service.features.map((feature, idx) => (
+                  {service.features.map((feature: string, idx: number) => (
                     <div key={idx} className="flex items-center">
                       <CheckCircle className="h-3 w-3 text-green-500 mr-2 flex-shrink-0" />
                       <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
