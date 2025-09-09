@@ -102,12 +102,14 @@ class SupabaseInventoryRepo implements InventoryRepo {
       if (row.unit_price === undefined) row.unit_price = 0
       if (!row.image_urls) row.image_urls = []
       
-      const { data, error } = await supabase.from('inventory').upsert(row).select().single()
+      const { data, error } = await supabase.from('inventory').upsert(row).select()
       if (error) {
         console.error('Inventory upsert error:', error)
         throw new Error(`儲存失敗: ${error.message}`)
       }
-      return fromDbRow(data)
+      // upsert 可能返回陣列，取第一筆
+      const result = Array.isArray(data) ? data[0] : data
+      return fromDbRow(result)
     } catch (error) {
       console.error('Failed to upsert inventory:', error)
       throw error
