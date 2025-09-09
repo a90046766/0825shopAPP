@@ -329,10 +329,10 @@ export default function NewShopPage() {
         <div className="bg-white border-b border-gray-200 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <span className="text-xs text-gray-600">歡迎回來，</span>
-              <span className="text-sm font-medium text-gray-900">{currentUser.name || currentUser.email}</span>
+              <span className="text-base md:text-lg font-extrabold text-brand-600">歡迎回來</span>
+              <span className="text-base md:text-lg font-bold text-gray-900">{currentUser.name || currentUser.email}</span>
               {currentUser.code && (
-                <span className="text-[11px] text-gray-500">會員編號：{currentUser.code}</span>
+                <span className="text-sm text-gray-500">會員編號：{currentUser.code}</span>
               )}
               {!isMember && (
                 <span className="text-xs text-gray-500">({currentUser.role || '用戶'})</span>

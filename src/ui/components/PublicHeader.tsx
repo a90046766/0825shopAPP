@@ -99,9 +99,9 @@ export default function PublicHeader() {
         <div className="flex items-center gap-2">
           {user && user.role === 'member' ? (
             <div className="hidden items-center gap-2 md:flex">
-              <span className="text-lg font-extrabold text-brand-600">歡迎回來</span>
-              <span className="text-sm text-gray-700">{memberInfo?.name || user.name || user.phone || '訪客'}</span>
-              {memberInfo?.code && <span className="text-xs text-gray-500">會員編號: {memberInfo.code}</span>}
+              <span className="text-xl font-extrabold text-brand-600">歡迎回來</span>
+              <span className="text-lg font-bold text-gray-900">{memberInfo?.name || user.name || user.phone || '訪客'}</span>
+              {memberInfo?.code && <span className="text-sm text-gray-500">會員編號: {memberInfo.code}</span>}
               <button
                 onClick={async () => {
                   try { await supabase.auth.signOut(); } catch {}
