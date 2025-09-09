@@ -90,7 +90,9 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     'schedule.view',
     'payroll.view',
     'reports.view',
-    'leave.manage'
+    'leave.manage',
+    // 允許技師在庫存頁提出購買申請
+    'inventory.purchase'
   ],
   member: [
     'notifications.read'

@@ -5,8 +5,14 @@ import { Navigate } from 'react-router-dom'
 import { can } from '../../utils/permissions'
 
 export default function InventoryPage() {
-  const u = authRepo.getCurrentUser()
-  if (u && u.role==='technician') return <Navigate to="/dispatch" replace />
+  const getCurrentUser = () => {
+    try { const s = localStorage.getItem('supabase-auth-user'); if (s) return JSON.parse(s) } catch {}
+    try { const l = localStorage.getItem('local-auth-user'); if (l) return JSON.parse(l) } catch {}
+    return authRepo.getCurrentUser()
+  }
+  const u = getCurrentUser()
+  const isAdminOrSupport = u?.role === 'admin' || u?.role === 'support'
+  // 技師允許進入此頁（可申請購買），不再導回派工
   
   const [rows, setRows] = useState<any[]>([])
   const [repos, setRepos] = useState<any>(null)
@@ -14,10 +20,28 @@ export default function InventoryPage() {
   const [creating, setCreating] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all'|'available'|'low_stock'|'out_of_stock'>('all')
+  const [savingCreate, setSavingCreate] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
   
   const load = async () => { if(!repos) return; setRows(await repos.inventoryRepo.list()) }
   useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a) })() }, [])
   useEffect(() => { if(repos) load() }, [repos])
+
+  // 儲存重試機制（處理 schema cache LAG / 連線暫失）
+  const wait = (ms: number) => new Promise(res => setTimeout(res, ms))
+  const shouldRetry = (err: any) => {
+    const s = ((err?.message||'') + ' ' + (err?.code||'')).toLowerCase()
+    return s.includes('pgrst204') || s.includes('42703') || s.includes('schema cache') || s.includes('failed to fetch')
+  }
+  const upsertWithRetry = async (data: any) => {
+    if (!repos) throw new Error('系統尚未就緒，請稍候')
+    let lastErr: any
+    for (let i=0;i<3;i++) {
+      try { return await repos.inventoryRepo.upsert(data) }
+      catch(e:any){ lastErr = e; if (!shouldRetry(e)) break; await wait(3000) }
+    }
+    throw lastErr
+  }
 
   // 過濾庫存項目
   const filteredRows = rows.filter(item => {
@@ -230,11 +254,11 @@ export default function InventoryPage() {
       {/* 工具設備列表 */}
       <div className="space-y-3">
         {filteredRows.map(item => (
-          <div key={item.id} className={`rounded-xl border p-4 shadow-card hover:shadow-lg transition-shadow ${
+          <div key={item.id} onClick={isAdminOrSupport ? ()=> setEdit(item) : undefined} className={`rounded-xl border p-4 shadow-card hover:shadow-lg transition-shadow ${
             (item.quantity || 0) <= 0 ? 'border-red-400 bg-red-50' :
             (item.quantity || 0) <= (item.safeStock || 0) ? 'border-amber-400 bg-amber-50' :
             'border-gray-200 bg-white'
-          }`}>
+          } ${isAdminOrSupport ? 'cursor-pointer' : ''}`}>
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
@@ -276,25 +300,26 @@ export default function InventoryPage() {
               <div className="flex flex-col gap-2 ml-4">
                 {can(u, 'inventory.purchase') && (item.quantity || 0) > 0 && (
                   <button 
-                    onClick={() => requestPurchase(item)}
+                    onClick={(e)=>{ e.stopPropagation(); requestPurchase(item) }}
                     className="rounded-lg bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600"
                   >
                     申請購買
                   </button>
                 )}
                 
-                {can(u, 'inventory.edit') && (
+                {(isAdminOrSupport || can(u, 'inventory.edit')) && (
                   <button 
-                    onClick={() => setEdit(item)} 
+                    onClick={(e) => { e.stopPropagation(); setEdit(item) }} 
                     className="rounded-lg bg-gray-900 px-3 py-1 text-white text-sm hover:bg-gray-800"
                   >
                     編輯
                   </button>
                 )}
                 
-                {can(u, 'inventory.delete') && (
+                {(isAdminOrSupport || can(u, 'inventory.delete')) && (
                   <button 
-                    onClick={async()=>{ 
+                    onClick={async(e)=>{ 
+                      e.stopPropagation();
                       const { confirmTwice } = await import('../kit'); 
                       if(await confirmTwice('確認刪除該工具設備？','刪除後無法復原，仍要刪除？')){ 
                         if(!repos) return; 
@@ -413,16 +438,24 @@ export default function InventoryPage() {
                 取消
               </button>
               <button 
+                disabled={savingCreate}
                 onClick={async()=>{ 
                   if(!repos) return; 
-                  await repos.inventoryRepo.upsert(edit); 
-                  setCreating(false)
-                  setEdit(null)
-                  load() 
+                  try{
+                    setSavingCreate(true)
+                    await upsertWithRetry(edit)
+                    setCreating(false)
+                    setEdit(null)
+                    load()
+                  }catch(e:any){
+                    alert('儲存失敗：' + (e?.message||'未知錯誤'))
+                  }finally{
+                    setSavingCreate(false)
+                  }
                 }} 
-                className="rounded-lg bg-brand-500 px-4 py-2 text-white hover:bg-brand-600"
+                className={`rounded-lg px-4 py-2 text-white ${savingCreate?'bg-gray-400':'bg-brand-500 hover:bg-brand-600'}`}
               >
-                儲存
+                {savingCreate ? '儲存中…' : '儲存'}
               </button>
             </div>
           </div>
@@ -520,15 +553,23 @@ export default function InventoryPage() {
                 取消
               </button>
               <button 
+                disabled={savingEdit}
                 onClick={async()=>{ 
                   if(!repos) return; 
-                  await repos.inventoryRepo.upsert(edit); 
-                  setEdit(null)
-                  load() 
+                  try{
+                    setSavingEdit(true)
+                    await upsertWithRetry(edit)
+                    setEdit(null)
+                    load()
+                  }catch(e:any){
+                    alert('儲存失敗：' + (e?.message||'未知錯誤'))
+                  }finally{
+                    setSavingEdit(false)
+                  }
                 }} 
-                className="rounded-lg bg-brand-500 px-4 py-2 text-white hover:bg-brand-600"
+                className={`rounded-lg px-4 py-2 text-white ${savingEdit?'bg-gray-400':'bg-brand-500 hover:bg-brand-600'}`}
               >
-                儲存
+                {savingEdit ? '儲存中…' : '儲存'}
               </button>
             </div>
           </div>
