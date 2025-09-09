@@ -11,6 +11,12 @@ function useCurrentUser(): UserLite | null {
   return null;
 }
 
+function extractPhoneFromMemberLocal(email?: string | null): string | null {
+  if (!email) return null;
+  const m = /^m-(\d{8,15})@member\.local$/i.exec(email);
+  return m ? m[1] : null;
+}
+
 export default function PublicHeader() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -19,30 +25,48 @@ export default function PublicHeader() {
 
   useEffect(() => {
     const run = async () => {
-      if (user?.role === 'member') {
-        try {
-          await supabase.rpc('ensure_member_code', { p_email: user.email ?? null, p_phone: user.phone ?? null });
-        } catch {}
-        try {
-          const or = [user?.email ? `email.eq.${user.email}` : '', user?.phone ? `phone.eq.${user.phone}` : ''].filter(Boolean).join(',');
-          const { data, error } = await supabase
-            .from('members')
-            .select('id,name,code,email,phone')
-            .or(or || 'id.gt.0')
-            .limit(1)
-            .maybeSingle();
-          if (!error && data) {
-            setMemberInfo(data);
-            // 同步更新 localStorage 讓 Header 立即顯示 code
-            try {
-              const old = JSON.parse(localStorage.getItem('member-auth-user') || '{}');
-              localStorage.setItem('member-auth-user', JSON.stringify({ ...old, email: data.email, phone: data.phone, name: data.name, code: data.code, role: 'member' }));
-            } catch {}
-          }
-        } catch {}
-      } else {
-        setMemberInfo(null);
-      }
+      if (user?.role !== 'member') { setMemberInfo(null); return; }
+
+      const email = user.email || null;
+      const phone = user.phone || extractPhoneFromMemberLocal(user.email) || null;
+
+      // 確保會員存在並補配編號
+      try {
+        await supabase.rpc('ensure_member_exists_and_code', {
+          p_email: email,
+          p_phone: phone,
+          p_name: user.name ?? phone ?? email ?? '會員'
+        });
+      } catch {}
+
+      // 讀取會員資料
+      try {
+        const conds: string[] = [];
+        if (email) conds.push(`email.eq.${email}`);
+        if (phone) conds.push(`phone.eq.${phone}`);
+        if (conds.length === 0) return;
+
+        const { data, error } = await supabase
+          .from('members')
+          .select('id,name,code,email,phone')
+          .or(conds.join(','))
+          .limit(1)
+          .maybeSingle();
+        if (!error && data) {
+          setMemberInfo(data);
+          try {
+            const old = JSON.parse(localStorage.getItem('member-auth-user') || '{}');
+            localStorage.setItem('member-auth-user', JSON.stringify({
+              ...old,
+              role: 'member',
+              name: data.name ?? old.name,
+              email: data.email ?? old.email,
+              phone: data.phone ?? old.phone,
+              code: data.code
+            }));
+          } catch {}
+        }
+      } catch {}
     };
     run();
   }, [user]);

@@ -33,10 +33,10 @@ export default function StoreHomePage(){
                 <h1 className="text-2xl font-extrabold tracking-tight">{hero.title||'日式洗濯｜為什麼選擇我們？'}</h1>
                 <p className="mt-2 text-sm text-white/90">{hero.subtitle||'專業流程、照片存證、雙簽名結案、明確保固。'}</p>
                 <div className="mt-4 flex flex-wrap gap-2 text-sm">
-                  <Link to="/store/products?category=專業清洗" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">專業清洗</Link>
-                  <Link to="/store/products?category=居家清潔" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">居家清潔</Link>
-                  <Link to="/store/products?category=家電購買" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">家電購買</Link>
-                  <Link to="/store/products?category=二手家電" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">二手家電</Link>
+                  <Link to="/store/products?category=cleaning" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">專業清洗</Link>
+                  <Link to="/store/products?category=home" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">居家清潔</Link>
+                  <Link to="/store/products?category=new" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">家電購買</Link>
+                  <Link to="/store/products?category=used" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">二手家電</Link>
                   <Link to="/store" className="rounded bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">立即預約</Link>
                 </div>
               </div>
@@ -47,10 +47,10 @@ export default function StoreHomePage(){
             <h1 className="text-2xl font-extrabold tracking-tight">日式洗濯｜為什麼選擇我們？</h1>
             <p className="mt-2 max-w-2xl text-sm text-white/90">專業流程、標準化保護、施工照片存證、雙簽名結案、明確保固。以日式細節服務守護你的每一次體驗。</p>
             <div className="mt-4 flex flex-wrap gap-2 text-sm">
-              <Link to="/store/products?category=專業清洗" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">專業清洗</Link>
-              <Link to="/store/products?category=居家清潔" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">居家清潔</Link>
-              <Link to="/store/products?category=家電購買" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">家電購買</Link>
-              <Link to="/store/products?category=二手家電" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">二手家電</Link>
+              <Link to="/store/products?category=cleaning" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">專業清洗</Link>
+              <Link to="/store/products?category=home" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">居家清潔</Link>
+              <Link to="/store/products?category=new" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">家電購買</Link>
+              <Link to="/store/products?category=used" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">二手家電</Link>
               <Link to="/store" className="rounded-full bg-white/90 px-3 py-1 text-brand-600 hover:bg-white">立即預約</Link>
             </div>
             <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
