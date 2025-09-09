@@ -25,10 +25,19 @@ export default function PublicHeader() {
 
   useEffect(() => {
     const run = async () => {
-      if (user?.role !== 'member') { setMemberInfo(null); return; }
+      // 只要 localStorage 有 member-auth-user 就進行補配與讀取（即使 role 尚未標記為 member）
+      const memberRaw = localStorage.getItem('member-auth-user');
+      if (!memberRaw && user?.role !== 'member') { setMemberInfo(null); return; }
 
-      const email = user.email || null;
-      const phone = user.phone || extractPhoneFromMemberLocal(user.email) || null;
+      let email: string | null = user?.email || null;
+      let phone: string | null = user?.phone || extractPhoneFromMemberLocal(user?.email) || null;
+      try {
+        if (!email && !phone && memberRaw) {
+          const m = JSON.parse(memberRaw);
+          email = m?.email || null;
+          phone = m?.phone || extractPhoneFromMemberLocal(m?.email) || null;
+        }
+      } catch {}
 
       // 確保會員存在並補配編號
       try {
