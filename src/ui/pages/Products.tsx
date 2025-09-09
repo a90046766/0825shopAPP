@@ -14,7 +14,9 @@ export default function ProductsPage() {
   const [cats, setCats] = useState<Array<{id:string;name:string}>>([])
   const [catMngOpen, setCatMngOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const REGION_GROUPS = ['北北基','桃竹苗','中彰投','南高']
+  // 服務地區群組（可複選）
+  const REGION_GROUPS = ['北北基','桃竹苗','中彰投','南高','南高屏','雲嘉南','新竹以北','台中以北']
+  const [customRegion, setCustomRegion] = useState('')
   const PRESET_CATEGORIES = [
     '專業清洗服務',
     '家電購買服務',
@@ -223,6 +225,7 @@ export default function ProductsPage() {
                     return (
                       <button
                         key={g}
+                        type="button"
                         onClick={() => {
                           const set = new Set(picked)
                           if (on) set.delete(g); else set.add(g)
@@ -233,9 +236,31 @@ export default function ProductsPage() {
                     )
                   })}
                   <button
+                    type="button"
                     onClick={()=> setEdit({ ...edit, region: '' })}
                     className="rounded px-3 py-1 text-sm bg-gray-100 text-gray-600"
                   >清空</button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    value={customRegion}
+                    onChange={e=>setCustomRegion(e.target.value)}
+                    placeholder="自定義地區（可留空）"
+                    className="w-48 rounded border px-2 py-1 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const token = (customRegion||'').trim()
+                      if (!token) return
+                      const picked = (edit.region||'').split(/[\s,、]+/).filter(Boolean)
+                      const set = new Set(picked)
+                      set.add(token)
+                      setEdit({ ...edit, region: Array.from(set).join(' ') })
+                      setCustomRegion('')
+                    }}
+                    className="rounded bg-gray-900 px-3 py-1 text-sm text-white"
+                  >加入</button>
                 </div>
               </div>
               <div>預設數量：<input type="number" className="w-full rounded border px-2 py-1" value={edit.defaultQuantity||1} onChange={e=>setEdit({...edit,defaultQuantity:Math.max(1, Number(e.target.value)||1)})} /></div>
