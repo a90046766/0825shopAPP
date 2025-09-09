@@ -5,6 +5,7 @@ function toDbRow(item: Partial<InventoryItem>): any {
   const r: any = { ...item }
   const map: Record<string, string> = {
     productId: 'product_id',
+    unitPrice: 'unit_price',
     imageUrls: 'image_urls',
     safeStock: 'safe_stock',
   }
@@ -25,6 +26,7 @@ function fromDbRow(row: any): InventoryItem {
     productId: r.product_id ?? r.productId,
     quantity: r.quantity ?? 0,
     description: r.description || '',
+    unitPrice: r.unit_price ?? r.unitPrice ?? 0,
     imageUrls: r.image_urls ?? r.imageUrls ?? [],
     safeStock: r.safe_stock ?? r.safeStock,
     updatedAt: r.updated_at ?? new Date().toISOString(),
