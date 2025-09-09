@@ -14,6 +14,7 @@ import {
   Heart,
   Shield
 } from 'lucide-react'
+import { supabase } from '../../utils/supabase'
 
 export default function ShopProductsPage() {
   const location = useLocation()
@@ -29,6 +30,9 @@ export default function ShopProductsPage() {
   const [sortKey, setSortKey] = useState<'relevance' | 'priceAsc' | 'priceDesc'>('relevance')
   const [favorites, setFavorites] = useState<string[]>([])
   const [history, setHistory] = useState<any[]>([])
+  const [allProducts, setAllProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // 當網址列的 category 變化時同步
   useEffect(() => {
@@ -52,6 +56,42 @@ export default function ShopProductsPage() {
       const saved = JSON.parse(localStorage.getItem('shopCart') || '[]')
       if (Array.isArray(saved)) setCart(saved)
     } catch {}
+  }, [])
+
+  // 從 Supabase 讀取產品（published=true），取代本地靜態清單
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,store_sort,updated_at')
+          .eq('published', true)
+          .order('store_sort', { ascending: true })
+          .order('updated_at', { ascending: false })
+        if (error) throw error
+        const mapped = (data || []).map((r: any) => ({
+          id: String(r.id ?? Math.random().toString(36).slice(2)),
+          name: r.name ?? '',
+          description: r.description ?? '',
+          price: Number(r.unit_price ?? 0),
+          groupPrice: r.group_price ?? null,
+          groupMinQty: r.group_min_qty ?? null,
+          category: r.mode_code ?? r.category ?? 'cleaning',
+          features: Array.isArray(r.features) ? r.features : [],
+          image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : '',
+          images: Array.isArray(r.image_urls) ? r.image_urls : []
+        }))
+        setAllProducts(mapped)
+      } catch (e: any) {
+        setError(e?.message || String(e))
+        setAllProducts([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
   }, [])
 
   useEffect(() => {
@@ -79,193 +119,7 @@ export default function ShopProductsPage() {
     })
   }
 
-  // 專業清洗服務產品（參考 942clean.com.tw）
-  const cleaningProducts = [
-    {
-      id: 'ac-split',
-      name: '分離式冷氣清洗',
-      description: '室內外機標準清洗，包含濾網、蒸發器、冷凝器清潔，延長冷氣壽命',
-      price: 1800,
-      groupPrice: 1600,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['專業技師', '環保清潔劑', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'ac-window',
-      name: '窗型冷氣清洗',
-      description: '窗型冷氣深度清洗，除塵、除菌、除異味，恢復冷房效果',
-      price: 1500,
-      groupPrice: 1350,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['深度清洗', '除菌除臭', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'washer-drum',
-      name: '洗衣機清洗（滾筒）',
-      description: '滾筒式洗衣機拆洗保養，包含內筒、外筒、管路清潔，去除黴菌',
-      price: 1999,
-      groupPrice: 1799,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['拆洗保養', '除黴除菌', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'washer-vertical',
-      name: '洗衣機清洗（直立）',
-      description: '直立式洗衣機深度清洗，去除洗衣槽污垢，恢復清潔效果',
-      price: 1799,
-      groupPrice: 1619,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['深度清洗', '除垢除菌', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'hood-inverted',
-      name: '倒T型抽油煙機清洗',
-      description: '不鏽鋼倒T型抽油煙機，包含內部機械清洗，去除油垢',
-      price: 2200,
-      groupPrice: 2000,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['機械清洗', '除油除垢', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'hood-traditional',
-      name: '傳統雙渦輪抽油煙機清洗',
-      description: '傳統型雙渦輪抽油煙機清洗保養，恢復吸油煙效果',
-      price: 1800,
-      groupPrice: 1600,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['渦輪清洗', '除油除垢', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'fridge-clean',
-      name: '冰箱清洗除臭',
-      description: '冰箱內部深度清洗，去除異味，除菌消毒，延長使用壽命',
-      price: 1600,
-      groupPrice: 1440,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['深度清洗', '除臭除菌', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'water-heater',
-      name: '熱水器除垢清洗',
-      description: '電熱水器除垢清洗，延長使用壽命，提高加熱效率',
-      price: 1400,
-      groupPrice: 1260,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['除垢清洗', '延長壽命', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    }
-  ]
-
-  // 新家電銷售產品
-  const newAppliances = [
-    {
-      id: 'ac-new-split',
-      name: '日立分離式冷氣',
-      description: '變頻分離式冷氣，節能省電，靜音設計',
-      price: 25000,
-      category: 'new',
-      features: ['變頻節能', '靜音設計', '原廠保固', '免費安裝'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'washer-new',
-      name: 'LG滾筒洗衣機',
-      description: '大容量滾筒洗衣機，蒸汽除菌，智能控制',
-      price: 32000,
-      category: 'new',
-      features: ['大容量', '蒸汽除菌', '原廠保固', '免費安裝'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'hood-new',
-      name: '櫻花抽油煙機',
-      description: '強力抽油煙機，靜音設計，易清潔',
-      price: 15000,
-      category: 'new',
-      features: ['強力抽風', '靜音設計', '原廠保固', '免費安裝'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    }
-  ]
-
-  // 二手家電產品
-  const usedAppliances = [
-    {
-      id: 'ac-used-split',
-      name: '二手分離式冷氣',
-      description: '品質檢驗二手冷氣，功能正常，價格實惠',
-      price: 8000,
-      category: 'used',
-      features: ['品質檢驗', '功能正常', '90天保固', '環保選擇'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'washer-used',
-      name: '二手洗衣機',
-      description: '檢驗合格二手洗衣機，節省預算，環保選擇',
-      price: 5000,
-      category: 'used',
-      features: ['檢驗合格', '節省預算', '90天保固', '環保選擇'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'fridge-used',
-      name: '二手冰箱',
-      description: '功能正常二手冰箱，大容量，適合小家庭',
-      price: 6000,
-      category: 'used',
-      features: ['功能正常', '大容量', '90天保固', '環保選擇'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    }
-  ]
-
-  // 居家清潔服務
-  const homeCleaning = [
-    {
-      id: 'cleaning-regular',
-      name: '定期居家清潔',
-      description: '每週/每月定期清潔服務，保持居家環境整潔',
-      price: 2500,
-      category: 'home',
-      features: ['定期服務', '專業清潔', '滿意保證', '環保清潔劑'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'cleaning-deep',
-      name: '深度居家清潔',
-      description: '年度深度清潔，包含死角、高處、特殊區域',
-      price: 3500,
-      category: 'home',
-      features: ['深度清潔', '死角處理', '滿意保證', '環保清潔劑'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'cleaning-move',
-      name: '搬家清潔服務',
-      description: '搬家前後清潔服務，讓新家煥然一新',
-      price: 4000,
-      category: 'home',
-      features: ['搬家清潔', '全面清潔', '滿意保證', '環保清潔劑'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    }
-  ]
-
-  // 合併所有產品
-  const allProducts = [...cleaningProducts, ...newAppliances, ...usedAppliances, ...homeCleaning]
+  // 所有產品由資料庫取得（上方 useEffect）
 
   // 根據分類/關鍵字/團購/價格區間篩選 + 排序
   const filteredProducts = (() => {
