@@ -1,18 +1,27 @@
 /* Netlify Function: /api/customers
-   Purpose: Ensure a customer record exists in Supabase (best-effort)
+   行為：
+   - 支援 GET/POST；GET 用於不阻斷流程的探測，POST 嘗試建立/補齊 customers
+   - 任何狀況皆回 200
 */
 const { createClient } = require('@supabase/supabase-js')
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method Not Allowed' }) }
-  }
+  const method = event.httpMethod || 'GET'
   try {
-    const payload = JSON.parse(event.body || '{}')
+    const isJson = (event.headers?.['content-type'] || '').includes('application/json')
+    const payload = method === 'POST'
+      ? (isJson ? JSON.parse(event.body || '{}') : {})
+      : (event.queryStringParameters || {})
+
+    // GET 模式：立即回 200，避免 405
+    if (method !== 'POST') {
+      return { statusCode: 200, body: JSON.stringify({ success: true, probe: true }) }
+    }
+
     const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
     if (url && key) {
-      const supabase = createClient(url, key)
+      const supabase = createClient(url, key, { auth: { persistSession: false } })
       try {
         const email = (payload?.email || '').toLowerCase()
         if (email) {
@@ -35,5 +44,4 @@ exports.handler = async (event) => {
     return { statusCode: 200, body: JSON.stringify({ success: true }) }
   }
 }
-
 
