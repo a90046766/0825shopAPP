@@ -53,7 +53,7 @@ export default function PublicHeader() {
             </>
           ) : (
             <div className="hidden items-center gap-2 md:flex">
-              <span className="text-xs text-gray-700">{user.name || user.email}</span>
+              <WelcomeMember />
               <button
                 onClick={async()=>{ 
                   try{ const a = await loadAdapters(); await a.authRepo.logout(); }catch{}
@@ -110,6 +110,31 @@ export default function PublicHeader() {
         </div>
       )}
     </header>
+  )
+}
+
+function WelcomeMember() {
+  const [member, setMember] = useState<any|null>(null)
+  useEffect(()=>{ (async()=>{
+    try {
+      const raw = localStorage.getItem('member-auth-user')
+      if (!raw) return
+      const u = JSON.parse(raw)
+      // 嘗試從 members 取回編號與名稱（若無則用本地）
+      const a = await loadAdapters()
+      let m = null
+      try { m = await a.memberRepo.findByEmail?.(u.email) } catch {}
+      setMember(m || { name: u.name, code: u.code, phone: u.phone })
+    } catch {}
+  })() }, [])
+  const displayName = member?.name || member?.phone || '會員'
+  const displayCode = member?.code ? `／ 會員編號 ${member.code}` : ''
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="text-sm font-extrabold text-brand-600" style={{ fontSize: '1.125rem' }}>歡迎回來</span>
+      <span className="text-sm font-semibold text-gray-900">{displayName}</span>
+      {displayCode && <span className="text-xs text-gray-600">{displayCode}</span>}
+    </div>
   )
 }
 
