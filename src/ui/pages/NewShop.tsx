@@ -25,6 +25,8 @@ export default function NewShopPage() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isMember, setIsMember] = useState(false)
+  const isEditor = !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'support')
+  const [cmsMode, setCmsMode] = useState(false)
   const [cmsHero, setCmsHero] = useState<any[] | null>(null)
   const [cmsServices, setCmsServices] = useState<any[] | null>(null)
   const [cmsAdvantages, setCmsAdvantages] = useState<any[] | null>(null)
@@ -33,8 +35,7 @@ export default function NewShopPage() {
   const [cmsContacts, setCmsContacts] = useState<any | null>(null)
   const [cmsFaqs, setCmsFaqs] = useState<any[] | null>(null)
 
-  // 關閉 CMS 載入，避免覆蓋為舊樣式（保留漂亮版本）
-  const enableCms = false
+  // 管理模式開關：開啟才載入 CMS，關閉回到預設彩色版
 
   // 預取產品頁 chunk（滑入/觸控即預載）
   const prefetchOnceRef = React.useRef(false)
@@ -119,9 +120,19 @@ export default function NewShopPage() {
     })()
   }, [currentUser])
 
-  // 載入 CMS 內容（預設停用；只在未來需要 CMS 編輯時再啟用）
+  // 載入/清空 CMS 內容
   useEffect(() => {
-    if (!enableCms) return
+    if (!cmsMode) {
+      // 關閉時清空，回到彩色預設
+      setCmsHero(null)
+      setCmsServices(null)
+      setCmsAdvantages(null)
+      setCmsPromotion(null)
+      setCmsLoyalty(null)
+      setCmsContacts(null)
+      setCmsFaqs(null)
+      return
+    }
     ;(async () => {
       try {
         const mod = await import('../../adapters/supabase/cms')
@@ -143,7 +154,7 @@ export default function NewShopPage() {
         if (Array.isArray(f) && f.length>0) setCmsFaqs(f as any)
       } catch {}
     })()
-  }, [enableCms])
+  }, [cmsMode])
 
   const heroSlides = cmsHero || [
     {
@@ -350,6 +361,14 @@ export default function NewShopPage() {
                 我的訂單
               </Link>
               <MemberBell />
+              {isEditor && (
+                <button
+                  onClick={()=> setCmsMode(v=>!v)}
+                  className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  {cmsMode ? '關閉管理模式' : '管理模式'}
+                </button>
+              )}
               <button
                 onClick={async()=>{ try{ const mod = await import('../../adapters/supabase/auth'); await mod.authRepo.logout(); localStorage.removeItem('member-auth-user'); location.href = '/store' }catch{ try{ localStorage.removeItem('member-auth-user'); }catch{} finally{ location.href = '/store' } }}}
                 className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors"
