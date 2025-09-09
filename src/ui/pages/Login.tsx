@@ -65,6 +65,14 @@ export default function LoginPage() {
     return s
   }
 
+  // 輔助：即時保存記住的帳號（避免僅在登入成功後才保存）
+  function saveRemembered(raw: string) {
+    try {
+      const norm = normalizeEmail(raw)
+      if (remember && norm) localStorage.setItem('remember-login-email', norm)
+    } catch {}
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-card">
@@ -117,7 +125,7 @@ export default function LoginPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); saveRemembered(e.target.value) }}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 placeholder="請輸入 Email"
                 required
@@ -142,7 +150,7 @@ export default function LoginPage() {
                 type="checkbox"
                 id="remember"
                 checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
+                onChange={(e) => { setRemember(e.target.checked); if (!e.target.checked) { try { localStorage.removeItem('remember-login-email') } catch {} } else { saveRemembered(email) } }}
                 className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
               />
               <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
