@@ -13,6 +13,7 @@ export default function ProductsPage() {
   const [img, setImg] = useState<string | null>(null)
   const [cats, setCats] = useState<Array<{id:string;name:string}>>([])
   const [catMngOpen, setCatMngOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
   const PRESET_CATEGORIES = [
     '專業清洗服務',
     '家電購買服務',
@@ -22,6 +23,22 @@ export default function ProductsPage() {
   const load = async () => { if(!repos) return; setRows(await repos.productRepo.list()) }
   useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a) })() }, [])
   useEffect(() => { if(repos){ load(); (async()=>{ try{ const meta = await import('../../adapters/supabase/product_meta'); const list = await meta.productMeta.listCategories(true); setCats(list.map(c=>({id:c.id,name:c.name}))) } catch {} })() } }, [repos])
+  
+  // 儲存重試機制（處理 PostgREST schema cache LAG / 短暫連線）
+  const wait = (ms:number)=> new Promise(res=>setTimeout(res, ms))
+  const shouldRetry = (err:any) => {
+    const s = ((err?.message||'') + ' ' + (err?.code||'')).toLowerCase()
+    return s.includes('pgrst204') || s.includes('42703') || s.includes('schema cache') || s.includes('failed to fetch')
+  }
+  const upsertWithRetry = async (payload:any) => {
+    if (!repos) throw new Error('系統尚未就緒，請稍候')
+    let last:any
+    for (let i=0;i<3;i++) {
+      try { return await repos.productRepo.upsert(payload) } 
+      catch(e:any){ last=e; if(!shouldRetry(e)) break; await wait(3000) }
+    }
+    throw last
+  }
   
   // 檢查安全庫存提醒
   const lowStockProducts = rows.filter(p => p.safeStock && p.safeStock > 0 && (p.quantity || 0) < p.safeStock)
@@ -213,16 +230,30 @@ export default function ProductsPage() {
             </div>
             <div className="mt-3 flex justify-end gap-2">
               <button onClick={()=>setEdit(null)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
-              {edit.id && (
-              <button onClick={async()=>{
-                if(!repos) return
-                const { confirmTwice } = await import('../kit')
-                if (!(await confirmTwice('建立對應庫存？','將建立數量為 0、並綁定此產品。是否繼續？'))) return
-                await repos.inventoryRepo.upsert({ id: '', name: edit.name, productId: edit.id, quantity: 0, imageUrls: [], safeStock: edit.safeStock||0 })
-                alert('已建立對應庫存並綁定')
-              }} className="rounded-lg bg-gray-200 px-3 py-1 text-sm">建立對應庫存</button>
-              )}
-              <button onClick={async()=>{ if(!repos) return; const payload = { ...edit, imageUrls: img? [img] : (edit.imageUrls||[]) }; await repos.productRepo.upsert(payload); setEdit(null); setImg(null); load() }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">儲存</button>
+              <button 
+                disabled={saving}
+                onClick={async()=>{ 
+                  if(!repos) return; 
+                  try{
+                    setSaving(true)
+                    // 構建 payload；服務/居家/新品均不扣庫，忽略 safeStock 限制
+                    const base = { ...edit, imageUrls: img? [img] : (edit.imageUrls||[]) }
+                    const mode = (base as any).modeCode || 'svc'
+                    if (mode !== 'used') {
+                      delete (base as any).safeStock
+                    }
+                    await upsertWithRetry(base)
+                    setEdit(null)
+                    setImg(null)
+                    load()
+                  }catch(e:any){
+                    alert('儲存失敗：' + (e?.message||'未知錯誤'))
+                  }finally{
+                    setSaving(false)
+                  }
+                }} 
+                className={`rounded-lg px-3 py-1 text-white ${saving?'bg-gray-400':'bg-brand-500 hover:bg-brand-600'}`}
+              >{saving ? '儲存中…' : '儲存'}</button>
             </div>
           </div>
         </div>
