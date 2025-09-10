@@ -360,24 +360,10 @@ export default function NewShopPage() {
                 <button
                   onClick={async()=>{ 
                     try{ 
-                      // 強制登出所有認證
-                      const mod = await import('../../adapters/supabase/auth'); 
-                      await mod.authRepo.logout(); 
-                      localStorage.removeItem('member-auth-user');
-                      localStorage.removeItem('supabase-auth-user');
-                      localStorage.removeItem('local-auth-user');
-                      // 跳轉到登入頁面
-                      location.href = '/login';
+                      // 改為平順返回派工中心，不強制登出（保留員工登入態）
+                      location.href = '/dispatch'
                     }catch{ 
-                      try{ 
-                        // 即使 Supabase 登出失敗，也要清除本地認證
-                        localStorage.removeItem('member-auth-user');
-                        localStorage.removeItem('supabase-auth-user');
-                        localStorage.removeItem('local-auth-user');
-                      }catch{} 
-                      finally{ 
-                        location.href = '/login';
-                      } 
+                      location.href = '/dispatch'
                     }
                   }}
                   className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
