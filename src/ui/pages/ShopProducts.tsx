@@ -184,16 +184,14 @@ export default function ShopProductsPage() {
         published: !!edit.published,
         updated_at: new Date().toISOString()
       }
-      if (edit.id) {
-        const { error } = await supabase.from('products').update(row).eq('id', edit.id)
-        if (error) throw error
-      } else {
-        // 新增：管理模式可新增為草稿（不擋前台讀取）；完成後再勾「上架」
-        const maxSort = Math.max(0, ...allProducts.map((x:any)=>(x as any).store_sort||0))
-        row.store_sort = maxSort + 1
-        const { error } = await supabase.from('products').insert(row)
-        if (error) throw error
-      }
+      // 經過 Functions 透過 Service Role 寫入，避免 CORS/RLS 攔截
+      const res = await fetch('/api/products-upsert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: edit.id, ...row })
+      })
+      const j = await res.json().catch(()=>({ ok:false }))
+      if (!j?.ok) throw new Error(j?.error || '保存失敗')
       setEdit(null)
       await reloadProducts()
     } catch (e: any) {
