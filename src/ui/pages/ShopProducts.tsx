@@ -78,18 +78,21 @@ export default function ShopProductsPage() {
     } catch {}
   }, [])
 
-  // 從 Supabase 讀取產品（published=true），取代本地靜態清單
+  // 從 Supabase 讀取產品（管理模式顯示含草稿；一般僅顯示已上架）
   useEffect(() => {
     const load = async () => {
       setLoading(true)
       setError(null)
       try {
-        const { data, error } = await supabase
+        let q = supabase
           .from('products')
           .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,store_sort,updated_at')
-          .eq('published', true)
           .order('store_sort', { ascending: true })
           .order('updated_at', { ascending: false })
+        if (!(isEditor && editMode)) {
+          q = q.eq('published', true)
+        }
+        const { data, error } = await q
         if (error) throw error
         const mapped = (data || []).map((r: any) => ({
           id: String(r.id ?? Math.random().toString(36).slice(2)),
@@ -113,18 +116,21 @@ export default function ShopProductsPage() {
       }
     }
     load()
-  }, [])
+  }, [editMode, isEditor])
 
   const reloadProducts = async () => {
     setLoading(true)
     setError(null)
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('products')
         .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,store_sort,updated_at')
-        .eq('published', true)
         .order('store_sort', { ascending: true })
         .order('updated_at', { ascending: false })
+      if (!(isEditor && editMode)) {
+        q = q.eq('published', true)
+      }
+      const { data, error } = await q
       if (error) throw error
       const mapped = (data || []).map((r: any) => ({
         id: String(r.id ?? Math.random().toString(36).slice(2)),
@@ -475,6 +481,9 @@ export default function ShopProductsPage() {
                       <div className="absolute right-2 top-2 z-10 flex gap-1">
                         <button onClick={()=> beginEdit(product)} className="rounded bg-white/90 px-2 py-0.5 text-xs text-gray-800 hover:bg-white">編輯</button>
                       </div>
+                    )}
+                    {(!product.published) && (
+                      <div className="absolute left-2 top-2 z-10 rounded bg-gray-700/90 px-2 py-0.5 text-[10px] text-white">草稿</div>
                     )}
                     <button
                       type="button"
