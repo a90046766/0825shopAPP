@@ -32,9 +32,16 @@ export default function NewShopPage() {
   const [cmsLoyalty, setCmsLoyalty] = useState<any | null>(null)
   const [cmsContacts, setCmsContacts] = useState<any | null>(null)
   const [cmsFaqs, setCmsFaqs] = useState<any[] | null>(null)
+  const [cmsEnabled, setCmsEnabled] = useState<boolean>(() => {
+    try { return localStorage.getItem('cms-enabled') === '1' } catch { return false }
+  })
 
-  // 關閉 CMS 載入，避免覆蓋為舊樣式（保留漂亮版本）
-  const enableCms = false
+  // CMS 總開關（預設關閉；僅管理時可開啟）
+  const enableCms = cmsEnabled
+
+  useEffect(() => {
+    try { localStorage.setItem('cms-enabled', cmsEnabled ? '1' : '0') } catch {}
+  }, [cmsEnabled])
 
   // 預取產品頁 chunk（滑入/觸控即預載）
   const prefetchOnceRef = React.useRef(false)
@@ -681,6 +688,23 @@ export default function NewShopPage() {
           </div>
         </div>
       </section>
+
+      {(currentUser?.role==='admin' || currentUser?.role==='support') && (
+        <section className="mx-4 md:mx-6 rounded-2xl border bg-white p-4 shadow-card">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-lg font-semibold">首頁管理</div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={cmsEnabled} onChange={e=> setCmsEnabled(e.target.checked)} />
+              啟用 CMS 內容
+            </label>
+          </div>
+          {!cmsEnabled && (
+            <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+              目前使用固定彩色版面。勾選「啟用 CMS 內容」後僅在你端預覽，不影響訪客與會員。
+            </div>
+          )}
+        </section>
+      )}
 
       {/* 聯繫我們 */}
       <section className="py-16 bg-gray-900 text-white">
