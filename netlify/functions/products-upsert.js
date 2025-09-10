@@ -39,8 +39,14 @@ exports.handler = async (event) => {
       result = data
     } else {
       if (!row.store_sort) {
-        const { data: maxData } = await supabase.rpc('sql', { sql: 'select coalesce(max(store_sort),0)+1 as next from public.products;' }).single().catch(()=>({ data:null }))
-        row.store_sort = (maxData && maxData.next) ? maxData.next : 1
+        // 以最大 store_sort + 1 作為新排序，避免 RPC 依賴
+        const { data: top } = await supabase
+          .from('products')
+          .select('store_sort')
+          .order('store_sort', { ascending: false })
+          .limit(1)
+        const currentMax = Array.isArray(top) && top[0]?.store_sort ? Number(top[0].store_sort) : 0
+        row.store_sort = currentMax + 1
       }
       const { data, error } = await supabase.from('products').insert(row).select('id').maybeSingle()
       if (error) throw error
