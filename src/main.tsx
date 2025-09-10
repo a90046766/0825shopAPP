@@ -323,7 +323,7 @@ createRoot(document.getElementById('root')!).render(
         // 僅在前台頁面與需要權限的後台頁面刷新一次
         try {
           const p = location.pathname
-          if (p.startsWith('/dispatch') || p.startsWith('/orders') || p.startsWith('/inventory') || p.startsWith('/store')) {
+          if (p.startsWith('/dispatch') || p.startsWith('/orders') || p.startsWith('/inventory')) {
             location.reload()
           }
         } catch {}

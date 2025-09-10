@@ -188,8 +188,9 @@ export default function ShopProductsPage() {
         const { error } = await supabase.from('products').update(row).eq('id', edit.id)
         if (error) throw error
       } else {
-        // 新增時補一個排序值
-        row.store_sort = Math.max(0, ...allProducts.map((x:any)=>x.store_sort||0)) + 1
+        // 新增：管理模式可新增為草稿（不擋前台讀取）；完成後再勾「上架」
+        const maxSort = Math.max(0, ...allProducts.map((x:any)=>(x as any).store_sort||0))
+        row.store_sort = maxSort + 1
         const { error } = await supabase.from('products').insert(row)
         if (error) throw error
       }
