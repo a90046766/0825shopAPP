@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles.css'
+import CmsEditor from './ui/pages/CmsEditor';
 // 最早期可視占位，避免任何情況出現白屏
 try {
   const rootEl = document.getElementById('root')
@@ -198,7 +199,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/salary" element={<PrivateRoute><SalaryPage /></PrivateRoute>} />
         {/* <Route path="/leave-management" element={<PrivateRoute><LeaveManagementPage /></PrivateRoute>} /> */}
         <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
-        <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
+        {/* 改為新 CMS 編輯頁 */}
+        <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><CmsEditor /></PrivateRoute>} />
       </Route>
         {/* 萬用路由：任何未知路徑導回購物站 */}
         <Route path="*" element={<Navigate to="/" replace />} />
