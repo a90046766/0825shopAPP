@@ -128,7 +128,8 @@ function DesktopNav() {
   { to: '/quotes', label: '職人語錄', perm: 'dashboard.view' },
   { to: '/store', label: '購物站', perm: 'dashboard.view' },
   { to: '/cms', label: 'CMS 編輯', perm: 'promotions.manage' },
-  { to: '/products', label: '產品管理', perm: 'products.manage' },
+  // 隱藏後台產品管理，統一改在購物站管理模式維護
+  // { to: '/products', label: '產品管理', perm: 'products.manage' },
   { to: '/me', label: '個人設定', perm: 'dashboard.view' }
 ]
   const menuBottom = [

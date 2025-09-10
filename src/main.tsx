@@ -48,7 +48,7 @@ const ShopProductsPage = React.lazy(() => import('./ui/pages/ShopProducts'))
 const ShopCartPage = React.lazy(() => import('./ui/pages/ShopCart'))
 const OrderSuccessPage = React.lazy(() => import('./ui/pages/OrderSuccess'))
 const SalaryPage = React.lazy(() => import('./ui/pages/Salary'))
-const LeaveManagementPage = React.lazy(() => import('./ui/pages/LeaveManagement'))
+// const LeaveManagementPage = React.lazy(() => import('./ui/pages/LeaveManagement'))
 const DatabaseTestPage = React.lazy(() => import('./ui/pages/DatabaseTest'))
 const AdminContentPage = React.lazy(() => import('./ui/pages/AdminContent'))
 const AdminSettingsPage = React.lazy(() => import('./ui/pages/AdminSettings'))
@@ -196,7 +196,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
         <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
         <Route path="/salary" element={<PrivateRoute><SalaryPage /></PrivateRoute>} />
-        <Route path="/leave-management" element={<PrivateRoute><LeaveManagementPage /></PrivateRoute>} />
+        {/* <Route path="/leave-management" element={<PrivateRoute><LeaveManagementPage /></PrivateRoute>} /> */}
         <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
         <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
       </Route>
@@ -310,6 +310,34 @@ createRoot(document.getElementById('root')!).render(
       }
     })
   } catch {}
+
+  // 實時驗證：偵測互動/聚焦時驗證 session（修正假登入殘影）
+  const verifySession = async () => {
+    try {
+      const { data } = await supabase.auth.getSession()
+      const hasSession = !!data?.session?.user
+      const local = localStorage.getItem('supabase-auth-user')
+      if (!hasSession && local) {
+        // 清除假登入並刷新 UI
+        try { localStorage.removeItem('supabase-auth-user') } catch {}
+        // 僅在前台頁面與需要權限的後台頁面刷新一次
+        try {
+          const p = location.pathname
+          if (p.startsWith('/dispatch') || p.startsWith('/orders') || p.startsWith('/inventory') || p.startsWith('/store')) {
+            location.reload()
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+  let idleTimer: any = null
+  const scheduleVerify = () => {
+    if (idleTimer) clearTimeout(idleTimer)
+    idleTimer = setTimeout(verifySession, 600) // 0.6s 內首次互動後驗證一次
+  }
+  ;['mousemove','mousedown','keydown','touchstart','visibilitychange','focus'].forEach(evt => {
+    window.addEventListener(evt as any, scheduleVerify, { passive: true })
+  })
   // 直接 Render Router
   } catch (err: any) {
     const msg = (err && (err.message || String(err))) || '初始化失敗'
