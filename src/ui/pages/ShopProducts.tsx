@@ -16,6 +16,19 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../utils/supabase'
 
+function getCurrentUser(): any | null {
+  try {
+    const s = localStorage.getItem('supabase-auth-user')
+    if (s) return JSON.parse(s)
+  } catch {}
+  try {
+    const l = localStorage.getItem('local-auth-user')
+    if (l) return JSON.parse(l)
+  } catch {}
+  return null
+}
+import { supabase } from '../../utils/supabase'
+
 export default function ShopProductsPage() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -33,6 +46,13 @@ export default function ShopProductsPage() {
   const [allProducts, setAllProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [edit, setEdit] = useState<any | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const user = getCurrentUser()
+  const isEditor = user?.role === 'admin' || user?.role === 'support'
 
   // 當網址列的 category 變化時同步
   useEffect(() => {
@@ -81,7 +101,8 @@ export default function ShopProductsPage() {
           category: r.mode_code ?? r.category ?? 'cleaning',
           features: Array.isArray(r.features) ? r.features : [],
           image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : '',
-          images: Array.isArray(r.image_urls) ? r.image_urls : []
+          images: Array.isArray(r.image_urls) ? r.image_urls : [],
+          published: !!r.published
         }))
         setAllProducts(mapped)
       } catch (e: any) {
@@ -93,6 +114,109 @@ export default function ShopProductsPage() {
     }
     load()
   }, [])
+
+  const reloadProducts = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,store_sort,updated_at')
+        .eq('published', true)
+        .order('store_sort', { ascending: true })
+        .order('updated_at', { ascending: false })
+      if (error) throw error
+      const mapped = (data || []).map((r: any) => ({
+        id: String(r.id ?? Math.random().toString(36).slice(2)),
+        name: r.name ?? '',
+        description: r.description ?? '',
+        price: Number(r.unit_price ?? 0),
+        groupPrice: r.group_price ?? null,
+        groupMinQty: r.group_min_qty ?? null,
+        category: r.mode_code ?? r.category ?? 'cleaning',
+        features: Array.isArray(r.features) ? r.features : [],
+        image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : '',
+        images: Array.isArray(r.image_urls) ? r.image_urls : [],
+        published: !!r.published
+      }))
+      setAllProducts(mapped)
+    } catch (e: any) {
+      setError(e?.message || String(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const beginCreate = () => {
+    setEdit({
+      id: null,
+      name: '',
+      description: '',
+      price: 0,
+      groupPrice: null,
+      groupMinQty: null,
+      category: selectedCategory || 'cleaning',
+      features: [],
+      image: '',
+      images: [],
+      published: true
+    })
+  }
+
+  const beginEdit = (p: any) => {
+    setEdit({ ...p, features: Array.isArray(p.features) ? p.features : [] })
+  }
+
+  const saveEdit = async () => {
+    if (!edit) return
+    setSaving(true)
+    try {
+      const row: any = {
+        name: edit.name || '',
+        unit_price: Number(edit.price || 0),
+        group_price: edit.groupPrice ?? null,
+        group_min_qty: edit.groupMinQty ?? null,
+        description: edit.description || '',
+        features: Array.isArray(edit.features) ? edit.features : String(edit.features||'').split(',').map((s:string)=>s.trim()).filter(Boolean),
+        image_urls: Array.isArray(edit.images) && edit.images.length>0 ? edit.images : (edit.image ? [edit.image] : []),
+        category: edit.category,
+        mode_code: edit.category,
+        published: !!edit.published,
+        updated_at: new Date().toISOString()
+      }
+      if (edit.id) {
+        const { error } = await supabase.from('products').update(row).eq('id', edit.id)
+        if (error) throw error
+      } else {
+        // 新增時補一個排序值
+        row.store_sort = Math.max(0, ...allProducts.map((x:any)=>x.store_sort||0)) + 1
+        const { error } = await supabase.from('products').insert(row)
+        if (error) throw error
+      }
+      setEdit(null)
+      await reloadProducts()
+    } catch (e: any) {
+      alert(`儲存失敗：${e?.message || e}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const deleteEdit = async () => {
+    if (!edit?.id) { setEdit(null); return }
+    if (!confirm('確定刪除此商品？')) return
+    setDeleting(true)
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', edit.id)
+      if (error) throw error
+      setEdit(null)
+      await reloadProducts()
+    } catch (e: any) {
+      alert(`刪除失敗：${e?.message || e}`)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   useEffect(() => {
     try { localStorage.setItem('shopFavorites', JSON.stringify(favorites)) } catch {}
@@ -268,6 +392,20 @@ export default function ShopProductsPage() {
             </div>
 
             <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+              {isEditor && (
+                <>
+                  <button
+                    onClick={()=> setEditMode(v=>!v)}
+                    className="rounded bg-gray-100 px-3 py-1 text-xs md:text-sm text-gray-700"
+                  >{editMode ? '關閉管理' : '管理模式'}</button>
+                  {editMode && (
+                    <button
+                      onClick={beginCreate}
+                      className="rounded bg-blue-600 px-3 py-1 text-xs md:text-sm text-white"
+                    >新增商品</button>
+                  )}
+                </>
+              )}
               <div className="relative">
                 <input
                   type="text"
@@ -319,6 +457,12 @@ export default function ShopProductsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-8">
           {/* 產品列表 */}
           <div className="lg:col-span-3">
+            {loading && (
+              <div className="mb-3 rounded border p-3 text-sm text-gray-600">載入中…</div>
+            )}
+            {error && (
+              <div className="mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
               {filteredProducts.map((product) => (
                 <div
@@ -328,6 +472,11 @@ export default function ShopProductsPage() {
                   {/* 產品圖片 */}
                   <div className="h-40 md:h-48 bg-gray-100 relative" onClick={()=> addToHistory(product)}>
                     <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                    {isEditor && editMode && (
+                      <div className="absolute right-2 top-2 z-10 flex gap-1">
+                        <button onClick={()=> beginEdit(product)} className="rounded bg-white/90 px-2 py-0.5 text-xs text-gray-800 hover:bg-white">編輯</button>
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={(e)=> { e.stopPropagation(); toggleFavorite(product.id) }}
@@ -518,6 +667,69 @@ export default function ShopProductsPage() {
           </div>
         </div>
       </div>
+
+      {/* 編輯面板 */}
+      {isEditor && editMode && edit && (
+        <div className="fixed inset-0 z-40 flex items-end md:items-center justify-center bg-black/30 p-3">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-base font-bold">{edit.id ? '編輯商品' : '新增商品'}</div>
+              <button onClick={()=> setEdit(null)} className="rounded bg-gray-100 px-3 py-1 text-xs text-gray-700">關閉</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-600">名稱</span>
+                <input className="rounded border px-2 py-1" value={edit.name} onChange={e=> setEdit({...edit, name: e.target.value})} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-600">分類</span>
+                <select className="rounded border px-2 py-1" value={edit.category} onChange={e=> setEdit({...edit, category: e.target.value})}>
+                  <option value="cleaning">專業清洗</option>
+                  <option value="home">居家清潔</option>
+                  <option value="new">家電購買</option>
+                  <option value="used">二手家電</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-600">單價</span>
+                <input type="number" min={0} className="rounded border px-2 py-1" value={edit.price} onChange={e=> setEdit({...edit, price: Number(e.target.value||0)})} />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex flex-col gap-1">
+                  <span className="text-gray-600">團購價</span>
+                  <input type="number" min={0} className="rounded border px-2 py-1" value={edit.groupPrice ?? ''} onChange={e=> setEdit({...edit, groupPrice: e.target.value===''? null : Number(e.target.value) })} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-gray-600">團購門檻</span>
+                  <input type="number" min={0} className="rounded border px-2 py-1" value={edit.groupMinQty ?? ''} onChange={e=> setEdit({...edit, groupMinQty: e.target.value===''? null : Number(e.target.value) })} />
+                </label>
+              </div>
+              <label className="md:col-span-2 flex flex-col gap-1">
+                <span className="text-gray-600">描述</span>
+                <textarea rows={3} className="rounded border px-2 py-1" value={edit.description} onChange={e=> setEdit({...edit, description: e.target.value})} />
+              </label>
+              <label className="md:col-span-2 flex flex-col gap-1">
+                <span className="text-gray-600">特色（以逗號分隔）</span>
+                <input className="rounded border px-2 py-1" value={Array.isArray(edit.features)? edit.features.join(',') : ''} onChange={e=> setEdit({...edit, features: e.target.value.split(',').map((s:string)=>s.trim()).filter(Boolean)})} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-600">封面圖片URL</span>
+                <input className="rounded border px-2 py-1" value={edit.image || ''} onChange={e=> setEdit({...edit, image: e.target.value})} />
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={!!edit.published} onChange={e=> setEdit({...edit, published: e.target.checked})} />
+                <span className="text-gray-700">上架</span>
+              </label>
+            </div>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              {edit?.id && (
+                <button disabled={deleting||saving} onClick={deleteEdit} className="rounded bg-red-50 px-3 py-1 text-xs text-red-600 disabled:opacity-60">{deleting? '刪除中…':'刪除'}</button>
+              )}
+              <button disabled={saving} onClick={saveEdit} className="rounded bg-blue-600 px-3 py-1 text-xs text-white disabled:opacity-60">{saving? '儲存中…':'儲存'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 行動版底部快速結帳列 */}
       {cart.length > 0 && (
