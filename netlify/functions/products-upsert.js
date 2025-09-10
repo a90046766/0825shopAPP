@@ -17,18 +17,27 @@ exports.handler = async (event) => {
     const supabase = createClient(url, key, { auth: { persistSession: false } })
 
     const p = payload || {}
+    // 兼容前端兩種命名（price/unit_price、groupPrice/group_price、images/image_urls）
+    const unitPrice = p.price ?? p.unit_price
+    const groupPrice = (p.groupPrice === '' ? null : p.groupPrice) ?? p.group_price ?? null
+    const groupMinQty = (p.groupMinQty === '' ? null : p.groupMinQty) ?? p.group_min_qty ?? null
+    const images = Array.isArray(p.images)
+      ? p.images
+      : (Array.isArray(p.image_urls) ? p.image_urls : (p.image ? [p.image] : []))
+    const storeSort = p.store_sort ?? p.storeSort ?? null
+
     const row = {
       name: p.name ?? '',
-      unit_price: Number(p.price ?? 0),
-      group_price: p.groupPrice ?? null,
-      group_min_qty: p.groupMinQty ?? null,
+      unit_price: Number(unitPrice ?? 0),
+      group_price: groupPrice,
+      group_min_qty: groupMinQty,
       description: p.description ?? '',
       features: Array.isArray(p.features) ? p.features : [],
-      image_urls: Array.isArray(p.images) && p.images.length > 0 ? p.images : (p.image ? [p.image] : []),
+      image_urls: images,
       category: p.category ?? 'cleaning',
       mode_code: p.category ?? 'cleaning',
       published: !!p.published,
-      store_sort: p.store_sort ?? null,
+      store_sort: storeSort,
       updated_at: new Date().toISOString()
     }
 
