@@ -190,7 +190,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/customers" element={<PrivateRoute permission="customers.manage"><CustomersPage /></PrivateRoute>} />
         {/* Approvals 僅限 admin 可見，權限已在選單側控制 */}
         <Route path="/approvals" element={<PrivateRoute permission="approvals.manage"><ApprovalsPage /></PrivateRoute>} />
-        <Route path="/payroll" element={<PrivateRoute permission="payroll.view"><PayrollPage /></PrivateRoute>} />
+        <Route path="/payroll" element={<Navigate to="/payroll/support" replace />} />
+        <Route path="/payroll/:role" element={<PrivateRoute permission="payroll.view"><PayrollPage /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute permission="reports.view"><ReportsPage /></PrivateRoute>} />
         <Route path="/report-center" element={<PrivateRoute permission="reports.view"><ReportCenterPage /></PrivateRoute>} />
         <Route path="/admin/settings" element={<PrivateRoute permission="promotions.manage"><AdminSettingsPage /></PrivateRoute>} />
