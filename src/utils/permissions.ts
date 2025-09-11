@@ -56,7 +56,6 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     'technicians.schedule.view',
     'support.schedule.view', 'support.schedule.edit',
     'staff.payroll.view', // 僅自己
-    'payroll.view',
     'products.manage', 'inventory.manage', 'inventory.create', 'inventory.edit', 'inventory.delete', 'inventory.purchase',
     'promotions.manage', 'documents.manage', 'models.manage',
     'notifications.send', 'notifications.read',
@@ -75,8 +74,8 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     'inventory.manage', 'inventory.purchase',
     // 排班：僅客服排班權限，不看技師班表
     'support.schedule.view', 'support.schedule.edit', 'schedule.view',
-    // 回報與薪資
-    'reports.view', 'payroll.view',
+    // 回報
+    'reports.view',
     // 檔案/機型/個人
     'documents.manage', 'models.manage',
     // 請假管理
@@ -88,7 +87,6 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     'technicians.schedule.view',
     'notifications.read',
     'schedule.view',
-    'payroll.view',
     'reports.view',
     'leave.manage',
     // 允許技師在庫存頁提出購買申請
