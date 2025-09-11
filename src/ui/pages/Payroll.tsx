@@ -346,6 +346,18 @@ export default function Payroll() {
         deduction_other: (record as any).deductions?.other ?? null,
         notes: (record as any).notes || null
       }
+      // 追加 snake_case 欄位以相容資料表命名
+      payload.user_email = payload.userEmail ?? (record as any).user_email ?? (record as any).userEmail ?? (user?.email || null)
+      payload.user_name = (record as any).user_name ?? payload.userName ?? null
+      payload.employee_id = (record as any).employee_id ?? payload.employeeId ?? null
+      payload.base_salary = (record as any).base_salary ?? payload.baseSalary ?? null
+      payload.points_mode = (record as any).points_mode ?? payload.pointsMode ?? null
+      payload.bonus_rate = (record as any).bonus_rate ?? payload.bonusRate ?? null
+      payload.tech_commission = (record as any).tech_commission ?? payload.techCommission ?? null
+      payload.share_scheme = (record as any).share_scheme ?? payload.shareScheme ?? null
+      payload.share_rate = (record as any).share_rate ?? payload.shareRate ?? null
+      payload.base_guarantee = (record as any).base_guarantee ?? payload.baseGuarantee ?? null
+
       Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k] })
 
       // 直接呼叫 Supabase 並在遇到 PGRST204（欄位不存在）時移除該欄位重試
