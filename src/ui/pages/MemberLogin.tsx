@@ -151,7 +151,10 @@ export default function MemberLoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-600">
+        <div className="mt-4 text-right text-sm">
+          <Link to="/login/member/reset" className="text-blue-600 hover:text-blue-700">忘記密碼？</Link>
+        </div>
+        <div className="mt-4 text-center text-sm text-gray-600">
           還沒有會員帳號？
           <Link to="/register/member" className="text-blue-600 hover:text-blue-700 ml-1">立即註冊</Link>
         </div>

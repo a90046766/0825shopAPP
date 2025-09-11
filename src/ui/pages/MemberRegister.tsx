@@ -101,6 +101,9 @@ export default function MemberRegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-4">
       <form onSubmit={onSubmit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-card">
         <div className="mb-2 text-center text-xl font-bold">會員註冊</div>
+        <div className="mb-2 text-center text-sm text-gray-600">
+          已有帳號？<a href="/login/member" className="text-blue-600 hover:text-blue-700">前往登入</a>
+        </div>
         <div className="mb-4 grid grid-cols-2 gap-2">
           <button type="button" onClick={()=>setMode('email')} className={`rounded-lg px-3 py-2 text-sm ${mode==='email'?'bg-blue-600 text-white':'bg-gray-100'}`}>使用 Email 註冊</button>
           <button type="button" onClick={()=>setMode('phone')} className={`rounded-lg px-3 py-2 text-sm ${mode==='phone'?'bg-emerald-600 text-white':'bg-gray-100'}`}>使用手機註冊</button>

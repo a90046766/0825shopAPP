@@ -267,12 +267,12 @@ export default function NewShop() {
 										<span className="text-2xl font-bold">1:1</span>
 										<span className="text-sm ml-1">回饋</span>
 									</div>
-									<Link to="/account" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-										查看積分
+									<Link to="/store/member/orders" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+										會員中心
                 </Link>
             </div>
-							</div>
-							<div className="hidden md:block text-8xl opacity-20">💰</div>
+						</div>
+						<div className="hidden md:block text-8xl opacity-20">💰</div>
           </div>
         </div>
 
