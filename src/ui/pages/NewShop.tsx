@@ -63,6 +63,7 @@ export default function NewShop() {
 	const [isAdminSupport, setIsAdminSupport] = React.useState<boolean>(false);
 	const [published, setPublished] = React.useState<CmsContent | null>(null);
 	const [loading, setLoading] = React.useState<boolean>(true);
+	const [displayName, setDisplayName] = React.useState<string>('');
 
 	React.useEffect(() => {
 		// 最多 4 秒結束載入，避免卡住
@@ -82,6 +83,8 @@ export default function NewShop() {
 							.maybeSingle();
 						setIsAdminSupport(!!staffRow && (staffRow.role === 'admin' || staffRow.role === 'support'));
 					}
+					const nameFromMeta = (u?.user?.user_metadata as any)?.full_name || (u?.user?.user_metadata as any)?.name || email;
+					setDisplayName(nameFromMeta || '');
 				} catch {}
 
 				// 讀全站開關（失敗則當作未啟用，顯示固定版）
@@ -300,19 +303,19 @@ export default function NewShop() {
                   </Link>
 						</div>
 						<div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-							<div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+							<div className="bg-white/10 rounded-lg p-3">
 								<div className="text-2xl mb-1">⭐</div>
 								<div className="text-sm font-medium">4.9星評價</div>
 							</div>
-							<div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+							<div className="bg-white/10 rounded-lg p-3">
 								<div className="text-2xl mb-1">👥</div>
 								<div className="text-sm font-medium">5000+客戶</div>
               </div>
-							<div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+							<div className="bg-white/10 rounded-lg p-3">
 								<div className="text-2xl mb-1">🕒</div>
 								<div className="text-sm font-medium">24小時服務</div>
               </div>
-							<div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+							<div className="bg-white/10 rounded-lg p-3">
 								<div className="text-2xl mb-1">🛡️</div>
 								<div className="text-sm font-medium">品質保證</div>
                 </div>
@@ -458,25 +461,25 @@ export default function NewShop() {
 				<div className="max-w-6xl mx-auto px-4 py-12">
 					<h2 className="text-3xl font-bold text-center mb-8">聯繫我們</h2>
 					<div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-						<div className="text-center bg-white/10 rounded-xl p-6 backdrop-blur-sm">
+						<div className="text-center bg-white/10 rounded-xl p-6">
 							<div className="text-3xl mb-4">📞</div>
 							<h3 className="font-semibold mb-2">客服專線</h3>
 							<p className="text-white/90 mb-2">0800-000-000</p>
 							<p className="text-sm text-white/70">24小時客服熱線</p>
             </div>
-						<div className="text-center bg-white/10 rounded-xl p-6 backdrop-blur-sm">
+						<div className="text-center bg-white/10 rounded-xl p-6">
 							<div className="text-3xl mb-4">📧</div>
 							<h3 className="font-semibold mb-2">電子郵件</h3>
 							<p className="text-white/90 mb-2">service@942clean.com.tw</p>
 							<p className="text-sm text-white/70">24小時內回覆</p>
               </div>
-						<div className="text-center bg-white/10 rounded-xl p-6 backdrop-blur-sm">
+						<div className="text-center bg-white/10 rounded-xl p-6">
 							<div className="text-3xl mb-4">🕒</div>
 							<h3 className="font-semibold mb-2">服務時間</h3>
 							<p className="text-white/90 mb-2">週一至週日</p>
 							<p className="text-sm text-white/70">8:00-20:00</p>
               </div>
-						<div className="text-center bg-white/10 rounded-xl p-6 backdrop-blur-sm">
+						<div className="text-center bg-white/10 rounded-xl p-6">
 							<div className="text-3xl mb-4">📍</div>
 							<h3 className="font-semibold mb-2">服務範圍</h3>
 							<p className="text-white/90 mb-2">大台北地區</p>
@@ -513,6 +516,18 @@ export default function NewShop() {
           </div>
 		);
 	}
+
+	function renderWelcome() {
+		if (!displayName) return null;
+		return (
+			<div className="w-full bg-blue-50 border-b border-blue-100">
+				<div className="max-w-6xl mx-auto px-4 py-2 text-sm text-blue-900 flex items-center justify-between">
+					<div>歡迎回來，{displayName}</div>
+					<Link to="/account" className="underline hover:no-underline">前往會員中心</Link>
+				</div>
+			</div>
+		);
+	}
           
 	if (loading) {
 		return (
@@ -531,6 +546,7 @@ export default function NewShop() {
 					onPublish={publishNow}
 				/>
 			)}
+			{renderWelcome()}
 			{renderCarousel()}
 			{renderHero()}
 			{renderServices()}
