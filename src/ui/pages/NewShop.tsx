@@ -217,34 +217,34 @@ export default function NewShop() {
 		const slides = (cmsSlides && cmsSlides.length > 0)
 			? cmsSlides.slice(0, 3).map((s:any) => ({ bg: s.imageUrl || '', title: s.title || '', subtitle: s.subtitle || '', ctaText: s.ctaText, ctaLink: s.ctaLink }))
 			: fallbackSlides
-  return (
-			<div className="relative overflow-hidden rounded-2xl mx-4 mb-8">
+		return (
+			<div className="relative overflow-hidden rounded-2xl mx-4 mb-8" style={{ aspectRatio: '1200 / 628', minHeight: 220 }}>
 				<div
-					className="flex transition-transform duration-500 ease-in-out"
+					className="flex transition-transform duration-500 ease-in-out h-full"
 					style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
 				>
 					{slides.map((s, i) => (
-						<div key={i} className="w-full flex-shrink-0 relative p-8 text-white" style={{ backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('${s.bg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+						<div key={i} className="w-full h-full flex-shrink-0 relative p-8 text-white" style={{ backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('${s.bg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
 							<div className="relative z-10">
 								<div className="flex items-center gap-2 mb-4">
 									<span className="text-3xl">✨</span>
 									<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
-            </div>
+								</div>
 								<h2 className="text-3xl md:text-4xl font-bold mb-3">{s.title}</h2>
 								{s.subtitle ? <p className="text-lg md:text-xl text-white/90 mb-6">{s.subtitle}</p> : null}
 								{s.ctaText && s.ctaLink ? (
 									<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
 								) : null}
-          </div>
-        </div>
+							</div>
+						</div>
 					))}
-            </div>
+				</div>
 				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
 					{slides.map((_, index) => (
 						<button key={index} className={`w-3 h-3 rounded-full transition-all duration-300 ${index === carouselIndex ? 'bg-white opacity-80' : 'bg-white/50 hover:bg-white/70'}`} onClick={() => setCarouselIndex(index)} />
 					))}
-          </div>
-        </div>
+				</div>
+			</div>
 		);
 	}
 
@@ -282,28 +282,23 @@ export default function NewShop() {
 								立即預約
                   </Link>
 						</div>
-						<div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-							<div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105">
-								<div className="text-3xl mb-2">⭐</div>
-								<div className="text-sm font-semibold">4.9星評價</div>
-								<div className="text-xs text-white/80">客戶一致好評</div>
-							</div>
-							<div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105">
-								<div className="text-3xl mb-2">👥</div>
-								<div className="text-sm font-semibold">5000+客戶</div>
-								<div className="text-xs text-white/80">滿意服務見證</div>
-							</div>
-							<div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105">
-								<div className="text-3xl mb-2">🕒</div>
-								<div className="text-sm font-semibold">09:00~21:00</div>
-								<div className="text-xs text-white/80">全年無休服務</div>
-							</div>
-							<div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105">
-								<div className="text-3xl mb-2">🛡️</div>
-								<div className="text-sm font-semibold">90天保固</div>
-								<div className="text-xs text-white/80">品質保證服務</div>
-                </div>
-              </div>
+						<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+							{[
+								{ icon: '⭐', title: '4.9星評價', sub: '客戶一致好評' },
+								{ icon: '👥', title: '5000+客戶', sub: '滿意服務見證' },
+								{ icon: '🕒', title: '09:00~21:00', sub: '全年無休服務' },
+								{ icon: '🛡️', title: '90天保固', sub: '品質保證服務' }
+							].map((c, i) => (
+								<div key={i} className="group relative overflow-hidden rounded-2xl bg-white/12 border border-white/20 backdrop-blur-sm shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.03]">
+									<div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+									<div className="p-5 text-center">
+										<div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-2xl shadow-inner">{c.icon}</div>
+										<div className="text-base font-bold tracking-tight text-white drop-shadow">{c.title}</div>
+										<div className="mt-1 text-xs text-white/85">{c.sub}</div>
+									</div>
+								</div>
+							))}
+						</div>
             </div>
           </div>
 				{isAdminSupport && (
