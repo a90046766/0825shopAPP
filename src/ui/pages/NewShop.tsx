@@ -71,8 +71,8 @@ export default function NewShop() {
 			typeof window !== 'undefined' &&
 			new URLSearchParams(window.location.search).get('nocms') === '1';
 		
-		(async () => {
-			try {
+    (async () => {
+      try {
 				if (forcedNoCms) {
 					setCmsEnabled(false);
 					setPublished(null);
@@ -382,15 +382,15 @@ export default function NewShop() {
 							{ title: '10年專業經驗', desc: '深耕業界十年，累積豐富實戰經驗', icon: '🏆' },
 							{ title: '5000+滿意客戶', desc: '服務過無數家庭，口碑見證品質', icon: '👥' },
 							{ title: '4.9星高評價', desc: '客戶一致好評，品質有口皆碑', icon: '⭐' },
-							{ title: '24小時服務', desc: '緊急狀況隨時待命，全年無休', icon: '🕒' },
+							{ title: '滿意保證', desc: '不滿意重新清洗，確保服務品質', icon: '✅' },
 							{ title: '日式精工精神', desc: '嚴謹細膩的服務態度，追求完美', icon: '🇯🇵' },
-							{ title: '日本進口清潔劑', desc: '使用頂級環保清潔劑，安全有效', icon: '🧪' },
+							{ title: '專用清潔劑', desc: '不傷機器與機體，效果更佳', icon: '🧪' },
 							{ title: '專業設備工具', desc: '引進最新清洗設備，效果更佳', icon: '🔧' },
-							{ title: '30天品質保固', desc: '服務後提供保固，讓您安心無憂', icon: '🛡️' },
+							{ title: '最長90天保固', desc: '10年內機器提供90天保固服務', icon: '🛡️' },
 							{ title: '透明合理價格', desc: '公開透明收費，絕不亂加價', icon: '💰' },
 							{ title: '線上預約便利', desc: '24小時線上預約，時間彈性安排', icon: '📱' },
 							{ title: '專業技師團隊', desc: '經驗豐富技師，技術精湛可靠', icon: '👨‍🔬' },
-							{ title: '環保永續理念', desc: '使用環保清潔劑，愛護地球環境', icon: '🌱' }
+							{ title: '全國服務範圍', desc: '服務範圍涵蓋北北基桃竹苗中彰投南高', icon: '🗺️' }
 						].map((a, i) => (
 							<div key={i} className="text-center bg-white/60 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
 								<div className="text-4xl mb-4">{a.icon}</div>
@@ -413,11 +413,11 @@ export default function NewShop() {
 						<div className="space-y-4">
 							<div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 清洗服務需要多長時間？</h3>
-								<p className="text-sm text-gray-600">A: 一般冷氣清洗約1-2小時，洗衣機清洗約1小時，抽油煙機清洗約1.5小時，具體時間依設備狀況而定。</p>
+								<p className="text-sm text-gray-600">A: 一般冷氣清洗約1-2小時，洗衣機清洗約1.5小時，抽油煙機清洗約1.5小時，具體時間依現場環境及設備狀況而定。</p>
 							</div>
 							<div className="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 清洗後有保固嗎？</h3>
-								<p className="text-sm text-gray-600">A: 是的，我們提供30天保固服務，如有問題可免費重新處理。</p>
+								<p className="text-sm text-gray-600">A: 是的，我們提供10年內機器提供90天保固服務，13年內提供30天保固，13年後不提供保固。保固期間內如無法維修提供換機購物金。</p>
 							</div>
 							<div className="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 需要提前多久預約？</h3>
@@ -425,11 +425,11 @@ export default function NewShop() {
             </div>
 							<div className="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 清洗過程會影響日常生活嗎？</h3>
-								<p className="text-sm text-gray-600">A: 我們會盡量減少對您日常生活的影響，並在清洗前詳細說明流程。</p>
+								<p className="text-sm text-gray-600">A: 我們會盡量減少對您日常生活的影響，並在清洗前說明流程。</p>
               </div>
 							<div className="bg-pink-50 rounded-lg p-4 border-l-4 border-pink-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 使用什麼清潔劑？</h3>
-								<p className="text-sm text-gray-600">A: 我們使用日本進口環保清潔劑，對人體和環境無害，效果更佳。</p>
+								<p className="text-sm text-gray-600">A: 我們使用專用清潔劑，不傷機器與機體，效果更佳。</p>
               </div>
 							<div className="bg-indigo-50 rounded-lg p-4 border-l-4 border-indigo-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 可以指定技師嗎？</h3>
@@ -443,7 +443,7 @@ export default function NewShop() {
 							</div>
 							<div className="bg-teal-50 rounded-lg p-4 border-l-4 border-teal-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 清洗後多久可以正常使用？</h3>
-								<p className="text-sm text-gray-600">A: 清洗完成後即可正常使用，我們會確保設備完全乾燥。</p>
+								<p className="text-sm text-gray-600">A: 清洗完成後即可正常使用，技師會確保機器正常運作。</p>
           </div>
 							<div className="bg-red-50 rounded-lg p-4 border-l-4 border-red-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 如果設備有故障怎麼辦？</h3>
@@ -455,11 +455,11 @@ export default function NewShop() {
             </div>
 							<div className="bg-emerald-50 rounded-lg p-4 border-l-4 border-emerald-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 服務範圍包含哪些地區？</h3>
-								<p className="text-sm text-gray-600">A: 目前服務大台北地區，其他地區請來電洽詢。</p>
+								<p className="text-sm text-gray-600">A: 目前服務地區，包含北北基/桃竹苗/中彰投/南高，其他地區如雲嘉南/屏東由周邊技師服務。</p>
               </div>
 							<div className="bg-rose-50 rounded-lg p-4 border-l-4 border-rose-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 如何取消或改期？</h3>
-								<p className="text-sm text-gray-600">A: 請提前24小時聯繫客服，我們會協助您重新安排時間。</p>
+								<p className="text-sm text-gray-600">A: 請提前24小時聯繫客服，我們會協助您重新安排時間。如在當天臨時有事可直接聯繫訂單上的服務技師。</p>
               </div>
               </div>
             </div>
