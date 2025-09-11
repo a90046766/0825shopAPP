@@ -56,6 +56,7 @@ const AdminSettingsPage = React.lazy(() => import('./ui/pages/AdminSettings'))
 const AdminBroadcastPage = React.lazy(() => import('./ui/pages/AdminBroadcast'))
 const MemberOrdersPage = React.lazy(() => import('./ui/pages/MemberOrders'))
 const MemberOrderDetailPage = React.lazy(() => import('./ui/pages/MemberOrderDetail'))
+const MemberProfilePage = React.lazy(() => import('./ui/pages/MemberProfile'))
 import { supabase } from './utils/supabase'
 
 // 權限保護
@@ -160,6 +161,7 @@ createRoot(document.getElementById('root')!).render(
       <Route path="/store/order-success" element={<OrderSuccessPage />} />
       {/* 會員中心 */}
       <Route path="/store/member/orders" element={<MemberOrdersPage />} />
+      <Route path="/store/member/profile" element={<MemberProfilePage />} />
       <Route path="/store/member/orders/:id" element={<MemberOrderDetailPage />} />
       {/* 舊路徑相容 */}
       <Route path="/shop/*" element={<Navigate to="/store" replace />} />
