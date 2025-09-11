@@ -52,8 +52,8 @@ const defaultContent: CmsContent = {
 	},
 	services: [
 		{ title: '專業清洗', description: '冷氣/洗衣機/冰箱深度清洗', link: '/store/products?category=cleaning', imageUrl: '' },
-		{ title: '居家清潔', description: '定期/深度打掃、除塵除蟎', link: '/store/products?category=housekeeping', imageUrl: '' },
-		{ title: '家電購買', description: '嚴選優質家電，安心安裝', link: '/store/products?category=appliance', imageUrl: '' },
+		{ title: '居家清潔', description: '定期/深度打掃、除塵除蟎', link: '/store/products?category=home', imageUrl: '' },
+		{ title: '家電購買', description: '嚴選優質家電，安心安裝', link: '/store/products?category=new', imageUrl: '' },
 		{ title: '二手家電', description: '履保二手，環保又省錢', link: '/store/products?category=used', imageUrl: '' }
 	]
 };
@@ -212,7 +212,7 @@ export default function NewShop() {
 					<div 
 						className="w-full flex-shrink-0 relative p-8 text-white"
 						style={{
-							backgroundImage: 'linear-gradient(135deg, rgba(236, 72, 153, 0.8) 0%, rgba(244, 63, 94, 0.8) 50%, rgba(239, 68, 68, 0.8) 100%), url("https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80")',
+							backgroundImage: 'linear-gradient(135deg, rgba(236, 72, 153, 0.6) 0%, rgba(244, 63, 94, 0.6) 50%, rgba(239, 68, 68, 0.6) 100%), url("https://images.unsplash.com/photo-1515169067865-5387ec356754?q=80&w=1600&auto=format&fit=crop")',
 							backgroundSize: 'cover',
 							backgroundPosition: 'center'
 						}}
@@ -246,7 +246,7 @@ export default function NewShop() {
 					<div 
 						className="w-full flex-shrink-0 relative p-8 text-white"
 						style={{
-							backgroundImage: 'linear-gradient(135deg, rgba(59, 130, 246, 0.8) 0%, rgba(99, 102, 241, 0.8) 50%, rgba(147, 51, 234, 0.8) 100%), url("https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80")',
+							backgroundImage: 'linear-gradient(135deg, rgba(59, 130, 246, 0.6) 0%, rgba(99, 102, 241, 0.6) 50%, rgba(147, 51, 234, 0.6) 100%), url("https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=1600&auto=format&fit=crop")',
 							backgroundSize: 'cover',
 							backgroundPosition: 'center'
 						}}
@@ -280,7 +280,7 @@ export default function NewShop() {
 					<div 
 						className="w-full flex-shrink-0 relative p-8 text-white"
 						style={{
-							backgroundImage: 'linear-gradient(135deg, rgba(34, 197, 94, 0.8) 0%, rgba(20, 184, 166, 0.8) 50%, rgba(6, 182, 212, 0.8) 100%), url("https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80")',
+							backgroundImage: 'linear-gradient(135deg, rgba(34, 197, 94, 0.6) 0%, rgba(20, 184, 166, 0.6) 50%, rgba(6, 182, 212, 0.6) 100%), url("https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop")',
 							backgroundSize: 'cover',
 							backgroundPosition: 'center'
 						}}

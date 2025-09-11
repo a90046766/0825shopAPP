@@ -27,7 +27,7 @@ function getCurrentUser(): any | null {
   } catch {}
   return null
 }
-import { supabase } from '../../utils/supabase'
+// 重複 import 會造成編譯錯誤，移除第二個重複 import
 
 export default function ShopProductsPage() {
   const location = useLocation()
@@ -46,6 +46,8 @@ export default function ShopProductsPage() {
   const [allProducts, setAllProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null)
+  const [useServerApi, setUseServerApi] = useState(true)
   const [editMode, setEditMode] = useState(false)
   const [edit, setEdit] = useState<any | null>(null)
   const [saving, setSaving] = useState(false)
@@ -78,12 +80,51 @@ export default function ShopProductsPage() {
     } catch {}
   }, [])
 
-  // 從 Supabase 讀取產品（管理模式顯示含草稿；一般僅顯示已上架）
+  // 從 Supabase 讀取產品（含容錯與離線預設）
   useEffect(() => {
+    const seedProducts: any[] = [
+      { id: 'seed-ac-split', name: '分離式冷氣清洗', description: '專業拆洗殺菌', price: 1800, groupPrice: 1600, groupMinQty: 3, category: 'cleaning', features: ['深度清洗','除菌除臭','保固說明'], image: 'https://images.unsplash.com/photo-1528323273322-d81458248d40?q=80&w=1200&auto=format&fit=crop', images: [], published: true },
+      { id: 'seed-washer', name: '洗衣機清洗（滾筒）', description: '內槽還原常新', price: 1999, groupPrice: 1799, groupMinQty: 3, category: 'cleaning', features: ['內槽拆洗','去汙抗菌','快速完工'], image: 'https://images.unsplash.com/photo-1565718815432-d975f22f1b19?q=80&w=1200&auto=format&fit=crop', images: [], published: true },
+      { id: 'seed-hood', name: '抽油煙機清洗', description: '重油汙徹底處理', price: 2200, groupPrice: 2000, groupMinQty: 3, category: 'cleaning', features: ['渦輪清洗','強力去油','安全環保'], image: 'https://images.unsplash.com/photo-1599597435093-6ab35cda2f5c?q=80&w=1200&auto=format&fit=crop', images: [], published: true },
+      { id: 'seed-fridge', name: '冰箱清洗除臭', description: '乾淨無異味', price: 1600, groupPrice: 1440, groupMinQty: 3, category: 'cleaning', features: ['食安無虞','抑菌處理','保鮮加分'], image: 'https://images.unsplash.com/photo-1586201375761-83865001e31b?q=80&w=1200&auto=format&fit=crop', images: [], published: true },
+    ]
+
+    const safeMap = (rows: any[]): any[] => {
+      return (rows || []).map((r: any) => ({
+        id: String(r.id ?? r.uuid ?? Math.random().toString(36).slice(2)),
+        name: r.name ?? '',
+        description: r.description ?? '',
+        price: Number(r.unit_price ?? r.price ?? 0),
+        groupPrice: (r.group_price ?? r.groupPrice) ?? null,
+        groupMinQty: (r.group_min_qty ?? r.groupMinQty) ?? null,
+        category: r.mode_code ?? r.category ?? 'cleaning',
+        features: Array.isArray(r.features) ? r.features : [],
+        image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : (r.image || ''),
+        images: Array.isArray(r.image_urls) ? r.image_urls : (Array.isArray(r.images) ? r.images : []),
+        published: r.published !== undefined ? !!r.published : true
+      }))
+    }
+
     const load = async () => {
       setLoading(true)
       setError(null)
+      setFallbackNotice(null)
       try {
+        // 方案 S：優先走 Netlify Functions（更穩定）
+        if (useServerApi) {
+          try {
+            const res = await fetch('/api/products-list?publishedOnly=' + (isEditor && editMode ? '0' : '1'), { method: 'GET' })
+            const j = await res.json()
+            if (j?.ok && Array.isArray(j.data)) {
+              setAllProducts(j.data)
+              if (j.data.length === 0) setFallbackNotice('目前尚無上架商品，請於管理模式新增')
+              setLoading(false)
+              return
+            }
+          } catch {}
+        }
+
+        // 方案 A：直接查 Supabase（完整欄位 + 排序，若資料表完整）
         let q = supabase
           .from('products')
           .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,store_sort,updated_at')
@@ -92,59 +133,78 @@ export default function ShopProductsPage() {
         if (!(isEditor && editMode)) {
           q = q.eq('published', true)
         }
-        const { data, error } = await q
-        if (error) throw error
-        const mapped = (data || []).map((r: any) => ({
-          id: String(r.id ?? Math.random().toString(36).slice(2)),
-          name: r.name ?? '',
-          description: r.description ?? '',
-          price: Number(r.unit_price ?? 0),
-          groupPrice: r.group_price ?? null,
-          groupMinQty: r.group_min_qty ?? null,
-          category: r.mode_code ?? r.category ?? 'cleaning',
-          features: Array.isArray(r.features) ? r.features : [],
-          image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : '',
-          images: Array.isArray(r.image_urls) ? r.image_urls : [],
-          published: !!r.published
-        }))
-        setAllProducts(mapped)
+        let { data, error } = await q
+        if (error) {
+          // 方案 B：移除可能不存在欄位（如 store_sort）
+          let q2 = supabase
+            .from('products')
+            .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,updated_at')
+            .order('updated_at', { ascending: false })
+          if (!(isEditor && editMode)) q2 = q2.eq('published', true)
+          const r2 = await q2
+          data = r2.data as any
+          error = r2.error as any
+        }
+        if (error) {
+          // 方案 C：最小化查詢（select *），避免欄位不相容帶來 400
+          let q3 = supabase.from('products').select('*')
+          if (!(isEditor && editMode)) q3 = q3.eq('published', true)
+          const r3 = await q3
+          if (r3.error) throw r3.error
+          const mappedC = safeMap(r3.data || [])
+          setAllProducts(mappedC)
+          if (mappedC.length === 0) {
+            setAllProducts(seedProducts)
+            setFallbackNotice('目前顯示預設商品（資料庫無資料或未上架）')
+          }
+          return
+        }
+
+        const mapped = safeMap(data || [])
+        if (mapped.length === 0) {
+          setAllProducts(seedProducts)
+          setFallbackNotice('目前顯示預設商品（暫無上架商品）')
+        } else {
+          setAllProducts(mapped)
+        }
       } catch (e: any) {
+        // 完全失敗：離線/連線錯誤 → 顯示預設商品，並給管理員看到錯誤
         setError(e?.message || String(e))
-        setAllProducts([])
+        setAllProducts(seedProducts)
+        setFallbackNotice('連線異常，暫時顯示預設商品')
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [editMode, isEditor])
+  }, [editMode, isEditor, useServerApi])
 
   const reloadProducts = async () => {
     setLoading(true)
     setError(null)
+    setFallbackNotice(null)
     try {
       let q = supabase
         .from('products')
-        .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,store_sort,updated_at')
-        .order('store_sort', { ascending: true })
+        .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,updated_at')
         .order('updated_at', { ascending: false })
-      if (!(isEditor && editMode)) {
-        q = q.eq('published', true)
-      }
+      if (!(isEditor && editMode)) q = q.eq('published', true)
       const { data, error } = await q
       if (error) throw error
       const mapped = (data || []).map((r: any) => ({
         id: String(r.id ?? Math.random().toString(36).slice(2)),
         name: r.name ?? '',
         description: r.description ?? '',
-        price: Number(r.unit_price ?? 0),
+        price: Number(r.unit_price ?? r.price ?? 0),
         groupPrice: r.group_price ?? null,
         groupMinQty: r.group_min_qty ?? null,
         category: r.mode_code ?? r.category ?? 'cleaning',
         features: Array.isArray(r.features) ? r.features : [],
-        image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : '',
+        image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : (r.image || ''),
         images: Array.isArray(r.image_urls) ? r.image_urls : [],
         published: !!r.published
       }))
+      if (mapped.length === 0) setFallbackNotice('目前顯示預設商品（暫無上架商品）')
       setAllProducts(mapped)
     } catch (e: any) {
       setError(e?.message || String(e))
@@ -466,7 +526,14 @@ export default function ShopProductsPage() {
               <div className="mb-3 rounded border p-3 text-sm text-gray-600">載入中…</div>
             )}
             {error && (
-              <div className="mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>
+              <div className="mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                {isEditor ? `載入商品失敗：${error}` : '商品載入異常，請稍後再試'}
+              </div>
+            )}
+            {fallbackNotice && (
+              <div className="mb-3 rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                {fallbackNotice}
+              </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
               {filteredProducts.map((product) => (
