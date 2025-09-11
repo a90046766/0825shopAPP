@@ -443,7 +443,7 @@ export default function Payroll() {
               </div>
               <div>
                 <label className="block text-xs text-amber-900 mb-1">其他補貼</label>
-                <Input type="number" value={(editingRecord.allowances as any)?.other || 0} onChange={(e)=> setEditingRecord(prev => ({ ...prev, allowances: { ...(prev as any).allowances, other: Number(e.target.value) } as any }))} />
+                <Input type="number" value={(editingRecord.allowances as any)?.other || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), allowances: { ...(editingRecord as any).allowances, other: Number(e.target.value) } } as any)} />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs text-amber-900 mb-1">備註</label>
@@ -454,10 +454,10 @@ export default function Payroll() {
               <div>
                 <div className="text-red-600 font-semibold mb-1">應扣款項</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Input placeholder="勞保" type="number" value={(editingRecord.deductions as any)?.laborInsurance || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...(editingRecord as any).deductions, laborInsurance: Number(e.target.value) } as any }))} />
-                  <Input placeholder="健保" type="number" value={(editingRecord.deductions as any)?.healthInsurance || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...(editingRecord as any).deductions, healthInsurance: Number(e.target.value) } as any }))} />
-                  <Input placeholder="眷數" type="number" value={(editingRecord.deductions as any)?.dependents || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...(editingRecord as any).deductions, dependents: Number(e.target.value) } as any }))} />
-                  <Input placeholder="其他" type="number" value={(editingRecord.deductions as any)?.other || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...(editingRecord as any).deductions, other: Number(e.target.value) } as any }))} />
+                  <Input placeholder="勞保" type="number" value={(editingRecord.deductions as any)?.laborInsurance || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), laborInsurance: Number(e.target.value) } } as any)} />
+                  <Input placeholder="健保" type="number" value={(editingRecord.deductions as any)?.healthInsurance || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), healthInsurance: Number(e.target.value) } } as any)} />
+                  <Input placeholder="眷數" type="number" value={(editingRecord.deductions as any)?.dependents || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), dependents: Number(e.target.value) } } as any)} />
+                  <Input placeholder="其他" type="number" value={(editingRecord.deductions as any)?.other || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), other: Number(e.target.value) } } as any)} />
                 </div>
               </div>
               <div className="text-right self-end">
