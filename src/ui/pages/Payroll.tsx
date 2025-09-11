@@ -38,6 +38,7 @@ export default function Payroll() {
   const [shareScheme, setShareScheme] = useState<'pure' | 'base'>('pure')
   const [shareRate, setShareRate] = useState<number>(30) // 30%
   const [baseGuarantee, setBaseGuarantee] = useState<number>(40000)
+  const [showHistory, setShowHistory] = useState<boolean>(false)
 
   // 數值與彙整工具
   const toNumberOrNull = (v: any): number | null => {
@@ -45,6 +46,74 @@ export default function Payroll() {
     return isFinite(n) ? n : null
   }
   const sumExtra = (list: any[]): number => Array.isArray(list) ? list.reduce((s, it) => s + (Number(it?.amount) || 0), 0) : 0
+
+  // 技師分潤（重算本月合計，用於保底拆分）
+  const computeTechCommissionFromOrders = (orders: any[], ratePercent: number): number => {
+    const rate = Math.max(0, Math.min(100, ratePercent)) / 100
+    let commission = 0
+    for (const o of orders) {
+      if (techSelections[o.id] === false) continue
+      const totalRaw = Number((o as any).totalAmount ?? (o as any).total ?? 0)
+      const sumItems = (o.serviceItems||[]).reduce((s:number, it:any)=> s + (it.unitPrice||0)*(it.quantity||0), 0)
+      const total = totalRaw > 0 ? totalRaw : sumItems
+      const techCount = Array.isArray(o.assignedTechnicians) && o.assignedTechnicians.length>0 ? o.assignedTechnicians.length : 1
+      const basis = total / techCount
+      commission += Math.round(basis * rate)
+    }
+    return commission
+  }
+
+  // 薪資發放日期（延用既有 getIssuanceDate）
+  const getNextMonthDate = (month: string, day: number) => {
+    const d = new Date(month + '-01')
+    d.setMonth(d.getMonth() + 1)
+    d.setDate(day)
+    return d.toLocaleDateString('zh-TW')
+  }
+  const getBonusPayoutDate = (month: string) => getNextMonthDate(month, 18)
+  const getSalaryPayoutDate = (month: string) => getNextMonthDate(month, 10)
+
+  // 產出發放清單（目前支援 support/technician）
+  const buildPayoutRows = (r: any): Array<{date:string; name:string; bankCode:string; bankName:string; account:string; amount:number; note?:string}> => {
+    const staff = staffList.find(s => s.email === r.userEmail)
+    const role = staff ? getRoleOf(staff) : 'support'
+    const bankCode = (staff as any)?.bankCode || ''
+    const bankName = (staff as any)?.bankName || ''
+    const account = (staff as any)?.bankAccount || ''
+    const name = r.userName || (staff?.name || '')
+    const rows: any[] = []
+    if (role === 'technician') {
+      const scheme = (r as any).shareScheme || shareScheme
+      const rate = Number((r as any).shareRate ?? shareRate)
+      if (scheme === 'pure') {
+        const amount = Number((r as any).techCommission || 0)
+        const date = getIssuanceDate(r.month, r.platform || '同')
+        rows.push({ date, name, bankCode, bankName, account, amount, note: '技師純分潤' })
+      } else {
+        // 保底：拆成底薪（次月10）與獎金（次月18）
+        const commission = computeTechCommissionFromOrders(techOrders, rate)
+        const basePart = Number((r as any).baseGuarantee || baseGuarantee || 0)
+        const bonusPart = Math.max(0, commission - basePart)
+        rows.push({ date: getSalaryPayoutDate(r.month), name, bankCode, bankName, account, amount: basePart, note: '技師保底' })
+        rows.push({ date: getBonusPayoutDate(r.month), name, bankCode, bankName, account, amount: bonusPart, note: '技師保底獎金' })
+      }
+    } else {
+      // 客服/管理員：薪資（次月10） + 獎金（次月18）
+      const allowances = r.allowances || {}
+      const deductions = r.deductions || {}
+      const base = r.baseSalary || 0
+      const extraAllow = sumExtra((r as any).extraAllowances || [])
+      const extraDed = sumExtra((r as any).extraDeductions || [])
+      const allowSum = (allowances.fuel||0)+(allowances.overtime||0)+(allowances.holiday||0)+(allowances.duty||0)+extraAllow
+      const dedSum = (deductions.leave||0)+(deductions.tardiness||0)+(deductions.complaints||0)+(deductions.repairCost||0)+extraDed
+      const pointsValue = r.pointsMode === 'include' ? (r.points||0) * 100 : 0
+      const salaryPart = Math.max(0, base + allowSum + pointsValue - dedSum)
+      const bonusPart = r.bonus || 0
+      rows.push({ date: getSalaryPayoutDate(r.month), name, bankCode, bankName, account, amount: salaryPart, note: '月薪' })
+      rows.push({ date: getBonusPayoutDate(r.month), name, bankCode, bankName, account, amount: bonusPart, note: '月度獎金' })
+    }
+    return rows
+  }
 
   useEffect(() => {
     if (!user || !can(user, 'payroll.view')) return
@@ -244,12 +313,9 @@ export default function Payroll() {
     const allowances = record.allowances || {}
     const deductions = record.deductions || {}
     const otherAllowance = (allowances as any).other || 0
-    const totalAllowances = (allowances.fuel || 0) + (allowances.overtime || 0) + (allowances.holiday || 0) + (allowances.duty || 0) + (otherAllowance || 0)
-    const extraAllowances = (record.allowances as any).extraAllowances || []
-    const totalExtraAllowances = extraAllowances.reduce((sum: number, row: any) => sum + (row.amount || 0), 0)
-    const extraDeductions = ((deductions as any).laborInsurance || 0) + ((deductions as any).healthInsurance || 0) + ((deductions as any).other || 0)
-    const totalExtraDeductions = (record.deductions as any).extraDeductions?.reduce((sum: number, row: any) => sum + (row.amount || 0), 0) || 0
-    const totalDeductions = (deductions.leave || 0) + (deductions.tardiness || 0) + (deductions.complaints || 0) + (deductions.repairCost || 0) + extraDeductions + totalExtraDeductions
+    const totalAllowances = (allowances.fuel || 0) + (allowances.overtime || 0) + (allowances.holiday || 0) + (allowances.duty || 0) + (otherAllowance || 0) + sumExtra((record as any).extraAllowances || [])
+    const extraDeductions = ((deductions as any).laborInsurance || 0) + ((deductions as any).healthInsurance || 0) + ((deductions as any).other || 0) + sumExtra((record as any).extraDeductions || [])
+    const totalDeductions = (deductions.leave || 0) + (deductions.tardiness || 0) + (deductions.complaints || 0) + (deductions.repairCost || 0) + extraDeductions
     const bonus = record.bonus || 0
     const pointsValue = record.pointsMode === 'include' ? (record.points || 0) * 100 : 0
     const techCommission = (record as any).techCommission || 0
@@ -874,9 +940,45 @@ export default function Payroll() {
       {/* 內嵌編輯器 */}
       {renderInlineEditor()}
 
-      {/* 記錄列表（依角色頁面顯示） */}
+      {/* 發放區塊 */}
+      {editingRecord && (
+        <Card>
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-semibold">薪資發放</div>
+            <div className="text-xs text-gray-500">（依平台自動帶出日期）</div>
+          </div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 text-gray-600">
+                  <th className="px-2 py-2 text-left">發放日期</th>
+                  <th className="px-2 py-2 text-left">姓名</th>
+                  <th className="px-2 py-2 text-left">銀行</th>
+                  <th className="px-2 py-2 text-left">帳號</th>
+                  <th className="px-2 py-2 text-right">金額</th>
+                  <th className="px-2 py-2 text-left">備註</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buildPayoutRows(editingRecord as any).map((row, i) => (
+                  <tr key={i} className="border-b last:border-0">
+                    <td className="px-2 py-2">{row.date}</td>
+                    <td className="px-2 py-2">{row.name}</td>
+                    <td className="px-2 py-2">{row.bankCode} {row.bankName}</td>
+                    <td className="px-2 py-2">{row.account}</td>
+                    <td className="px-2 py-2 text-right">${row.amount.toLocaleString()}</td>
+                    <td className="px-2 py-2">{row.note||''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* 記錄列表（依角色顯示） */}
       <div className="space-y-4">
-        {filteredRecords.map((record) => {
+        {!showHistory ? null : filteredRecords.map((record) => {
           const calc = calculateSalary(record)
           const issuanceDate = getIssuanceDate(record.month, record.platform || '同')
           const techCalc = techMonthlyMap[record.userName]
@@ -927,9 +1029,19 @@ export default function Payroll() {
             </Card>
           )
         })}
+        {(!showHistory && filteredRecords.length>0) && (
+          <div className="text-center text-gray-500 py-6">
+            已隱藏歷史清單
+          </div>
+        )}
         {filteredRecords.length === 0 && (
           <div className="text-center text-gray-500 py-8">本月暫無薪資記錄</div>
         )}
+      </div>
+
+      {/* 歷史清單切換 */}
+      <div className="text-center">
+        <Button variant="outline" onClick={()=> setShowHistory(s=>!s)}>{showHistory ? '隱藏歷史清單' : '顯示歷史清單'}</Button>
       </div>
 
       {/* 快速編輯模態框（保留） */}
