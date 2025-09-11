@@ -66,11 +66,10 @@ export default function NewShop() {
 	const [displayName, setDisplayName] = React.useState<string>('');
 
 	React.useEffect(() => {
-		// 最多 4 秒結束載入，避免卡住
 		const safetyTimer = setTimeout(() => setLoading(false), 4000);
 
-    (async () => {
-      try {
+		(async () => {
+			try {
 				// 是否 admin/support（失敗不影響前台）
 				try {
 					const { data: u } = await supabase.auth.getUser();
@@ -83,7 +82,10 @@ export default function NewShop() {
 							.maybeSingle();
 						setIsAdminSupport(!!staffRow && (staffRow.role === 'admin' || staffRow.role === 'support'));
 					}
-					const nameFromMeta = (u?.user?.user_metadata as any)?.full_name || (u?.user?.user_metadata as any)?.name || email;
+					const nameFromMeta =
+						(u?.user?.user_metadata as any)?.full_name ||
+						(u?.user?.user_metadata as any)?.name ||
+						email;
 					setDisplayName(nameFromMeta || '');
 				} catch {}
 
@@ -92,7 +94,7 @@ export default function NewShop() {
 				try {
 					const { data: settings } = await supabase.rpc('get_site_settings');
 					enabled = !!settings?.cms_enabled;
-      } catch {}
+				} catch {}
 				setCmsEnabled(enabled);
 
 				// 若啟用則讀已發布內容（失敗也顯示固定版）
@@ -174,10 +176,10 @@ export default function NewShop() {
 	}
 
 	function renderCarousel() {
-  return (
+		return (
 			<div className="relative overflow-hidden rounded-2xl mx-4 mb-8">
 				<div className="flex transition-transform duration-500 ease-in-out">
-					{/* 橫幅 1: 加入會員想好康 */}
+					{/* 橫幅 1 */}
 					<div className="w-full flex-shrink-0 relative bg-gradient-to-r from-pink-500 via-rose-500 to-red-500 p-8 text-white">
 						<div className="absolute inset-0 bg-black/20"></div>
 						<div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
@@ -187,24 +189,24 @@ export default function NewShop() {
 								<div className="flex items-center gap-2 mb-4">
 									<span className="text-3xl">🎉</span>
 									<span className="text-sm bg-white/20 px-3 py-1 rounded-full">限時優惠</span>
-            </div>
+								</div>
 								<h2 className="text-3xl md:text-4xl font-bold mb-4">加入會員想好康</h2>
 								<p className="text-xl text-white/90 mb-6">推薦加入就送100積分，立即享受會員專屬優惠！</p>
 								<div className="flex items-center gap-4">
 									<div className="bg-white/20 rounded-lg px-4 py-2">
 										<span className="text-2xl font-bold">100</span>
 										<span className="text-sm ml-1">積分</span>
-            </div>
+									</div>
 									<Link to="/register" className="bg-white text-pink-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
 										立即加入
-              </Link>
-            </div>
+									</Link>
+								</div>
 							</div>
 							<div className="hidden md:block text-8xl opacity-20">🎁</div>
-          </div>
-        </div>
+						</div>
+					</div>
 
-					{/* 橫幅 2: 積分回饋制度 */}
+					{/* 橫幅 2 */}
 					<div className="w-full flex-shrink-0 relative bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 p-8 text-white">
 						<div className="absolute inset-0 bg-black/20"></div>
 						<div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
@@ -224,48 +226,48 @@ export default function NewShop() {
 									</div>
 									<Link to="/account" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
 										查看積分
-                </Link>
-                </div>
-              </div>
+									</Link>
+								</div>
+							</div>
 							<div className="hidden md:block text-8xl opacity-20">💰</div>
-            </div>
-          </div>
+						</div>
+					</div>
 
-					{/* 橫幅 3: 專業日式洗濯服務 */}
+					{/* 橫幅 3 */}
 					<div className="w-full flex-shrink-0 relative bg-gradient-to-r from-green-500 via-teal-500 to-cyan-500 p-8 text-white">
-						<div className="absolute inset-0 bg-black/20"></div>
+						<div className="absolute inset-0 bg黑/20"></div>
 						<div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
 						<div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
 						<div className="relative z-10 flex items-center justify-between">
 							<div className="flex-1">
 								<div className="flex items-center gap-2 mb-4">
 									<span className="text-3xl">✨</span>
-									<span className="text-sm bg-white/20 px-3 py-1 rounded-full">專業服務</span>
-          </div>
+									<span className="text-sm bg白/20 px-3 py-1 rounded-full">專業服務</span>
+								</div>
 								<h2 className="text-3xl md:text-4xl font-bold mb-4">專業日式洗濯服務</h2>
 								<p className="text-xl text-white/90 mb-6">讓您的家電煥然一新，享受如新機般的清潔效果！</p>
 								<div className="flex items-center gap-4">
 									<div className="bg-white/20 rounded-lg px-4 py-2">
 										<span className="text-2xl font-bold">99%</span>
 										<span className="text-sm ml-1">清潔率</span>
-        </div>
+									</div>
 									<Link to="/store/products?category=cleaning" className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
 										立即預約
-              </Link>
-              </div>
+									</Link>
+								</div>
 							</div>
 							<div className="hidden md:block text-8xl opacity-20">🧽</div>
-            </div>
-          </div>
-        </div>
-          
-				{/* 輪播指示器 */}
-				<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-					<button className="w-3 h-3 bg-white rounded-full opacity-80 hover:opacity-100 transition-opacity"></button>
-					<button className="w-3 h-3 bg-white/50 rounded-full hover:opacity-100 transition-opacity"></button>
-					<button className="w-3 h-3 bg-white/50 rounded-full hover:opacity-100 transition-opacity"></button>
-          </div>
-        </div>
+						</div>
+					</div>
+				</div>
+
+				{/* 輪播指示器（裝飾用） */}
+				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+					<button className="w-3 h-3 bg-white rounded-full opacity-80"></button>
+					<button className="w-3 h-3 bg-white/50 rounded-full"></button>
+					<button className="w-3 h-3 bg-white/50 rounded-full"></button>
+				</div>
+			</div>
 		);
 	}
 
@@ -285,10 +287,10 @@ export default function NewShop() {
 						<div className="flex items-center gap-2 mb-4">
 							<span className="text-2xl">🏆</span>
 							<span className="text-sm bg-white/20 px-3 py-1 rounded-full text-white">10年專業經驗</span>
-            </div>
+						</div>
 						<h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm">
 							{hero.title || '日式洗濯購物站'}
-                </h1>
+						</h1>
 						<p className="mt-3 md:mt-4 text-white/90 text-base md:text-lg">
 							{hero.subtitle || '專業清潔，守護您的生活'}
 						</p>
@@ -300,7 +302,7 @@ export default function NewShop() {
 							<Link to="/store/products?category=cleaning" className="inline-flex items-center px-5 py-2.5 rounded-lg bg-white/90 text-gray-900 hover:bg-white transition-all duration-300 hover:scale-105">
 								<span className="mr-2">🛒</span>
 								立即預約
-                  </Link>
+							</Link>
 						</div>
 						<div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
 							<div className="bg-white/10 rounded-lg p-3">
@@ -310,24 +312,24 @@ export default function NewShop() {
 							<div className="bg-white/10 rounded-lg p-3">
 								<div className="text-2xl mb-1">👥</div>
 								<div className="text-sm font-medium">5000+客戶</div>
-              </div>
+							</div>
 							<div className="bg-white/10 rounded-lg p-3">
 								<div className="text-2xl mb-1">🕒</div>
 								<div className="text-sm font-medium">24小時服務</div>
-              </div>
+							</div>
 							<div className="bg-white/10 rounded-lg p-3">
 								<div className="text-2xl mb-1">🛡️</div>
 								<div className="text-sm font-medium">品質保證</div>
-                </div>
-              </div>
-            </div>
-          </div>
+							</div>
+						</div>
+					</div>
+				</div>
 				{isAdminSupport && (
 					<div className="absolute top-3 right-3">
 						<Link to="/dispatch" className="px-3 py-1.5 rounded bg-white text-gray-700 shadow hover:shadow-md">返回派工系統</Link>
-      </div>
+					</div>
 				)}
-          </div>
+			</div>
 		);
 	}
 
@@ -338,7 +340,7 @@ export default function NewShop() {
 				<h2 className="text-2xl font-bold mb-6">我們的服務</h2>
 				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
 					{list.map((s, idx) => (
-                                    <Link
+						<Link
 							key={idx}
 							to={s.link || '#'}
 							className="block rounded-xl border bg-white hover:shadow-lg transition overflow-hidden"
@@ -351,11 +353,11 @@ export default function NewShop() {
 							<div className="p-4">
 								<div className="font-semibold">{s.title || '服務'}</div>
 								<div className="mt-1 text-sm text-gray-600 line-clamp-2">{s.description || '服務說明'}</div>
-                </div>
-                </Link>
-            ))}
-          </div>
-        </div>
+							</div>
+						</Link>
+					))}
+				</div>
+			</div>
 		);
 	}
 
@@ -379,15 +381,15 @@ export default function NewShop() {
 							{ title: '專業技師團隊', desc: '經驗豐富技師，技術精湛可靠', icon: '👨‍🔬' },
 							{ title: '環保永續理念', desc: '使用環保清潔劑，愛護地球環境', icon: '🌱' }
 						].map((a, i) => (
-							<div key={i} className="text-center bg-white/60 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+							<div key={i} className="text-center bg白/60 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
 								<div className="text-4xl mb-4">{a.icon}</div>
 								<h3 className="font-semibold text-gray-900 mb-2">{a.title}</h3>
 								<p className="text-sm text-gray-600">{a.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-          </div>
+							</div>
+						))}
+					</div>
+				</div>
+			</div>
 		);
 	}
 
@@ -409,20 +411,20 @@ export default function NewShop() {
 							<div className="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 需要提前多久預約？</h3>
 								<p className="text-sm text-gray-600">A: 建議提前1-3天預約，我們會安排最適合的時間為您服務。</p>
-            </div>
+							</div>
 							<div className="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 清洗過程會影響日常生活嗎？</h3>
 								<p className="text-sm text-gray-600">A: 我們會盡量減少對您日常生活的影響，並在清洗前詳細說明流程。</p>
-              </div>
+							</div>
 							<div className="bg-pink-50 rounded-lg p-4 border-l-4 border-pink-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 使用什麼清潔劑？</h3>
 								<p className="text-sm text-gray-600">A: 我們使用日本進口環保清潔劑，對人體和環境無害，效果更佳。</p>
-              </div>
+							</div>
 							<div className="bg-indigo-50 rounded-lg p-4 border-l-4 border-indigo-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 可以指定技師嗎？</h3>
 								<p className="text-sm text-gray-600">A: 可以，我們會盡量安排您指定的技師，但需視排程情況而定。</p>
-              </div>
-            </div>
+							</div>
+						</div>
 						<div className="space-y-4">
 							<div className="bg-yellow-50 rounded-lg p-4 border-l-4 border-yellow-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 團購優惠如何計算？</h3>
@@ -431,27 +433,27 @@ export default function NewShop() {
 							<div className="bg-teal-50 rounded-lg p-4 border-l-4 border-teal-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 清洗後多久可以正常使用？</h3>
 								<p className="text-sm text-gray-600">A: 清洗完成後即可正常使用，我們會確保設備完全乾燥。</p>
-          </div>
+							</div>
 							<div className="bg-red-50 rounded-lg p-4 border-l-4 border-red-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 如果設備有故障怎麼辦？</h3>
 								<p className="text-sm text-gray-600">A: 我們會先評估故障原因，如非清洗造成，會協助您聯繫維修服務。</p>
-        </div>
+							</div>
 							<div className="bg-cyan-50 rounded-lg p-4 border-l-4 border-cyan-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 可以開發票嗎？</h3>
 								<p className="text-sm text-gray-600">A: 可以，我們提供電子發票，可選擇個人或公司統編。</p>
-            </div>
+							</div>
 							<div className="bg-emerald-50 rounded-lg p-4 border-l-4 border-emerald-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 服務範圍包含哪些地區？</h3>
 								<p className="text-sm text-gray-600">A: 目前服務大台北地區，其他地區請來電洽詢。</p>
-              </div>
+							</div>
 							<div className="bg-rose-50 rounded-lg p-4 border-l-4 border-rose-500">
 								<h3 className="font-semibold text-gray-900 mb-2">Q: 如何取消或改期？</h3>
 								<p className="text-sm text-gray-600">A: 請提前24小時聯繫客服，我們會協助您重新安排時間。</p>
-              </div>
-              </div>
-            </div>
-          </div>
-        </div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
 		);
 	}
 
@@ -466,27 +468,27 @@ export default function NewShop() {
 							<h3 className="font-semibold mb-2">客服專線</h3>
 							<p className="text-white/90 mb-2">0800-000-000</p>
 							<p className="text-sm text-white/70">24小時客服熱線</p>
-            </div>
+						</div>
 						<div className="text-center bg-white/10 rounded-xl p-6">
 							<div className="text-3xl mb-4">📧</div>
 							<h3 className="font-semibold mb-2">電子郵件</h3>
 							<p className="text-white/90 mb-2">service@942clean.com.tw</p>
 							<p className="text-sm text-white/70">24小時內回覆</p>
-              </div>
+						</div>
 						<div className="text-center bg-white/10 rounded-xl p-6">
 							<div className="text-3xl mb-4">🕒</div>
 							<h3 className="font-semibold mb-2">服務時間</h3>
 							<p className="text-white/90 mb-2">週一至週日</p>
 							<p className="text-sm text-white/70">8:00-20:00</p>
-              </div>
+						</div>
 						<div className="text-center bg-white/10 rounded-xl p-6">
 							<div className="text-3xl mb-4">📍</div>
 							<h3 className="font-semibold mb-2">服務範圍</h3>
 							<p className="text-white/90 mb-2">大台北地區</p>
 							<p className="text-sm text-white/70">其他地區請洽詢</p>
-              </div>
-            </div>
-					
+						</div>
+					</div>
+
 					<div className="mt-8 pt-8 border-t border-white/20">
 						<div className="grid gap-6 md:grid-cols-3 text-center">
 							<div>
@@ -494,26 +496,26 @@ export default function NewShop() {
 								<p className="text-sm text-white/80 mb-3">線上預約，快速安排</p>
 								<Link to="/store/products" className="inline-block bg-white text-blue-900 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
 									立即預約
-            </Link>
-          </div>
+								</Link>
+							</div>
 							<div>
 								<h4 className="font-semibold mb-3">LINE客服</h4>
 								<p className="text-sm text-white/80 mb-3">加入LINE好友，即時諮詢</p>
 								<button className="inline-block bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors">
 									加入LINE
-                </button>
-                  </div>
+								</button>
+							</div>
 							<div>
 								<h4 className="font-semibold mb-3">緊急服務</h4>
 								<p className="text-sm text-white/80 mb-3">24小時緊急服務專線</p>
 								<a href="tel:0800-000-000" className="inline-block bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors">
 									緊急聯絡
 								</a>
-          </div>
-        </div>
-              </div>
-            </div>
-          </div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
 		);
 	}
 
@@ -528,12 +530,12 @@ export default function NewShop() {
 			</div>
 		);
 	}
-          
+
 	if (loading) {
 		return (
 			<div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-6">
 				<div className="rounded-2xl bg-white p-6 shadow-card text-center text-sm text-gray-600">載入中…</div>
-        </div>
+			</div>
 		);
 	}
 
