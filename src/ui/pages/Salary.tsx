@@ -23,18 +23,31 @@ export default function SalaryPage() {
       } catch (e) {
         all = []
       }
-      // Fallback：直接查 Supabase 表
+      // Fallback：直接查 Supabase 表（使用 snake_case 欄位）
       if (!Array.isArray(all) || all.length === 0) {
         try {
-          const { data } = await supabase
+          const { data, error: se } = await supabase
             .from('payroll_records')
-            .select('id,month,userEmail,userName,employeeId,baseSalary,bonus,points,pointsMode,platform,status')
-            .eq('userEmail', (user?.email||'').toLowerCase())
-          all = data || []
+            .select('id, month, user_email, user_name, employee_id, base_salary, bonus, points, points_mode, platform, status')
+            .eq('user_email', String(user?.email||'').toLowerCase())
+          if (se) throw se
+          // 轉為前端慣用的 camelCase
+          all = (data||[]).map((r:any)=> ({
+            id: r.id,
+            month: r.month,
+            userEmail: r.user_email,
+            userName: r.user_name,
+            employeeId: r.employee_id,
+            baseSalary: r.base_salary,
+            bonus: r.bonus,
+            points: r.points,
+            pointsMode: r.points_mode,
+            platform: r.platform,
+            status: r.status
+          }))
         } catch {}
       }
       const mine = (all||[]).filter((r: any) => String(r.userEmail||'').toLowerCase() === String(user?.email||'').toLowerCase())
-      // 依月排序，預設選最新月份
       const ordered = [...mine].sort((a:any,b:any)=> String(b.month||'').localeCompare(String(a.month||'')))
       setRecords(ordered as any)
       if (ordered.length>0) {
