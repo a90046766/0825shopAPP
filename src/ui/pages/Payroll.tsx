@@ -313,7 +313,41 @@ export default function Payroll() {
 
   const saveRecord = async (record: PayrollRecord) => {
     try {
-      await payrollRepo.upsert(record)
+      const payload: any = {
+        id: (record as any).id,
+        month: record.month,
+        userEmail: (record as any).userEmail,
+        userName: (record as any).userName,
+        employeeId: (record as any).employeeId,
+        baseSalary: record.baseSalary || 0,
+        bonus: record.bonus || 0,
+        points: record.points || 0,
+        pointsMode: record.pointsMode || 'accumulate',
+        platform: record.platform || '同',
+        status: record.status || 'pending',
+        bonusRate: (record as any).bonusRate || 0,
+        techCommission: (record as any).techCommission || 0,
+        shareScheme: (record as any).shareScheme || null,
+        shareRate: (record as any).shareRate || null,
+        baseGuarantee: (record as any).baseGuarantee || null,
+        // 將 allowances/deductions 攤平為獨立欄位（若資料表尚未有 JSON 欄位）
+        allowance_fuel: (record as any).allowances?.fuel ?? null,
+        allowance_overtime: (record as any).allowances?.overtime ?? null,
+        allowance_holiday: (record as any).allowances?.holiday ?? null,
+        allowance_duty: (record as any).allowances?.duty ?? null,
+        allowance_other: (record as any).allowances?.other ?? null,
+        deduction_leave: (record as any).deductions?.leave ?? null,
+        deduction_tardiness: (record as any).deductions?.tardiness ?? null,
+        deduction_complaints: (record as any).deductions?.complaints ?? null,
+        deduction_repairCost: (record as any).deductions?.repairCost ?? null,
+        deduction_laborInsurance: (record as any).deductions?.laborInsurance ?? null,
+        deduction_healthInsurance: (record as any).deductions?.healthInsurance ?? null,
+        deduction_other: (record as any).deductions?.other ?? null,
+        notes: (record as any).notes || null
+      }
+      // 移除 undefined，避免 400
+      Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k] })
+      await payrollRepo.upsert(payload)
       await loadData()
     } catch (error) {
       console.error('儲存失敗:', error)
