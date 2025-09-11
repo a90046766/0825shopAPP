@@ -339,10 +339,15 @@ export default function Payroll() {
       }
       if ((record as any).id) minimal.id = (record as any).id
       // 先嘗試最小 payload
-      let { error: e1 } = await supabase.from('payroll_records').upsert(minimal)
+      const upsertOpts = (minimal.id ? {} : { onConflict: 'month,user_email' }) as any
+      let { error: e1 } = await supabase.from('payroll_records').upsert(minimal, upsertOpts)
       if (!e1) { await loadData(); return }
-
-      // 失敗則再嘗試完整 payload + 欄位移除回退
+      console.error('Minimal upsert error:', e1)
+      alert(`儲存失敗：${e1?.message || '未知錯誤'}`)
+      return
+ 
+      // （保留：若要改回完整 payload 自動回退，移除此 return 並啟用以下區塊）
+      /*
       const payload: any = {
         month: record.month,
         userEmail: (record as any).userEmail,
@@ -379,9 +384,9 @@ export default function Payroll() {
       payload.employee_id = minimal.employee_id
       payload.base_salary = minimal.base_salary
       payload.points_mode = minimal.points_mode
-
+ 
       Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k] })
-
+ 
       const upsertWithFallback = async (body: any) => {
         let attempt = { ...body }
         const tried = new Set<string>()
@@ -395,15 +400,16 @@ export default function Payroll() {
             tried.add(m[1])
             continue
           }
-          // 若沒有明確欄位錯誤，回退到 minimal 已寫入的基礎即可
           throw error
         }
       }
-
+ 
       await upsertWithFallback(payload)
       await loadData()
+      */
     } catch (error) {
       console.error('儲存失敗:', error)
+      alert(`儲存失敗：${(error as any)?.message || '未知錯誤'}`)
     }
   }
 
