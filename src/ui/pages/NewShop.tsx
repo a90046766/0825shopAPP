@@ -64,6 +64,7 @@ export default function NewShop() {
 	const [published, setPublished] = React.useState<CmsContent | null>(null);
 	const [loading, setLoading] = React.useState<boolean>(true);
 	const [displayName, setDisplayName] = React.useState<string>('');
+	const [memberId, setMemberId] = React.useState<string>('');
 	const [carouselIndex, setCarouselIndex] = React.useState<number>(0);
 
 	React.useEffect(() => {
@@ -98,6 +99,11 @@ export default function NewShop() {
 						(u?.user?.user_metadata as any)?.name ||
 						email;
 					setDisplayName(nameFromMeta || '');
+					
+					// 獲取會員編號（從用戶ID或email生成）
+					const userId = u?.user?.id || '';
+					const memberNum = userId ? `M${userId.slice(-6).toUpperCase()}` : '';
+					setMemberId(memberNum);
 				} catch {}
 
 				// 讀全站開關（失敗則當作未啟用，顯示固定版）
@@ -202,9 +208,16 @@ export default function NewShop() {
 					className="flex transition-transform duration-500 ease-in-out"
 					style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
 				>
-					{/* 橫幅 1 */}
-					<div className="w-full flex-shrink-0 relative bg-gradient-to-r from-pink-500 via-rose-500 to-red-500 p-8 text-white">
-						<div className="absolute inset-0 bg-black/20"></div>
+					{/* 橫幅 1 - 加入會員 */}
+					<div 
+						className="w-full flex-shrink-0 relative p-8 text-white"
+						style={{
+							backgroundImage: 'linear-gradient(135deg, rgba(236, 72, 153, 0.8) 0%, rgba(244, 63, 94, 0.8) 50%, rgba(239, 68, 68, 0.8) 100%), url("https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80")',
+							backgroundSize: 'cover',
+							backgroundPosition: 'center'
+						}}
+					>
+						<div className="absolute inset-0 bg-black/30"></div>
 						<div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
 						<div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
 						<div className="relative z-10 flex items-center justify-between">
@@ -223,15 +236,22 @@ export default function NewShop() {
 									<Link to="/register" className="bg-white text-pink-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
 										立即加入
               </Link>
-								</div>
+            </div>
 							</div>
 							<div className="hidden md:block text-8xl opacity-20">🎁</div>
-            </div>
           </div>
+        </div>
 
-					{/* 橫幅 2 */}
-					<div className="w-full flex-shrink-0 relative bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 p-8 text-white">
-						<div className="absolute inset-0 bg-black/20"></div>
+					{/* 橫幅 2 - 積分回饋 */}
+					<div 
+						className="w-full flex-shrink-0 relative p-8 text-white"
+						style={{
+							backgroundImage: 'linear-gradient(135deg, rgba(59, 130, 246, 0.8) 0%, rgba(99, 102, 241, 0.8) 50%, rgba(147, 51, 234, 0.8) 100%), url("https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80")',
+							backgroundSize: 'cover',
+							backgroundPosition: 'center'
+						}}
+					>
+						<div className="absolute inset-0 bg-black/30"></div>
 						<div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
 						<div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
 						<div className="relative z-10 flex items-center justify-between">
@@ -246,19 +266,26 @@ export default function NewShop() {
 									<div className="bg-white/20 rounded-lg px-4 py-2">
 										<span className="text-2xl font-bold">1:1</span>
 										<span className="text-sm ml-1">回饋</span>
-        </div>
+									</div>
 									<Link to="/account" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
 										查看積分
-              </Link>
+                </Link>
             </div>
 							</div>
 							<div className="hidden md:block text-8xl opacity-20">💰</div>
           </div>
         </div>
 
-					{/* 橫幅 3 */}
-					<div className="w-full flex-shrink-0 relative bg-gradient-to-r from-green-500 via-teal-500 to-cyan-500 p-8 text-white">
-						<div className="absolute inset-0 bg-black/20"></div>
+					{/* 橫幅 3 - 專業服務 */}
+					<div 
+						className="w-full flex-shrink-0 relative p-8 text-white"
+						style={{
+							backgroundImage: 'linear-gradient(135deg, rgba(34, 197, 94, 0.8) 0%, rgba(20, 184, 166, 0.8) 50%, rgba(6, 182, 212, 0.8) 100%), url("https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80")',
+							backgroundSize: 'cover',
+							backgroundPosition: 'center'
+						}}
+					>
+						<div className="absolute inset-0 bg-black/30"></div>
 						<div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
 						<div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
 						<div className="relative z-10 flex items-center justify-between">
@@ -273,7 +300,7 @@ export default function NewShop() {
 									<div className="bg-white/20 rounded-lg px-4 py-2">
 										<span className="text-2xl font-bold">99%</span>
 										<span className="text-sm ml-1">清潔率</span>
-        </div>
+									</div>
 									<Link to="/store/products?category=cleaning" className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
 										立即預約
               </Link>
@@ -320,7 +347,7 @@ export default function NewShop() {
 							<span className="text-2xl">🏆</span>
 							<span className="text-sm bg-white/20 px-3 py-1 rounded-full text-white">10年專業經驗</span>
 						</div>
-						<h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm">
+						<h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-blue-900 drop-shadow-sm">
 							日式洗濯家電服務
                 </h1>
 						<p className="mt-3 md:mt-4 text-white/90 text-base md:text-lg">
@@ -562,7 +589,7 @@ export default function NewShop() {
 								<p className="text-sm text-white/80 mb-3">線上預約，快速安排</p>
 								<Link to="/store/products" className="inline-block bg-white text-blue-900 px-6 py-3 rounded-xl font-medium hover:bg-gray-100 transition-all duration-300 hover:scale-105 shadow-lg">
 									立即預約
-            </Link>
+                        </Link>
           </div>
 							<div>
 								<h4 className="font-semibold mb-3">LINE客服</h4>
@@ -577,9 +604,9 @@ export default function NewShop() {
 								<a href="tel:0913788051" className="inline-block bg-red-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-600 transition-all duration-300 hover:scale-105 shadow-lg">
 									緊急聯絡
 								</a>
-          </div>
-                  </div>
               </div>
+              </div>
+            </div>
           </div>
         </div>
 		);
@@ -590,15 +617,27 @@ export default function NewShop() {
 		return (
 			<div className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg">
 				<div className="max-w-6xl mx-auto px-4 py-3 text-sm flex items-center justify-between">
-					<div className="flex items-center">
+					<div className="flex items-center space-x-4">
 						<span className="text-lg mr-2">👋</span>
 						<span className="font-medium">歡迎回來，{displayName}</span>
+						{memberId && (
+							<span className="bg-white/20 px-2 py-1 rounded-full text-xs font-mono">
+								{memberId}
+                  </span>
+						)}
+                  </div>
+					<div className="flex items-center space-x-3">
+						<Link to="/account" className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">
+							前往會員中心
+						</Link>
+						{isAdminSupport && (
+							<Link to="/dispatch" className="bg-orange-500/80 hover:bg-orange-600 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">
+								返回派工系統
+							</Link>
+                )}
+              </div>
           </div>
-					<Link to="/account" className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">
-						前往會員中心
-					</Link>
-            </div>
-          </div>
+        </div>
 		);
 	}
           
@@ -606,26 +645,33 @@ export default function NewShop() {
 		return (
 			<div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-6">
 				<div className="rounded-2xl bg-white p-6 shadow-card text-center text-sm text-gray-600">載入中…</div>
-        </div>
+          </div>
 		);
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-			{isAdminSupport && (
-				<AdminCmsBar
-					cmsEnabled={cmsEnabled}
-					onToggle={toggleCms}
-					onPublish={publishNow}
-				/>
-			)}
-			{renderWelcome()}
-			{renderCarousel()}
-			{renderHero()}
-			{renderServices()}
-			{renderAdvantages()}
-			{renderFAQ()}
-			{renderContact()}
-		</div>
+		<div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-50 relative">
+			{/* 背景裝飾 */}
+			<div className="absolute inset-0 bg-gradient-to-r from-blue-200/20 via-transparent to-purple-200/20"></div>
+			<div className="absolute top-0 left-0 w-96 h-96 bg-blue-300/10 rounded-full -translate-x-48 -translate-y-48"></div>
+			<div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-300/10 rounded-full translate-x-48 translate-y-48"></div>
+			
+			<div className="relative z-10">
+				{isAdminSupport && (
+					<AdminCmsBar
+						cmsEnabled={cmsEnabled}
+						onToggle={toggleCms}
+						onPublish={publishNow}
+					/>
+				)}
+				{renderWelcome()}
+				{renderCarousel()}
+				{renderHero()}
+				{renderServices()}
+				{renderAdvantages()}
+				{renderFAQ()}
+				{renderContact()}
+            </div>
+          </div>
 	);
 }
