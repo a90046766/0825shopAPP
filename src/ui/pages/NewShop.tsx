@@ -236,6 +236,51 @@ export default function NewShop() {
 		);
 	}
 
+	function renderAdvantages() {
+		return (
+			<div className="bg-white">
+				<div className="max-w-6xl mx-auto px-4 py-12">
+					<h2 className="text-2xl font-bold mb-6">為什麼選擇我們</h2>
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+						{[
+							{ title: '技師嚴選', desc: '內訓通過與實績驗證' },
+							{ title: '透明價格', desc: '明碼標價，不臨時加價' },
+							{ title: '到府服務', desc: '北北基至南高皆可預約' },
+							{ title: '售後保固', desc: '完工後提供保固與諮詢' },
+							{ title: '友善環境', desc: '使用低刺激、低汙染藥劑' },
+							{ title: '快速預約', desc: '線上 1 分鐘完成' }
+						].map((a, i) => (
+							<div key={i} className="rounded-xl border p-4">
+								<div className="font-semibold text-gray-900">{a.title}</div>
+								<div className="mt-1 text-sm text-gray-600">{a.desc}</div>
+							</div>
+						))}
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	function renderFAQ() {
+		return (
+			<div className="bg-[#F5F7FB]">
+				<div className="max-w-6xl mx-auto px-4 py-12">
+					<h2 className="text-2xl font-bold mb-6">常見問題</h2>
+					<div className="space-y-3">
+						<div className="rounded-xl bg-white border p-4">
+							<div className="font-medium">Q：服務當天需要準備什麼？</div>
+							<div className="mt-1 text-sm text-gray-600">A：保持現場可施作空間，將貴重物品先行收妥即可。</div>
+						</div>
+						<div className="rounded-xl bg-white border p-4">
+							<div className="font-medium">Q：可以取消或改期嗎？</div>
+							<div className="mt-1 text-sm text-gray-600">A：可於前一日 18:00 前免費改期一次；如需協助請洽客服。</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	if (loading) {
 		return (
 			<div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-6">
@@ -255,7 +300,8 @@ export default function NewShop() {
 			)}
 			{renderHero()}
 			{renderServices()}
-			{/* 你原有的其他版塊可持續往下放，例如 FAQ、聯絡資訊、優惠等 */}
+			{renderAdvantages()}
+			{renderFAQ()}
 		</div>
 	);
 }
