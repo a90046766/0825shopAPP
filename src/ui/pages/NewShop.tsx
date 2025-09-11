@@ -289,12 +289,12 @@ export default function NewShop() {
 								{ icon: '🕒', title: '09:00~21:00', sub: '全年無休服務' },
 								{ icon: '🛡️', title: '90天保固', sub: '品質保證服務' }
 							].map((c, i) => (
-								<div key={i} className="group relative overflow-hidden rounded-2xl bg-white/12 border border-white/20 backdrop-blur-sm shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.03]">
-									<div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity" />
-									<div className="p-5 text-center">
-										<div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-2xl shadow-inner">{c.icon}</div>
-										<div className="text-base font-bold tracking-tight text-white drop-shadow">{c.title}</div>
-										<div className="mt-1 text-xs text-white/85">{c.sub}</div>
+								<div key={i} className={`group relative overflow-hidden rounded-2xl text-white ring-1 backdrop-blur-sm shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.03] ${i===0? 'bg-gradient-to-br from-amber-400 to-rose-500 ring-amber-200/50' : i===1 ? 'bg-gradient-to-br from-sky-400 to-indigo-500 ring-sky-200/50' : i===2 ? 'bg-gradient-to-br from-emerald-400 to-teal-500 ring-emerald-200/50' : 'bg-gradient-to-br from-fuchsia-400 to-pink-500 ring-fuchsia-200/50' }`}>
+									<div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-white/10" />
+									<div className="p-5 text-center relative z-10">
+										<div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/25 text-2xl shadow-inner">{c.icon}</div>
+										<div className="text-base font-extrabold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]">{c.title}</div>
+										<div className="mt-1 text-xs text-white/95">{c.sub}</div>
 									</div>
 								</div>
 							))}
