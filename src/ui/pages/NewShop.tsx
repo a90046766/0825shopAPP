@@ -218,7 +218,7 @@ export default function NewShop() {
 			? cmsSlides.slice(0, 3).map((s:any) => ({ bg: s.imageUrl || '', title: s.title || '', subtitle: s.subtitle || '', ctaText: s.ctaText, ctaLink: s.ctaLink }))
 			: fallbackSlides
 		return (
-			<div className="relative overflow-hidden rounded-2xl mx-4 mb-8" style={{ aspectRatio: '1200 / 628', minHeight: 220 }}>
+			<div className="relative overflow-hidden rounded-2xl mx-auto mb-8 max-w-6xl px-4" style={{ height: 'clamp(220px, 36vw, 420px)' }}>
 				<div
 					className="flex transition-transform duration-500 ease-in-out h-full"
 					style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
