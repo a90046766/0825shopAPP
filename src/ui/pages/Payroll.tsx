@@ -353,7 +353,7 @@ export default function Payroll() {
         let attempt = { ...body }
         const tried = new Set<string>()
         for (let i = 0; i < 12; i++) {
-          const { error } = await supabase.from('payroll_records').upsert(attempt).select('*')
+          const { error } = await supabase.from('payroll_records').upsert(attempt)
           if (!error) return
           const msg = String(error?.message || '')
           const m = msg.match(/Could not find the '([^']+)' column/i)

@@ -28,7 +28,7 @@ export default function SalaryPage() {
         try {
           const { data } = await supabase
             .from('payroll_records')
-            .select('id,month,userEmail,userName,employeeId,baseSalary,bonus,points,pointsMode,platform,status,bonusRate,techCommission,shareScheme,shareRate,baseGuarantee,notes')
+            .select('id,month,userEmail,userName,employeeId,baseSalary,bonus,points,pointsMode,platform,status')
             .eq('userEmail', (user?.email||'').toLowerCase())
           all = data || []
         } catch {}
