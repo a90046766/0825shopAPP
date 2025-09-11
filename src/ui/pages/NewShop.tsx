@@ -18,6 +18,7 @@ type CmsServiceCard = {
 type CmsContent = {
 	hero: CmsHero;
 	services: CmsServiceCard[];
+	carousel?: Array<{ imageUrl: string; title: string; subtitle?: string; ctaText?: string; ctaLink?: string }>;
 };
 
 function AdminCmsBar(props: {
@@ -122,7 +123,8 @@ export default function NewShop() {
 						if (parsed && typeof parsed === 'object') {
 							setPublished({
 								hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
-								services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services
+								services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services,
+								carousel: Array.isArray((parsed as any).carousel) && (parsed as any).carousel.length > 0 ? (parsed as any).carousel : undefined
 							});
 						} else {
 							setPublished(defaultContent);
@@ -143,11 +145,13 @@ export default function NewShop() {
 	// 輪播圖自動播放
 	React.useEffect(() => {
 		const interval = setInterval(() => {
-			setCarouselIndex((prev) => (prev + 1) % 3);
+			const cmsSlides = (cmsEnabled && published && Array.isArray((published as any).carousel) ? (published as any).carousel as any[] : null);
+			const count = cmsSlides && cmsSlides.length > 0 ? Math.min(3, cmsSlides.length) : 3;
+			setCarouselIndex((prev) => (prev + 1) % count);
 		}, 6000); // 每6秒切換
 
 		return () => clearInterval(interval);
-	}, []);
+	}, [cmsEnabled, published]);
 
 	async function toggleCms() {
 		const { data, error } = await supabase.rpc('set_cms_enabled', { p_enabled: !cmsEnabled });
@@ -161,7 +165,8 @@ export default function NewShop() {
 					if (parsed && typeof parsed === 'object') {
 						setPublished({
 							hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
-							services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services
+							services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services,
+							carousel: Array.isArray((parsed as any).carousel) && (parsed as any).carousel.length > 0 ? (parsed as any).carousel : undefined
 						});
 					} else {
 						setPublished(defaultContent);
@@ -187,7 +192,8 @@ export default function NewShop() {
 				if (parsed && typeof parsed === 'object') {
 					setPublished({
 						hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
-						services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services
+						services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services,
+						carousel: Array.isArray((parsed as any).carousel) && (parsed as any).carousel.length > 0 ? (parsed as any).carousel : undefined
 					});
 				} else {
 					setPublished(defaultContent);
@@ -202,130 +208,43 @@ export default function NewShop() {
 	}
 
 	function renderCarousel() {
+		const cmsSlides = (cmsEnabled && published && Array.isArray((published as any).carousel) ? (published as any).carousel as any[] : null)
+		const fallbackSlides = [
+			{ bg: 'https://images.unsplash.com/photo-1515169067865-5387ec356754?q=80&w=1600&auto=format&fit=crop', title: '加入會員想好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入', ctaLink: '/register/member' },
+			{ bg: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=1600&auto=format&fit=crop', title: '積分回饋制度', subtitle: '消費$100=1積分，每一積分=$1元，可全額折抵！', ctaText: '會員中心', ctaLink: '/store/member/orders' },
+			{ bg: 'https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop', title: '專業日式洗濯服務', subtitle: '讓您的家電煥然一新，享受如新機般的清潔效果！', ctaText: '立即預約', ctaLink: '/store/products?category=cleaning' }
+		]
+		const slides = (cmsSlides && cmsSlides.length > 0)
+			? cmsSlides.slice(0, 3).map((s:any) => ({ bg: s.imageUrl || '', title: s.title || '', subtitle: s.subtitle || '', ctaText: s.ctaText, ctaLink: s.ctaLink }))
+			: fallbackSlides
   return (
 			<div className="relative overflow-hidden rounded-2xl mx-4 mb-8">
-				<div 
+				<div
 					className="flex transition-transform duration-500 ease-in-out"
 					style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
 				>
-					{/* 橫幅 1 - 加入會員 */}
-					<div 
-						className="w-full flex-shrink-0 relative p-8 text-white"
-						style={{
-							backgroundImage: 'linear-gradient(135deg, rgba(236, 72, 153, 0.6) 0%, rgba(244, 63, 94, 0.6) 50%, rgba(239, 68, 68, 0.6) 100%), url("https://images.unsplash.com/photo-1515169067865-5387ec356754?q=80&w=1600&auto=format&fit=crop")',
-							backgroundSize: 'cover',
-							backgroundPosition: 'center'
-						}}
-					>
-						<div className="absolute inset-0 bg-black/30"></div>
-						<div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
-						<div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
-						<div className="relative z-10 flex items-center justify-between">
-							<div className="flex-1">
-								<div className="flex items-center gap-2 mb-4">
-									<span className="text-3xl">🎉</span>
-									<span className="text-sm bg-white/20 px-3 py-1 rounded-full">限時優惠</span>
-								</div>
-								<h2 className="text-3xl md:text-4xl font-bold mb-4">加入會員想好康</h2>
-								<p className="text-xl text-white/90 mb-6">推薦加入就送100積分，立即享受會員專屬優惠！</p>
-								<div className="flex items-center gap-4">
-									<div className="bg-white/20 rounded-lg px-4 py-2">
-										<span className="text-2xl font-bold">100</span>
-										<span className="text-sm ml-1">積分</span>
-            </div>
-									<Link to="/register" className="bg-white text-pink-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-										立即加入
-              </Link>
-            </div>
-							</div>
-							<div className="hidden md:block text-8xl opacity-20">🎁</div>
-          </div>
-        </div>
-
-					{/* 橫幅 2 - 積分回饋 */}
-					<div 
-						className="w-full flex-shrink-0 relative p-8 text-white"
-						style={{
-							backgroundImage: 'linear-gradient(135deg, rgba(59, 130, 246, 0.6) 0%, rgba(99, 102, 241, 0.6) 50%, rgba(147, 51, 234, 0.6) 100%), url("https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=1600&auto=format&fit=crop")',
-							backgroundSize: 'cover',
-							backgroundPosition: 'center'
-						}}
-					>
-						<div className="absolute inset-0 bg-black/30"></div>
-						<div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
-						<div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
-						<div className="relative z-10 flex items-center justify-between">
-							<div className="flex-1">
-								<div className="flex items-center gap-2 mb-4">
-									<span className="text-3xl">💎</span>
-									<span className="text-sm bg-white/20 px-3 py-1 rounded-full">會員專享</span>
-								</div>
-								<h2 className="text-3xl md:text-4xl font-bold mb-4">積分回饋制度</h2>
-								<p className="text-xl text-white/90 mb-6">消費$100=1積分，每一積分=$1元，可全額折抵！</p>
-								<div className="flex items-center gap-4">
-									<div className="bg-white/20 rounded-lg px-4 py-2">
-										<span className="text-2xl font-bold">1:1</span>
-										<span className="text-sm ml-1">回饋</span>
-									</div>
-									<Link to="/store/member/orders" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-										會員中心
-                </Link>
-            </div>
-						</div>
-						<div className="hidden md:block text-8xl opacity-20">💰</div>
-          </div>
-        </div>
-
-					{/* 橫幅 3 - 專業服務 */}
-					<div 
-						className="w-full flex-shrink-0 relative p-8 text-white"
-						style={{
-							backgroundImage: 'linear-gradient(135deg, rgba(34, 197, 94, 0.6) 0%, rgba(20, 184, 166, 0.6) 50%, rgba(6, 182, 212, 0.6) 100%), url("https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop")',
-							backgroundSize: 'cover',
-							backgroundPosition: 'center'
-						}}
-					>
-						<div className="absolute inset-0 bg-black/30"></div>
-						<div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
-						<div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
-						<div className="relative z-10 flex items-center justify-between">
-							<div className="flex-1">
+					{slides.map((s, i) => (
+						<div key={i} className="w-full flex-shrink-0 relative p-8 text-white" style={{ backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('${s.bg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+							<div className="relative z-10">
 								<div className="flex items-center gap-2 mb-4">
 									<span className="text-3xl">✨</span>
-									<span className="text-sm bg-white/20 px-3 py-1 rounded-full">專業服務</span>
-								</div>
-								<h2 className="text-3xl md:text-4xl font-bold mb-4">專業日式洗濯服務</h2>
-								<p className="text-xl text-white/90 mb-6">讓您的家電煥然一新，享受如新機般的清潔效果！</p>
-								<div className="flex items-center gap-4">
-									<div className="bg-white/20 rounded-lg px-4 py-2">
-										<span className="text-2xl font-bold">99%</span>
-										<span className="text-sm ml-1">清潔率</span>
-									</div>
-									<Link to="/store/products?category=cleaning" className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-										立即預約
-              </Link>
-								</div>
-							</div>
-							<div className="hidden md:block text-8xl opacity-20">🧽</div>
+									<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
             </div>
+								<h2 className="text-3xl md:text-4xl font-bold mb-3">{s.title}</h2>
+								{s.subtitle ? <p className="text-lg md:text-xl text-white/90 mb-6">{s.subtitle}</p> : null}
+								{s.ctaText && s.ctaLink ? (
+									<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
+								) : null}
           </div>
         </div>
-
-				{/* 輪播指示器 */}
-				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-					{[0, 1, 2].map((index) => (
-						<button 
-            key={index}
-							className={`w-3 h-3 rounded-full transition-all duration-300 ${
-								index === carouselIndex 
-									? 'bg-white opacity-80' 
-									: 'bg-white/50 hover:bg-white/70'
-							}`}
-							onClick={() => setCarouselIndex(index)}
-						></button>
 					))}
-				</div>
-			</div>
+            </div>
+				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+					{slides.map((_, index) => (
+						<button key={index} className={`w-3 h-3 rounded-full transition-all duration-300 ${index === carouselIndex ? 'bg-white opacity-80' : 'bg-white/50 hover:bg-white/70'}`} onClick={() => setCarouselIndex(index)} />
+					))}
+          </div>
+        </div>
 		);
 	}
 

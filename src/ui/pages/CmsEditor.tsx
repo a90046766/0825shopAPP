@@ -17,6 +17,13 @@ type CmsServiceCard = {
 type CmsContent = {
   hero: CmsHero;
   services: CmsServiceCard[];
+  carousel?: Array<{
+    imageUrl: string;
+    title: string;
+    subtitle?: string;
+    ctaText?: string;
+    ctaLink?: string;
+  }>;
 };
 
 const defaultContent: CmsContent = {
@@ -30,6 +37,11 @@ const defaultContent: CmsContent = {
     { title: '居家清潔', description: '定期/深度打掃、除塵除蟎', link: '/store/products?category=housekeeping', imageUrl: '' },
     { title: '家電購買', description: '嚴選優質家電，安心安裝', link: '/store/products?category=appliance', imageUrl: '' },
     { title: '二手家電', description: '履保二手，環保又省錢', link: '/store/products?category=used', imageUrl: '' }
+  ],
+  carousel: [
+    { imageUrl: '', title: '加入會員想好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入', ctaLink: '/register/member' },
+    { imageUrl: '', title: '積分回饋制度', subtitle: '消費$100=1積分', ctaText: '會員中心', ctaLink: '/store/member/orders' },
+    { imageUrl: '', title: '專業日式洗濯服務', subtitle: '家電煥然一新', ctaText: '立即預約', ctaLink: '/store/products?category=cleaning' }
   ]
 };
 
@@ -64,7 +76,8 @@ export default function CmsEditor() {
         if (parsed && typeof parsed === 'object') {
           setContent({
             hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
-            services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services
+            services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services,
+            carousel: Array.isArray((parsed as any).carousel) && (parsed as any).carousel.length>0 ? (parsed as any).carousel : defaultContent.carousel
           });
         } else {
           setContent(defaultContent);
@@ -173,6 +186,45 @@ export default function CmsEditor() {
             <div className="text-sm text-gray-600 mb-1">背景圖片（建議 1920×900 或 2560×1280 WebP）</div>
             <input className="w-full border rounded px-3 py-2" value={content.hero.imageUrl ?? ''} onChange={(e) => setHero('imageUrl', e.target.value)} placeholder="https://.../hero.webp" />
           </label>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">首頁輪播（最多 3 張）</h2>
+          <button className="px-3 py-2 rounded border hover:bg-gray-50" onClick={()=> setContent(p=> ({...p, carousel: [...(p.carousel||[]), { imageUrl:'', title:'', subtitle:'', ctaText:'', ctaLink:'' }]}))}>新增輪播</button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {(content.carousel||[]).slice(0,3).map((c,idx)=> (
+            <div key={idx} className="border rounded p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="font-medium">輪播 #{idx+1}</div>
+                <button className="text-red-600 text-sm hover:underline" onClick={()=> setContent(prev=> ({...prev, carousel: (prev.carousel||[]).filter((_,i)=> i!==idx)}))}>移除</button>
+              </div>
+              <label className="block">
+                <div className="text-sm text-gray-600 mb-1">圖片 URL</div>
+                <input className="w-full border rounded px-3 py-2" value={c.imageUrl} onChange={(e)=> setContent(prev=> { const next=[...(prev.carousel||[])]; next[idx]={...next[idx], imageUrl:e.target.value}; return {...prev, carousel:next} })} placeholder="https://.../banner.webp" />
+              </label>
+              <label className="block">
+                <div className="text-sm text-gray-600 mb-1">標題</div>
+                <input className="w-full border rounded px-3 py-2" value={c.title} onChange={(e)=> setContent(prev=> { const next=[...(prev.carousel||[])]; next[idx]={...next[idx], title:e.target.value}; return {...prev, carousel:next} })} />
+              </label>
+              <label className="block">
+                <div className="text-sm text-gray-600 mb-1">副標</div>
+                <input className="w-full border rounded px-3 py-2" value={c.subtitle||''} onChange={(e)=> setContent(prev=> { const next=[...(prev.carousel||[])]; next[idx]={...next[idx], subtitle:e.target.value}; return {...prev, carousel:next} })} />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <div className="text-sm text-gray-600 mb-1">按鈕文字</div>
+                  <input className="w-full border rounded px-3 py-2" value={c.ctaText||''} onChange={(e)=> setContent(prev=> { const next=[...(prev.carousel||[])]; next[idx]={...next[idx], ctaText:e.target.value}; return {...prev, carousel:next} })} placeholder="例如：立即加入" />
+                </label>
+                <label className="block">
+                  <div className="text-sm text-gray-600 mb-1">按鈕連結</div>
+                  <input className="w-full border rounded px-3 py-2" value={c.ctaLink||''} onChange={(e)=> setContent(prev=> { const next=[...(prev.carousel||[])]; next[idx]={...next[idx], ctaLink:e.target.value}; return {...prev, carousel:next} })} placeholder="/register/member" />
+                </label>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

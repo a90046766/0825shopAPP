@@ -121,7 +121,7 @@ function DesktopNav() {
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
   { to: '/admin/broadcast', label: '站內廣播', perm: 'bulletin.manage' },
-  // { to: '/leave-management', label: '請假管理', perm: 'leave.manage' },
+  { to: '/leave-management', label: '請假管理', perm: 'leave.manage' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/documents', label: '文件管理', perm: 'documents.manage' },
   { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
