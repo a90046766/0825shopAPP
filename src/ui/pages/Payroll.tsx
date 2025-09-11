@@ -314,6 +314,25 @@ export default function Payroll() {
 
   const saveRecord = async (record: PayrollRecord) => {
     try {
+      // 最小必要欄位（snake_case）— 優先寫入，避免 schema 差異造成 400
+      const minimal: any = {
+        id: (record as any).id,
+        month: record.month,
+        user_email: String((record as any).userEmail || (record as any).user_email || user?.email || '').toLowerCase(),
+        user_name: (record as any).userName || (record as any).user_name || '',
+        employee_id: (record as any).employeeId || (record as any).employee_id || '',
+        base_salary: record.baseSalary || 0,
+        bonus: record.bonus || 0,
+        points: record.points || 0,
+        points_mode: record.pointsMode || 'accumulate',
+        platform: record.platform || '同',
+        status: record.status || 'pending'
+      }
+      // 先嘗試最小 payload
+      let { error: e1 } = await supabase.from('payroll_records').upsert(minimal)
+      if (!e1) { await loadData(); return }
+
+      // 失敗則再嘗試完整 payload + 欄位移除回退
       const payload: any = {
         id: (record as any).id,
         month: record.month,
@@ -331,7 +350,6 @@ export default function Payroll() {
         shareScheme: (record as any).shareScheme || null,
         shareRate: (record as any).shareRate || null,
         baseGuarantee: (record as any).baseGuarantee || null,
-        // 攤平欄位（若資料表無 JSON 欄位仍可寫入）
         allowance_fuel: (record as any).allowances?.fuel ?? null,
         allowance_overtime: (record as any).allowances?.overtime ?? null,
         allowance_holiday: (record as any).allowances?.holiday ?? null,
@@ -346,25 +364,18 @@ export default function Payroll() {
         deduction_other: (record as any).deductions?.other ?? null,
         notes: (record as any).notes || null
       }
-      // 追加 snake_case 欄位以相容資料表命名
-      payload.user_email = payload.userEmail ?? (record as any).user_email ?? (record as any).userEmail ?? (user?.email || null)
-      payload.user_name = (record as any).user_name ?? payload.userName ?? null
-      payload.employee_id = (record as any).employee_id ?? payload.employeeId ?? null
-      payload.base_salary = (record as any).base_salary ?? payload.baseSalary ?? null
-      payload.points_mode = (record as any).points_mode ?? payload.pointsMode ?? null
-      payload.bonus_rate = (record as any).bonus_rate ?? payload.bonusRate ?? null
-      payload.tech_commission = (record as any).tech_commission ?? payload.techCommission ?? null
-      payload.share_scheme = (record as any).share_scheme ?? payload.shareScheme ?? null
-      payload.share_rate = (record as any).share_rate ?? payload.shareRate ?? null
-      payload.base_guarantee = (record as any).base_guarantee ?? payload.baseGuarantee ?? null
+      payload.user_email = minimal.user_email
+      payload.user_name = minimal.user_name
+      payload.employee_id = minimal.employee_id
+      payload.base_salary = minimal.base_salary
+      payload.points_mode = minimal.points_mode
 
       Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k] })
 
-      // 直接呼叫 Supabase 並在遇到 PGRST204（欄位不存在）時移除該欄位重試
       const upsertWithFallback = async (body: any) => {
         let attempt = { ...body }
         const tried = new Set<string>()
-        for (let i = 0; i < 12; i++) {
+        for (let i = 0; i < 16; i++) {
           const { error } = await supabase.from('payroll_records').upsert(attempt)
           if (!error) return
           const msg = String(error?.message || '')
@@ -374,6 +385,7 @@ export default function Payroll() {
             tried.add(m[1])
             continue
           }
+          // 若沒有明確欄位錯誤，回退到 minimal 已寫入的基礎即可
           throw error
         }
       }
@@ -666,6 +678,40 @@ export default function Payroll() {
         </div>
       </Card>
     )
+  }
+
+  // 匯出技師對帳 CSV（已勾選的訂單）
+  const exportTechOrdersCSV = () => {
+    try {
+      const headers = ['結案日','訂單編號','服務數量','整張訂單金額','技師數','分攤基礎','分潤%','分潤金額','方案','保底']
+      const rate = Math.max(0, Math.min(100, shareRate)) / 100
+      const rows: any[] = []
+      for (const o of techOrders) {
+        if (techSelections[o.id] === false) continue
+        const totalRaw = Number((o as any).totalAmount ?? (o as any).total ?? 0)
+        const sumItems = (o.serviceItems||[]).reduce((s:number, it:any)=> s + (it.unitPrice||0)*(it.quantity||0), 0)
+        const total = totalRaw > 0 ? totalRaw : sumItems
+        const techCount = Array.isArray(o.assignedTechnicians) && o.assignedTechnicians.length>0 ? o.assignedTechnicians.length : 1
+        const basis = total / techCount
+        const commission = Math.round(basis * rate)
+        const date = String(o.workCompletedAt||o.createdAt||'').slice(0,10)
+        const units = summarizeServiceUnits(o.serviceItems||[])
+        const scheme = shareScheme==='pure' ? `純分潤(${shareRate||'自訂'}%)` : `保底(${baseGuarantee})+超額×${shareRate}%`
+        rows.push([date, (o.code||o.id), units, total, techCount, Math.round(basis), `${shareRate}%`, commission, scheme, baseGuarantee])
+      }
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `tech_orders_${month}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch(e) {
+      console.error('CSV 匯出失敗:', e)
+    }
   }
 
   // 服務數量摘要（分/吊/直/吹/抽/出/外/馬）
