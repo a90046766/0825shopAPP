@@ -121,9 +121,10 @@ function DesktopNav() {
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
   { to: '/admin/broadcast', label: '站內廣播', perm: 'bulletin.manage' },
-  { to: '/leave-management', label: '請假管理', perm: 'leave.manage' },
+  // { to: '/leave-management', label: '請假管理', perm: 'leave.manage' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/documents', label: '文件管理', perm: 'documents.manage' },
+  { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
   { to: '/salary', label: '我的薪資', perm: 'dashboard.view' },
   { to: '/quotes', label: '職人語錄', perm: 'dashboard.view' },
   { to: '/store', label: '購物站', perm: 'dashboard.view' },
@@ -135,9 +136,10 @@ function DesktopNav() {
   const menuBottom = [
     { to: '/technicians', label: '技師管理', perm: 'technicians.manage' },
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
-    { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
+    // { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
     { to: '/approvals', label: '待審核', perm: 'approvals.manage' },
-    { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
+    // 僅 admin 顯示薪資/分潤
+    // { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
     { to: '/reports', label: '報表管理', perm: 'reports.manage' }
   ]
 
@@ -179,6 +181,8 @@ function DesktopNav() {
     let allowed = can(user, perm as any)
     // 待審核：僅 admin 顯示
     if (to === '/approvals') allowed = allowed && (user?.role === 'admin')
+    // 薪資/分潤：僅 admin 顯示
+    if (to === '/payroll') allowed = allowed && (user?.role === 'admin')
     const rawBadge = to==='/approvals' ? (counts.approvals||0)
       : to==='/orders' ? (counts.orders||0)
       : to==='/schedule' ? (counts.schedule||0)
