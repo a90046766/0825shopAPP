@@ -64,6 +64,7 @@ export default function NewShop() {
 	const [published, setPublished] = React.useState<CmsContent | null>(null);
 	const [loading, setLoading] = React.useState<boolean>(true);
 	const [displayName, setDisplayName] = React.useState<string>('');
+	const [carouselIndex, setCarouselIndex] = React.useState<number>(0);
 
 	React.useEffect(() => {
 		const safetyTimer = setTimeout(() => setLoading(false), 4000);
@@ -133,6 +134,15 @@ export default function NewShop() {
 		})();
 	}, []);
 
+	// 輪播圖自動播放
+	React.useEffect(() => {
+		const interval = setInterval(() => {
+			setCarouselIndex((prev) => (prev + 1) % 3);
+		}, 6000); // 每6秒切換
+
+		return () => clearInterval(interval);
+	}, []);
+
 	async function toggleCms() {
 		const { data, error } = await supabase.rpc('set_cms_enabled', { p_enabled: !cmsEnabled });
 		if (!error) {
@@ -188,7 +198,10 @@ export default function NewShop() {
 	function renderCarousel() {
   return (
 			<div className="relative overflow-hidden rounded-2xl mx-4 mb-8">
-				<div className="flex transition-transform duration-500 ease-in-out">
+				<div 
+					className="flex transition-transform duration-500 ease-in-out"
+					style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
+				>
 					{/* 橫幅 1 */}
 					<div className="w-full flex-shrink-0 relative bg-gradient-to-r from-pink-500 via-rose-500 to-red-500 p-8 text-white">
 						<div className="absolute inset-0 bg-black/20"></div>
@@ -213,8 +226,8 @@ export default function NewShop() {
 								</div>
 							</div>
 							<div className="hidden md:block text-8xl opacity-20">🎁</div>
-						</div>
-					</div>
+            </div>
+          </div>
 
 					{/* 橫幅 2 */}
 					<div className="w-full flex-shrink-0 relative bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 p-8 text-white">
@@ -233,15 +246,15 @@ export default function NewShop() {
 									<div className="bg-white/20 rounded-lg px-4 py-2">
 										<span className="text-2xl font-bold">1:1</span>
 										<span className="text-sm ml-1">回饋</span>
-									</div>
+        </div>
 									<Link to="/account" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
 										查看積分
-                </Link>
-								</div>
+              </Link>
+            </div>
 							</div>
 							<div className="hidden md:block text-8xl opacity-20">💰</div>
-            </div>
           </div>
+        </div>
 
 					{/* 橫幅 3 */}
 					<div className="w-full flex-shrink-0 relative bg-gradient-to-r from-green-500 via-teal-500 to-cyan-500 p-8 text-white">
@@ -271,11 +284,19 @@ export default function NewShop() {
           </div>
         </div>
 
-				{/* 輪播指示器（裝飾用） */}
+				{/* 輪播指示器 */}
 				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-					<button className="w-3 h-3 bg-white rounded-full opacity-80"></button>
-					<button className="w-3 h-3 bg-white/50 rounded-full"></button>
-					<button className="w-3 h-3 bg-white/50 rounded-full"></button>
+					{[0, 1, 2].map((index) => (
+						<button 
+            key={index}
+							className={`w-3 h-3 rounded-full transition-all duration-300 ${
+								index === carouselIndex 
+									? 'bg-white opacity-80' 
+									: 'bg-white/50 hover:bg-white/70'
+							}`}
+							onClick={() => setCarouselIndex(index)}
+						></button>
+					))}
 				</div>
 			</div>
 		);
@@ -300,37 +321,41 @@ export default function NewShop() {
 							<span className="text-sm bg-white/20 px-3 py-1 rounded-full text-white">10年專業經驗</span>
 						</div>
 						<h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm">
-							{hero.title || '日式洗濯購物站'}
+							日式洗濯家電服務
                 </h1>
 						<p className="mt-3 md:mt-4 text-white/90 text-base md:text-lg">
 							{hero.subtitle || '專業清潔，守護您的生活'}
 						</p>
-						<div className="mt-6 flex gap-3 mb-6">
-							<Link to="/store/products" className="inline-flex items-center px-5 py-2.5 rounded-lg bg-white text-gray-900 shadow hover:shadow-md transition-all duration-300 hover:scale-105">
-								<span className="mr-2">🚀</span>
+						<div className="mt-6 flex gap-4 mb-6">
+							<Link to="/store/products" className="inline-flex items-center px-8 py-4 rounded-xl bg-white text-gray-900 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-semibold text-lg border-2 border-transparent hover:border-blue-200">
+								<span className="mr-3 text-xl">🚀</span>
 								瀏覽服務
 							</Link>
-							<Link to="/store/products?category=cleaning" className="inline-flex items-center px-5 py-2.5 rounded-lg bg-white/90 text-gray-900 hover:bg-white transition-all duration-300 hover:scale-105">
-								<span className="mr-2">🛒</span>
+							<Link to="/store/products?category=cleaning" className="inline-flex items-center px-8 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-semibold text-lg border-2 border-transparent hover:border-blue-400">
+								<span className="mr-3 text-xl">🛒</span>
 								立即預約
                   </Link>
 						</div>
 						<div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-							<div className="bg-white/10 rounded-lg p-3">
-								<div className="text-2xl mb-1">⭐</div>
-								<div className="text-sm font-medium">4.9星評價</div>
+							<div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+								<div className="text-3xl mb-2">⭐</div>
+								<div className="text-sm font-semibold">4.9星評價</div>
+								<div className="text-xs text-white/80">客戶一致好評</div>
 							</div>
-							<div className="bg-white/10 rounded-lg p-3">
-								<div className="text-2xl mb-1">👥</div>
-								<div className="text-sm font-medium">5000+客戶</div>
+							<div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+								<div className="text-3xl mb-2">👥</div>
+								<div className="text-sm font-semibold">5000+客戶</div>
+								<div className="text-xs text-white/80">滿意服務見證</div>
 							</div>
-							<div className="bg-white/10 rounded-lg p-3">
-								<div className="text-2xl mb-1">🕒</div>
-								<div className="text-sm font-medium">24小時服務</div>
+							<div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+								<div className="text-3xl mb-2">🕒</div>
+								<div className="text-sm font-semibold">09:00~21:00</div>
+								<div className="text-xs text-white/80">全年無休服務</div>
 							</div>
-							<div className="bg-white/10 rounded-lg p-3">
-								<div className="text-2xl mb-1">🛡️</div>
-								<div className="text-sm font-medium">品質保證</div>
+							<div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+								<div className="text-3xl mb-2">🛡️</div>
+								<div className="text-sm font-semibold">90天保固</div>
+								<div className="text-xs text-white/80">品質保證服務</div>
                 </div>
               </div>
             </div>
@@ -338,45 +363,72 @@ export default function NewShop() {
 				{isAdminSupport && (
 					<div className="absolute top-3 right-3">
 						<Link to="/dispatch" className="px-3 py-1.5 rounded bg-white text-gray-700 shadow hover:shadow-md">返回派工系統</Link>
-      </div>
-				)}
           </div>
+                  )}
+                </div>
 		);
 	}
 
 	function renderServices() {
 		const list = cmsEnabled && published ? published.services : defaultContent.services;
+		const serviceImages = [
+			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80', // 冷氣清洗
+			'https://images.unsplash.com/photo-1581578731548-c6a0c3f2fcc0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80', // 居家清潔
+			'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80', // 家電購買
+			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'  // 二手家電
+		];
+		
 		return (
-			<div className="max-w-6xl mx-auto px-4 py-12">
-				<h2 className="text-2xl font-bold mb-6">我們的服務</h2>
-				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-					{list.map((s, idx) => (
-						<Link
-							key={idx}
-							to={s.link || '#'}
-							className="block rounded-xl border bg-white hover:shadow-lg transition overflow-hidden"
-						>
-							{(s.imageUrl && s.imageUrl.trim()) ? (
-								<div className="w-full aspect-[4/3] bg-gray-100" style={{ backgroundImage: `url(${s.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-							) : (
-								<div className="w-full aspect-[4/3] bg-gradient-to-br from-sky-50 to-indigo-50" />
-							)}
-							<div className="p-4">
-								<div className="font-semibold">{s.title || '服務'}</div>
-								<div className="mt-1 text-sm text-gray-600 line-clamp-2">{s.description || '服務說明'}</div>
-                </div>
+			<div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+				<div className="max-w-6xl mx-auto px-4 py-16">
+					<div className="text-center mb-12">
+						<h2 className="text-4xl font-bold text-gray-900 mb-4">我們的服務</h2>
+						<p className="text-lg text-gray-600">專業家電清潔服務，讓您的家電煥然一新</p>
+                    </div>
+					<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+						{list.map((s, idx) => (
+                <Link
+								key={idx}
+								to={s.link || '#'}
+								className="group block rounded-2xl bg-white shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 overflow-hidden border border-gray-100"
+							>
+								<div className="relative w-full aspect-[4/3] overflow-hidden">
+									<div 
+										className="w-full h-full bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
+										style={{ backgroundImage: `url(${serviceImages[idx] || serviceImages[0]})` }}
+									/>
+									<div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+									<div className="absolute top-4 right-4">
+										<div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-2xl">
+											{idx === 0 ? '❄️' : idx === 1 ? '🏠' : idx === 2 ? '🛒' : '♻️'}
+										</div>
+									</div>
+								</div>
+								<div className="p-6">
+									<h3 className="font-bold text-xl text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">{s.title || '服務'}</h3>
+									<p className="text-gray-600 text-sm leading-relaxed">{s.description || '服務說明'}</p>
+									<div className="mt-4 flex items-center text-blue-600 font-medium group-hover:text-blue-700">
+										<span className="mr-2">了解更多</span>
+										<span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+									</div>
+								</div>
                 </Link>
             ))}
           </div>
         </div>
+			</div>
 		);
 	}
 
 	function renderAdvantages() {
 		return (
-			<div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-				<div className="max-w-6xl mx-auto px-4 py-12">
-					<h2 className="text-3xl font-bold text-gray-900 text-center mb-8">為什麼要找日式洗濯？</h2>
+			<div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+				<div className="absolute inset-0 bg-gradient-to-r from-blue-100/30 to-purple-100/30"></div>
+				<div className="relative max-w-6xl mx-auto px-4 py-16">
+                                <div className="text-center mb-12">
+						<h2 className="text-4xl font-bold text-gray-900 mb-4">為什麼要找日式洗濯？</h2>
+						<p className="text-lg text-gray-600">專業技術，值得信賴的服務品質</p>
+                      </div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 						{[
 							{ title: '10年專業經驗', desc: '深耕業界十年，累積豐富實戰經驗', icon: '🏆' },
@@ -392,10 +444,10 @@ export default function NewShop() {
 							{ title: '專業技師團隊', desc: '經驗豐富技師，技術精湛可靠', icon: '👨‍🔬' },
 							{ title: '全國服務範圍', desc: '服務範圍涵蓋北北基桃竹苗中彰投南高', icon: '🗺️' }
 						].map((a, i) => (
-							<div key={i} className="text-center bg-white/60 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-								<div className="text-4xl mb-4">{a.icon}</div>
-								<h3 className="font-semibold text-gray-900 mb-2">{a.title}</h3>
-								<p className="text-sm text-gray-600">{a.desc}</p>
+							<div key={i} className="group text-center bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-white/50">
+								<div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">{a.icon}</div>
+								<h3 className="font-bold text-gray-900 mb-3 text-lg group-hover:text-blue-600 transition-colors">{a.title}</h3>
+								<p className="text-sm text-gray-600 leading-relaxed">{a.desc}</p>
               </div>
             ))}
           </div>
@@ -406,60 +458,63 @@ export default function NewShop() {
 
 	function renderFAQ() {
 		return (
-			<div className="bg-white">
-				<div className="max-w-6xl mx-auto px-4 py-12">
-					<h2 className="text-3xl font-bold text-gray-900 text-center mb-8">常見問題</h2>
+			<div className="bg-gradient-to-br from-gray-50 via-white to-blue-50">
+				<div className="max-w-6xl mx-auto px-4 py-16">
+					<div className="text-center mb-12">
+						<h2 className="text-4xl font-bold text-gray-900 mb-4">常見問題</h2>
+						<p className="text-lg text-gray-600">為您解答服務相關疑問</p>
+					</div>
 					<div className="grid gap-6 md:grid-cols-2">
-						<div className="space-y-4">
-							<div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 清洗服務需要多長時間？</h3>
-								<p className="text-sm text-gray-600">A: 一般冷氣清洗約1-2小時，洗衣機清洗約1.5小時，抽油煙機清洗約1.5小時，具體時間依現場環境及設備狀況而定。</p>
+						<div className="space-y-6">
+							<div className="bg-white rounded-xl p-6 border border-blue-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 清洗服務需要多長時間？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 一般冷氣清洗約1-2小時，洗衣機清洗約1.5小時，抽油煙機清洗約1.5小時，具體時間依現場環境及設備狀況而定。</p>
 							</div>
-							<div className="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 清洗後有保固嗎？</h3>
-								<p className="text-sm text-gray-600">A: 是的，我們提供10年內機器提供90天保固服務，13年內提供30天保固，13年後不提供保固。保固期間內如無法維修提供換機購物金。</p>
+							<div className="bg-white rounded-xl p-6 border border-green-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 清洗後有保固嗎？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 是的，我們提供10年內機器提供90天保固服務，13年內提供30天保固，13年後不提供保固。保固期間內如無法維修提供換機購物金。</p>
 							</div>
-							<div className="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 需要提前多久預約？</h3>
-								<p className="text-sm text-gray-600">A: 建議提前1-3天預約，我們會安排最適合的時間為您服務。</p>
+							<div className="bg-white rounded-xl p-6 border border-purple-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 需要提前多久預約？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 建議提前1-3天預約，我們會安排最適合的時間為您服務。</p>
             </div>
-							<div className="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 清洗過程會影響日常生活嗎？</h3>
-								<p className="text-sm text-gray-600">A: 我們會盡量減少對您日常生活的影響，並在清洗前說明流程。</p>
+							<div className="bg-white rounded-xl p-6 border border-orange-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 清洗過程會影響日常生活嗎？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 我們會盡量減少對您日常生活的影響，並在清洗前說明流程。</p>
               </div>
-							<div className="bg-pink-50 rounded-lg p-4 border-l-4 border-pink-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 使用什麼清潔劑？</h3>
-								<p className="text-sm text-gray-600">A: 我們使用專用清潔劑，不傷機器與機體，效果更佳。</p>
+							<div className="bg-white rounded-xl p-6 border border-pink-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 使用什麼清潔劑？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 我們使用專用清潔劑，不傷機器與機體，效果更佳。</p>
               </div>
-							<div className="bg-indigo-50 rounded-lg p-4 border-l-4 border-indigo-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 可以指定技師嗎？</h3>
-								<p className="text-sm text-gray-600">A: 可以，我們會盡量安排您指定的技師，但需視排程情況而定。</p>
+							<div className="bg-white rounded-xl p-6 border border-indigo-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 可以指定技師嗎？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 可以，我們會盡量安排您指定的技師，但需視排程情況而定。</p>
               </div>
             </div>
-						<div className="space-y-4">
-							<div className="bg-yellow-50 rounded-lg p-4 border-l-4 border-yellow-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 團購優惠如何計算？</h3>
-								<p className="text-sm text-gray-600">A: 同一地址滿3件服務即可享受團購價，可節省200-300元不等。</p>
+						<div className="space-y-6">
+							<div className="bg-white rounded-xl p-6 border border-yellow-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 團購優惠如何計算？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 同一地址滿3件服務即可享受團購價，可節省200-300元不等。</p>
 							</div>
-							<div className="bg-teal-50 rounded-lg p-4 border-l-4 border-teal-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 清洗後多久可以正常使用？</h3>
-								<p className="text-sm text-gray-600">A: 清洗完成後即可正常使用，技師會確保機器正常運作。</p>
+							<div className="bg-white rounded-xl p-6 border border-teal-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 清洗後多久可以正常使用？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 清洗完成後即可正常使用，技師會確保機器正常運作。</p>
           </div>
-							<div className="bg-red-50 rounded-lg p-4 border-l-4 border-red-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 如果設備有故障怎麼辦？</h3>
-								<p className="text-sm text-gray-600">A: 我們會先評估故障原因，如非清洗造成，會協助您聯繫維修服務。</p>
+							<div className="bg-white rounded-xl p-6 border border-red-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 如果設備有故障怎麼辦？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 我們會先評估故障原因，如非清洗造成，會協助您聯繫維修服務。</p>
         </div>
-							<div className="bg-cyan-50 rounded-lg p-4 border-l-4 border-cyan-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 可以開發票嗎？</h3>
-								<p className="text-sm text-gray-600">A: 可以，我們提供電子發票，可選擇個人或公司統編。</p>
+							<div className="bg-white rounded-xl p-6 border border-cyan-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 可以開發票嗎？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 可以，我們提供電子發票，可選擇個人或公司統編。</p>
             </div>
-							<div className="bg-emerald-50 rounded-lg p-4 border-l-4 border-emerald-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 服務範圍包含哪些地區？</h3>
-								<p className="text-sm text-gray-600">A: 目前服務地區，包含北北基/桃竹苗/中彰投/南高，其他地區如雲嘉南/屏東由周邊技師服務。</p>
+							<div className="bg-white rounded-xl p-6 border border-emerald-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 服務範圍包含哪些地區？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 目前服務地區，包含北北基/桃竹苗/中彰投/南高，其他地區如雲嘉南/屏東由周邊技師服務。</p>
               </div>
-							<div className="bg-rose-50 rounded-lg p-4 border-l-4 border-rose-500">
-								<h3 className="font-semibold text-gray-900 mb-2">Q: 如何取消或改期？</h3>
-								<p className="text-sm text-gray-600">A: 請提前24小時聯繫客服，我們會協助您重新安排時間。如在當天臨時有事可直接聯繫訂單上的服務技師。</p>
+							<div className="bg-white rounded-xl p-6 border border-rose-100 shadow-md hover:shadow-lg transition-shadow duration-300">
+								<h3 className="font-bold text-gray-900 mb-3 text-lg">Q: 如何取消或改期？</h3>
+								<p className="text-gray-600 leading-relaxed">A: 請提前24小時聯繫客服，我們會協助您重新安排時間。如在當天臨時有事可直接聯繫訂單上的服務技師。</p>
               </div>
               </div>
             </div>
@@ -474,29 +529,29 @@ export default function NewShop() {
 				<div className="max-w-6xl mx-auto px-4 py-12">
 					<h2 className="text-3xl font-bold text-center mb-8">聯繫我們</h2>
 					<div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-						<div className="text-center bg-white/10 rounded-xl p-6">
+						<div className="text-center bg-white/10 rounded-xl p-6 hover:bg-white/20 transition-colors">
 							<div className="text-3xl mb-4">📞</div>
 							<h3 className="font-semibold mb-2">客服專線</h3>
-							<p className="text-white/90 mb-2">0800-000-000</p>
-							<p className="text-sm text-white/70">24小時客服熱線</p>
+							<p className="text-white/90 mb-2 font-mono text-lg">(02)7756-2269</p>
+							<p className="text-sm text-white/70">服務時間09:00~18:00</p>
             </div>
-						<div className="text-center bg-white/10 rounded-xl p-6">
-							<div className="text-3xl mb-4">📧</div>
-							<h3 className="font-semibold mb-2">電子郵件</h3>
-							<p className="text-white/90 mb-2">service@942clean.com.tw</p>
-							<p className="text-sm text-white/70">24小時內回覆</p>
+						<div className="text-center bg-white/10 rounded-xl p-6 hover:bg-white/20 transition-colors">
+							<div className="text-3xl mb-4">💬</div>
+							<h3 className="font-semibold mb-2">官方賴服務</h3>
+							<p className="text-white/90 mb-2 font-mono text-lg">@942clean</p>
+							<p className="text-sm text-white/70">服務時間09:00~21:00</p>
               </div>
-						<div className="text-center bg-white/10 rounded-xl p-6">
+						<div className="text-center bg-white/10 rounded-xl p-6 hover:bg-white/20 transition-colors">
 							<div className="text-3xl mb-4">🕒</div>
 							<h3 className="font-semibold mb-2">服務時間</h3>
-							<p className="text-white/90 mb-2">週一至週日</p>
-							<p className="text-sm text-white/70">8:00-20:00</p>
+							<p className="text-white/90 mb-2">周一~周日</p>
+							<p className="text-sm text-white/70">09:00~21:00</p>
               </div>
-						<div className="text-center bg-white/10 rounded-xl p-6">
+						<div className="text-center bg-white/10 rounded-xl p-6 hover:bg-white/20 transition-colors">
 							<div className="text-3xl mb-4">📍</div>
 							<h3 className="font-semibold mb-2">服務範圍</h3>
-							<p className="text-white/90 mb-2">大台北地區</p>
-							<p className="text-sm text-white/70">其他地區請洽詢</p>
+							<p className="text-white/90 mb-2 text-sm">北北基/桃竹苗/中彰投/南高</p>
+							<p className="text-xs text-white/70">其他地區需滿三件以上</p>
               </div>
             </div>
 
@@ -505,21 +560,21 @@ export default function NewShop() {
 							<div>
 								<h4 className="font-semibold mb-3">快速預約</h4>
 								<p className="text-sm text-white/80 mb-3">線上預約，快速安排</p>
-								<Link to="/store/products" className="inline-block bg-white text-blue-900 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+								<Link to="/store/products" className="inline-block bg-white text-blue-900 px-6 py-3 rounded-xl font-medium hover:bg-gray-100 transition-all duration-300 hover:scale-105 shadow-lg">
 									立即預約
             </Link>
           </div>
 							<div>
 								<h4 className="font-semibold mb-3">LINE客服</h4>
 								<p className="text-sm text-white/80 mb-3">加入LINE好友，即時諮詢</p>
-								<button className="inline-block bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors">
-									加入LINE
+								<button className="inline-block bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition-all duration-300 hover:scale-105 shadow-lg">
+									加入LINE(@942clean)
 								</button>
         </div>
 							<div>
-								<h4 className="font-semibold mb-3">緊急服務</h4>
-								<p className="text-sm text-white/80 mb-3">24小時緊急服務專線</p>
-								<a href="tel:0800-000-000" className="inline-block bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors">
+								<h4 className="font-semibold mb-3">緊急聯絡</h4>
+								<p className="text-sm text-white/80 mb-3">點擊後電話直撥</p>
+								<a href="tel:0913788051" className="inline-block bg-red-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-600 transition-all duration-300 hover:scale-105 shadow-lg">
 									緊急聯絡
 								</a>
           </div>
@@ -533,10 +588,15 @@ export default function NewShop() {
 	function renderWelcome() {
 		if (!displayName) return null;
 		return (
-			<div className="w-full bg-blue-50 border-b border-blue-100">
-				<div className="max-w-6xl mx-auto px-4 py-2 text-sm text-blue-900 flex items-center justify-between">
-					<div>歡迎回來，{displayName}</div>
-					<Link to="/account" className="underline hover:no-underline">前往會員中心</Link>
+			<div className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg">
+				<div className="max-w-6xl mx-auto px-4 py-3 text-sm flex items-center justify-between">
+					<div className="flex items-center">
+						<span className="text-lg mr-2">👋</span>
+						<span className="font-medium">歡迎回來，{displayName}</span>
+          </div>
+					<Link to="/account" className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">
+						前往會員中心
+					</Link>
             </div>
           </div>
 		);
@@ -551,7 +611,7 @@ export default function NewShop() {
 	}
 
 	return (
-		<div className="min-h-screen bg-[#F5F7FB]">
+		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
 			{isAdminSupport && (
 				<AdminCmsBar
 					cmsEnabled={cmsEnabled}
