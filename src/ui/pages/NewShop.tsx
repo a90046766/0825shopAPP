@@ -67,26 +67,35 @@ export default function NewShop() {
 
 	React.useEffect(() => {
 		const safetyTimer = setTimeout(() => setLoading(false), 4000);
-
+        const forcedNoCms =
+	typeof window !== 'undefined' &&
+	new URLSearchParams(window.location.search).get('nocms') === '1';
 		(async () => {
 			try {
+				if (forcedNoCms) {
+	setCmsEnabled(false);
+	setPublished(null);
+	clearTimeout(safetyTimer);
+	setLoading(false);
+	return;
+}
 				// 是否 admin/support（失敗不影響前台）
 				try {
 					const { data: u } = await supabase.auth.getUser();
-					const email = u?.user?.email ?? '';
-					if (email) {
-						const { data: staffRow } = await supabase
-							.from('staff')
-							.select('role')
-							.eq('email', email)
-							.maybeSingle();
-						setIsAdminSupport(!!staffRow && (staffRow.role === 'admin' || staffRow.role === 'support'));
-					}
-					const nameFromMeta =
-						(u?.user?.user_metadata as any)?.full_name ||
-						(u?.user?.user_metadata as any)?.name ||
-						email;
-					setDisplayName(nameFromMeta || '');
+const email = u?.user?.email ?? '';
+if (email) {
+  const { data: staffRow } = await supabase
+    .from('staff')
+    .select('role')
+    .eq('email', email)
+    .maybeSingle();
+  setIsAdminSupport(!!staffRow && (staffRow.role === 'admin' || staffRow.role === 'support'));
+}
+const nameFromMeta =
+  (u?.user?.user_metadata as any)?.full_name ||
+  (u?.user?.user_metadata as any)?.name ||
+  email;
+setDisplayName(nameFromMeta || '');
 				} catch {}
 
 				// 讀全站開關（失敗則當作未啟用，顯示固定版）
