@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { loadAdapters } from '../../adapters'
 import type { PayrollRecord } from '../../core/repository'
+import { supabase } from '../../utils/supabase'
 
 export default function SalaryPage() {
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
@@ -16,9 +17,30 @@ export default function SalaryPage() {
       setLoading(true)
       const a = await loadAdapters()
       const abort = new Promise((_, rej)=> setTimeout(()=> rej(new Error('timeout')), 8000))
-      const all = await Promise.race([a.payrollRepo.list(user), abort]) as any[]
+      let all: any[] = []
+      try {
+        all = await Promise.race([a.payrollRepo.list(user), abort]) as any[]
+      } catch (e) {
+        all = []
+      }
+      // Fallback：直接查 Supabase 表
+      if (!Array.isArray(all) || all.length === 0) {
+        try {
+          const { data } = await supabase
+            .from('payroll_records')
+            .select('*')
+            .eq('userEmail', (user?.email||'').toLowerCase())
+          all = data || []
+        } catch {}
+      }
       const mine = (all||[]).filter((r: any) => String(r.userEmail||'').toLowerCase() === String(user?.email||'').toLowerCase())
-      setRecords(mine)
+      // 依月排序，預設選最新月份
+      const ordered = [...mine].sort((a:any,b:any)=> String(b.month||'').localeCompare(String(a.month||'')))
+      setRecords(ordered as any)
+      if (ordered.length>0) {
+        const hasCurrent = ordered.some(r => r.month === month)
+        if (!hasCurrent) setMonth(ordered[0].month)
+      }
     } catch (e: any) {
       setError(e?.message || '載入失敗')
     } finally {
@@ -101,7 +123,10 @@ export default function SalaryPage() {
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl bg-white p-4 text-sm text-gray-600 shadow-card">此月份尚無薪資資料</div>
+        <div className="rounded-2xl bg-white p-4 text-sm text-gray-600 shadow-card">
+          此月份尚無薪資資料。
+          <div className="mt-2 text-xs text-gray-500">若你剛在後台建立薪資，請切換月份或重新整理。</div>
+        </div>
       )}
 
       {records.length > 0 && (
@@ -109,7 +134,7 @@ export default function SalaryPage() {
           <div className="mb-2 font-semibold">歷史月份</div>
           <div className="grid grid-cols-2 gap-2 text-sm">
             {records.map(r => (
-              <button key={r.id} onClick={()=>setMonth(r.month)} className={`rounded border px-3 py-2 text-left ${r.month===month? 'border-brand-300 bg-brand-50' : ''}`}>
+              <button key={r.id || r.month} onClick={()=>setMonth(r.month)} className={`rounded border px-3 py-2 text-left ${r.month===month? 'border-brand-300 bg-brand-50' : ''}`}>
                 <div className="font-medium">{r.month}</div>
                 <div className="text-xs text-gray-500">{r.status==='confirmed'?'已確認':'待確認'}</div>
               </button>

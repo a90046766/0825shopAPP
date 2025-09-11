@@ -30,6 +30,13 @@ export default function Payroll() {
   const [bulkRole, setBulkRole] = useState<'all' | 'support' | 'sales' | 'technician'>('support')
   const [bulkField, setBulkField] = useState('bonus')
   const [bulkAmount, setBulkAmount] = useState<string>('')
+  // 技師專用狀態：訂單與分潤
+  const [techOrders, setTechOrders] = useState<any[]>([])
+  const [techOrdersLoading, setTechOrdersLoading] = useState<boolean>(false)
+  const [techSelections, setTechSelections] = useState<Record<string, boolean>>({})
+  const [shareScheme, setShareScheme] = useState<'pure' | 'base'>('pure')
+  const [shareRate, setShareRate] = useState<number>(30) // 30%
+  const [baseGuarantee, setBaseGuarantee] = useState<number>(40000)
 
   useEffect(() => {
     if (!user || !can(user, 'payroll.view')) return
@@ -55,6 +62,46 @@ export default function Payroll() {
     window.addEventListener('staff-updated', handleStaffUpdate)
     return () => window.removeEventListener('staff-updated', handleStaffUpdate)
   }, [])
+
+  // 當切換到某位技師的編輯，載入該月訂單
+  useEffect(() => {
+    const loadTech = async () => {
+      try {
+        if (!orderRepo || !editingRecord) return
+        const staff = staffList.find(s => s.email === editingRecord.userEmail)
+        if (!staff) return
+        const role = getRoleOf(staff)
+        if (role !== 'technician') return
+        setTechOrdersLoading(true)
+        const orders = await orderRepo.list()
+        const ym = month
+        const inMonth = (orders||[]).filter((o: any) => {
+          const d = o.workCompletedAt || o.createdAt
+          return (d || '').slice(0,7) === ym
+        })
+        const emailLc = String(staff.email||'').toLowerCase()
+        const idStr = String(staff.id||'')
+        const mine = inMonth.filter((o: any) => {
+          const at = Array.isArray(o.assignedTechnicians) ? o.assignedTechnicians : []
+          // 支援 email 或 id 兩種型態
+          return at.some((t: any) => String(t||'').toLowerCase() === emailLc || String(t||'') === idStr)
+        })
+        setTechOrders(mine)
+        // 預設勾選「已結案/已完成」的訂單
+        const sel: Record<string, boolean> = {}
+        for (const o of mine) { sel[o.id] = (o.status==='completed' || o.status==='done' || !!o.workCompletedAt) }
+        setTechSelections(sel)
+        // 初始化方案/比例（若記錄上已有，沿用）
+        setShareScheme(((editingRecord as any).shareScheme as any) || 'pure')
+        setShareRate(((editingRecord as any).shareRate as any) || 30)
+        setBaseGuarantee(((editingRecord as any).baseGuarantee as any) || 40000)
+      } catch {
+      } finally {
+        setTechOrdersLoading(false)
+      }
+    }
+    loadTech()
+  }, [editingRecord, orderRepo, staffList, month])
 
   const loadData = async () => {
     if (!payrollRepo || !staffRepo || !technicianRepo) return
@@ -136,7 +183,7 @@ export default function Payroll() {
   }, [recordsWithRole, roleFilter, search, viewRole])
 
   const exportCSV = () => {
-    const headers = ['姓名','員編','Email','月份','底薪','獎金','積分','模式','油資','加班','節金','職務','請假','遲到','客訴','維修','平台','狀態','淨發']
+    const headers = ['姓名','員編','Email','月份','底薪','獎金','積分','模式','油資','加班','節金','職務','請假','遲到','客訴','維修','平台','方案','比例','保底','分潤','狀態','淨發']
     const rows = filteredRecords.map(r => {
       const calc = calculateSalary(r as PayrollRecord)
       return [
@@ -144,7 +191,8 @@ export default function Payroll() {
         r.baseSalary||0, r.bonus||0, r.points||0, r.pointsMode||'accumulate',
         r.allowances?.fuel||0, r.allowances?.overtime||0, r.allowances?.holiday||0, r.allowances?.duty||0,
         r.deductions?.leave||0, r.deductions?.tardiness||0, r.deductions?.complaints||0, r.deductions?.repairCost||0,
-        r.platform||'同', r.status||'pending', calc.net
+        r.platform||'同', (r as any).shareScheme||'', (r as any).shareRate||'', (r as any).baseGuarantee||'', (r as any).techCommission||0,
+        r.status||'pending', calc.net
       ]
     })
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
@@ -193,7 +241,8 @@ export default function Payroll() {
     const totalDeductions = (deductions.leave || 0) + (deductions.tardiness || 0) + (deductions.complaints || 0) + (deductions.repairCost || 0) + extraDeductions
     const bonus = record.bonus || 0
     const pointsValue = record.pointsMode === 'include' ? (record.points || 0) * 100 : 0
-    return { base, totalAllowances, totalDeductions, bonus, pointsValue, net: base + totalAllowances - totalDeductions + bonus + pointsValue }
+    const techCommission = (record as any).techCommission || 0
+    return { base, totalAllowances, totalDeductions, bonus, pointsValue, techCommission, net: base + totalAllowances - totalDeductions + bonus + pointsValue + techCommission }
   }
 
   const getIssuanceDate = (month: string, platform: string) => {
@@ -223,16 +272,19 @@ export default function Payroll() {
     const staff = staffList.find(s => s.email === editingRecord.userEmail)
     if (!staff) return
     const role = getRoleOf(staff)
-    // 技師：使用技師分潤估算
+    // 技師：使用選單 + 訂單來計算分潤
     if (role === 'technician') {
-      const t = techMonthlyMap[staff.name]
-      if (t) {
-        setEditingRecord(r => ({
-          ...(r as PayrollRecord),
-          baseSalary: t.baseSalary || 0,
-          bonus: t.bonus || 0,
-        }))
+      const rate = Math.max(0, Math.min(100, shareRate)) / 100
+      let commission = 0
+      for (const o of techOrders) {
+        if (techSelections[o.id] === false) continue
+        const total = (o.serviceItems||[]).reduce((s:number, it:any)=> s + (it.unitPrice||0)*(it.quantity||0), 0)
+        const techCount = Array.isArray(o.assignedTechnicians) && o.assignedTechnicians.length>0 ? o.assignedTechnicians.length : 1
+        const basis = total / techCount
+        commission += Math.round(basis * rate)
       }
+      const finalCommission = shareScheme === 'base' ? Math.max(baseGuarantee, commission) : commission
+      setEditingRecord(r => ({ ...(r as PayrollRecord), techCommission: finalCommission, shareScheme, shareRate, baseGuarantee }))
       return
     }
     // 業務：以 refCode 匹配本月訂單金額 × (bonusRate%)
@@ -328,6 +380,9 @@ export default function Payroll() {
             </div>
           </div>
 
+          {/* 技師：分潤與訂單清單 */}
+          {renderTechOrdersPanel()}
+
           {/* 原本細項編輯區（保留） */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -365,28 +420,30 @@ export default function Payroll() {
             <Input type="number" value={editingRecord.deductions?.leave || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, leave: Number(e.target.value) } })} placeholder="休假扣除" />
             <Input type="number" value={editingRecord.deductions?.tardiness || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, tardiness: Number(e.target.value) } })} placeholder="遲到扣除" />
             <Input type="number" value={editingRecord.deductions?.complaints || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, complaints: Number(e.target.value) } })} placeholder="客訴扣除" />
-            <Input type="number" value={editingRecord.deductions?.repairCost || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, repairCost: Number(e.target.value) } })} placeholder="維修費用" />
+            <Input type="number" value={editingRecord.deductions?.repairCost || '' as any} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, repairCost: Number(e.target.value) } })} placeholder="維修費用（封頂30%）" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">獎金比例</label>
-              <Select value={String(editingRecord.bonusRate || 10)} onChange={(e)=> setEditingRecord({ ...editingRecord, bonusRate: Number(e.target.value) as 10 | 20 | 30 })}>
-                <option value={10}>10%</option>
-                <option value={20}>20%</option>
-                <option value={30}>30%</option>
-              </Select>
+          {(() => { const staff = staffList.find(s => s.email === editingRecord.userEmail); const r = staff ? getRoleOf(staff) : 'support'; return r==='support' ? null : (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">獎金比例</label>
+                <Select value={String(editingRecord.bonusRate || 10)} onChange={(e)=> setEditingRecord({ ...editingRecord, bonusRate: Number(e.target.value) as 10 | 20 | 30 })}>
+                  <option value={10}>10%</option>
+                  <option value={20}>20%</option>
+                  <option value={30}>30%</option>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">平台</label>
+                <Select value={editingRecord.platform || '同'} onChange={(e)=> setEditingRecord({ ...editingRecord, platform: e.target.value as '同' | '日' | '黃' | '今' })}>
+                  <option value="同">同</option>
+                  <option value="日">日</option>
+                  <option value="黃">黃</option>
+                  <option value="今">今</option>
+                </Select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">平台</label>
-              <Select value={editingRecord.platform || '同'} onChange={(e)=> setEditingRecord({ ...editingRecord, platform: e.target.value as '同' | '日' | '黃' | '今' })}>
-                <option value="同">同</option>
-                <option value="日">日</option>
-                <option value="黃">黃</option>
-                <option value="今">今</option>
-              </Select>
-            </div>
-          </div>
+          ) })()}
 
           <div className="flex justify-end space-x-2">
             <Button variant="outline" onClick={()=>{ setEditingRecord(null) }}>
@@ -402,6 +459,189 @@ export default function Payroll() {
         </div>
       </Card>
     )
+  }
+
+  // 技師訂單明細區塊
+  const renderTechOrdersPanel = () => {
+    if (!editingRecord) return null
+    const staff = staffList.find(s => s.email === editingRecord.userEmail)
+    if (!staff || getRoleOf(staff) !== 'technician') return null
+    const rate = Math.max(0, Math.min(100, shareRate)) / 100
+    let sumBasis = 0
+    let sumCommission = 0
+    for (const o of techOrders) {
+      if (techSelections[o.id] === false) continue
+      const totalRaw = Number((o as any).totalAmount ?? (o as any).total ?? 0)
+      const sumItems = (o.serviceItems||[]).reduce((s:number, it:any)=> s + (it.unitPrice||0)*(it.quantity||0), 0)
+      const total = totalRaw > 0 ? totalRaw : sumItems
+      const techCount = Array.isArray(o.assignedTechnicians) && o.assignedTechnicians.length>0 ? o.assignedTechnicians.length : 1
+      const basis = total / techCount
+      sumBasis += basis
+      sumCommission += Math.round(basis * rate)
+    }
+    const finalCommission = shareScheme === 'base' ? Math.max(baseGuarantee, sumCommission) : sumCommission
+
+    return (
+      <Card>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="text-lg font-semibold">技師分潤計算（{month}）</div>
+          <div className="text-sm text-gray-600">訂單數：{techOrders.length}</div>
+        </div>
+        <div className="mb-3 grid gap-3 md:grid-cols-4">
+          <div>
+            <div className="text-sm text-gray-600 mb-1">分潤方案</div>
+            {can(user, 'admin') ? (
+              <Select value={shareScheme} onChange={(e)=> setShareScheme((e.target.value as any) || 'pure')}>
+                <option value="pure">純分潤</option>
+                <option value="base">保底</option>
+              </Select>
+            ) : (
+              <div className="rounded border bg-white px-2 py-1 text-gray-700">{shareScheme==='pure' ? '純分潤' : '保底'}</div>
+            )}
+          </div>
+          <div>
+            <div className="text-sm text-gray-600 mb-1">分潤比例</div>
+            {can(user, 'admin') ? (
+              <>
+                {shareScheme==='pure' && (
+                  <div className="flex items-center gap-2">
+                    <Select value={String(shareRate)} onChange={(e)=> setShareRate(Number(e.target.value))}>
+                      <option value={70}>純7（70%）</option>
+                      <option value={72}>純72（72%）</option>
+                      <option value={73}>純73（73%）</option>
+                      <option value={75}>純75（75%）</option>
+                      <option value={80}>純80（80%）</option>
+                      <option value={0}>自訂</option>
+                    </Select>
+                    {Number(shareRate)===0 && (
+                      <Input type="number" placeholder="自訂% 如 68" value={shareRate||''} onChange={(e)=> setShareRate(Number(e.target.value)||0)} />
+                    )}
+                  </div>
+                )}
+                {shareScheme!=='pure' && (
+                  <Select value={String(shareRate)} onChange={(e)=> setShareRate(Number(e.target.value))}>
+                    <option value={10}>10%</option>
+                    <option value={20}>20%</option>
+                    <option value={30}>30%</option>
+                  </Select>
+                )}
+              </>
+            ) : (
+              <div className="rounded border bg-white px-2 py-1 text-gray-700">{shareScheme==='pure' ? (shareRate? `${shareRate}%` : '自訂%') : `${shareRate}%`}</div>
+            )}
+          </div>
+          {shareScheme==='base' && (
+            <div>
+              <div className="text-sm text-gray-600 mb-1">保底金額</div>
+              {can(user,'admin') ? (
+                <Input type="number" value={baseGuarantee} onChange={(e)=> setBaseGuarantee(Number(e.target.value)||0)} />
+              ) : (
+                <div className="rounded border bg-white px-2 py-1 text-gray-700">${baseGuarantee.toLocaleString()}</div>
+              )}
+            </div>
+          )}
+          <div className="text-right self-end">
+            <div className="text-xs text-gray-600">本月分潤（試算）</div>
+            <div className="text-xl font-bold text-emerald-600">${finalCommission.toLocaleString()}</div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b bg-gray-50 text-gray-600">
+                <th className="px-2 py-2 text-left">結案日</th>
+                <th className="px-2 py-2 text-left">訂單編號</th>
+                <th className="px-2 py-2 text-left">服務數量</th>
+                <th className="px-2 py-2 text-right">訂單金額</th>
+                <th className="px-2 py-2 text-right">技師數</th>
+                <th className="px-2 py-2 text-right">分攤基礎</th>
+                <th className="px-2 py-2 text-right">分潤(試算)</th>
+                <th className="px-2 py-2 text-center">納入</th>
+              </tr>
+            </thead>
+            <tbody>
+              {techOrdersLoading ? (
+                <tr><td className="px-2 py-3" colSpan={8}>載入訂單中…</td></tr>
+              ) : techOrders.length === 0 ? (
+                <tr><td className="px-2 py-3" colSpan={8}>本月未找到相關訂單</td></tr>
+              ) : (
+                techOrders.map((o:any) => {
+                  const totalRaw = Number((o as any).totalAmount ?? (o as any).total ?? 0)
+                  const sumItems = (o.serviceItems||[]).reduce((s:number, it:any)=> s + (it.unitPrice||0)*(it.quantity||0), 0)
+                  const total = totalRaw > 0 ? totalRaw : sumItems
+                  const techCount = Array.isArray(o.assignedTechnicians) && o.assignedTechnicians.length>0 ? o.assignedTechnicians.length : 1
+                  const basis = total / techCount
+                  const commission = Math.round(basis * rate)
+                  const date = String(o.workCompletedAt||o.createdAt||'').slice(0,10)
+                  return (
+                    <tr key={o.id} className="border-b last:border-0">
+                      <td className="px-2 py-2">{date}</td>
+                      <td className="px-2 py-2">{o.code || o.id}</td>
+                      <td className="px-2 py-2">{summarizeServiceUnits(o.serviceItems||[])}</td>
+                      <td className="px-2 py-2 text-right">${total.toLocaleString()}</td>
+                      <td className="px-2 py-2 text-right">{techCount}</td>
+                      <td className="px-2 py-2 text-right">${Math.round(basis).toLocaleString()}</td>
+                      <td className="px-2 py-2 text-right">${commission.toLocaleString()}</td>
+                      <td className="px-2 py-2 text-center">
+                        <input type="checkbox" checked={techSelections[o.id] !== false} onChange={(e)=> setTechSelections(prev=> ({ ...prev, [o.id]: e.target.checked }))} />
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-3 flex items-center justify-end gap-2">
+          <Button variant="outline" onClick={()=>{ setTechSelections({}); setShareRate(30); setShareScheme('pure'); setBaseGuarantee(40000) }}>重設</Button>
+          <Button variant="outline" onClick={exportTechOrdersCSV}>下載對帳CSV</Button>
+          <Button onClick={()=>{ const rate = Math.max(0, Math.min(100, shareRate)) / 100; let commission=0; for(const o of techOrders){ if(techSelections[o.id]===false) continue; const totalRaw=Number((o as any).totalAmount ?? (o as any).total ?? 0); const sumItems=(o.serviceItems||[]).reduce((s:number,it:any)=> s+(it.unitPrice||0)*(it.quantity||0),0); const total= totalRaw>0? totalRaw: sumItems; const techCount=Array.isArray(o.assignedTechnicians)&&o.assignedTechnicians.length>0?o.assignedTechnicians.length:1; const basis= total/techCount; commission += Math.round(basis*rate);} const finalCommission = shareScheme==='base'? Math.max(baseGuarantee, commission): commission; setEditingRecord(r=> ({ ...(r as PayrollRecord), techCommission: finalCommission, shareScheme, shareRate, baseGuarantee })); }}>套用到本筆薪資</Button>
+        </div>
+      </Card>
+    )
+  }
+
+  // 服務數量摘要（分/吊/直/吹/抽/出/外/馬）
+  const summarizeServiceUnits = (items: any[]): string => {
+    const counters: Record<string, number> = { fen: 0, diao: 0, zhi: 0, chui: 0, chou: 0, chu: 0, wai: 0, ma: 0 }
+    for (const it of (items || [])) {
+      const nameRaw = String(it?.name || it?.title || it?.productName || '').toLowerCase()
+      const name = nameRaw.replace(/\s+/g, '')
+      const q = Number(it?.quantity || 1)
+      if (!q) continue
+      if (/車馬|車資|車馬費|transport|travel/.test(name)) { counters.ma += q; continue }
+      if (/室外機|outdoor/.test(name)) { counters.wai += q; continue }
+      if (/出風口|vent/.test(name)) { counters.chu += q; continue }
+      if (/抽油煙|rangehood/.test(name)) { counters.chou += q; continue }
+      if (/四方吹|四向|cassette/.test(name)) { counters.chui += q; continue }
+      if (/吊隱|concealed|ceiling/.test(name)) { counters.diao += q; continue }
+      if (/直立|洗衣|washer|topload/.test(name)) { counters.zhi += q; continue }
+      if (/分離|冷氣|split|aircon/.test(name)) { counters.fen += q; continue }
+    }
+    const labelMap: Record<string, string> = { fen: '分', diao: '吊', zhi: '直', chui: '吹', chou: '抽', chu: '出', wai: '外', ma: '馬' }
+    const parts: string[] = []
+    for (const k of Object.keys(labelMap)) {
+      const n = counters[k]
+      if (n && n > 0) parts.push(`${n}${labelMap[k]}`)
+    }
+    return parts.join(' ')
+  }
+
+  const getSchemeLabel = (r: any) => {
+    if (r.shareScheme === 'pure') {
+      const pct = r.shareRate ? `${r.shareRate}%` : '自訂%'
+      return `純分潤（${pct}）`
+    }
+    if (r.shareScheme === 'base') {
+      return `保底 ${r.baseGuarantee||40000} + 超額×${r.shareRate||10}%`
+    }
+    return ''
+  }
+  const getPayoutDateDesc = (month: string, platform: string) => {
+    const pay = getIssuanceDate(month, platform)
+    return `本月薪資發放日：${pay}`
   }
 
   if (!user || !can(user, 'payroll.view')) {
@@ -499,14 +739,12 @@ export default function Payroll() {
                       <div className="text-gray-600">發放日: {issuanceDate}</div>
                     </div>
                   </div>
-                  {techCalc && viewRole==='technician' && (
-                    <div className="mt-3 rounded border bg-gray-50 p-3 text-xs text-gray-700">
-                      <div className="font-medium text-gray-900 mb-1">技師分潤估算（{month}）</div>
-                      <div>方案：{techCalc.scheme}</div>
-                      <div>本月服務額（平均分攤後）：${techCalc.perTechTotal}</div>
-                      <div>保底：{String(techCalc.scheme).startsWith('base') ? '40000' : '無'}</div>
-                      <div>估算應發：${techCalc.total}</div>
-                    </div>
+                  {viewRole==='technician' && (
+                    <div className="mt-2 text-xs text-gray-600">方案：{getSchemeLabel(record)}</div>
+                  )}
+                  <div className="mt-1 text-xs text-gray-500">{getPayoutDateDesc(record.month, record.platform||'同')}</div>
+                  {viewRole==='technician' && (
+                    <div className="mt-2 text-xs text-gray-600">分潤：${(calc.techCommission||0).toLocaleString()}</div>
                   )}
                 </div>
                 <div className="text-right">
