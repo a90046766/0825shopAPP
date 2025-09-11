@@ -5,6 +5,7 @@ import { can } from '../../utils/permissions'
 import { PayrollRecord, User } from '../../core/repository'
 import { computeMonthlyPayroll } from '../../services/payroll'
 import { Link, useParams, useNavigate } from 'react-router-dom'
+import { supabase } from '../../utils/supabase'
 
 export default function Payroll() {
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
@@ -330,7 +331,7 @@ export default function Payroll() {
         shareScheme: (record as any).shareScheme || null,
         shareRate: (record as any).shareRate || null,
         baseGuarantee: (record as any).baseGuarantee || null,
-        // 將 allowances/deductions 攤平為獨立欄位（若資料表尚未有 JSON 欄位）
+        // 攤平欄位（若資料表無 JSON 欄位仍可寫入）
         allowance_fuel: (record as any).allowances?.fuel ?? null,
         allowance_overtime: (record as any).allowances?.overtime ?? null,
         allowance_holiday: (record as any).allowances?.holiday ?? null,
@@ -345,9 +346,27 @@ export default function Payroll() {
         deduction_other: (record as any).deductions?.other ?? null,
         notes: (record as any).notes || null
       }
-      // 移除 undefined，避免 400
       Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k] })
-      await payrollRepo.upsert(payload)
+
+      // 直接呼叫 Supabase 並在遇到 PGRST204（欄位不存在）時移除該欄位重試
+      const upsertWithFallback = async (body: any) => {
+        let attempt = { ...body }
+        const tried = new Set<string>()
+        for (let i = 0; i < 12; i++) {
+          const { error } = await supabase.from('payroll_records').upsert(attempt).select('*')
+          if (!error) return
+          const msg = String(error?.message || '')
+          const m = msg.match(/Could not find the '([^']+)' column/i)
+          if (m && m[1] && !tried.has(m[1])) {
+            delete (attempt as any)[m[1]]
+            tried.add(m[1])
+            continue
+          }
+          throw error
+        }
+      }
+
+      await upsertWithFallback(payload)
       await loadData()
     } catch (error) {
       console.error('儲存失敗:', error)
