@@ -139,7 +139,7 @@ function DesktopNav() {
     // { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
     { to: '/approvals', label: '待審核', perm: 'approvals.manage' },
     // 僅 admin 顯示薪資/分潤
-    // { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
+    { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
     { to: '/reports', label: '報表管理', perm: 'reports.manage' }
   ]
 
@@ -181,8 +181,11 @@ function DesktopNav() {
     let allowed = can(user, perm as any)
     // 待審核：僅 admin 顯示
     if (to === '/approvals') allowed = allowed && (user?.role === 'admin')
-    // 薪資/分潤：僅 admin 顯示
-    if (to === '/payroll') allowed = allowed && (user?.role === 'admin')
+    // 薪資/分潤：僅 admin 顯示（非 admin 直接不渲染）
+    if (to === '/payroll') {
+      if (user?.role !== 'admin') return null
+      allowed = allowed && (user?.role === 'admin')
+    }
     const rawBadge = to==='/approvals' ? (counts.approvals||0)
       : to==='/orders' ? (counts.orders||0)
       : to==='/schedule' ? (counts.schedule||0)
@@ -217,7 +220,7 @@ function QuoteBar() {
   ]
   const idx = Math.abs(new Date().getDate()) % QUOTES.length
   const text = QUOTES[idx]
-  return <div className="bg-brand-50 px-3 py-1 text-center text-xs text-brand-700">{text}</div>
+  return <div className="bg-brand-50 px-3 py-2 text-center text-xl text-brand-700">{text}</div>
 }
 
 export default function AppShell() {
