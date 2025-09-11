@@ -20,8 +20,6 @@ type CmsContent = {
 	services: CmsServiceCard[];
 };
 
-
-
 function AdminCmsBar(props: {
 	cmsEnabled: boolean;
 	onToggle: () => void;
@@ -67,41 +65,54 @@ export default function NewShop() {
 	const [loading, setLoading] = React.useState<boolean>(true);
 
 	React.useEffect(() => {
+		// 最多 4 秒結束載入，避免卡住
+		const safetyTimer = setTimeout(() => setLoading(false), 4000);
+
 		(async () => {
 			try {
-				// 是否 admin/support
-				const { data: u } = await supabase.auth.getUser();
-				const email = u?.user?.email ?? '';
-				if (email) {
-					const { data: staffRow } = await supabase
-						.from('staff')
-						.select('role')
-						.eq('email', email)
-						.maybeSingle();
-					setIsAdminSupport(!!staffRow && (staffRow.role === 'admin' || staffRow.role === 'support'));
-				}
+				// 是否 admin/support（失敗不影響前台）
+				try {
+					const { data: u } = await supabase.auth.getUser();
+					const email = u?.user?.email ?? '';
+					if (email) {
+						const { data: staffRow } = await supabase
+							.from('staff')
+							.select('role')
+							.eq('email', email)
+							.maybeSingle();
+						setIsAdminSupport(!!staffRow && (staffRow.role === 'admin' || staffRow.role === 'support'));
+					}
+				} catch {}
 
-				// 讀全站開關
-				const { data: settings } = await supabase.rpc('get_site_settings');
-				const enabled = !!settings?.cms_enabled;
+				// 讀全站開關（失敗則當作未啟用，顯示固定版）
+				let enabled = false;
+				try {
+					const { data: settings } = await supabase.rpc('get_site_settings');
+					enabled = !!settings?.cms_enabled;
+				} catch {}
 				setCmsEnabled(enabled);
 
-				// 若啟用則讀已發布內容
+				// 若啟用則讀已發布內容（失敗也顯示固定版）
 				if (enabled) {
-					const { data: pub } = await supabase.rpc('get_cms_published', { p_id: 'home' });
-					const parsed = (pub?.content as any) || null;
-					if (parsed && typeof parsed === 'object') {
-						setPublished({
-							hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
-							services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services
-						});
-					} else {
-						setPublished(defaultContent);
+					try {
+						const { data: pub } = await supabase.rpc('get_cms_published', { p_id: 'home' });
+						const parsed = (pub?.content as any) || null;
+						if (parsed && typeof parsed === 'object') {
+							setPublished({
+								hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
+								services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services
+							});
+						} else {
+							setPublished(defaultContent);
+						}
+					} catch {
+						setPublished(null);
 					}
 				} else {
 					setPublished(null);
 				}
 			} finally {
+				clearTimeout(safetyTimer);
 				setLoading(false);
 			}
 		})();
@@ -113,15 +124,19 @@ export default function NewShop() {
 			const enabled = !!data?.cms_enabled;
 			setCmsEnabled(enabled);
 			if (enabled) {
-				const { data: pub } = await supabase.rpc('get_cms_published', { p_id: 'home' });
-				const parsed = (pub?.content as any) || null;
-				if (parsed && typeof parsed === 'object') {
-					setPublished({
-						hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
-						services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services
-					});
-				} else {
-					setPublished(defaultContent);
+				try {
+					const { data: pub } = await supabase.rpc('get_cms_published', { p_id: 'home' });
+					const parsed = (pub?.content as any) || null;
+					if (parsed && typeof parsed === 'object') {
+						setPublished({
+							hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
+							services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services
+						});
+					} else {
+						setPublished(defaultContent);
+					}
+				} catch {
+					setPublished(null);
 				}
 			} else {
 				setPublished(null);
@@ -135,14 +150,18 @@ export default function NewShop() {
 		try {
 			await supabase.rpc('publish_cms', { p_id: 'home', p_enable: true });
 			setCmsEnabled(true);
-			const { data: pub } = await supabase.rpc('get_cms_published', { p_id: 'home' });
-			const parsed = (pub?.content as any) || null;
-			if (parsed && typeof parsed === 'object') {
-				setPublished({
-					hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
-					services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services
-				});
-			} else {
+			try {
+				const { data: pub } = await supabase.rpc('get_cms_published', { p_id: 'home' });
+				const parsed = (pub?.content as any) || null;
+				if (parsed && typeof parsed === 'object') {
+					setPublished({
+						hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
+						services: Array.isArray(parsed.services) && parsed.services.length > 0 ? parsed.services : defaultContent.services
+					});
+				} else {
+					setPublished(defaultContent);
+				}
+			} catch {
 				setPublished(defaultContent);
 			}
 			alert('已發布並啟用全站 CMS');
