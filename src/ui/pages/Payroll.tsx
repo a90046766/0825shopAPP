@@ -39,6 +39,13 @@ export default function Payroll() {
   const [shareRate, setShareRate] = useState<number>(30) // 30%
   const [baseGuarantee, setBaseGuarantee] = useState<number>(40000)
 
+  // 數值與彙整工具
+  const toNumberOrNull = (v: any): number | null => {
+    const n = Number(v)
+    return isFinite(n) ? n : null
+  }
+  const sumExtra = (list: any[]): number => Array.isArray(list) ? list.reduce((s, it) => s + (Number(it?.amount) || 0), 0) : 0
+
   useEffect(() => {
     if (!user || !can(user, 'payroll.view')) return
     loadAdapters().then(adapters => {
@@ -238,8 +245,11 @@ export default function Payroll() {
     const deductions = record.deductions || {}
     const otherAllowance = (allowances as any).other || 0
     const totalAllowances = (allowances.fuel || 0) + (allowances.overtime || 0) + (allowances.holiday || 0) + (allowances.duty || 0) + (otherAllowance || 0)
+    const extraAllowances = (record.allowances as any).extraAllowances || []
+    const totalExtraAllowances = extraAllowances.reduce((sum: number, row: any) => sum + (row.amount || 0), 0)
     const extraDeductions = ((deductions as any).laborInsurance || 0) + ((deductions as any).healthInsurance || 0) + ((deductions as any).other || 0)
-    const totalDeductions = (deductions.leave || 0) + (deductions.tardiness || 0) + (deductions.complaints || 0) + (deductions.repairCost || 0) + extraDeductions
+    const totalExtraDeductions = (record.deductions as any).extraDeductions?.reduce((sum: number, row: any) => sum + (row.amount || 0), 0) || 0
+    const totalDeductions = (deductions.leave || 0) + (deductions.tardiness || 0) + (deductions.complaints || 0) + (deductions.repairCost || 0) + extraDeductions + totalExtraDeductions
     const bonus = record.bonus || 0
     const pointsValue = record.pointsMode === 'include' ? (record.points || 0) * 100 : 0
     const techCommission = (record as any).techCommission || 0
@@ -492,12 +502,54 @@ export default function Payroll() {
             <Input type="number" value={editingRecord.allowances?.holiday || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, allowances: { ...editingRecord.allowances, holiday: Number(e.target.value) } })} placeholder="節金" />
             <Input type="number" value={editingRecord.allowances?.duty || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, allowances: { ...editingRecord.allowances, duty: Number(e.target.value) } })} placeholder="職務加給" />
           </div>
+          {/* 其他補貼（可多筆） */}
+          <div className="mt-2">
+            <div className="text-sm font-medium mb-1">其他補貼（可多筆）</div>
+            <div className="space-y-2">
+              {((editingRecord as any).extraAllowances || []).map((row: any, idx: number) => (
+                <div key={idx} className="grid grid-cols-5 gap-2">
+                  <Input className="col-span-3" placeholder="說明（例如：餐補）" value={row?.title||''} onChange={(e)=>{
+                    const list = [ ...((editingRecord as any).extraAllowances || []) ]
+                    list[idx] = { ...list[idx], title: e.target.value }
+                    setEditingRecord({ ...(editingRecord as any), extraAllowances: list } as any)
+                  }} />
+                  <Input className="col-span-2" type="number" placeholder="金額" value={row?.amount||''} onChange={(e)=>{
+                    const list = [ ...((editingRecord as any).extraAllowances || []) ]
+                    list[idx] = { ...list[idx], amount: toNumberOrNull(e.target.value) }
+                    setEditingRecord({ ...(editingRecord as any), extraAllowances: list } as any)
+                  }} />
+                </div>
+              ))}
+              <Button variant="outline" onClick={()=> setEditingRecord({ ...(editingRecord as any), extraAllowances: [ ...(((editingRecord as any).extraAllowances)||[]), { title:'', amount:null } ] } as any)}>+ 新增補貼</Button>
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-2">
             <Input type="number" value={editingRecord.deductions?.leave || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, leave: Number(e.target.value) } })} placeholder="休假扣除" />
             <Input type="number" value={editingRecord.deductions?.tardiness || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, tardiness: Number(e.target.value) } })} placeholder="遲到扣除" />
             <Input type="number" value={editingRecord.deductions?.complaints || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, complaints: Number(e.target.value) } })} placeholder="客訴扣除" />
             <Input type="number" value={editingRecord.deductions?.repairCost || '' as any} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, repairCost: Number(e.target.value) } })} placeholder="維修費用（封頂30%）" />
+          </div>
+          {/* 其他扣除（可多筆） */}
+          <div className="mt-2">
+            <div className="text-sm font-medium mb-1">其他扣除（可多筆）</div>
+            <div className="space-y-2">
+              {((editingRecord as any).extraDeductions || []).map((row: any, idx: number) => (
+                <div key={idx} className="grid grid-cols-5 gap-2">
+                  <Input className="col-span-3" placeholder="說明（例如：工具遺失）" value={row?.title||''} onChange={(e)=>{
+                    const list = [ ...((editingRecord as any).extraDeductions || []) ]
+                    list[idx] = { ...list[idx], title: e.target.value }
+                    setEditingRecord({ ...(editingRecord as any), extraDeductions: list } as any)
+                  }} />
+                  <Input className="col-span-2" type="number" placeholder="金額" value={row?.amount||''} onChange={(e)=>{
+                    const list = [ ...((editingRecord as any).extraDeductions || []) ]
+                    list[idx] = { ...list[idx], amount: toNumberOrNull(e.target.value) }
+                    setEditingRecord({ ...(editingRecord as any), extraDeductions: list } as any)
+                  }} />
+                </div>
+              ))}
+              <Button variant="outline" onClick={()=> setEditingRecord({ ...(editingRecord as any), extraDeductions: [ ...(((editingRecord as any).extraDeductions)||[]), { title:'', amount:null } ] } as any)}>+ 新增扣除</Button>
+            </div>
           </div>
 
           {(() => { const staff = staffList.find(s => s.email === editingRecord.userEmail); const r = staff ? getRoleOf(staff) : 'support'; return r==='support' ? null : (
