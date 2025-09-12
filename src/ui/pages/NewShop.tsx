@@ -210,7 +210,7 @@ export default function NewShop() {
 	function renderCarousel() {
 		const cmsSlides = (cmsEnabled && published && Array.isArray((published as any).carousel) ? (published as any).carousel as any[] : null)
 		const fallbackSlides = [
-			{ bg: 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/banners1/slide1.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJiYW5uZXJzMS9zbGlkZTEud2VicCIsImlhdCI6MTc1NzY4OTE0OSwiZXhwIjoxODIwNzYxMTQ5fQ.S_yrCrdiwFF6m0foNJBGnmNlCKQYZRa_iiLmzr-W_vY', title: '加入會員享好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入', ctaLink: '/register/member' },
+			{ bg: 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/banners1/slide1.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJiYW5uZXJzMS9zbGlkZTEud2VicCIsImlhdCI6MTc1NzY4OTE0OSwiZXhwIjoxODIwNzYxMTQ5fQ.S_yrCrdiwFF6m0foNJBGnmNlCKQYZRa_iiLmzr-W_vY', title: '加入會員享好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入會員', ctaLink: '/register/member' },
 			{ bg: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=1600&auto=format&fit=crop', title: '積分回饋制度', subtitle: '消費$100=1積分，每一積分=$1元，可全額折抵！', ctaText: '會員中心', ctaLink: '/store/member/orders' },
 			{ bg: 'https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop', title: '專業日式洗濯服務', subtitle: '讓您的家電煥然一新，享受如新機般的清潔效果！', ctaText: '立即預約', ctaLink: '/store/products?category=cleaning' }
 		]
@@ -249,24 +249,17 @@ export default function NewShop() {
 								</div>
 								</>
 							) : (
-								<div className="w-full h-full relative bg-black">
-									<img src={s.bg} alt="" className="absolute inset-0 w-full h-full object-contain object-center" />
-									<div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-transparent" />
-									<div className="relative z-10 h-full p-8 flex items-center">
-										<div className="flex items-center gap-2 mb-4">
-											<span className="text-3xl">✨</span>
-											<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
-										</div>
-										<h2 className="text-3xl md:text-4xl font-bold mb-3">{s.title}</h2>
-										{s.subtitle ? <p className="text-lg md:text-xl text-white/90 mb-6">{s.subtitle}</p> : null}
+								<>
+									<div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-transparent" />
+									<div className="absolute left-4 bottom-4 md:left-8 md:bottom-8 z-10">
 										{s.ctaText && s.ctaLink ? (
 											<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
 										) : null}
-								</div>
-							</div>
-						)}
-					</div>
-				))}
+									</div>
+								</>
+							)}
+						</div>
+					))}
             </div>
 				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
 					{slides.map((_: any, index: number) => (
