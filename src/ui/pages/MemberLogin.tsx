@@ -111,6 +111,7 @@ export default function MemberLoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <div className="text-center text-2xl font-extrabold text-gray-900 mb-1">日式洗濯家電服務</div>
         <h1 className="text-2xl font-bold text-center mb-4">會員登入</h1>
         <div className="mb-4 grid grid-cols-2 gap-2">
           <button type="button" onClick={()=>setMode('email')} className={`rounded-lg px-3 py-2 text-sm ${mode==='email'?'bg-blue-600 text-white':'bg-gray-100'}`}>Email 登入</button>
