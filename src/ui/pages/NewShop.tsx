@@ -65,9 +65,10 @@ export default function NewShopPage() {
 
   // 自動輪播
   useEffect(() => {
-    const total = (cmsHero && cmsHero.length>0 ? cmsHero.length : 3)
+    const base = (cmsHero && cmsHero.length>0 ? cmsHero.length : 3)
+    const count = Math.min(4, base < 4 ? base + 1 : base)
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % Math.min(4, total))
+      setCurrentSlide((prev) => (prev + 1) % count)
     }, 5000)
     return () => clearInterval(timer)
   }, [cmsHero])
@@ -117,6 +118,13 @@ export default function NewShopPage() {
       color: "from-green-500 to-emerald-600"
     }
   ]
+
+  // 注入第 4 張（使用者提供的 Google Drive 圖片）
+  const DRIVE_IMAGE = 'https://drive.google.com/uc?export=view&id=1IM8NkbKJ99HWZisDDY05BW1UaLTSww_K'
+  const injectedSlide = { title: '精選活動', subtitle: '', image: DRIVE_IMAGE, color: 'from-blue-600 to-purple-600' }
+  const displaySlides = (heroSlides.length >= 4)
+    ? heroSlides.slice(0,4)
+    : [...heroSlides, injectedSlide].slice(0,4)
 
   const services = cmsServices || [
     {
@@ -342,7 +350,7 @@ export default function NewShopPage() {
 
       {/* Hero 輪播區塊 */}
       <div className="relative h-[300px] md:h-[360px] overflow-hidden">
-        {heroSlides.map((slide, index) => (
+        {displaySlides.map((slide, index) => (
           <div
             key={index}
             className={`absolute inset-0 transition-opacity duration-1000 ${
