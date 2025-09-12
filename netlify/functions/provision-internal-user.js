@@ -1,29 +1,39 @@
 exports.handler = async (event) => {
+  const json = (code, body) => ({
+    statusCode: code,
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify(body)
+  })
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' }
+    return json(405, { ok: false, error: 'Method Not Allowed' })
   }
   try {
     const { createClient } = require('@supabase/supabase-js')
     const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+      || 'https://dekopbnpsvqlztabblxg.supabase.co'
     const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY
+      || process.env.SUPABASE_SERVICE_KEY
+      || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
+      || process.env.SUPABASE_SERVICE_API_KEY
     if (!SUPABASE_URL || !SERVICE_ROLE) {
-      return { statusCode: 500, body: 'Missing Supabase service role env' }
+      return json(500, { ok: false, error: 'missing_service_role', hint: 'Set SUPABASE_SERVICE_ROLE_KEY in Netlify env' })
     }
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
 
-    const req = JSON.parse(event.body || '{}')
+    let req = {}
+    try { req = JSON.parse(event.body || '{}') } catch {}
     const email = String(req.email || '').toLowerCase()
     const role = String(req.role || 'support') // 'support' | 'sales' | 'technician'
     const name = String(req.name || '')
     const phone = String(req.phone || '')
 
-    if (!email) return { statusCode: 400, body: 'email required' }
+    if (!email) return json(400, { ok: false, error: 'email_required' })
 
     // 1) Auth：建立或更新
     let user = null
     const { data: existing, error: getErr } = await supabase.auth.admin.getUserByEmail(email)
     if (getErr && String(getErr.message||'').includes('not found') === false) {
-      // ignore not found; return other errors
+      // 其他錯誤記錄但不中斷（後續嘗試建立）
     }
     if (existing && existing.user) {
       user = existing.user
@@ -38,31 +48,34 @@ exports.handler = async (event) => {
         user_metadata: { user_type: role === 'technician' ? 'technician' : 'staff' }
       })
       if (createErr) {
-        return { statusCode: 500, body: `createUser failed: ${createErr.message}` }
+        return json(500, { ok: false, error: 'create_user_failed', message: createErr.message })
       }
       user = created.user
     }
 
     // 2) Upsert 業務表
     if (role === 'technician') {
-      await supabase.from('technicians').upsert({
+      const { error } = await supabase.from('technicians').upsert({
         email,
         name: name || user?.email || '',
         phone: phone || '',
         status: 'active'
       }, { onConflict: 'email' })
+      if (error) return json(500, { ok: false, error: 'upsert_technician_failed', message: error.message })
     } else {
-      await supabase.from('staff').upsert({
+      const { error } = await supabase.from('staff').upsert({
         email,
         name: name || user?.email || '',
         phone: phone || '',
         role: role === 'sales' ? 'sales' : 'support',
         status: 'active'
       }, { onConflict: 'email' })
+      if (error) return json(500, { ok: false, error: 'upsert_staff_failed', message: error.message })
     }
 
-    return { statusCode: 200, body: JSON.stringify({ success: true, userId: user?.id }) }
+    return json(200, { ok: true, userId: user?.id || null })
   } catch (e) {
-    return { statusCode: 500, body: `Provision error: ${e?.message || e}` }
+    return json(500, { ok: false, error: 'provision_error', message: String(e?.message || e) })
   }
 }
+
