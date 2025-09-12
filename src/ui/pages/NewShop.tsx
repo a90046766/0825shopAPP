@@ -217,7 +217,7 @@ export default function NewShop() {
 		const slides = (cmsSlides && cmsSlides.length > 0)
 			? cmsSlides.slice(0, 3).map((s:any) => ({ bg: s.imageUrl || '', title: s.title || '', subtitle: s.subtitle || '', ctaText: s.ctaText, ctaLink: s.ctaLink }))
 			: fallbackSlides
-		return (
+  return (
 			<div className="relative overflow-hidden rounded-2xl mx-auto mb-8 max-w-6xl px-4" style={{ height: 'clamp(220px, 36vw, 420px)' }}>
 				<div
 					className="flex transition-transform duration-500 ease-in-out h-full"
@@ -229,23 +229,55 @@ export default function NewShop() {
 								<div className="flex items-center gap-2 mb-4">
 									<span className="text-3xl">✨</span>
 									<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
-								</div>
+            </div>
 								<h2 className="text-3xl md:text-4xl font-bold mb-3">{s.title}</h2>
 								{s.subtitle ? <p className="text-lg md:text-xl text-white/90 mb-6">{s.subtitle}</p> : null}
 								{s.ctaText && s.ctaLink ? (
 									<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
 								) : null}
-							</div>
-						</div>
+          </div>
+        </div>
 					))}
-				</div>
+            </div>
 				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
 					{slides.map((_, index) => (
 						<button key={index} className={`w-3 h-3 rounded-full transition-all duration-300 ${index === carouselIndex ? 'bg-white opacity-80' : 'bg-white/50 hover:bg-white/70'}`} onClick={() => setCarouselIndex(index)} />
 					))}
-				</div>
-			</div>
+          </div>
+        </div>
 		);
+	}
+
+	function renderTraining() {
+		return (
+			<div className="bg-gradient-to-br from-amber-50 via-white to-orange-50">
+				<div className="max-w-6xl mx-auto px-4 py-12">
+					<div className="rounded-2xl bg-white shadow-lg border border-amber-100 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center gap-6">
+						<div className="flex-1">
+							<div className="text-sm text-amber-700 font-semibold mb-1">職訓課程</div>
+							<h3 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-2">日式洗濯｜教學保證班（台中）</h3>
+							<p className="text-gray-700">不會就退費・小班 4 人・兩天一夜含住宿。結業可獨立上手，現場演練＋工具實操。</p>
+							<div className="mt-3 flex flex-wrap gap-2 text-sm">
+								<span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-amber-800">職人實作｜一對一指導</span>
+								<span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-amber-800">完訓輔導接案</span>
+								<span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-amber-800">工具清單與流程 SOP</span>
+							</div>
+							<p className="mt-2 text-sm text-amber-700">從技術到接案，一次到位。今天開始，讓專業成為你的收入。</p>
+						</div>
+						<div className="flex items-center gap-3">
+							<a
+								href={`http://tachung.942clean.com.tw?utm_source=store&utm_medium=homepage&utm_campaign=training_cta`}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="inline-flex items-center rounded-xl bg-amber-600 px-5 py-3 text-white font-semibold shadow hover:bg-amber-700 transition-colors"
+							>
+								了解課程
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+		)
 	}
 
 	function renderHero() {
@@ -265,7 +297,7 @@ export default function NewShop() {
 						<div className="flex items-center gap-2 mb-4">
 							<span className="text-2xl">🏆</span>
 							<span className="text-sm bg-white/20 px-3 py-1 rounded-full text-white">10年專業經驗</span>
-						</div>
+                </div>
 						<h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-blue-900 drop-shadow-sm">
 							日式洗濯家電服務
                 </h1>
@@ -275,8 +307,8 @@ export default function NewShop() {
 						<div className="mt-6 flex gap-4 mb-6">
 							<Link to="/store/products" className="inline-flex items-center px-8 py-4 rounded-xl bg-white text-gray-900 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-semibold text-lg border-2 border-transparent hover:border-blue-200">
 								<span className="mr-3 text-xl">🚀</span>
-								瀏覽服務
-							</Link>
+                  瀏覽服務
+                </Link>
 							<Link to="/store/products?category=cleaning" className="inline-flex items-center px-8 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-semibold text-lg border-2 border-transparent hover:border-blue-400">
 								<span className="mr-3 text-xl">🛒</span>
 								立即預約
@@ -296,10 +328,10 @@ export default function NewShop() {
 										<div className="text-base font-extrabold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]">{c.title}</div>
 										<div className="mt-1 text-xs text-white/95">{c.sub}</div>
 									</div>
-								</div>
-							))}
-						</div>
-            </div>
+              </div>
+            ))}
+          </div>
+        </div>
           </div>
 				{isAdminSupport && (
 					<div className="absolute top-3 right-3">
@@ -322,7 +354,7 @@ export default function NewShop() {
 		return (
 			<div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
 				<div className="max-w-6xl mx-auto px-4 py-16">
-					<div className="text-center mb-12">
+                                <div className="text-center mb-12">
 						<h2 className="text-4xl font-bold text-gray-900 mb-4">我們的服務</h2>
 						<p className="text-lg text-gray-600">專業家電清潔服務，讓您的家電煥然一新</p>
                     </div>
@@ -357,7 +389,7 @@ export default function NewShop() {
             ))}
           </div>
         </div>
-			</div>
+                      </div>
 		);
 	}
 
@@ -369,7 +401,7 @@ export default function NewShop() {
                                 <div className="text-center mb-12">
 						<h2 className="text-4xl font-bold text-gray-900 mb-4">為什麼要找日式洗濯？</h2>
 						<p className="text-lg text-gray-600">專業技術，值得信賴的服務品質</p>
-                      </div>
+                </div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 						{[
 							{ title: '10年專業經驗', desc: '深耕業界十年，累積豐富實戰經驗', icon: '🏆' },
@@ -580,6 +612,7 @@ export default function NewShop() {
 				)}
 				{renderWelcome()}
 				{renderCarousel()}
+				{renderTraining()}
 				{renderHero()}
 				{renderServices()}
 				{renderAdvantages()}
