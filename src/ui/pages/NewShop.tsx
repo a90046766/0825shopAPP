@@ -210,41 +210,68 @@ export default function NewShop() {
 	function renderCarousel() {
 		const cmsSlides = (cmsEnabled && published && Array.isArray((published as any).carousel) ? (published as any).carousel as any[] : null)
 		const fallbackSlides = [
-			{ bg: 'https://images.unsplash.com/photo-1515169067865-5387ec356754?q=80&w=1600&auto=format&fit=crop', title: '加入會員想好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入', ctaLink: '/register/member' },
+			{ bg: 'https://images.unsplash.com/photo-1515169067865-5387ec356754?q=80&w=1600&auto=format&fit=crop', video: 'https://www.youtube-nocookie.com/embed/CD8SKPY1S7g?rel=0&playsinline=1&autoplay=0&mute=1&controls=1&modestbranding=1', title: '加入會員想好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入', ctaLink: '/register/member' },
 			{ bg: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=1600&auto=format&fit=crop', title: '積分回饋制度', subtitle: '消費$100=1積分，每一積分=$1元，可全額折抵！', ctaText: '會員中心', ctaLink: '/store/member/orders' },
 			{ bg: 'https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop', title: '專業日式洗濯服務', subtitle: '讓您的家電煥然一新，享受如新機般的清潔效果！', ctaText: '立即預約', ctaLink: '/store/products?category=cleaning' }
 		]
 		const slides = (cmsSlides && cmsSlides.length > 0)
 			? cmsSlides.slice(0, 3).map((s:any) => ({ bg: s.imageUrl || '', title: s.title || '', subtitle: s.subtitle || '', ctaText: s.ctaText, ctaLink: s.ctaLink }))
 			: fallbackSlides
-  return (
-			<div className="relative overflow-hidden rounded-2xl mx-auto mb-8 max-w-6xl px-4" style={{ height: 'clamp(220px, 36vw, 420px)' }}>
+	return (
+			<div className="relative overflow-hidden rounded-2xl mx-auto mb-8 max-w-6xl px-4" style={{ height: 'clamp(240px, calc(100vw / 1.91), 628px)' }}>
 				<div
 					className="flex transition-transform duration-500 ease-in-out h-full"
 					style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
 				>
-					{slides.map((s, i) => (
-						<div key={i} className="w-full h-full flex-shrink-0 relative p-8 text-white" style={{ backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('${s.bg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-							<div className="relative z-10">
-								<div className="flex items-center gap-2 mb-4">
-									<span className="text-3xl">✨</span>
-									<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
-            </div>
-								<h2 className="text-3xl md:text-4xl font-bold mb-3">{s.title}</h2>
-								{s.subtitle ? <p className="text-lg md:text-xl text-white/90 mb-6">{s.subtitle}</p> : null}
-								{s.ctaText && s.ctaLink ? (
-									<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
-								) : null}
-          </div>
-        </div>
+					{slides.map((s: any, i: number) => (
+						<div key={i} className="w-full h-full flex-shrink-0 relative text-white">
+							{s.video ? (
+								<>
+									<iframe
+										src={s.video}
+										title="carousel-video"
+										loading="lazy"
+										allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+										allowFullScreen
+										className="absolute inset-0 w-full h-full object-cover"
+									/>
+									<div className="absolute inset-0 bg-gradient-to-r from-black/50 to-black/30" />
+									<div className="relative z-20 p-8">
+										<div className="flex items-center gap-2 mb-4">
+											<span className="text-3xl">✨</span>
+											<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
+										</div>
+										<h2 className="text-3xl md:text-4xl font-bold mb-3">{s.title}</h2>
+										{s.subtitle ? <p className="text-lg md:text-xl text-white/90 mb-6">{s.subtitle}</p> : null}
+										{s.ctaText && s.ctaLink ? (
+											<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
+										) : null}
+									</div>
+								</>
+							) : (
+								<div className="w-full h-full relative p-8" style={{ backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('${s.bg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+									<div className="relative z-10">
+										<div className="flex items-center gap-2 mb-4">
+											<span className="text-3xl">✨</span>
+											<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
+										</div>
+										<h2 className="text-3xl md:text-4xl font-bold mb-3">{s.title}</h2>
+										{s.subtitle ? <p className="text-lg md:text-xl text-white/90 mb-6">{s.subtitle}</p> : null}
+										{s.ctaText && s.ctaLink ? (
+											<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
+										) : null}
+									</div>
+								</div>
+							)}
+						</div>
 					))}
-            </div>
+				</div>
 				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-					{slides.map((_, index) => (
+					{slides.map((_: any, index: number) => (
 						<button key={index} className={`w-3 h-3 rounded-full transition-all duration-300 ${index === carouselIndex ? 'bg-white opacity-80' : 'bg-white/50 hover:bg-white/70'}`} onClick={() => setCarouselIndex(index)} />
 					))}
-          </div>
-        </div>
+				</div>
+			</div>
 		);
 	}
 
