@@ -191,11 +191,11 @@ export default function CmsEditor() {
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">首頁輪播（最多 3 張）</h2>
+          <h2 className="text-xl font-semibold">首頁輪播（最多 4 張）</h2>
           <button className="px-3 py-2 rounded border hover:bg-gray-50" onClick={()=> setContent(p=> ({...p, carousel: [...(p.carousel||[]), { imageUrl:'', title:'', subtitle:'', ctaText:'', ctaLink:'' }]}))}>新增輪播</button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(content.carousel||[]).slice(0,3).map((c,idx)=> (
+          {(content.carousel||[]).slice(0,4).map((c,idx)=> (
             <div key={idx} className="border rounded p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="font-medium">輪播 #{idx+1}</div>
