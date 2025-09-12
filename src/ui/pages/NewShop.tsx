@@ -210,7 +210,7 @@ export default function NewShop() {
 	function renderCarousel() {
 		const cmsSlides = (cmsEnabled && published && Array.isArray((published as any).carousel) ? (published as any).carousel as any[] : null)
 		const fallbackSlides = [
-			{ bg: 'https://drive.google.com/uc?export=view&id=1igeVRjH69u2eyUhHRzazt6SOA9cqnSc9', title: '加入會員想好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入', ctaLink: '/register/member' },
+			{ bg: 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/banners1/slide1.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJiYW5uZXJzMS9zbGlkZTEud2VicCIsImlhdCI6MTc1NzY4OTE0OSwiZXhwIjoxODIwNzYxMTQ5fQ.S_yrCrdiwFF6m0foNJBGnmNlCKQYZRa_iiLmzr-W_vY', title: '加入會員想好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入', ctaLink: '/register/member' },
 			{ bg: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=1600&auto=format&fit=crop', title: '積分回饋制度', subtitle: '消費$100=1積分，每一積分=$1元，可全額折抵！', ctaText: '會員中心', ctaLink: '/store/member/orders' },
 			{ bg: 'https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop', title: '專業日式洗濯服務', subtitle: '讓您的家電煥然一新，享受如新機般的清潔效果！', ctaText: '立即預約', ctaLink: '/store/products?category=cleaning' }
 		]
@@ -249,8 +249,10 @@ export default function NewShop() {
 									</div>
 								</>
 							) : (
-								<div className="w-full h-full relative p-8" style={{ backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('${s.bg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-									<div className="relative z-10">
+								<div className="w-full h-full relative">
+									<img src={s.bg} alt="" className="absolute inset-0 w-full h-full object-cover" />
+									<div className="absolute inset-0 bg-gradient-to-r from-black/50 to-black/30" />
+									<div className="relative z-10 p-8">
 										<div className="flex items-center gap-2 mb-4">
 											<span className="text-3xl">✨</span>
 											<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
