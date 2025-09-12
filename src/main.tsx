@@ -169,7 +169,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/technicians" element={<PrivateRoute permission="technicians.manage"><TechnicianManagementPage /></PrivateRoute>} />
         <Route path="/promotions" element={<PrivateRoute permission="promotions.manage"><PromotionsPage /></PrivateRoute>} />
         <Route path="/documents" element={<PrivateRoute permission="documents.manage"><DocumentsPage /></PrivateRoute>} />
-        <Route path="/models" element={<Navigate to="/cms" replace />} />
+        <Route path="/models" element={<PrivateRoute permission="models.manage"><ModelsPage /></PrivateRoute>} />
         <Route path="/members" element={<PrivateRoute permission="customers.manage"><MembersPage /></PrivateRoute>} />
         <Route path="/customers" element={<PrivateRoute permission="customers.manage"><CustomersPage /></PrivateRoute>} />
         {/* Approvals 僅限 admin 可見，權限已在選單側控制 */}
@@ -186,8 +186,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/salary" element={<PrivateRoute><SalaryPage /></PrivateRoute>} />
         <Route path="/leave-management" element={<PrivateRoute><LeaveManagementPage /></PrivateRoute>} />
         <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
-        {/* 關閉 CMS 編輯入口，避免誤觸造成首頁內容混亂 */}
-        {false && <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><CmsEditor /></PrivateRoute>} />}
+        {/* CMS 編輯入口（恢復啟用） */}
+        <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><CmsEditor /></PrivateRoute>} />
       </Route>
         {/* 萬用路由：任何未知路徑導回購物站 */}
         <Route path="*" element={<Navigate to="/" replace />} />
