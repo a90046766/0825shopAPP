@@ -66,6 +66,7 @@ export default function NewShop() {
 	const [loading, setLoading] = React.useState<boolean>(true);
 	const [displayName, setDisplayName] = React.useState<string>('');
 	const [memberId, setMemberId] = React.useState<string>('');
+	const [memberCode, setMemberCode] = React.useState<string>('');
 	const [carouselIndex, setCarouselIndex] = React.useState<number>(0);
 
 	React.useEffect(() => {
@@ -101,10 +102,17 @@ export default function NewShop() {
 						email;
 					setDisplayName(nameFromMeta || '');
 					
-					// 獲取會員編號（從用戶ID或email生成）
-					const userId = u?.user?.id || '';
-					const memberNum = userId ? `M${userId.slice(-6).toUpperCase()}` : '';
-					setMemberId(memberNum);
+					// 從 members 表查正式會員代碼
+					try {
+						if (email) {
+							const { data: mem } = await supabase
+								.from('members')
+								.select('code')
+								.eq('email', email)
+								.maybeSingle();
+							if (mem?.code) setMemberCode(mem.code);
+						}
+					} catch {}
 				} catch {}
 
 				// 讀全站開關（失敗則當作未啟用，顯示固定版）
@@ -211,13 +219,13 @@ export default function NewShop() {
 		const cmsSlides = (cmsEnabled && published && Array.isArray((published as any).carousel) ? (published as any).carousel as any[] : null)
 		const fallbackSlides = [
 			{ bg: 'https://images.unsplash.com/photo-1515169067865-5387ec356754?q=80&w=1600&auto=format&fit=crop', title: '加入會員想好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入', ctaLink: '/register/member' },
-			{ bg: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=1600&auto=format&fit=crop', title: '積分回饋制度', subtitle: '消費$100=1積分，每一積分=$1元，可全額折抵！', ctaText: '會員中心', ctaLink: '/store/member/orders' },
+			{ bg: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=1600&auto=format&fit=crop', title: '積分回饋制度', subtitle: '消費 NT$100 得 1 點，每點抵 NT$1；單筆最高折抵 30%', ctaText: '會員中心', ctaLink: '/store/member/orders' },
 			{ bg: 'https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop', title: '專業日式洗濯服務', subtitle: '讓您的家電煥然一新，享受如新機般的清潔效果！', ctaText: '立即預約', ctaLink: '/store/products?category=cleaning' }
 		]
 		const slides = (cmsSlides && cmsSlides.length > 0)
 			? cmsSlides.slice(0, 3).map((s:any) => ({ bg: s.imageUrl || '', title: s.title || '', subtitle: s.subtitle || '', ctaText: s.ctaText, ctaLink: s.ctaLink }))
 			: fallbackSlides
-		return (
+  return (
 			<div className="relative overflow-hidden rounded-2xl mx-auto mb-8 max-w-6xl px-4" style={{ height: 'clamp(220px, 36vw, 420px)' }}>
 				<div
 					className="flex transition-transform duration-500 ease-in-out h-full"
@@ -229,22 +237,22 @@ export default function NewShop() {
 								<div className="flex items-center gap-2 mb-4">
 									<span className="text-3xl">✨</span>
 									<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
-								</div>
+            </div>
 								<h2 className="text-3xl md:text-4xl font-bold mb-3">{s.title}</h2>
 								{s.subtitle ? <p className="text-lg md:text-xl text-white/90 mb-6">{s.subtitle}</p> : null}
 								{s.ctaText && s.ctaLink ? (
 									<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
 								) : null}
-							</div>
-						</div>
+          </div>
+        </div>
 					))}
-				</div>
+            </div>
 				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
 					{slides.map((_, index) => (
 						<button key={index} className={`w-3 h-3 rounded-full transition-all duration-300 ${index === carouselIndex ? 'bg-white opacity-80' : 'bg-white/50 hover:bg-white/70'}`} onClick={() => setCarouselIndex(index)} />
 					))}
-				</div>
-			</div>
+          </div>
+        </div>
 		);
 	}
 
@@ -281,7 +289,7 @@ export default function NewShop() {
 								<span className="mr-3 text-xl">🛒</span>
 								立即預約
                   </Link>
-						</div>
+                </div>
 						<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 							{[
 								{ icon: '⭐', title: '4.9星評價', sub: '客戶一致好評' },
@@ -295,12 +303,12 @@ export default function NewShop() {
 										<div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/25 text-2xl shadow-inner">{c.icon}</div>
 										<div className="text-base font-extrabold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]">{c.title}</div>
 										<div className="mt-1 text-xs text-white/95">{c.sub}</div>
-									</div>
-								</div>
-							))}
-						</div>
             </div>
           </div>
+        ))}
+						</div>
+            </div>
+      </div>
 				{isAdminSupport && (
 					<div className="absolute top-3 right-3">
 						<Link to="/dispatch" className="px-3 py-1.5 rounded bg-white text-gray-700 shadow hover:shadow-md">返回派工系統</Link>
@@ -534,12 +542,10 @@ export default function NewShop() {
 					<div className="flex items-center space-x-4">
 						<span className="text-lg mr-2">👋</span>
 						<span className="font-medium">歡迎回來，{displayName}</span>
-						{memberId && (
-							<span className="bg-white/20 px-2 py-1 rounded-full text-xs font-mono">
-								{memberId}
-                  </span>
-						)}
-                  </div>
+						{memberCode ? (
+							<span className="bg-white/20 px-2 py-1 rounded-full text-xs font-mono">{memberCode}</span>
+						) : null}
+          </div>
 					<div className="flex items-center space-x-3">
 						<Link to="/account" className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">
 							前往會員中心

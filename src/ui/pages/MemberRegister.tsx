@@ -9,6 +9,18 @@ export default function MemberRegisterPage() {
   const refFromUrl = params.get('ref') || ''
   const [mode, setMode] = useState<'email'|'phone'>('email')
   const [form, setForm] = useState({ name: '', email: '', phone: '', refCode: refFromUrl })
+  const genMemberCode = () => {
+    // 產生 MO+4 位不重複：先隨機；真正唯一性交給 DB unique index 保證，若衝突重試
+    const rnd = String(Math.floor(1000 + Math.random()*9000))
+    return `MO${rnd}`
+  }
+  const parseRef = (code?: string) => {
+    const c = (code||'').trim().toUpperCase()
+    if (c.startsWith('MO')) return { type: 'member', code: c }
+    if (c.startsWith('SR')) return { type: 'technician', code: c }
+    if (c.startsWith('SE')) return { type: 'sales', code: c }
+    return { type: undefined, code: c }
+  }
   const [ok, setOk] = useState<boolean>(false)
   const [err, setErr] = useState('')
   const navigate = useNavigate()
@@ -22,17 +34,16 @@ export default function MemberRegisterPage() {
       if (!form.name) { setErr('請填寫姓名'); return }
       if (mode === 'email') {
         if (!form.email) { setErr('請填寫 Email'); return }
-      } else {
-        if (!digits) { setErr('請填寫手機'); return }
       }
+      if (!digits || digits.length < 8) { setErr('請填寫有效手機'); return }
       // 預設密碼：email 模式 000000；phone 模式 手機後六碼
       const defaultPassword = (mode === 'email') ? '000000' : (digits.length >= 6 ? digits.slice(-6) : 'a123123')
+      const regEmail = (mode === 'email')
+        ? (form.email || '').toLowerCase()
+        : ((form.email || '').toLowerCase() || `m-${digits}@member.local`)
 
       // 建立 Supabase Auth 帳號（若已存在則忽略錯誤）
       try {
-        const regEmail = (mode === 'email')
-          ? (form.email || '').toLowerCase()
-          : ((form.email || '').toLowerCase() || `m-${digits}@member.local`)
         const { error: signErr } = await supabase.auth.signUp({
           email: regEmail,
           password: defaultPassword,
@@ -46,24 +57,30 @@ export default function MemberRegisterPage() {
         console.warn('建立會員 Auth 帳號失敗（可能已存在）：', e?.message || e)
       }
       // 直接寫入 members（改為即時生效會員，取消待審）
+      // 建立 members，帶入會員 code 與介紹人型別
+      const memberCode = genMemberCode()
+      const { type: refType, code: refCode } = parseRef(form.refCode)
       try {
         await (a as any).memberRepo.create({
           name: form.name,
-          email: (form.email||'').toLowerCase(),
+          email: regEmail,
           phone: form.phone,
+          code: memberCode,
           addresses: [],
-          referrerCode: form.refCode || undefined,
-          referrerType: undefined,
+          referrerCode: refCode || undefined,
+          referrerType: refType || undefined,
         })
       } catch (writeMemberErr) {
         console.warn('寫入 members 失敗：', writeMemberErr)
       }
       // 記錄推薦事件（非阻斷）
       try {
-        const role = form.refCode?.startsWith('MO') ? 'member' : form.refCode?.startsWith('SR') ? 'technician' : form.refCode?.startsWith('SE') ? 'sales' : 'unknown'
         const mod = await import('../../adapters/supabase/referrals')
+        const role = parseRef(form.refCode).type || 'unknown'
         await mod.referralRepo.log({ refCode: form.refCode || '', refRole: role as any, referredEmail: (form.email||'').toLowerCase() || undefined, referredPhone: form.phone || undefined, channel: refFromUrl ? 'qr' : 'link' })
       } catch {}
+
+      // 發點改為「首次登入時」觸發，避免註冊/登入重複發點
       // 同步建立派工系統的客戶資料（最小變更：失敗不阻斷流程）
       try {
         await fetch('/api/customers', {
@@ -100,6 +117,7 @@ export default function MemberRegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-4">
       <form onSubmit={onSubmit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-card">
+        <div className="text-center text-2xl font-extrabold text-gray-900 mb-1">日式洗濯家電服務</div>
         <div className="mb-2 text-center text-xl font-bold">會員註冊</div>
         <div className="mb-2 text-center text-sm text-gray-600">
           已有帳號？<a href="/login/member" className="text-blue-600 hover:text-blue-700">前往登入</a>

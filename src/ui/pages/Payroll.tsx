@@ -39,6 +39,14 @@ export default function Payroll() {
   const [shareRate, setShareRate] = useState<number>(30) // 30%
   const [baseGuarantee, setBaseGuarantee] = useState<number>(40000)
   const [showHistory, setShowHistory] = useState<boolean>(false)
+  // 績效積分來源（推薦+購物）
+  const [perfOrders, setPerfOrders] = useState<any[]>([])
+  const [perfSelections, setPerfSelections] = useState<Record<string, boolean>>({})
+  const [referralSignupCount, setReferralSignupCount] = useState<number>(0)
+  const [referralSignupPoints, setReferralSignupPoints] = useState<number>(0)
+  const [referralSignupRows, setReferralSignupRows] = useState<any[]>([])
+  const [perfLoading, setPerfLoading] = useState<boolean>(false)
+  const [salesType, setSalesType] = useState<'parttime'|'fulltime'>('fulltime')
 
   // 數值與彙整工具
   const toNumberOrNull = (v: any): number | null => {
@@ -97,6 +105,27 @@ export default function Payroll() {
         rows.push({ date: getSalaryPayoutDate(r.month), name, bankCode, bankName, account, amount: basePart, note: '技師保底' })
         rows.push({ date: getBonusPayoutDate(r.month), name, bankCode, bankName, account, amount: bonusPart, note: '技師保底獎金' })
       }
+    } else if (role === 'sales') {
+      const recSalesType: 'parttime'|'fulltime' = (Number(r.baseSalary||0) > 0) ? 'fulltime' : 'parttime'
+      const allowances = r.allowances || {}
+      const deductions = r.deductions || {}
+      const base = r.baseSalary || 0
+      const extraAllow = sumExtra((r as any).extraAllowances || [])
+      const extraDed = sumExtra((r as any).extraDeductions || [])
+      const allowSum = (allowances.fuel||0)+(allowances.overtime||0)+(allowances.holiday||0)+(allowances.duty||0)+extraAllow
+      const dedSum = (deductions.leave||0)+(deductions.tardiness||0)+(deductions.complaints||0)+(deductions.repairCost||0)+extraDed
+      const pointsValue = (Number(r.points)||0) // 業務一律將績效積分以 1:1 轉薪
+
+      if (recSalesType === 'parttime') {
+        // 兼職：僅積分換薪，於次月18日一次發放
+        rows.push({ date: getBonusPayoutDate(r.month), name, bankCode, bankName, account, amount: pointsValue, note: '業務績效（兼職）' })
+      } else {
+        // 正職：底薪＋補貼－扣除＋積分，於次月10日；獎金於次月18日
+        const salaryPart = Math.max(0, base + allowSum + pointsValue - dedSum)
+        const bonusPart = r.bonus || 0
+        rows.push({ date: getSalaryPayoutDate(r.month), name, bankCode, bankName, account, amount: salaryPart, note: '業務薪資（含積分）' })
+        rows.push({ date: getBonusPayoutDate(r.month), name, bankCode, bankName, account, amount: bonusPart, note: '業務月度獎金' })
+      }
     } else {
       // 客服/管理員：薪資（次月10） + 獎金（次月18）
       const allowances = r.allowances || {}
@@ -106,13 +135,103 @@ export default function Payroll() {
       const extraDed = sumExtra((r as any).extraDeductions || [])
       const allowSum = (allowances.fuel||0)+(allowances.overtime||0)+(allowances.holiday||0)+(allowances.duty||0)+extraAllow
       const dedSum = (deductions.leave||0)+(deductions.tardiness||0)+(deductions.complaints||0)+(deductions.repairCost||0)+extraDed
-      const pointsValue = r.pointsMode === 'include' ? (r.points||0) * 100 : 0
+      const pointsValue = r.pointsMode === 'include' ? (r.points||0) : 0
       const salaryPart = Math.max(0, base + allowSum + pointsValue - dedSum)
       const bonusPart = r.bonus || 0
       rows.push({ date: getSalaryPayoutDate(r.month), name, bankCode, bankName, account, amount: salaryPart, note: '月薪' })
       rows.push({ date: getBonusPayoutDate(r.month), name, bankCode, bankName, account, amount: bonusPart, note: '月度獎金' })
     }
     return rows
+  }
+
+  const exportPayoutCSV = (r: any) => {
+    try {
+      // 中國信託群發常見欄位（可依實際批量上傳格式再微調）：收款銀行代碼,收款帳號,收款戶名,金額,付款日期,備註
+      const headers = ['收款銀行代碼','收款帳號','收款戶名','金額','付款日期','備註']
+      const baseRows = buildPayoutRows(r)
+      // 校驗
+      const issues: string[] = []
+      for (const row of baseRows) {
+        const miss: string[] = []
+        if (!row.bankCode) miss.push('銀行代碼')
+        if (!row.account) miss.push('帳號')
+        if (!row.name) miss.push('戶名')
+        if (!row.date) miss.push('付款日期')
+        if (miss.length) issues.push(`${row.name||'(未填姓名)'} 缺少：${miss.join('、')}`)
+      }
+      if (issues.length) {
+        alert('以下資料缺漏，請先補齊再匯出:\n' + issues.join('\n'))
+        return
+      }
+      const rows = baseRows.map(row => [row.bankCode||'', row.account||'', row.name||'', row.amount, row.date, row.note||''])
+      const csv = [headers.join(','), ...rows.map(cols => cols.join(','))].join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `ctbc_payout_${r?.userName||'staff'}_${month}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('匯出發放CSV失敗:', e)
+    }
+  }
+
+  const exportAllPayoutCSV = () => {
+    try {
+      const headers = ['收款銀行代碼','收款帳號','收款戶名','金額','付款日期','備註']
+      const allRows: any[] = []
+      for (const rec of filteredRecords) {
+        const rows = buildPayoutRows(rec as any)
+        for (const row of rows) {
+          allRows.push({
+            bankCode: row.bankCode||'',
+            account: row.account||'',
+            name: row.name||'',
+            amount: row.amount||0,
+            date: row.date||'',
+            note: row.note||''
+          })
+        }
+      }
+      // 校驗
+      const issues: string[] = []
+      for (const row of allRows) {
+        const miss: string[] = []
+        if (!row.bankCode) miss.push('銀行代碼')
+        if (!row.account) miss.push('帳號')
+        if (!row.name) miss.push('戶名')
+        if (!row.date) miss.push('付款日期')
+        if (miss.length) issues.push(`${row.name||'(未填姓名)'} 缺少：${miss.join('、')}`)
+      }
+      if (issues.length) {
+        alert('以下資料缺漏，請先補齊再匯出:\n' + issues.join('\n'))
+        return
+      }
+      // 依日期排序（yyyy/mm/dd 轉日期）
+      const parseDate = (s: string) => {
+        // zh-TW 可能為 2025/09/12
+        const parts = String(s||'').split(/[\/-]/).map(p=>parseInt(p,10))
+        if (parts.length >= 3) return new Date(parts[0], parts[1]-1, parts[2]).getTime()
+        return 0
+      }
+      allRows.sort((a,b)=> parseDate(a.date) - parseDate(b.date))
+      const rows = allRows.map(r => [r.bankCode, r.account, r.name, r.amount, r.date, r.note])
+      const csv = [headers.join(','), ...rows.map(cols => cols.join(','))].join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `ctbc_payout_all_${month}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('匯出全員中信CSV失敗:', e)
+    }
   }
 
   useEffect(() => {
@@ -180,6 +299,72 @@ export default function Payroll() {
     loadTech()
   }, [editingRecord, orderRepo, staffList, month])
 
+  // 依目前人員（業務）推定型態：有底薪=正職；否則=兼職
+  useEffect(() => {
+    try {
+      if (!editingRecord) return
+      const staff = staffList.find(s => s.email === editingRecord.userEmail)
+      if (!staff) return
+      if (getRoleOf(staff) !== 'sales') return
+      setSalesType((editingRecord.baseSalary || 0) > 0 ? 'fulltime' : 'parttime')
+    } catch {}
+  }, [editingRecord, staffList])
+
+  // 載入「績效積分來源」：推薦註冊 + 會員購物(NT$300=1)
+  useEffect(() => {
+    const loadPerf = async () => {
+      try {
+        setPerfLoading(true)
+        setPerfOrders([])
+        setPerfSelections({})
+        setReferralSignupCount(0)
+        setReferralSignupPoints(0)
+        setReferralSignupRows([])
+        if (!editingRecord || !orderRepo) return
+        const staff = staffList.find(s => s.email === editingRecord.userEmail)
+        if (!staff) return
+        const role = getRoleOf(staff)
+        if (role !== 'technician' && role !== 'sales') return
+        const codePref = String((staff as any).refCode || (staff as any).code || '').toUpperCase()
+        if (!codePref) return
+        // 訂單（同月、推薦碼一致）
+        const orders = await orderRepo.list()
+        const ym = month
+        const inMonth = (orders||[]).filter((o: any) => {
+          const d = o.workCompletedAt || o.createdAt
+          return (d || '').slice(0,7) === ym
+        })
+        const mine = inMonth.filter((o: any) => String((o.referrerCode||'')).toUpperCase() === codePref)
+        const sel: Record<string, boolean> = {}
+        for (const o of mine) sel[o.id] = true
+        setPerfOrders(mine)
+        setPerfSelections(sel)
+        // 推薦註冊 +100（以 points_ledger 為主；月份過濾）
+        try {
+          const start = new Date(month + '-01')
+          const end = new Date(start)
+          end.setMonth(end.getMonth()+1)
+          const { data: rows } = await supabase
+            .from('points_ledger')
+            .select('points, source, created_at, ref_code')
+            .eq('ref_code', codePref)
+            .gte('created_at', start.toISOString())
+            .lt('created_at', end.toISOString())
+          const list = Array.isArray(rows) ? rows : []
+          const signup = list.filter((r: any) => String(r.source||'') === 'member_signup')
+          const cnt = signup.length
+          const pts = signup.reduce((s: number, r: any) => s + (Number(r.points)||0), 0)
+          setReferralSignupCount(cnt)
+          setReferralSignupPoints(pts)
+          setReferralSignupRows(signup)
+        } catch {}
+      } finally {
+        setPerfLoading(false)
+      }
+    }
+    loadPerf()
+  }, [editingRecord, orderRepo, staffList, month])
+
   const loadData = async () => {
     if (!payrollRepo || !staffRepo || !technicianRepo) return
     try {
@@ -193,14 +378,18 @@ export default function Payroll() {
       setRecords(monthRecords)
       setStaffList([...staffData, ...techData])
       // 技師本月分潤估算（僅用於顯示）
-      try {
-        const techMonthly = await computeMonthlyPayroll(month)
-        const map: Record<string, any> = {}
-        for (const row of techMonthly) {
-          map[row.technician.name] = row
-        }
-        setTechMonthlyMap(map)
-      } catch {}
+      if (viewRole === 'technician') {
+        try {
+          const techMonthly = await computeMonthlyPayroll(month)
+          const map: Record<string, any> = {}
+          for (const row of techMonthly) {
+            map[row.technician.name] = row
+          }
+          setTechMonthlyMap(map)
+        } catch {}
+      } else {
+        setTechMonthlyMap({})
+      }
     } catch (error) {
       console.error('載入薪資資料失敗:', error)
     } finally {
@@ -317,7 +506,7 @@ export default function Payroll() {
     const extraDeductions = ((deductions as any).laborInsurance || 0) + ((deductions as any).healthInsurance || 0) + ((deductions as any).other || 0) + sumExtra((record as any).extraDeductions || [])
     const totalDeductions = (deductions.leave || 0) + (deductions.tardiness || 0) + (deductions.complaints || 0) + (deductions.repairCost || 0) + extraDeductions
     const bonus = record.bonus || 0
-    const pointsValue = record.pointsMode === 'include' ? (record.points || 0) * 100 : 0
+    const pointsValue = record.pointsMode === 'include' ? (record.points || 0) : 0
     const techCommission = (record as any).techCommission || 0
     return { base, totalAllowances, totalDeductions, bonus, pointsValue, techCommission, net: base + totalAllowances - totalDeductions + bonus + pointsValue + techCommission }
   }
@@ -367,21 +556,38 @@ export default function Payroll() {
     // 業務：以 refCode 匹配本月訂單金額 × (bonusRate%)
     if (role === 'sales') {
       try {
-        const orders = await orderRepo.list()
-        const ym = month
-        const inMonth = orders.filter((o: any) => {
-          const d = o.workCompletedAt || o.createdAt
-          return (d || '').slice(0,7) === ym
-        })
-        const code: string = (staff.refCode || '').toUpperCase()
-        const mine = inMonth.filter((o: any) => (o.referrerCode || '').toUpperCase() === code)
-        const revenue = mine.reduce((sum: number, o: any) => sum + (o.serviceItems||[]).reduce((s: number, it: any)=> s + (it.unitPrice||0)*(it.quantity||0), 0), 0)
-        const rate = Number((editingRecord.bonusRate || 10)) / 100
-        const bonus = Math.round(revenue * rate)
-        setEditingRecord(r => ({
-          ...(r as PayrollRecord),
-          bonus
-        }))
+        // 業務：以績效積分來源面板合計的 points 為主；兼職=僅積分換薪，正職=底薪+積分
+        const staffCode = String((staff as any).refCode || (staff as any).code || '').toUpperCase()
+        // 若未先開啟來源面板也能自算一次（以 referrerCode 匹配當月訂單）
+        let shoppingPts = 0
+        if (orderRepo && staffCode) {
+          const orders = await orderRepo.list()
+          const ym = month
+          const inMonth = (orders||[]).filter((o: any) => { const d = o.workCompletedAt || o.createdAt; return (d||'').slice(0,7)===ym })
+          const mine = inMonth.filter((o: any) => String((o.referrerCode||'')).toUpperCase() === staffCode)
+          for (const o of mine) {
+            const totalRaw = Number((o as any).totalAmount ?? (o as any).total ?? 0)
+            const sumItems = (o.serviceItems||[]).reduce((s:number,it:any)=> s+(it.unitPrice||0)*(it.quantity||0),0)
+            const total = totalRaw>0? totalRaw: sumItems
+            shoppingPts += Math.floor(Math.max(0,total)/300)
+          }
+        }
+        // 推薦註冊（當月）
+        let signupPts = 0
+        try {
+          const start = new Date(month + '-01')
+          const end = new Date(start); end.setMonth(end.getMonth()+1)
+          const { data: rows } = await supabase
+            .from('points_ledger')
+            .select('points, source, created_at, ref_code')
+            .eq('ref_code', staffCode)
+            .gte('created_at', start.toISOString())
+            .lt('created_at', end.toISOString())
+          const list = Array.isArray(rows) ? rows : []
+          signupPts = list.filter((r:any)=> String(r.source||'')==='member_signup').reduce((s:number,r:any)=> s+(Number(r.points)||0),0)
+        } catch {}
+        const totalPts = signupPts + shoppingPts
+        setEditingRecord(r => ({ ...(r as PayrollRecord), points: totalPts }))
       } catch {}
       return
     }
@@ -482,7 +688,7 @@ export default function Payroll() {
   const confirmSave = async () => {
     if (!editingRecord) return
     const { confirmTwice } = await import('../kit')
-    if (await confirmTwice('確定要儲存薪資資料嗎？', '儲存後將無法撤銷，確定繼續？')) {
+    if (await confirmTwice('確定要儲存薪資資料嗎？', '可隨時再編輯，確定繼續？')) {
       await saveRecord(editingRecord)
     }
   }
@@ -541,6 +747,8 @@ export default function Payroll() {
 
           {/* 技師：分潤與訂單清單 */}
           {renderTechOrdersPanel()}
+
+          {renderPerformancePointsPanel()}
 
           {/* 原本細項編輯區（保留） */}
           <div className="grid grid-cols-2 gap-4">
@@ -642,6 +850,23 @@ export default function Payroll() {
                   <option value="黃">黃</option>
                   <option value="今">今</option>
                 </Select>
+              </div>
+            </div>
+          ) })()}
+
+          {/* 業務設定：兼職/正職（積分換薪）*/}
+          {(() => { const staff = staffList.find(s => s.email === editingRecord.userEmail); const r = staff ? getRoleOf(staff) : 'support'; if (r!=='sales') return null; return (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">業務型態</label>
+                <Select value={salesType} onChange={(e)=> setSalesType((e.target.value as any)||'fulltime')}>
+                  <option value="parttime">兼職（僅積分換薪）</option>
+                  <option value="fulltime">正職（底薪＋積分換薪）</option>
+                </Select>
+              </div>
+              <div className="text-right self-end">
+                <div className="text-xs text-gray-600">本月績效積分</div>
+                <div className="text-lg font-bold text-emerald-600">{Number(editingRecord.points||0).toLocaleString()}</div>
               </div>
             </div>
           ) })()}
@@ -804,6 +1029,126 @@ export default function Payroll() {
     )
   }
 
+  // 績效積分來源（推薦 + 購物）
+  const renderPerformancePointsPanel = () => {
+    if (!editingRecord) return null
+    const staff = staffList.find(s => s.email === editingRecord.userEmail)
+    if (!staff) return null
+    const role = getRoleOf(staff)
+    if (role !== 'technician' && role !== 'sales') return null
+    const codePref = String((staff as any).refCode || (staff as any).code || '').toUpperCase()
+    const calcOrderTotal = (o: any) => {
+      const totalRaw = Number((o as any).totalAmount ?? (o as any).total ?? 0)
+      const sumItems = (o.serviceItems||[]).reduce((s:number, it:any)=> s + (it.unitPrice||0)*(it.quantity||0), 0)
+      return totalRaw > 0 ? totalRaw : sumItems
+    }
+    let sumShoppingPts = 0
+    for (const o of perfOrders) {
+      if (perfSelections[o.id] === false) continue
+      const total = calcOrderTotal(o)
+      sumShoppingPts += Math.floor(Math.max(0, total) / 300)
+    }
+    const totalPts = (referralSignupPoints||0) + sumShoppingPts
+
+    return (
+      <Card>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="text-lg font-semibold">📈 績效積分來源（{month}）</div>
+          <div>
+            <Button variant="outline" size="sm" onClick={()=>{
+              try {
+                const headers = ['類型','日期','編號','金額','點數']
+                const rows: any[] = []
+                // 推薦註冊（逐筆）
+                for (const r of referralSignupRows) {
+                  const d = String(r.created_at||'').slice(0,10)
+                  rows.push(['推薦註冊', d, String(codePref||''), '—', Number(r.points)||0])
+                }
+                // 購物明細
+                for (const o of perfOrders) {
+                  if (perfSelections[o.id] === false) continue
+                  const total = calcOrderTotal(o)
+                  const pts = Math.floor(Math.max(0, total) / 300)
+                  const date = String(o.workCompletedAt||o.createdAt||'').slice(0,10)
+                  rows.push(['會員購物', date, String(o.code||o.id), total, pts])
+                }
+                const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `performance_points_${month}.csv`
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                URL.revokeObjectURL(url)
+              } catch {}
+            }}>下載積分明細CSV</Button>
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded border bg-white p-3">
+            <div className="text-sm text-gray-600">推薦註冊</div>
+            {perfLoading ? (
+              <div className="text-sm text-gray-500 mt-1">讀取中…</div>
+            ) : (
+              <div className="mt-1 text-sm">
+                <div>當月人數：<span className="font-semibold">{referralSignupCount}</span></div>
+                <div>積分：<span className="font-semibold text-emerald-700">+{referralSignupPoints}</span></div>
+              </div>
+            )}
+          </div>
+          <div className="md:col-span-2 rounded border bg-white p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm text-gray-600">會員購物（每 NT$300 = 1 點）</div>
+              <div className="text-sm">合計：<span className="font-bold text-emerald-700">{sumShoppingPts}</span> 點</div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50 text-gray-600">
+                    <th className="px-2 py-2 text-left">結案日</th>
+                    <th className="px-2 py-2 text-left">訂單編號</th>
+                    <th className="px-2 py-2 text-right">訂單金額</th>
+                    <th className="px-2 py-2 text-right">點數</th>
+                    <th className="px-2 py-2 text-center">納入</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {perfOrders.length === 0 ? (
+                    <tr><td className="px-2 py-3" colSpan={5}>本月無符合推薦碼的訂單</td></tr>
+                  ) : (
+                    perfOrders.map((o:any) => {
+                      const total = calcOrderTotal(o)
+                      const pts = Math.floor(Math.max(0, total) / 300)
+                      const date = String(o.workCompletedAt||o.createdAt||'').slice(0,10)
+                      return (
+                        <tr key={`perf-${o.id}`} className="border-b last:border-0">
+                          <td className="px-2 py-2">{date}</td>
+                          <td className="px-2 py-2">{o.code || o.id}</td>
+                          <td className="px-2 py-2 text-right">${total.toLocaleString()}</td>
+                          <td className="px-2 py-2 text-right">{pts}</td>
+                          <td className="px-2 py-2 text-center">
+                            <input type="checkbox" checked={perfSelections[o.id] !== false} onChange={(e)=> setPerfSelections(prev=> ({ ...prev, [o.id]: e.target.checked }))} />
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center justify-end gap-2">
+          <div className="mr-auto text-sm">總積分（推薦+購物）：<span className="font-bold text-emerald-700">{totalPts}</span></div>
+          <Button variant="outline" onClick={()=>{ setPerfSelections({}); }}>重設</Button>
+          <Button onClick={()=> setEditingRecord(r => ({ ...(r as PayrollRecord), points: totalPts }))}>套用到本筆積分</Button>
+        </div>
+      </Card>
+    )
+  }
+
   // 匯出技師對帳 CSV（已勾選的訂單）
   const exportTechOrdersCSV = () => {
     try {
@@ -908,6 +1253,7 @@ export default function Payroll() {
           {can(user, 'admin') && (
             <>
               <Button variant="outline" onClick={exportCSV}>匯出 CSV</Button>
+              <Button variant="outline" onClick={exportAllPayoutCSV}>匯出全員中信CSV</Button>
               <Button onClick={() => setShowBulkEditModal(true)}>快速編輯</Button>
             </>
           )}
@@ -944,8 +1290,11 @@ export default function Payroll() {
       {editingRecord && (
         <Card>
           <div className="flex items-center justify-between">
-            <div className="text-lg font-semibold">薪資發放</div>
-            <div className="text-xs text-gray-500">（依平台自動帶出日期）</div>
+            <div className="text-lg font-semibold">💸 薪資發放</div>
+            <div className="flex items-center gap-2">
+              <div className="text-xs text-gray-500">（依平台自動帶出日期）</div>
+              <Button variant="outline" size="sm" onClick={()=> exportPayoutCSV(editingRecord)}>匯出中信CSV</Button>
+            </div>
           </div>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-sm">

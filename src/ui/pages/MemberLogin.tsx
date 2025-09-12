@@ -81,6 +81,24 @@ export default function MemberLoginPage() {
           customerId
         }
         try { localStorage.setItem('member-auth-user', JSON.stringify(memberInfo)) } catch {}
+
+        // 首次登入觸發推薦 +100（非阻斷，防重複由 RPC 保證）
+        try {
+          const emailLower = (resolved?.email || data.user.email || '').toLowerCase()
+          // 取 members 的 referrerCode 與 phone
+          try {
+            const { data: m2 } = await supabase
+              .from('members')
+              .select('referrerCode, phone')
+              .eq('email', emailLower)
+              .maybeSingle()
+            const ref = (m2 as any)?.referrerCode || ''
+            const digits2 = String((m2 as any)?.phone || '').replace(/\D/g,'')
+            if (ref) {
+              await supabase.rpc('award_referrer_points', { p_ref_code: String(ref), p_referred_email: emailLower, p_referred_phone: digits2, p_points: 100, p_note: '會員首次登入' })
+            }
+          } catch {}
+        } catch {}
         navigate('/store')
       }
     } catch (err: any) {
