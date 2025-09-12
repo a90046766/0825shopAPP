@@ -105,26 +105,23 @@ function DesktopNav() {
  const menuTop = [
   { to: '/dispatch', label: '派工總覽', perm: 'dashboard.view' },
   { to: '/orders', label: '訂單管理', perm: 'orders.list' },
-  { to: '/reservations', label: '預約訂單', perm: 'reservations.manage' },
-  { to: '/store', label: '購物站', perm: 'dashboard.view' },
-  { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
-  { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
+  { to: '/admin/broadcast', label: '站內廣播 📢', perm: 'bulletin.manage' },
+  { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/documents', label: '文件管理', perm: 'documents.manage' },
-  { to: '/models', label: '機型管理', perm: 'models.manage' },
+  { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
+  { to: '/cms', label: '機型管理', perm: 'promotions.manage' },
   { to: '/quotes', label: '職人語錄', perm: 'dashboard.view' },
+  { to: '/store', label: '購物站', perm: 'dashboard.view' },
   { to: '/me', label: '個人設定', perm: 'dashboard.view' }
 ]
   const menuBottom = [
     { to: '/technicians', label: '技師管理', perm: 'technicians.manage' },
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
+    { to: '/approvals', label: '待審核', perm: 'approvals.manage' },
     { to: '/reports', label: '報表', perm: 'reports.manage' },
-    { to: '/models', label: '機型管理', perm: 'models.manage' },
-    { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
-    { to: '/products', label: '商品管理', perm: 'products.manage' },
-    { to: '/admin/broadcast', label: '站內廣播 📢', perm: 'bulletin.manage' },
-    { to: '/approvals', label: '待審核', perm: 'approvals.manage' }
+    { to: '/cms', label: 'CMS 編輯', perm: 'promotions.manage' }
   ]
 
   const [counts, setCounts] = useState<Record<string, number>>({})
