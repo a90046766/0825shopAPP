@@ -318,6 +318,32 @@ export default function NewShop() {
 		);
 	}
 
+	function renderTraining() {
+		return (
+			<div className="bg-gradient-to-br from-amber-50 via-white to-orange-50">
+				<div className="max-w-6xl mx-auto px-4 py-12">
+					<div className="rounded-2xl bg-white shadow-lg border border-amber-100 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center gap-6">
+						<div className="flex-1">
+							<div className="text-sm text-amber-700 font-semibold mb-1">職訓課程</div>
+							<h3 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-2">日式洗濯｜教學保證班（台中）</h3>
+							<p className="text-gray-700">不會就退費・小班 4 人・兩天一夜含住宿。結業可獨立上手，現場演練＋工具實操。</p>
+						</div>
+						<div className="flex items-center gap-3">
+							<a
+								href={`https://steady-toffee-943961.netlify.app/?utm_source=store&utm_medium=homepage&utm_campaign=training_cta`}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="inline-flex items-center rounded-xl bg-amber-600 px-5 py-3 text-white font-semibold shadow hover:bg-amber-700 transition-colors"
+							>
+								了解課程
+							</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		)
+	}
+
 	function renderServices() {
 		const list = cmsEnabled && published ? published.services : defaultContent.services;
 		const serviceImages = [
@@ -586,6 +612,7 @@ export default function NewShop() {
 				)}
 				{renderWelcome()}
 				{renderCarousel()}
+				{renderTraining()}
 				{renderHero()}
 				{renderServices()}
 				{renderAdvantages()}

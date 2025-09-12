@@ -80,8 +80,22 @@ export default function Approvals() {
           await memberApplicationRepo.approve(app.id)
         } else if (type === 'technician') {
           await technicianApplicationRepo.approve(app.id)
+          try {
+            await fetch('/.netlify/functions/provision-internal-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: app.email, role: 'technician', name: app.name, phone: app.phone })
+            })
+          } catch {}
         } else if (type === 'staff') {
           await staffApplicationRepo.approve(app.id)
+          try {
+            await fetch('/.netlify/functions/provision-internal-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: app.email, role: app.role || 'support', name: app.name, phone: app.phone })
+            })
+          } catch {}
         }
       } else {
         if (type === 'member') {
