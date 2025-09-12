@@ -71,15 +71,7 @@ function getCurrentUserFromStorage(): any {
   try {
     const supa = localStorage.getItem('supabase-auth-user')
     if (supa) {
-      // 防止「假登入」：若沒有 Supabase 的 session 存檔，視為未登入
-      try {
-        const sb = localStorage.getItem('sb-0825shopapp-auth')
-        if (!sb) {
-          localStorage.removeItem('supabase-auth-user')
-          return null
-        }
-      } catch {}
-      return JSON.parse(supa)
+       return JSON.parse(supa)
     }
   } catch {}
   try {
@@ -91,14 +83,6 @@ function getCurrentUserFromStorage(): any {
 
 function PrivateRoute({ children, permission }: { children: React.ReactNode; permission?: string }) {
   const user = getCurrentUserFromStorage()
-  // 追加：若無 Supabase session，視為未登入，避免假登入
-  try {
-    const sb = localStorage.getItem('sb-0825shopapp-auth')
-    if (!sb) {
-      try { localStorage.removeItem('supabase-auth-user') } catch {}
-      return <Navigate to="/login" replace />
-    }
-  } catch {}
   
   if (!user) {
     return <Navigate to="/login" replace />
@@ -268,6 +252,7 @@ createRoot(document.getElementById('root')!).render(
 
       const user = { id: session.user.id, email: session.user.email, name: displayName, role: inferredRole, phone: (staff as any)?.phone || (tech as any)?.phone, passwordSet: true }
       try { localStorage.setItem('supabase-auth-user', JSON.stringify(user)) } catch {}
+      try { localStorage.setItem('sb-last-valid-ts', String(Date.now())) } catch {}
 
       try {
         const path = location.pathname
@@ -297,11 +282,7 @@ createRoot(document.getElementById('root')!).render(
     const { data } = await supabase.auth.getSession()
     if (data?.session) await mapSessionToLocalUser(data.session)
     // 若 local 有 supabase-auth-user 但無 session，視為假登入，清除
-    try {
-      const local = localStorage.getItem('supabase-auth-user')
-      const sb = localStorage.getItem('sb-0825shopapp-auth')
-      if (local && !sb) localStorage.removeItem('supabase-auth-user')
-    } catch {}
+    try { if (data?.session) localStorage.setItem('sb-last-valid-ts', String(Date.now())) } catch {}
   } catch {}
 
   // 監聽後續的簽入/刷新事件
@@ -309,6 +290,7 @@ createRoot(document.getElementById('root')!).render(
     supabase.auth.onAuthStateChange(async (event, session) => {
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
         await mapSessionToLocalUser(session)
+        try { localStorage.setItem('sb-last-valid-ts', String(Date.now())) } catch {}
       }
       if (event === 'SIGNED_OUT') {
         try { localStorage.removeItem('supabase-auth-user') } catch {}
@@ -328,19 +310,22 @@ createRoot(document.getElementById('root')!).render(
     if (now - __lastVerifyAt < 5000) return // 至少 5 秒一次
     __verifying = true
     try {
+      // 僅在後台相關路徑才驗證，避免干擾前台/會員
+      const p = location.pathname
+      const isBackendPath = [/^\/dispatch/,/^\/orders/,/^\/inventory/,/^\/technicians/,/^\/staff/,/^\/customers/,/^\/members$/, /^\/payroll/,/^\/reports/,/^\/report-center/,/^\/cms/,/^\/admin\//,/^\/leave-management/,/^\/me$/, /^\/salary$/].some(rx=> rx.test(p))
+      if (!isBackendPath) { return }
       const { data } = await supabase.auth.getSession()
       const hasSession = !!data?.session?.user
       const local = localStorage.getItem('supabase-auth-user')
+      // 增加寬限：若曾經有有效 session，於 12 小時內不強制清除，避免短暫取不到造成鎖死
+      const lastValid = Number(localStorage.getItem('sb-last-valid-ts') || '0')
+      const withinGrace = (now - lastValid) < 12 * 60 * 60 * 1000 // 12h
       if (!hasSession && local) {
-        // 清除假登入並刷新 UI
-        try { localStorage.removeItem('supabase-auth-user') } catch {}
-        // 僅在前台頁面與需要權限的後台頁面刷新一次
-        try {
-          const p = location.pathname
-          if (p.startsWith('/dispatch') || p.startsWith('/orders') || p.startsWith('/inventory')) {
-            location.reload()
-          }
-        } catch {}
+        if (!withinGrace) {
+          try { localStorage.removeItem('supabase-auth-user') } catch {}
+          try { location.replace('/login') } catch {}
+        }
+        // 若在寬限內，略過清除，等待使用者手動重新登入或稍後再驗
       }
     } catch {}
     finally {
