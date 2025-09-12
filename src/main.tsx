@@ -317,7 +317,16 @@ createRoot(document.getElementById('root')!).render(
   } catch {}
 
   // 實時驗證：偵測互動/聚焦時驗證 session（修正假登入殘影）
+  let __verifying = false
+  let __lastVerifyAt = 0
   const verifySession = async () => {
+    // 可用 localStorage 設定 panic switch：disable-session-verify = '1'
+    const disabled = (()=>{ try{ return localStorage.getItem('disable-session-verify')==='1' }catch{ return false } })()
+    if (disabled) return
+    if (__verifying) return
+    const now = Date.now()
+    if (now - __lastVerifyAt < 5000) return // 至少 5 秒一次
+    __verifying = true
     try {
       const { data } = await supabase.auth.getSession()
       const hasSession = !!data?.session?.user
@@ -334,15 +343,27 @@ createRoot(document.getElementById('root')!).render(
         } catch {}
       }
     } catch {}
+    finally {
+      __verifying = false
+      __lastVerifyAt = now
+    }
   }
-  let idleTimer: any = null
+  let verifyTimer: any = null
   const scheduleVerify = () => {
-    if (idleTimer) clearTimeout(idleTimer)
-    idleTimer = setTimeout(verifySession, 600) // 0.6s 內首次互動後驗證一次
+    const disabled = (()=>{ try{ return localStorage.getItem('disable-session-verify')==='1' }catch{ return false } })()
+    if (disabled) return
+    if (verifyTimer) clearTimeout(verifyTimer)
+    verifyTimer = setTimeout(verifySession, 2000) // 放寬到 2 秒避免抖動
   }
-  ;['mousemove','mousedown','keydown','touchstart','visibilitychange','focus'].forEach(evt => {
-    window.addEventListener(evt as any, scheduleVerify, { passive: true })
-  })
+  ;(() => {
+    const w = window as any
+    if (!w.__sbVerifyBound) {
+      ;['visibilitychange','focus','online'].forEach(evt => {
+        window.addEventListener(evt as any, scheduleVerify, { passive: true })
+      })
+      w.__sbVerifyBound = true
+    }
+  })()
   // 直接 Render Router
   } catch (err: any) {
     const msg = (err && (err.message || String(err))) || '初始化失敗'
