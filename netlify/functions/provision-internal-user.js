@@ -15,6 +15,7 @@ exports.handler = async (event) => {
       || process.env.SUPABASE_SERVICE_KEY
       || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
       || process.env.SUPABASE_SERVICE_API_KEY
+    const DEFAULT_PASSWORD = process.env.DEFAULT_INTERNAL_PASSWORD || 'a123123'
     if (!SUPABASE_URL || !SERVICE_ROLE) {
       return json(500, { ok: false, error: 'missing_service_role', hint: 'Set SUPABASE_SERVICE_ROLE_KEY in Netlify env' })
     }
@@ -26,6 +27,7 @@ exports.handler = async (event) => {
     const role = String(req.role || 'support') // 'support' | 'sales' | 'technician'
     const name = String(req.name || '')
     const phone = String(req.phone || '')
+    const resetPassword = !!req.resetPassword
 
     if (!email) return json(400, { ok: false, error: 'email_required' })
 
@@ -37,13 +39,19 @@ exports.handler = async (event) => {
     }
     if (existing && existing.user) {
       user = existing.user
-      await supabase.auth.admin.updateUserById(user.id, {
+      const payload = {
         email: email,
         user_metadata: { user_type: role === 'technician' ? 'technician' : 'staff' }
-      })
+      }
+      if (resetPassword) {
+        // 允許透過參數重設為預設密碼（僅限管理用途）
+        payload.password = DEFAULT_PASSWORD
+      }
+      await supabase.auth.admin.updateUserById(user.id, payload)
     } else {
       const { data: created, error: createErr } = await supabase.auth.admin.createUser({
         email,
+        password: DEFAULT_PASSWORD,
         email_confirm: true,
         user_metadata: { user_type: role === 'technician' ? 'technician' : 'staff' }
       })
