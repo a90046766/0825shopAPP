@@ -186,8 +186,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/salary" element={<PrivateRoute><SalaryPage /></PrivateRoute>} />
         <Route path="/leave-management" element={<PrivateRoute><LeaveManagementPage /></PrivateRoute>} />
         <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
-        {/* 改為新 CMS 編輯頁 */}
-        <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><CmsEditor /></PrivateRoute>} />
+        {/* 關閉 CMS 編輯入口，避免誤觸造成首頁內容混亂 */}
+        {false && <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><CmsEditor /></PrivateRoute>} />}
       </Route>
         {/* 萬用路由：任何未知路徑導回購物站 */}
         <Route path="*" element={<Navigate to="/" replace />} />

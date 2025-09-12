@@ -21,6 +21,8 @@ import {
 import MemberBell from '../components/MemberBell'
 
 export default function NewShopPage() {
+  // 永久停用 CMS（避免重覆與干擾）
+  const CMS_FORCE_OFF = true
   const [currentSlide, setCurrentSlide] = useState(0)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isMember, setIsMember] = useState(false)
@@ -75,6 +77,7 @@ export default function NewShopPage() {
 
   // 載入 CMS 內容（失敗則用本地預設）
   useEffect(() => {
+    if (CMS_FORCE_OFF) return
     (async () => {
       try {
         const mod = await import('../../adapters/supabase/cms')
