@@ -148,7 +148,7 @@ export default function NewShop() {
 			const cmsSlides = (cmsEnabled && published && Array.isArray((published as any).carousel) ? (published as any).carousel as any[] : null);
 			const count = cmsSlides && cmsSlides.length > 0 ? Math.min(3, cmsSlides.length) : 3;
 			setCarouselIndex((prev) => (prev + 1) % count);
-		}, 6000); // 每6秒切換
+		}, 10000); // 每10秒切換
 
 		return () => clearInterval(interval);
 	}, [cmsEnabled, published]);
@@ -210,14 +210,14 @@ export default function NewShop() {
 	function renderCarousel() {
 		const cmsSlides = (cmsEnabled && published && Array.isArray((published as any).carousel) ? (published as any).carousel as any[] : null)
 		const fallbackSlides = [
-			{ bg: 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/banners1/slide1.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJiYW5uZXJzMS9zbGlkZTEud2VicCIsImlhdCI6MTc1NzY4OTE0OSwiZXhwIjoxODIwNzYxMTQ5fQ.S_yrCrdiwFF6m0foNJBGnmNlCKQYZRa_iiLmzr-W_vY', title: '加入會員想好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入', ctaLink: '/register/member' },
+			{ bg: 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/banners1/slide1.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJiYW5uZXJzMS9zbGlkZTEud2VicCIsImlhdCI6MTc1NzY4OTE0OSwiZXhwIjoxODIwNzYxMTQ5fQ.S_yrCrdiwFF6m0foNJBGnmNlCKQYZRa_iiLmzr-W_vY', title: '加入會員享好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入', ctaLink: '/register/member' },
 			{ bg: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=1600&auto=format&fit=crop', title: '積分回饋制度', subtitle: '消費$100=1積分，每一積分=$1元，可全額折抵！', ctaText: '會員中心', ctaLink: '/store/member/orders' },
 			{ bg: 'https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop', title: '專業日式洗濯服務', subtitle: '讓您的家電煥然一新，享受如新機般的清潔效果！', ctaText: '立即預約', ctaLink: '/store/products?category=cleaning' }
 		]
 		const slides = (cmsSlides && cmsSlides.length > 0)
 			? cmsSlides.slice(0, 3).map((s:any) => ({ bg: s.imageUrl || '', title: s.title || '', subtitle: s.subtitle || '', ctaText: s.ctaText, ctaLink: s.ctaLink }))
 			: fallbackSlides
-	return (
+  return (
 			<div className="relative overflow-hidden rounded-2xl mx-auto mb-8 max-w-6xl px-4" style={{ height: 'clamp(240px, calc(100vw / 1.91), 628px)' }}>
 				<div
 					className="flex transition-transform duration-500 ease-in-out h-full"
@@ -235,8 +235,8 @@ export default function NewShop() {
 										allowFullScreen
 										className="absolute inset-0 w-full h-full object-cover"
 									/>
-									<div className="absolute inset-0 bg-gradient-to-r from-black/50 to-black/30" />
-									<div className="relative z-20 p-8">
+									<div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-transparent" />
+									<div className="relative z-20 h-full p-8 flex items-center">
 										<div className="flex items-center gap-2 mb-4">
 											<span className="text-3xl">✨</span>
 											<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
@@ -246,13 +246,13 @@ export default function NewShop() {
 										{s.ctaText && s.ctaLink ? (
 											<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
 										) : null}
-									</div>
+								</div>
 								</>
 							) : (
-								<div className="w-full h-full relative">
-									<img src={s.bg} alt="" className="absolute inset-0 w-full h-full object-cover" />
-									<div className="absolute inset-0 bg-gradient-to-r from-black/50 to-black/30" />
-									<div className="relative z-10 p-8">
+								<div className="w-full h-full relative bg-black">
+									<img src={s.bg} alt="" className="absolute inset-0 w-full h-full object-contain object-center" />
+									<div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-transparent" />
+									<div className="relative z-10 h-full p-8 flex items-center">
 										<div className="flex items-center gap-2 mb-4">
 											<span className="text-3xl">✨</span>
 											<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
@@ -262,18 +262,18 @@ export default function NewShop() {
 										{s.ctaText && s.ctaLink ? (
 											<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
 										) : null}
-									</div>
 								</div>
-							)}
-						</div>
-					))}
-				</div>
+							</div>
+						)}
+					</div>
+				))}
+            </div>
 				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
 					{slides.map((_: any, index: number) => (
 						<button key={index} className={`w-3 h-3 rounded-full transition-all duration-300 ${index === carouselIndex ? 'bg-white opacity-80' : 'bg-white/50 hover:bg-white/70'}`} onClick={() => setCarouselIndex(index)} />
 					))}
-				</div>
-			</div>
+          </div>
+        </div>
 		);
 	}
 
