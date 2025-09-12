@@ -1,7 +1,7 @@
 import type { SettingsRepo, AppSettings } from '../../core/repository'
 import { supabase } from '../../utils/supabase'
 
-const ROW_ID = 'default'
+const ROW_ID = 1
 
 function fromRow(r: any): AppSettings {
   return {

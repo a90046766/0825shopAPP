@@ -32,7 +32,13 @@ export default function PageDispatchHome() {
             <div className="text-gray-400">載入中…</div>
           ) : editable ? (
             <div className="space-y-2">
-              <textarea value={bulletin} onChange={e=>setBulletin(e.target.value)} rows={4} className="w-full rounded-lg border px-3 py-2" placeholder="輸入公告內容（僅客服/管理員可編輯）" />
+              <textarea
+                value={bulletin}
+                onChange={e=>setBulletin(e.target.value)}
+                onInput={e=>{ const ta = e.currentTarget; ta.style.height='auto'; ta.style.height = Math.min(ta.scrollHeight, 1000) + 'px' }}
+                className="w-full rounded-lg border px-3 py-2 min-h-[96px] resize-none overflow-hidden"
+                placeholder="輸入公告內容（僅客服/管理員可編輯）"
+              />
               <div className="flex items-center justify-end gap-2">
                 <button onClick={saveBulletin} className="rounded-lg bg-brand-500 px-4 py-2 text-white">儲存公告</button>
               </div>
