@@ -34,9 +34,10 @@ class SupabaseSettingsRepo implements SettingsRepo {
     if ('bulletinUpdatedBy' in patch) row.bulletin_updated_by = (patch as any).bulletinUpdatedBy
     if ('countdownEnabled' in patch) row.countdown_enabled = (patch as any).countdownEnabled
     if ('countdownMinutes' in patch) row.countdown_minutes = (patch as any).countdownMinutes
-    const { data, error } = await supabase.from('app_settings').upsert({ id: ROW_ID, ...row }).select().single()
+    const { error } = await supabase.from('app_settings').upsert({ id: ROW_ID, ...row })
     if (error) throw error
-    return fromRow(data)
+    // 再讀一次保險
+    return await this.get()
   }
 }
 
