@@ -136,13 +136,12 @@ function DesktopNav() {
         // - 訂單：orders confirmed & 未開工
         // - 回報中心：僅未結案且對當前使用者可見
         const a = await loadAdapters()
-        const [ordersAll, threads, resR, techApps, staffApps, memberApps] = await Promise.all([
+        const [ordersAll, threads, resR, techApps, staffApps] = await Promise.all([
           a.orderRepo?.list?.() ?? [],
           (a as any)?.reportsRepo?.list?.() ?? [],
           fetch('/api/reservations').then(r=>r.json()).catch(()=>({success:true,data:[]})),
           (a as any)?.technicianApplicationRepo?.listPending?.().catch(()=>[]) ?? [],
-          (a as any)?.staffApplicationRepo?.listPending?.().catch(()=>[]) ?? [],
-          (a as any)?.memberApplicationRepo?.listPending?.().catch(()=>[]) ?? []
+          (a as any)?.staffApplicationRepo?.listPending?.().catch(()=>[]) ?? []
         ])
         const ordersNew = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && !o.workStartedAt).length
         const needAssign = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && (!Array.isArray(o.assignedTechnicians) || o.assignedTechnicians.length===0)).length
@@ -159,7 +158,7 @@ function DesktopNav() {
           }
           return false
         }).length
-        const approvals = (techApps?.length||0) + (staffApps?.length||0) + (memberApps?.length||0)
+        const approvals = (techApps?.length||0) + (staffApps?.length||0)
         setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: visible, approvals }))
       } catch {}
     })()

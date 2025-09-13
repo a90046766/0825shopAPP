@@ -103,7 +103,9 @@ export default function InventoryPage() {
           category: 'reminder',
           level: 'normal',
           target: 'support',
-          targetEmails: [],
+          targetEmails: null,
+          orderId: '',
+          attachments: [],
           messages: [ { authorEmail: (u.email||'').toLowerCase(), body: `申請單號：${purchaseRequest.id}` } ]
         } as any
         await repos.reportsRepo.create(report)
