@@ -146,7 +146,17 @@ export default function MemberOrdersPage() {
       const j = await res.json()
       if (!j.success) throw new Error(j.error || '提交評價失敗')
       await load()
-      alert('感謝您的評價！')
+      // 讀取設定，若有 reviewBonusPoints，提示上傳截圖領點數
+      try {
+        const { settingsRepo } = await import('../../adapters/supabase/settings')
+        const s = await (settingsRepo as any).get()
+        const bonus = Number(s?.reviewBonusPoints || 0)
+        if (bonus > 0) {
+          alert(`感謝您的評價！上傳 Google/FB 好評截圖可獲得 ${bonus} 點，請到「會員中心 > 通知」查看領取入口。`)
+        } else {
+          alert('感謝您的評價！')
+        }
+      } catch { alert('感謝您的評價！') }
     } catch (e: any) {
       alert(e?.message || '提交評價失敗')
     }

@@ -8,6 +8,9 @@ function fromRow(r: any): AppSettings {
     bulletinUpdatedBy: r.bulletin_updated_by || undefined,
     countdownEnabled: typeof r.countdown_enabled === 'boolean' ? r.countdown_enabled : undefined,
     countdownMinutes: typeof r.countdown_minutes === 'number' ? r.countdown_minutes : undefined,
+    autoDispatchEnabled: typeof r.auto_dispatch_enabled === 'boolean' ? r.auto_dispatch_enabled : undefined,
+    autoDispatchMinScore: typeof r.auto_dispatch_min_score === 'number' ? r.auto_dispatch_min_score : undefined,
+    reviewBonusPoints: typeof r.review_bonus_points === 'number' ? r.review_bonus_points : undefined,
   }
 }
 
@@ -52,6 +55,9 @@ class SupabaseSettingsRepo implements SettingsRepo {
     if ('bulletinUpdatedBy' in patch) row.bulletin_updated_by = (patch as any).bulletinUpdatedBy
     if ('countdownEnabled' in patch) row.countdown_enabled = (patch as any).countdownEnabled
     if ('countdownMinutes' in patch) row.countdown_minutes = (patch as any).countdownMinutes
+    if ('autoDispatchEnabled' in patch) row.auto_dispatch_enabled = (patch as any).autoDispatchEnabled
+    if ('autoDispatchMinScore' in patch) row.auto_dispatch_min_score = (patch as any).autoDispatchMinScore
+    if ('reviewBonusPoints' in patch) row.review_bonus_points = (patch as any).reviewBonusPoints
 
     // 先查是否已有設定列（不假設 id 型別）
     const { data: existing, error: readErr } = await supabase.from('app_settings').select('id').limit(1).maybeSingle()

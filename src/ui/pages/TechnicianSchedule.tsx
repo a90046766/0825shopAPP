@@ -64,9 +64,14 @@ export default function TechnicianSchedulePage() {
   const [hoverOrders, setHoverOrders] = useState<Record<string, any>>({})
 
   const [repos, setRepos] = useState<any>(null)
+  const [appSettings, setAppSettings] = useState<{ autoDispatchEnabled?: boolean; autoDispatchMinScore?: number; reviewBonusPoints?: number } | null>(null)
+  const [savingSettings, setSavingSettings] = useState(false)
   useEffect(()=>{ (async()=>{ const a = await loadAdapters(); setRepos(a) })() },[])
   useEffect(() => {
     if(!repos) return
+    ;(async()=>{
+      try { const s = await repos.settingsRepo.get(); setAppSettings(s) } catch {}
+    })()
     ;(async()=>{
       try {
         const start = new Date()
@@ -409,15 +414,16 @@ export default function TechnicianSchedulePage() {
             </div>
             <div className="mt-2">
               <button
+                disabled={!appSettings?.autoDispatchEnabled}
                 onClick={()=>{
-                  const MIN_SCORE = 80 // 4星門檻（0~100制）
+                  const MIN_SCORE = typeof appSettings?.autoDispatchMinScore === 'number' ? appSettings!.autoDispatchMinScore! : 80
                   const pick = recommended.find(t=> (typeof t.rating_override==='number'? t.rating_override : (typeof (t as any).ratingAvg==='number' ? (t as any).ratingAvg : 80)) >= MIN_SCORE)
                   if (!pick) { alert('沒有達到門檻的可自派技師'); return }
                   setSelected(s=> ({ ...Object.keys(s).reduce((m,k)=>{m[k]=false;return m},{} as any), [pick.id]: true }))
                   handleAssign()
                 }}
-                className="rounded bg-emerald-600 px-3 py-1 text-white text-xs"
-              >自動指派</button>
+                className={`rounded px-3 py-1 text-white text-xs ${appSettings?.autoDispatchEnabled? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-400 cursor-not-allowed'}`}
+              >自動指派{appSettings?.autoDispatchEnabled? '' : '（已關閉）'}</button>
             </div>
           </div>
         )}
@@ -547,7 +553,36 @@ export default function TechnicianSchedulePage() {
       <div className="rounded-2xl bg-white p-4 shadow-card">
         <div className="flex items-center justify-between">
           <div className="text-lg font-semibold">內部排班/請假</div>
-          <button onClick={() => setSupportOpen(o => !o)} className="rounded-lg bg-gray-100 px-3 py-1 text-sm">{supportOpen ? '收起' : '展開'}</button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSupportOpen(o => !o)} className="rounded-lg bg-gray-100 px-3 py-1 text-sm">{supportOpen ? '收起' : '展開'}</button>
+          </div>
+        </div>
+        {/* 自動派工與評分贈點 設定（僅管理端可見） */}
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="rounded border p-3">
+            <div className="font-semibold mb-2">自動派工</div>
+            <label className="flex items-center gap-2 mb-2">
+              <input type="checkbox" checked={!!appSettings?.autoDispatchEnabled} onChange={e=> setAppSettings(s=> ({ ...(s||{}), autoDispatchEnabled: e.target.checked }))} />
+              <span>啟用自動派工</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <span>最低分數</span>
+              <input type="number" min={0} max={100} value={typeof appSettings?.autoDispatchMinScore==='number'? appSettings!.autoDispatchMinScore! : 80} onChange={e=> setAppSettings(s=> ({ ...(s||{}), autoDispatchMinScore: Number(e.target.value) }))} className="w-20 rounded border px-2 py-1" />
+            </div>
+          </div>
+          <div className="rounded border p-3">
+            <div className="font-semibold mb-2">好評贈點</div>
+            <div className="flex items-center gap-2">
+              <span>贈點數</span>
+              <input type="number" min={0} max={1000} value={typeof appSettings?.reviewBonusPoints==='number'? appSettings!.reviewBonusPoints! : 50} onChange={e=> setAppSettings(s=> ({ ...(s||{}), reviewBonusPoints: Number(e.target.value) }))} className="w-20 rounded border px-2 py-1" />
+            </div>
+          </div>
+          <div className="rounded border p-3 flex items-end">
+            <button disabled={!repos || savingSettings || !appSettings} onClick={async()=>{
+              if(!repos || !appSettings) return
+              try { setSavingSettings(true); await repos.settingsRepo.update(appSettings) ; alert('設定已儲存') } catch(e:any){ alert('儲存失敗：'+(e?.message||'')) } finally { setSavingSettings(false) }
+            }} className={`rounded px-3 py-2 text-white text-xs ${savingSettings?'bg-gray-400':'bg-blue-600 hover:bg-blue-700'}`}>{savingSettings?'儲存中…':'儲存設定'}</button>
+          </div>
         </div>
         {supportOpen && (
           <div className="mt-3 space-y-3">

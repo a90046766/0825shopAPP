@@ -551,6 +551,10 @@ export interface AppSettings {
   bulletinUpdatedBy?: string
   countdownEnabled?: boolean
   countdownMinutes?: number
+  // 新增：營運控制開關
+  autoDispatchEnabled?: boolean
+  autoDispatchMinScore?: number // 0~100，預設 80（=4星）
+  reviewBonusPoints?: number // 會員好評上傳截圖贈點（預設 50）
 }
 
 export interface SettingsRepo {

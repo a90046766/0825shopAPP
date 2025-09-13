@@ -35,14 +35,14 @@ exports.handler = async (event) => {
       const fetchOrder = async () => {
         let { data, error } = await supabase
           .from('orders')
-          .select('id, order_number, signatures')
+          .select('id, order_number, signatures, customer_email')
           .eq('order_number', orderId)
           .maybeSingle()
         if (error && error.code !== 'PGRST116') throw error
         if (!data) {
           const r = await supabase
             .from('orders')
-            .select('id, order_number, signatures')
+            .select('id, order_number, signatures, customer_email')
             .eq('id', orderId)
             .maybeSingle()
           if (r.error && r.error.code !== 'PGRST116') throw r.error
@@ -77,6 +77,36 @@ exports.handler = async (event) => {
       }
 
       await doUpdate()
+
+      // After successful rating, push a member notification with two bonus options if configured
+      try {
+        // Read settings for bonus points
+        const { data: settingsRow } = await supabase.from('app_settings').select('*').limit(1).maybeSingle()
+        const bonus = Number(settingsRow?.review_bonus_points || 0)
+        if (bonus > 0) {
+          const targetEmail = (order.customer_email || '').toLowerCase()
+          const title = '評價完成，選擇回饋'
+          const bodyObj = {
+            kind: 'review_prompt',
+            orderId: order.order_number || order.id,
+            bonus,
+            options: [
+              { label: `好評 +${bonus}`, url: `/.netlify/functions/review-bonus?orderId=${encodeURIComponent(order.order_number || order.id)}&memberId=${encodeURIComponent(memberId)}&kind=good` },
+              { label: `建議評 +${bonus}`, url: `/.netlify/functions/review-bonus?orderId=${encodeURIComponent(order.order_number || order.id)}&memberId=${encodeURIComponent(memberId)}&kind=suggest` }
+            ]
+          }
+          await supabase.from('notifications').insert({
+            title,
+            body: JSON.stringify(bodyObj),
+            level: 'info',
+            target: 'user',
+            target_user_email: targetEmail,
+            sent_at: new Date().toISOString(),
+            created_at: new Date().toISOString()
+          })
+        }
+      } catch {}
+
       return json(200, { success: true })
     }
 
