@@ -205,6 +205,16 @@ export default function TechnicianSchedulePage() {
       .filter(x => x.reason && !assignable.find(a => a.id === x.t.id))
   }, [techs, leaves, works, date, start, end, assignable])
 
+  // 建議順序（依評分高→當日負荷少）
+  const recommended = useMemo(() => {
+    const countWorks = (emailLc: string) => works.filter(w => (w.technicianEmail||'').toLowerCase()===emailLc && w.date===date).length
+    const score = (t:any) => typeof t.rating_override === 'number' ? t.rating_override : (typeof t.ratingAvg==='number' ? t.ratingAvg : 80)
+    return [...assignable]
+      .map(t => ({ t, s: score(t), load: countWorks((t.email||'').toLowerCase()) }))
+      .sort((a,b)=> b.s - a.s || a.load - b.load)
+      .map(x=> x.t)
+  }, [assignable, works, date])
+
   const toggleSelect = (id: string) => setSelected(s => ({ ...s, [id]: !s[id] }))
   const emailToTech = useMemo(()=>{
     const map: Record<string, any> = {}
@@ -370,6 +380,31 @@ export default function TechnicianSchedulePage() {
       {user?.role!=='technician' && (
       <div className="rounded-2xl bg-white p-4 shadow-card">
         <div className="text-sm text-gray-500">以下為未在該時段請假的可用技師。可依區域和技能篩選；選擇多人後，回訂單頁指定簽名技師。</div>
+        {/* 建議排序與自動指派 */}
+        {recommended.length>0 && (
+          <div className="mt-3 rounded-lg bg-emerald-50 p-3 text-xs">
+            <div className="mb-2 font-semibold">建議順序（高評分·低負荷優先）</div>
+            <div className="flex flex-wrap gap-2">
+              {recommended.slice(0,8).map(t=>{
+                const s = typeof t.rating_override==='number'? t.rating_override : (typeof (t as any).ratingAvg==='number' ? (t as any).ratingAvg : 80)
+                const load = works.filter(w=> (w.technicianEmail||'').toLowerCase()===(t.email||'').toLowerCase() && w.date===date).length
+                return <span key={t.id} className="rounded-full bg-white px-2 py-0.5 border text-gray-700">{t.shortName||t.name} · {(Math.round(s)/20).toFixed(1)}★ · {load}單</span>
+              })}
+            </div>
+            <div className="mt-2">
+              <button
+                onClick={()=>{
+                  const MIN_SCORE = 80 // 4星門檻（0~100制）
+                  const pick = recommended.find(t=> (typeof t.rating_override==='number'? t.rating_override : (typeof (t as any).ratingAvg==='number' ? (t as any).ratingAvg : 80)) >= MIN_SCORE)
+                  if (!pick) { alert('沒有達到門檻的可自派技師'); return }
+                  setSelected(s=> ({ ...Object.keys(s).reduce((m,k)=>{m[k]=false;return m},{} as any), [pick.id]: true }))
+                  handleAssign()
+                }}
+                className="rounded bg-emerald-600 px-3 py-1 text-white text-xs"
+              >自動指派</button>
+            </div>
+          </div>
+        )}
         
         {/* 區域篩選 */}
         <div className="mt-3 rounded-lg bg-blue-50 p-3 text-xs">
@@ -433,7 +468,7 @@ export default function TechnicianSchedulePage() {
           </div>
         </div>
         <div className="mt-3 grid grid-cols-1 gap-2">
-          {assignable.map(t => {
+          {recommended.map(t => {
             const selectedKeys = Object.keys(skillFilter).filter(k => skillFilter[k])
             return (
               <label key={t.id} className={`flex flex-col gap-1 rounded-xl border p-3 ${selected[t.id] ? 'border-brand-400' : ''}`}>
