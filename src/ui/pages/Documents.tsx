@@ -20,7 +20,12 @@ const COMMON_TAGS = [
 ]
 
 export default function DocumentsPage() {
-  const u = authRepo.getCurrentUser()
+  const getCurrentUser = () => {
+    try { const s = localStorage.getItem('supabase-auth-user'); if (s) return JSON.parse(s) } catch {}
+    try { const l = localStorage.getItem('local-auth-user'); if (l) return JSON.parse(l) } catch {}
+    return authRepo.getCurrentUser()
+  }
+  const u = getCurrentUser()
   // 內部人員都可以訪問文件管理
   if (!u || (u.role !== 'admin' && u.role !== 'support' && u.role !== 'technician')) {
     return <Navigate to="/dispatch" replace />

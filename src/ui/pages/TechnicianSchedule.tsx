@@ -314,24 +314,7 @@ export default function TechnicianSchedulePage() {
                     )}
                   </div>
                   
-                  {/* 可用技師 */}
-                  <div>
-                    <div className="font-medium text-gray-700">可用技師：</div>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {techs.map((tech: any) => (
-                        <button
-                          key={tech.id}
-                          className="rounded bg-brand-100 px-2 py-1 text-xs text-brand-700 hover:bg-brand-200"
-                          onClick={() => {
-                            // 這裡可以實現指派功能
-                            alert(`指派 ${tech.name} 到 ${hoverDate}`)
-                          }}
-                        >
-                          {tech.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {/* 技師視角不顯示其他技師清單，避免資訊外洩並提升渲染效能 */}
                 </div>
               </div>
             )}
