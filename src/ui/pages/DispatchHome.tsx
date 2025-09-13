@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { can } from '../../utils/permissions'
 // 改為動態從 adapters 取得 authRepo
 import { loadAdapters } from '../../adapters'
@@ -11,7 +11,16 @@ export default function PageDispatchHome() {
   const [loading, setLoading] = useState(true)
   const editable = !!user && (user.role==='admin' || user.role==='support')
 
-  useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a); setUser(a.authRepo.getCurrentUser()); try{ const s = await (a as any).settingsRepo?.get?.(); setBulletin((s&&s.bulletin)||'') } finally { setLoading(false) } })() }, [])
+  const taRef = useRef<HTMLTextAreaElement|null>(null)
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }
+
+  useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a); setUser(a.authRepo.getCurrentUser()); try{ const s = await (a as any).settingsRepo?.get?.(); const val = (s&&s.bulletin)||''; setBulletin(val); setTimeout(()=>autoResize(taRef.current), 0) } finally { setLoading(false) } })() }, [])
+  useEffect(()=>{ autoResize(taRef.current) }, [bulletin])
+  useEffect(()=>{ const onResize = () => autoResize(taRef.current); window.addEventListener('resize', onResize, { passive: true } as any); return () => window.removeEventListener('resize', onResize) }, [])
 
   async function saveBulletin() {
     if (!repos || !user) return
@@ -33,9 +42,10 @@ export default function PageDispatchHome() {
           ) : editable ? (
             <div className="space-y-2">
               <textarea
+                ref={taRef}
                 value={bulletin}
                 onChange={e=>setBulletin(e.target.value)}
-                onInput={e=>{ const ta = e.currentTarget; ta.style.height='auto'; ta.style.height = Math.min(ta.scrollHeight, 1000) + 'px' }}
+                onInput={e=>autoResize(e.currentTarget)}
                 className="w-full rounded-lg border px-3 py-2 min-h-[96px] resize-none overflow-hidden"
                 placeholder="輸入公告內容（僅客服/管理員可編輯）"
               />

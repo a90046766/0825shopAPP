@@ -1,8 +1,6 @@
 import type { SettingsRepo, AppSettings } from '../../core/repository'
 import { supabase } from '../../utils/supabase'
 
-const ROW_ID = 1
-
 function fromRow(r: any): AppSettings {
   return {
     bulletin: r.bulletin || undefined,
@@ -15,13 +13,33 @@ function fromRow(r: any): AppSettings {
 
 class SupabaseSettingsRepo implements SettingsRepo {
   async get(): Promise<AppSettings> {
-    const { data, error } = await supabase.from('app_settings').select('*').eq('id', ROW_ID).maybeSingle()
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('*')
+      .limit(1)
+      .maybeSingle()
     if (error) throw error
     if (!data) {
-      // 初始化一筆
-      const init: any = { id: ROW_ID, bulletin: '', countdown_enabled: false, countdown_minutes: 20 }
-      const { data: created, error: e2 } = await supabase.from('app_settings').insert(init).select().single()
-      if (e2) throw e2
+      // 初始化一筆（不假設 id 型別，先嘗試不帶 id）
+      const initRow: any = { bulletin: '', countdown_enabled: false, countdown_minutes: 20 }
+      let created: any = null
+      try {
+        const res = await supabase.from('app_settings').insert(initRow).select('*').maybeSingle()
+        if (res.error) throw res.error
+        created = res.data
+      } catch (e1: any) {
+        // 退而求其次：嘗試 id=1
+        try {
+          const res2 = await supabase.from('app_settings').insert({ id: 1, ...initRow }).select('*').maybeSingle()
+          if (res2.error) throw res2.error
+          created = res2.data
+        } catch (e2: any) {
+          // 再退一步：嘗試 id='default'
+          const res3 = await supabase.from('app_settings').insert({ id: 'default', ...initRow }).select('*').maybeSingle()
+          if (res3.error) throw res3.error
+          created = res3.data
+        }
+      }
       return fromRow(created)
     }
     return fromRow(data)
@@ -34,10 +52,41 @@ class SupabaseSettingsRepo implements SettingsRepo {
     if ('bulletinUpdatedBy' in patch) row.bulletin_updated_by = (patch as any).bulletinUpdatedBy
     if ('countdownEnabled' in patch) row.countdown_enabled = (patch as any).countdownEnabled
     if ('countdownMinutes' in patch) row.countdown_minutes = (patch as any).countdownMinutes
-    const { error } = await supabase.from('app_settings').upsert({ id: ROW_ID, ...row })
+
+    // 先查是否已有設定列（不假設 id 型別）
+    const { data: existing, error: readErr } = await supabase.from('app_settings').select('id').limit(1).maybeSingle()
+    if (readErr) throw readErr
+
+    if (existing && typeof existing.id !== 'undefined') {
+      // 以現有 id 更新
+      const { error: updErr } = await supabase.from('app_settings').update(row).eq('id', existing.id)
+      if (updErr) throw updErr
+    } else {
+      // 新增：分三段嘗試，避免型別不符
+      let insErr: any = null
+      try {
+        const r1 = await supabase.from('app_settings').insert(row)
+        if (r1.error) throw r1.error
+      } catch (e1: any) {
+        insErr = e1
+        try {
+          const r2 = await supabase.from('app_settings').insert({ id: 1, ...row })
+          if (r2.error) throw r2.error
+          insErr = null
+        } catch (e2: any) {
+          insErr = e2
+          const r3 = await supabase.from('app_settings').insert({ id: 'default', ...row })
+          if (r3.error) throw r3.error
+          insErr = null
+        }
+      }
+      if (insErr) throw insErr
+    }
+
+    // 回讀最新一筆
+    const { data, error } = await supabase.from('app_settings').select('*').limit(1).maybeSingle()
     if (error) throw error
-    // 再讀一次保險
-    return await this.get()
+    return fromRow(data)
   }
 }
 

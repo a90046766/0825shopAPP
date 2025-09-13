@@ -14,6 +14,23 @@ export default function TechnicianManagementPage() {
   const [ratingEdit, setRatingEdit] = useState<{ id:number; override:number|null }|null>(null)
   useEffect(() => { (async()=>{ const a:any = await loadAdapters(); setRepo(a.technicianRepo); setUser(a.authRepo.getCurrentUser()) ; setRows(await a.technicianRepo.list()) })() }, [])
   const load = async () => { if (!repo) return; setRows(await repo.list()) }
+
+  async function resetPassword(email: string, name?: string, phone?: string) {
+    try {
+      if (!email) { alert('缺少 email'); return }
+      const payload = { email: String(email).toLowerCase(), newPassword: 'a123123', userType: 'technician', name: name||'', phone: phone||'' }
+      const res = await fetch('/.netlify/functions/admin-set-password', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+      const data = await res.json().catch(()=>({}))
+      if (!res.ok || !data?.ok) {
+        alert('重設失敗：' + (data?.message || res.statusText))
+        return
+      }
+      alert('已重設為 a123123，請通知技師於 /login 登入後再更改')
+    } catch (e:any) {
+      alert('重設失敗：' + (e?.message || '未知錯誤'))
+    }
+  }
+
   return (
     <div className="space-y-3">
       <div className="text-lg font-semibold">技師管理</div>
@@ -68,7 +85,10 @@ export default function TechnicianManagementPage() {
               <button onClick={()=>{navigator.clipboard.writeText(t.code)}} className="rounded-lg bg-gray-100 px-3 py-1 text-sm">複製編號</button>
               <button onClick={()=>setEdit(t)} className="rounded-lg bg-gray-900 px-3 py-1 text-white">編輯</button>
               {(() => { const email = (user?.email||'').toLowerCase(); const canAdjust = user?.role==='admin' || email==='a90046766@gmail.com'; return canAdjust ? (
-                <button onClick={()=>setRatingEdit({ id: t.id, override: t.rating_override ?? null })} className="rounded-lg bg-indigo-600 px-3 py-1 text-white">調整評分</button>
+                <>
+                  <button onClick={()=>setRatingEdit({ id: t.id, override: t.rating_override ?? null })} className="rounded-lg bg-indigo-600 px-3 py-1 text-white">調整評分</button>
+                  <button onClick={()=> resetPassword(t.email, t.name, t.phone)} className="rounded-lg bg-rose-600 px-3 py-1 text-white">重設密碼</button>
+                </>
               ) : null })()}
               <button onClick={async()=>{ const { confirmTwice } = await import('../kit'); if(await confirmTwice('確認刪除此技師？','刪除後無法復原，仍要刪除？')){ await (await import('../../adapters/local/technicians')).technicianRepo.remove(t.id); load() } }} className="rounded-lg bg-rose-500 px-3 py-1 text-white">刪除</button>
             </div>
