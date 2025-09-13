@@ -76,6 +76,7 @@ export default function InventoryPage() {
     try {
       const quantity = prompt(`請輸入要購買的 ${item.name} 數量：`)
       if (!quantity || isNaN(Number(quantity))) return
+      if (Number(quantity) <= 0) { alert('數量需大於 0'); return }
       
       const purchaseRequest = {
         id: `PUR-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
@@ -87,8 +88,6 @@ export default function InventoryPage() {
         requesterRole: u.role,
         status: 'pending', // pending, approved, rejected, completed
         requestDate: new Date().toISOString(),
-        approvedBy: null,
-        approvedDate: null,
         notes: '',
         priority: 'normal', // low, normal, high, urgent
       }
@@ -96,27 +95,19 @@ export default function InventoryPage() {
       // 保存購買申請
       await repos.inventoryRepo.createPurchaseRequest(purchaseRequest)
       
-      // 發送通知給管理員和客服
-      const notification = {
-        id: `NOT-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
-        title: '工具設備購買申請',
-        message: `${u.name} 申請購買 ${item.name} x${quantity} 件`,
-        type: 'purchase_request',
-        priority: 'normal',
-        targetRoles: ['admin', 'support'],
-        senderId: u.id,
-        senderName: u.name,
-        createdAt: new Date().toISOString(),
-        readBy: [],
-        data: {
-          purchaseRequestId: purchaseRequest.id,
-          itemId: item.id,
-          itemName: item.name,
-          quantity: Number(quantity),
-        }
-      }
-      
-      await repos.notificationRepo.create(notification)
+      // 建立回報中心貼文，通知管理員與客服
+      try {
+        const report = {
+          subject: '庫存購買申請',
+          body: `${u.name} 申請購買 ${item.name} x${quantity} 件。請協助出貨或後續處理。`,
+          category: 'reminder',
+          level: 'normal',
+          target: 'support',
+          targetEmails: [],
+          messages: [ { authorEmail: (u.email||'').toLowerCase(), body: `申請單號：${purchaseRequest.id}` } ]
+        } as any
+        await repos.reportsRepo.create(report)
+      } catch {}
       
       alert('購買申請已送出，等待管理員審核')
       load()
@@ -300,7 +291,7 @@ export default function InventoryPage() {
               </div>
               
               <div className="flex flex-col gap-2 ml-4">
-                {can(u, 'inventory.purchase') && (item.quantity || 0) > 0 && (
+                {can(u, 'inventory.purchase') && (
                   <button 
                     onClick={(e)=>{ e.stopPropagation(); requestPurchase(item) }}
                     className="rounded-lg bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600"

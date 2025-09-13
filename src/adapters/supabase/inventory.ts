@@ -50,7 +50,18 @@ function toPurchaseRequestDbRow(request: Partial<PurchaseRequest>): any {
     requestDate: 'request_date',
   }
   for (const [camel, snake] of Object.entries(map)) {
-    if (camel in r) r[snake] = (r as any)[camel]
+    if (camel in r) {
+      r[snake] = (r as any)[camel]
+      delete (r as any)[camel]
+    }
+  }
+  // 僅保留資料庫存在的欄位，其餘移除
+  // 允許的直傳欄位（與資料表同名）
+  const allowed = new Set(['status', 'notes', 'priority'])
+  for (const key of Object.keys(r)) {
+    if (!(key in Object.values(map).reduce((acc:any,k)=>{acc[k]=true;return acc}, {} as any)) && !allowed.has(key)) {
+      delete (r as any)[key]
+    }
   }
   return r
 }
