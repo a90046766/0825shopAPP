@@ -265,19 +265,28 @@ export default function NewShop() {
 										className="absolute inset-0 w-full h-full object-contain object-center"
 										onError={(e)=>{ (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop' }}
 									/>
-									<div className="relative z-10 h-full p-8 flex items-center">
-										<div className="flex items-center gap-2 mb-4">
-											<span className="text-3xl">✨</span>
-											<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
-            </div>
-										<h2 className="text-3xl md:text-4xl font-bold mb-3">{s.title}</h2>
-										{s.subtitle ? <p className="text-lg md:text-xl text-white/90 mb-6">{s.subtitle}</p> : null}
-										{s.ctaText && s.ctaLink ? (
-											<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
-										) : null}
-          </div>
-        </div>
-      )}
+									{(i === 0 || i === 2) ? (
+										<div className="absolute left-4 bottom-4 z-10">
+											{s.ctaText && s.ctaLink ? (
+												<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
+											) : null}
+										</div>
+									) : (
+										<div className="relative z-10 h-full p-8 flex items-center">
+											<div className="flex items-center gap-2 mb-4">
+												<span className="text-3xl">✨</span>
+												<span className="text-sm bg-white/20 px-3 py-1 rounded-full">精選活動</span>
+											</div>
+											<h2 className="text-3xl md:text-4xl font-bold mb-3">{s.title}</h2>
+											{s.subtitle ? <p className="text-lg md:text-xl text-white/90 mb-6">{s.subtitle}</p> : null}
+											{s.ctaText && s.ctaLink ? (
+												<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
+											) : null}
+										</div>
+									)}
+								</div>
+							)
+
 						</div>
 					))}
             </div>
