@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
-import { reportsRepo } from '../../adapters/local/reports'
 import { confirmTwice } from '../kit'
-import { authRepo } from '../../adapters/local/auth'
 import { loadAdapters } from '../../adapters'
 
 export default function ReportCenterPage(){
@@ -14,11 +12,13 @@ export default function ReportCenterPage(){
   const [selectedNames, setSelectedNames] = useState<Record<string, boolean>>({})
   const [filters, setFilters] = useState<{ category: string; level: string; status: string }>({ category:'', level:'', status:'' })
   const [checked, setChecked] = useState<Record<string, boolean>>({})
-  const me = authRepo.getCurrentUser()
+  const [me, setMe] = useState<any>(null)
+  const [repo, setRepo] = useState<any>(null)
 
-  useEffect(()=>{ (async()=>{ try{ const a: any = await loadAdapters(); const techRepo = a?.technicianRepo; const staffRepo = a?.staffRepo; const [techs, staffs] = await Promise.all([techRepo?.list?.()||[], staffRepo?.list?.()||[]]); const list = [...(techs||[]), ...(staffs||[])].map((p:any)=>({ id:p.id, name:p.name, email:p.email })) ; setPeople(list) }catch{} })() },[])
+  useEffect(()=>{ (async()=>{ try{ const a: any = await loadAdapters(); setRepo(a.reportsRepo); setMe(a.authRepo.getCurrentUser()); const techRepo = a?.technicianRepo; const staffRepo = a?.staffRepo; const [techs, staffs] = await Promise.all([techRepo?.list?.()||[], staffRepo?.list?.()||[]]); const list = [...(techs||[]), ...(staffs||[])].map((p:any)=>({ id:p.id, name:p.name, email:p.email })) ; setPeople(list) }catch{} })() },[])
   const load = async()=> {
-    const allRows = await reportsRepo.list()
+    if (!repo) return
+    const allRows = await repo.list()
     // 技師只能看到自己相關的回報
     if (me?.role === 'technician') {
       const userEmail = (me.email || '').toLowerCase()
@@ -31,8 +31,10 @@ export default function ReportCenterPage(){
       setRows(allRows)
     }
   }
-  useEffect(()=>{ load() },[])
+  useEffect(()=>{ load() },[repo, me])
   const levelColor = (lvl:string) => lvl==='normal' ? 'bg-blue-100 text-blue-700' : (lvl==='urgent' ? 'bg-pink-100 text-pink-700' : 'bg-red-100 text-red-700')
+  const isAdminOrSupport = me?.role==='admin' || me?.role==='support'
+  const isTechnician = me?.role==='technician'
 
   const visibleRows = rows.filter(t => {
     return (!filters.category || t.category===filters.category) && (!filters.level || t.level===filters.level) && (!filters.status || t.status===filters.status)
@@ -83,15 +85,17 @@ export default function ReportCenterPage(){
         </div>
       </div>
 
-      {/* 批次操作 */}
-      <div className="flex items-center justify-between rounded bg-white p-2 text-sm shadow-card">
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1"><input type="checkbox" onChange={e=>toggleAll(e.target.checked)} />全選</label>
-          <button onClick={async()=>{ const ids = Object.keys(checked).filter(id=>checked[id]); if(ids.length===0) return; await reportsRepo.bulkMarkRead(ids, me?.email||''); load() }} className="rounded bg-gray-100 px-2 py-1">標記已讀</button>
-          <button onClick={async()=>{ const ids = Object.keys(checked).filter(id=>checked[id]); if(ids.length===0) return; if(!(await confirmTwice('批次結案選取的回報？'))) return; await reportsRepo.bulkClose(ids); load() }} className="rounded bg-rose-100 px-2 py-1 text-rose-700">批次結案</button>
+      {/* 批次操作（僅管理端） */}
+      {isAdminOrSupport && (
+        <div className="flex items-center justify-between rounded bg-white p-2 text-sm shadow-card">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1"><input type="checkbox" onChange={e=>toggleAll(e.target.checked)} />全選</label>
+            <button onClick={async()=>{ const ids = Object.keys(checked).filter(id=>checked[id]); if(ids.length===0) return; await repo.bulkMarkRead(ids, me?.email||''); load() }} className="rounded bg-gray-100 px-2 py-1">標記已讀</button>
+            <button onClick={async()=>{ const ids = Object.keys(checked).filter(id=>checked[id]); if(ids.length===0) return; if(!(await confirmTwice('批次結案選取的回報？'))) return; await repo.bulkClose(ids); load() }} className="rounded bg-rose-100 px-2 py-1 text-rose-700">批次結案</button>
+          </div>
+          <div className="text-xs text-gray-500">已選 {Object.values(checked).filter(Boolean).length} 筆</div>
         </div>
-        <div className="text-xs text-gray-500">已選 {Object.values(checked).filter(Boolean).length} 筆</div>
-      </div>
+      )}
 
       {visibleRows.map(t=> (
         <div key={t.id} className="rounded-xl border bg-white p-4 shadow-card">
@@ -105,14 +109,15 @@ export default function ReportCenterPage(){
                   <span>{t.category}</span>
                   <span>{t.status}</span>
                   {t.orderId && <a className="text-brand-600 underline" href={`#/orders/${t.orderId}`}>訂單 {t.orderId}</a>}
+                  {t.createdAt && <span>{new Date(t.createdAt).toLocaleString('zh-TW')}</span>}
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={async()=>{ await reportsRepo.markRead(t.id, me?.email||''); load() }} className="rounded-lg bg-gray-100 px-3 py-1 text-gray-700">已讀</button>
+              <button onClick={async()=>{ await repo.markRead(t.id, me?.email||''); load() }} className="rounded-lg bg-gray-100 px-3 py-1 text-gray-700">已讀</button>
               <button onClick={()=>setActive(t)} className="rounded-lg bg-gray-900 px-3 py-1 text-white">查看</button>
-              {t.status==='open' && <button onClick={async()=>{ await reportsRepo.close(t.id); load() }} className="rounded-lg bg-rose-500 px-3 py-1 text-white">結案</button>}
-              <button onClick={async()=>{ if(!(await confirmTwice('刪除此回報？','刪除後無法復原，仍要刪除？'))) return; await reportsRepo.removeThread(t.id); load() }} className="rounded-lg bg-gray-100 px-3 py-1 text-gray-700">刪除</button>
+              {isAdminOrSupport && t.status==='open' && <button onClick={async()=>{ await repo.close(t.id); load() }} className="rounded-lg bg-rose-500 px-3 py-1 text-white">結案</button>}
+              {isAdminOrSupport && <button onClick={async()=>{ if(!(await confirmTwice('刪除此回報？','刪除後無法復原，仍要刪除？'))) return; await repo.removeThread(t.id); load() }} className="rounded-lg bg-gray-100 px-3 py-1 text-gray-700">刪除</button>}
             </div>
           </div>
         </div>
@@ -139,26 +144,29 @@ export default function ReportCenterPage(){
                 <option value="urgent">急件</option>
                 <option value="critical">緊急</option>
               </select>
-              <div>
-                <div className="mb-1 text-xs text-gray-600">名單（以姓名勾選）</div>
-                <div className="max-h-40 space-y-1 overflow-auto rounded border p-2">
-                  {people.map(p=> (
-                    <label key={p.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={!!selectedNames[p.id]} onChange={(e)=> setSelectedNames(s=>({ ...s, [p.id]: e.target.checked }))} />
-                      <span>{p.name}</span>
-                      <span className="text-xs text-gray-400">{p.email}</span>
-                    </label>
-                  ))}
-                  {people.length===0 && <div className="text-xs text-gray-400">尚無名單</div>}
+              {!isTechnician && (
+                <div>
+                  <div className="mb-1 text-xs text-gray-600">名單（以姓名勾選）</div>
+                  <div className="max-h-40 space-y-1 overflow-auto rounded border p-2">
+                    {people.map(p=> (
+                      <label key={p.id} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={!!selectedNames[p.id]} onChange={(e)=> setSelectedNames(s=>({ ...s, [p.id]: e.target.checked }))} />
+                        <span>{p.name}</span>
+                        <span className="text-xs text-gray-400">{p.email}</span>
+                      </label>
+                    ))}
+                    {people.length===0 && <div className="text-xs text-gray-400">尚無名單</div>}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             <div className="mt-3 flex justify-end gap-2">
               <button onClick={()=>setOpen(false)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
               <button onClick={async()=>{
+                if (!repo) return
                 const emails = people.filter(p=>selectedNames[p.id]).map(p=>p.email).filter(Boolean)
-                const payload:any = { body: form.body, category: form.category, level: form.level, target: emails.length>0? 'subset':'all', targetEmails: emails, orderId: form.orderId, attachments: form.attachments }
-                await reportsRepo.create(payload)
+                const payload:any = { body: form.body, category: form.category, level: form.level, target: (!isTechnician && emails.length>0)? 'subset':'support', targetEmails: (!isTechnician ? emails : []), orderId: form.orderId, attachments: form.attachments }
+                await repo.create(payload)
                 setOpen(false); setForm({ category:'other', level:'normal', target:'all', body:'', orderId:'', attachments:[] } as any); setSelectedNames({}); load()
               }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">建立</button>
           </div>
@@ -176,9 +184,24 @@ export default function ReportCenterPage(){
               <input className="w-full rounded border px-2 py-1" placeholder="關聯訂單ID（可選）" value={active.orderId||''} onChange={e=>setActive({...active, orderId: e.target.value})} />
               <input type="file" multiple onChange={e=>onUpload(e.target.files,'active')} />
               <div className="text-xs text-gray-500">附件：{(active.attachments||[]).map((a:any)=>a.name).join(', ')||'—'}</div>
-              <div className="text-right">
-                <button onClick={async()=>{ await reportsRepo.update(active.id, { body: active.body, orderId: active.orderId, attachments: active.attachments }) }} className="rounded bg-gray-900 px-3 py-1 text-white">儲存內容</button>
-              </div>
+              {isAdminOrSupport && (
+                <div className="text-right">
+                  <button onClick={async()=>{ await repo.update(active.id, { body: active.body, orderId: active.orderId, attachments: active.attachments }) }} className="rounded bg-gray-900 px-3 py-1 text-white">儲存內容</button>
+                </div>
+              )}
+              {Array.isArray(active.messages) && active.messages.length>0 && (
+                <div className="mt-2">
+                  <div className="mb-1 text-xs text-gray-600">留言紀錄</div>
+                  <div className="space-y-2 max-h-48 overflow-auto rounded border p-2">
+                    {active.messages.map((m:any)=> (
+                      <div key={m.id} className="rounded bg-gray-50 p-2">
+                        <div className="text-xs text-gray-500">{m.authorEmail} · {new Date(m.createdAt).toLocaleString('zh-TW')}</div>
+                        <div className="text-sm text-gray-800 whitespace-pre-wrap">{m.body}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="mt-3 text-right"><button onClick={()=>setActive(null)} className="rounded bg-gray-100 px-3 py-1">關閉</button></div>
           </div>
