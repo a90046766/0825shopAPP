@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { loadAdapters } from '../../adapters'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { authRepo } from '../../adapters/local/auth'
@@ -67,67 +67,83 @@ export default function TechnicianSchedulePage() {
   useEffect(()=>{ (async()=>{ const a = await loadAdapters(); setRepos(a) })() },[])
   useEffect(() => {
     if(!repos) return
-    const start = new Date()
-    const end = new Date()
-    end.setDate(end.getDate() + 30)
-    const s = start.toISOString().slice(0, 10)
-    const e = end.toISOString().slice(0, 10)
-    repos.scheduleRepo.listTechnicianLeaves({ start: s, end: e }).then((rows:any[])=>{
-      if (user?.role==='technician') {
-        const emailLc = (user.email||'').toLowerCase(); setLeaves(rows.filter((r:any) => (r.technicianEmail||'').toLowerCase()===emailLc))
-      } else {
-        setLeaves(rows)
-      }
-    })
-    repos.technicianRepo.list().then((rows:any[])=>{
-      if (user?.role==='technician') setTechs(rows.filter((t:any) => (t.email||'').toLowerCase()===(user.email||'').toLowerCase()))
-      else setTechs(rows)
-    })
+    ;(async()=>{
+      try {
+        const start = new Date()
+        const end = new Date()
+        end.setDate(end.getDate() + 30)
+        const s = start.toISOString().slice(0, 10)
+        const e = end.toISOString().slice(0, 10)
+        const rows = await repos.scheduleRepo.listTechnicianLeaves({ start: s, end: e })
+        if (user?.role==='technician') {
+          const emailLc = (user.email||'').toLowerCase(); setLeaves(rows.filter((r:any) => (r.technicianEmail||'').toLowerCase()===emailLc))
+        } else {
+          setLeaves(rows)
+        }
+      } catch (e) { console.warn('init leaves load failed', e) }
+      try {
+        const rows = await repos.technicianRepo.list()
+        if (user?.role==='technician') setTechs(rows.filter((t:any) => (t.email||'').toLowerCase()===(user.email||'').toLowerCase()))
+        else setTechs(rows)
+      } catch (e) { console.warn('tech list load failed', e) }
+    })()
   }, [repos])
 
   // 依月份載入工單占用，並建立月曆徽章
+  const lastLoadedMonthKeyRef = useRef<string>('')
+  const monthLoadingRef = useRef<boolean>(false)
   useEffect(() => {
     const yymm = date.slice(0, 7)
     const startMonth = `${yymm}-01`
     const endMonth = monthEnd(yymm)
     if(!repos) return
-    Promise.all([
-      repos.scheduleRepo.listWork({ start: startMonth, end: endMonth }),
-      repos.scheduleRepo.listTechnicianLeaves({ start: startMonth, end: endMonth })
-    ]).then(([ws, ls]: any[]) => {
-      // 技師只能看到自己的工單
-      let filteredWorks = ws
-      if (user?.role === 'technician') {
-        const userEmail = (user.email || '').toLowerCase()
-        filteredWorks = ws.filter((w: any) => (w.technicianEmail || '').toLowerCase() === userEmail)
-      }
-      
-      setWorks(filteredWorks)
-      const map: Record<string, number> = {}
-      const overlapCount: Record<string, number> = {}
-      const leaveCount: Record<string, number> = {}
-      for (const w of filteredWorks) {
-        map[w.date] = (map[w.date] || 0) + 1
-        if (overlaps(w.startTime, w.endTime, start, end)) overlapCount[w.date] = (overlapCount[w.date] || 0) + 1
-      }
-      for (const l of ls) leaveCount[l.date] = (leaveCount[l.date] || 0) + 1
-      const emph: Record<string, 'warn' | 'danger'> = {}
-      Object.keys(overlapCount).forEach(d => { const c = overlapCount[d]; emph[d] = c >= 5 ? 'danger' : 'warn' })
-      const tips: Record<string, string> = {}
-      const days = new Set([...Object.keys(map), ...Object.keys(leaveCount)])
-      days.forEach(d => { 
-        const w = map[d] || 0; 
-        const l = leaveCount[d] || 0; 
+    const key = `${startMonth}_${endMonth}`
+    if (lastLoadedMonthKeyRef.current === key || monthLoadingRef.current) return
+    monthLoadingRef.current = true
+    ;(async()=>{
+      try {
+        const [ws, ls]: any[] = await Promise.all([
+          repos.scheduleRepo.listWork({ start: startMonth, end: endMonth }),
+          repos.scheduleRepo.listTechnicianLeaves({ start: startMonth, end: endMonth })
+        ])
+        // 技師只能看到自己的工單
+        let filteredWorks = ws
         if (user?.role === 'technician') {
-          tips[d] = `我的工單 ${w}、請假 ${l}`
-        } else {
-          tips[d] = `工單 ${w}、請假 ${l}`
+          const userEmail = (user.email || '').toLowerCase()
+          filteredWorks = ws.filter((w: any) => (w.technicianEmail || '').toLowerCase() === userEmail)
         }
-      })
-      setWorkMarkers(map)
-      setEmphasisMarkers(emph)
-      setDayTooltips(tips)
-    })
+        setWorks(filteredWorks)
+        const map: Record<string, number> = {}
+        const overlapCount: Record<string, number> = {}
+        const leaveCount: Record<string, number> = {}
+        for (const w of filteredWorks) {
+          map[w.date] = (map[w.date] || 0) + 1
+          if (overlaps(w.startTime, w.endTime, start, end)) overlapCount[w.date] = (overlapCount[w.date] || 0) + 1
+        }
+        for (const l of ls) leaveCount[l.date] = (leaveCount[l.date] || 0) + 1
+        const emph: Record<string, 'warn' | 'danger'> = {}
+        Object.keys(overlapCount).forEach(d => { const c = overlapCount[d]; emph[d] = c >= 5 ? 'danger' : 'warn' })
+        const tips: Record<string, string> = {}
+        const days = new Set([...Object.keys(map), ...Object.keys(leaveCount)])
+        days.forEach(d => { 
+          const w = map[d] || 0; 
+          const l = leaveCount[d] || 0; 
+          if (user?.role === 'technician') {
+            tips[d] = `我的工單 ${w}、請假 ${l}`
+          } else {
+            tips[d] = `工單 ${w}、請假 ${l}`
+          }
+        })
+        setWorkMarkers(map)
+        setEmphasisMarkers(emph)
+        setDayTooltips(tips)
+        lastLoadedMonthKeyRef.current = key
+      } catch (e) {
+        console.warn('month load failed', e)
+      } finally {
+        monthLoadingRef.current = false
+      }
+    })()
   }, [date, start, end, repos, user])
 
   // 當 hoverDate 變更時，補取當日工單細節（數量用）
