@@ -19,6 +19,9 @@ exports.handler = async (event) => {
       const stars = Number(body.stars)
       const score = Number(body.score)
       const comment = (body.comment || '').toString()
+      const highlights = Array.isArray(body.highlights) ? body.highlights.map(String) : []
+      const issues = Array.isArray(body.issues) ? body.issues.map(String) : []
+      const recommend = !!body.recommend
       if (!(stars >= 1 && stars <= 5)) return json(400, { success: false, error: 'invalid_stars' })
       if (!(score >= 0 && score <= 100)) return json(400, { success: false, error: 'invalid_score' })
 
@@ -53,7 +56,7 @@ exports.handler = async (event) => {
 
       const now = new Date().toISOString()
       const nextSignatures = Object.assign({}, order.signatures || {}, {
-        rating: { stars, score, comment, memberId, at: now }
+        rating: { stars, score, comment, highlights, issues, recommend, memberId, at: now }
       })
 
       // Update by order_number if possible, else by id
