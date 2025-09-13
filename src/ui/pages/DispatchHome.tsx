@@ -68,6 +68,7 @@ export default function PageDispatchHome() {
           <Link to="/me" className="rounded-xl border bg-white p-4 shadow-card">個人設定</Link>
           <Link to="/inventory" className="rounded-xl border bg-white p-4 shadow-card">庫存管理</Link>
           <Link to="/documents" className="rounded-xl border bg-white p-4 shadow-card">文件管理</Link>
+          <Link to="/models" className="rounded-xl border bg-white p-4 shadow-card">機型管理</Link>
           <Link to="/share-referral" className="rounded-xl border bg-white p-4 shadow-card">分享推薦</Link>
           <button 
             onClick={() => {

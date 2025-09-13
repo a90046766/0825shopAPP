@@ -13,7 +13,7 @@ function getCurrentUser(): any {
 }
 
 function AppBar() {
-  const title = { '/dispatch': '派工', '/me': '個人', '/schedule': '排班', '/customers': '客戶', '/payroll': '薪資', '/reports': '回報', '/report-center': '回報' } as Record<string,string>
+  const title = { '/dispatch': '日式洗濯家電服務', '/me': '個人', '/schedule': '排班', '/customers': '客戶', '/payroll': '薪資', '/reports': '回報', '/report-center': '回報' } as Record<string,string>
   const loc = useLocation()
   const navigate = useNavigate()
   const t = title[loc.pathname] || '訂單內容'

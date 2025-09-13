@@ -97,6 +97,7 @@ export default function PageProfile() {
             <label className="block">臨時聯絡人<input className="mt-1 w-full rounded border px-3 py-2" placeholder="（必填）" value={tempContact} onChange={e=>setTempContact(e.target.value)} required /></label>
           )}
           <div className="pt-2 flex items-center gap-2">
+            <span className="inline-flex items-center rounded bg-gray-100 px-2 py-1 text-xs text-gray-700">版本 v1.3.1</span>
             <button onClick={handleSave} className="rounded-xl bg-brand-500 px-4 py-2 text-white">儲存</button>
           </div>
         </div>
