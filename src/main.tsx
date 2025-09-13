@@ -41,6 +41,7 @@ const CustomersPage = React.lazy(() => import('./ui/pages/Customers'))
 const PayrollPage = React.lazy(() => import('./ui/pages/Payroll'))
 const ReportsPage = React.lazy(() => import('./ui/pages/Reports'))
 const ReportCenterPage = React.lazy(() => import('./ui/pages/ReportCenter'))
+const ShareReferralPage = React.lazy(() => import('./ui/pages/ShareReferralPage'))
 const UsedItemsPage = React.lazy(() => import('./ui/pages/UsedItems'))
 const QuotesPage = React.lazy(() => import('./ui/pages/Quotes'))
 import NewShopPage from './ui/pages/NewShop'
@@ -162,13 +163,13 @@ createRoot(document.getElementById('root')!).render(
         {/* 通知中心頁面已移除（保留站內廣播） */}
         <Route path="/schedule" element={<PrivateRoute permission="technicians.schedule.view"><TechnicianSchedulePage /></PrivateRoute>} />
         <Route path="/products" element={<PrivateRoute permission="products.manage"><ProductsPage /></PrivateRoute>} />
-        <Route path="/inventory" element={<PrivateRoute permission="inventory.manage"><InventoryPage /></PrivateRoute>} />
+        <Route path="/inventory" element={<PrivateRoute permission="inventory.purchase"><InventoryPage /></PrivateRoute>} />
         <Route path="/orders" element={<PrivateRoute permission="orders.list"><OrderManagementPage /></PrivateRoute>} />
         <Route path="/reservations" element={<Navigate to="/orders" replace />} />
         <Route path="/staff" element={<PrivateRoute permission="staff.manage"><StaffManagementPage /></PrivateRoute>} />
         <Route path="/technicians" element={<PrivateRoute permission="technicians.manage"><TechnicianManagementPage /></PrivateRoute>} />
         <Route path="/promotions" element={<PrivateRoute permission="promotions.manage"><PromotionsPage /></PrivateRoute>} />
-        <Route path="/documents" element={<PrivateRoute permission="documents.manage"><DocumentsPage /></PrivateRoute>} />
+        <Route path="/documents" element={<PrivateRoute permission="dashboard.view"><DocumentsPage /></PrivateRoute>} />
         <Route path="/models" element={<PrivateRoute permission="models.manage"><ModelsPage /></PrivateRoute>} />
         <Route path="/members" element={<PrivateRoute permission="customers.manage"><MembersPage /></PrivateRoute>} />
         <Route path="/customers" element={<PrivateRoute permission="customers.manage"><CustomersPage /></PrivateRoute>} />
@@ -183,6 +184,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/used-items" element={<PrivateRoute permission="inventory.manage"><UsedItemsPage /></PrivateRoute>} />
         <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
         <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
+        <Route path="/share-referral" element={<PrivateRoute permission="dashboard.view"><ShareReferralPage /></PrivateRoute>} />
         <Route path="/salary" element={<PrivateRoute><SalaryPage /></PrivateRoute>} />
         <Route path="/leave-management" element={<PrivateRoute><LeaveManagementPage /></PrivateRoute>} />
         <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />

@@ -276,9 +276,11 @@ export default function TechnicianSchedulePage() {
                     repos.scheduleRepo.listWork({ start: startMonth, end: endMonth }),
                     repos.scheduleRepo.listTechnicianLeaves({ start: startMonth, end: endMonth })
                   ])
-                  setWorks(ws)
+                  // 技師視角：切月時僅看自己的資料
+                  const isTech = user?.role === 'technician'
+                  setWorks(isTech ? ws.filter((w:any)=> (w.technicianEmail||'').toLowerCase() === (user?.email||'').toLowerCase()) : ws)
                   const userEmail = user?.email?.toLowerCase()
-                  setLeaves(ls.filter((l: any) => (l.technicianEmail || '').toLowerCase() === userEmail))
+                  setLeaves(isTech ? ls.filter((l: any) => (l.technicianEmail || '').toLowerCase() === userEmail) : ls)
                 }}
                 markers={workMarkers}
                 emphasis={emphasisMarkers}
