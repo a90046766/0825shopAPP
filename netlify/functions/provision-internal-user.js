@@ -33,32 +33,45 @@ exports.handler = async (event) => {
 
     // 1) Auth：建立或更新
     let user = null
-    const { data: existing, error: getErr } = await supabase.auth.admin.getUserByEmail(email)
-    if (getErr && String(getErr.message||'').includes('not found') === false) {
-      // 其他錯誤記錄但不中斷（後續嘗試建立）
-    }
-    if (existing && existing.user) {
-      user = existing.user
-      const payload = {
-        email: email,
-        user_metadata: { user_type: role === 'technician' ? 'technician' : 'staff' }
-      }
-      if (resetPassword) {
-        // 允許透過參數重設為預設密碼（僅限管理用途）
-        payload.password = DEFAULT_PASSWORD
-      }
-      await supabase.auth.admin.updateUserById(user.id, payload)
-    } else {
+    try {
+      // 先嘗試建立使用者
       const { data: created, error: createErr } = await supabase.auth.admin.createUser({
         email,
         password: DEFAULT_PASSWORD,
         email_confirm: true,
         user_metadata: { user_type: role === 'technician' ? 'technician' : 'staff' }
       })
-      if (createErr) {
+      
+      if (createErr && String(createErr.message||'').includes('already registered')) {
+        // 使用者已存在，嘗試更新
+        // 使用 listUsers 找到使用者
+        const { data: users, error: listError } = await supabase.auth.admin.listUsers()
+        if (listError) {
+          return json(500, { ok: false, error: 'list_users_failed', message: listError.message })
+        }
+        
+        const existingUser = users.users.find(u => u.email === email)
+        if (!existingUser) {
+          return json(404, { ok: false, error: 'user_not_found' })
+        }
+        
+        const payload = {
+          email: email,
+          user_metadata: { user_type: role === 'technician' ? 'technician' : 'staff' }
+        }
+        if (resetPassword) {
+          // 允許透過參數重設為預設密碼（僅限管理用途）
+          payload.password = DEFAULT_PASSWORD
+        }
+        await supabase.auth.admin.updateUserById(existingUser.id, payload)
+        user = existingUser
+      } else if (createErr) {
         return json(500, { ok: false, error: 'create_user_failed', message: createErr.message })
+      } else {
+        user = created.user
       }
-      user = created.user
+    } catch (e) {
+      return json(500, { ok: false, error: 'auth_operation_failed', message: String(e?.message || e) })
     }
 
     // 2) Upsert 業務表
