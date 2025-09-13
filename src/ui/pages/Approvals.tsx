@@ -12,8 +12,7 @@ import {
 
 export default function Approvals() {
   const navigate = useNavigate()
-  const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
-  const user = getCurrentUser()
+  const [user, setUser] = useState<any>(null)
   // 會員審核已取消
   const [memberApplicationRepo, setMemberApplicationRepo] = useState<any>(null)
   const [technicianApplicationRepo, setTechnicianApplicationRepo] = useState<any>(null)
@@ -33,16 +32,17 @@ export default function Approvals() {
   const [showReviewModal, setShowReviewModal] = useState(false)
 
   useEffect(() => {
-    if (!user || !can(user, 'admin')) {
-      navigate('/')
-      return
-    }
-    loadAdapters().then(adapters => {
-      // setMemberApplicationRepo(adapters.memberApplicationRepo)
-      setTechnicianApplicationRepo(adapters.technicianApplicationRepo)
-      setStaffApplicationRepo(adapters.staffApplicationRepo)
-    })
-  }, [user])
+    (async()=>{
+      try {
+        const a: any = await loadAdapters()
+        const me = a.authRepo.getCurrentUser()
+        setUser(me)
+        // setMemberApplicationRepo(a.memberApplicationRepo)
+        setTechnicianApplicationRepo(a.technicianApplicationRepo)
+        setStaffApplicationRepo(a.staffApplicationRepo)
+      } catch {}
+    })()
+  }, [])
 
   useEffect(() => { loadApplications() }, [memberApplicationRepo, technicianApplicationRepo, staffApplicationRepo])
 
@@ -90,10 +90,9 @@ export default function Approvals() {
         } else if (type === 'staff') {
           await staffApplicationRepo.approve(app.id)
           try {
+            const payload:any = { email: (app as any).email, role: (app as any).role || 'support', name: (app as any).name, phone: (app as any).phone }
             await fetch('/.netlify/functions/provision-internal-user', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: app.email, role: app.role || 'support', name: app.name, phone: app.phone })
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
             })
           } catch {}
         }
@@ -145,9 +144,9 @@ export default function Approvals() {
     }
   }
 
-  if (!user || !can(user, 'admin')) {
-    return <div className="p-4">權限不足</div>
-  }
+  const canView = !!user && (user.role==='admin' || user.role==='support')
+  const canReview = !!user && user.role==='admin'
+  if (!canView) return <div className="p-4">權限不足</div>
 
   if (loading) {
     return <div className="p-4">載入中...</div>
@@ -195,13 +194,15 @@ export default function Approvals() {
                 </div>
                 <div className="flex items-center space-x-2">
                   {getStatusBadge(app.status)}
-                  <Button 
-                    size="sm" 
-                    onClick={() => handleReview('technician', app)}
-                    disabled={app.status !== 'pending'}
-                  >
-                    審核
-                  </Button>
+                  {canReview && (
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleReview('technician', app)}
+                      disabled={app.status !== 'pending'}
+                    >
+                      審核
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -237,13 +238,15 @@ export default function Approvals() {
                 </div>
                 <div className="flex items-center space-x-2">
                   {getStatusBadge(app.status)}
-                  <Button 
-                    size="sm" 
-                    onClick={() => handleReview('staff', app)}
-                    disabled={app.status !== 'pending'}
-                  >
-                    審核
-                  </Button>
+                  {canReview && (
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleReview('staff', app)}
+                      disabled={app.status !== 'pending'}
+                    >
+                      審核
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -252,6 +255,7 @@ export default function Approvals() {
       </Card>
 
       {/* 審核模態框 */}
+      {canReview && (
       <Modal
         isOpen={showReviewModal}
         onClose={() => setShowReviewModal(false)}
@@ -289,6 +293,7 @@ export default function Approvals() {
           </div>
         </div>
       </Modal>
+      )}
     </div>
   )
 }
