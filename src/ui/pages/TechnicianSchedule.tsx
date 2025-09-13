@@ -16,7 +16,12 @@ export default function TechnicianSchedulePage() {
   const date = searchParams.get('date') || new Date().toISOString().slice(0,10)
   const start = searchParams.get('start') || '09:00'
   const end = searchParams.get('end') || '12:00'
-  const user = authRepo.getCurrentUser()
+  const getCurrentUser = () => {
+    try { const s = localStorage.getItem('supabase-auth-user'); if (s) return JSON.parse(s) } catch {}
+    try { const l = localStorage.getItem('local-auth-user'); if (l) return JSON.parse(l) } catch {}
+    return authRepo.getCurrentUser()
+  }
+  const user = getCurrentUser()
   const [view, setView] = useState<'month' | 'week'>('month')
   const [supportOpen, setSupportOpen] = useState(false)
   const [supportDate, setSupportDate] = useState(date)
