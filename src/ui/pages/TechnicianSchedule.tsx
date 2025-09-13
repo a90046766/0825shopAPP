@@ -659,7 +659,8 @@ export default function TechnicianSchedulePage() {
                         throw new Error(String(msg))
                       }
                     }
-                    const range = { start: techLeaveDate.slice(0,7)+'-01', end: techLeaveDate.slice(0,7)+'-31' }
+                    const yymm2 = techLeaveDate.slice(0,7)
+                    const range = { start: `${yymm2}-01`, end: monthEnd(yymm2) }
                     const ls = await repos.scheduleRepo.listTechnicianLeaves(range)
                     if (user?.role==='technician') { const emailLc=(user.email||'').toLowerCase(); setLeaves(ls.filter((r:any)=> (r.technicianEmail||'').toLowerCase()===emailLc)) } else { setLeaves(ls) }
                     setTechLeaveOpen(false)
