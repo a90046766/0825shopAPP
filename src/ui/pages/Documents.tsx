@@ -21,7 +21,10 @@ const COMMON_TAGS = [
 
 export default function DocumentsPage() {
   const u = authRepo.getCurrentUser()
-  if (u && u.role==='technician') return <Navigate to="/dispatch" replace />
+  // 內部人員都可以訪問文件管理
+  if (!u || (u.role !== 'admin' && u.role !== 'support' && u.role !== 'technician')) {
+    return <Navigate to="/dispatch" replace />
+  }
   
   const [rows, setRows] = useState<any[]>([])
   const [edit, setEdit] = useState<any | null>(null)

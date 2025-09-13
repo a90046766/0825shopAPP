@@ -27,6 +27,9 @@ export default function Payroll() {
   const [techMonthlyMap, setTechMonthlyMap] = useState<Record<string, any>>({})
   const [roleFilter, setRoleFilter] = useState<'all' | 'support' | 'sales' | 'technician'>('all')
   const [search, setSearch] = useState('')
+  
+  // 技師只能看到自己的薪資
+  const isTechnician = user?.role === 'technician'
   // 批次調整狀態
   const [bulkRole, setBulkRole] = useState<'all' | 'support' | 'sales' | 'technician'>('support')
   const [bulkField, setBulkField] = useState('bonus')
@@ -1240,16 +1243,20 @@ export default function Payroll() {
   return (
     <div className="p-4 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">薪資管理</h1>
+        <h1 className="text-2xl font-bold">{isTechnician ? '我的薪資' : '薪資管理'}</h1>
         <div className="flex items-center space-x-2">
           <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-40" />
-          <Select value={roleFilter} onChange={(e)=>setRoleFilter(e.target.value as any)} className="w-36">
-            <option value="all">全部</option>
-            <option value="support">客服/管理員</option>
-            <option value="sales">業務</option>
-            <option value="technician">技師</option>
-          </Select>
-          <Input placeholder="搜尋姓名/Email" value={search} onChange={(e)=>setSearch(e.target.value)} className="w-48" />
+          {!isTechnician && (
+            <>
+              <Select value={roleFilter} onChange={(e)=>setRoleFilter(e.target.value as any)} className="w-36">
+                <option value="all">全部</option>
+                <option value="support">客服/管理員</option>
+                <option value="sales">業務</option>
+                <option value="technician">技師</option>
+              </Select>
+              <Input placeholder="搜尋姓名/Email" value={search} onChange={(e)=>setSearch(e.target.value)} className="w-48" />
+            </>
+          )}
           {can(user, 'admin') && (
             <>
               <Button variant="outline" onClick={exportCSV}>匯出 CSV</Button>
@@ -1260,11 +1267,13 @@ export default function Payroll() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Tab to="/payroll/support" label="客服/管理員" />
-        <Tab to="/payroll/sales" label="業務" />
-        <Tab to="/payroll/technician" label="技師" />
-      </div>
+      {!isTechnician && (
+        <div className="flex items-center gap-2">
+          <Tab to="/payroll/support" label="客服/管理員" />
+          <Tab to="/payroll/sales" label="業務" />
+          <Tab to="/payroll/technician" label="技師" />
+        </div>
+      )}
 
       {/* 單一角色人員選取 */}
       {can(user, 'admin') && (

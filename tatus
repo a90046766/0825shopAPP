@@ -1,5 +1,4 @@
-[33ma03ac61[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m chore(store): add /shopping-test page and route to verify local write & deploy
-[33mf56bd34[m fix(build): add missing PublicHeader/PublicFooter components for /store
-[33m8b9d7f1[m fix(store): 移除後端排序400；CMS Hero/Settings；預約單號；Supabase apikey-only；/store頁面CMS編輯
-[33mc9aaa4f[m chore: remove static store fallback; add public site pages
-[33m3deac5d[m Update netlify.toml
+
+                   SSUUMMMMAARRYY OOFF LLEESSSS CCOOMMMMAANNDDSS
+
+      Commands marked with * may be preceded by a number, _N.
