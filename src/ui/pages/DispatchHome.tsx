@@ -64,7 +64,6 @@ export default function PageDispatchHome() {
           <Link to="/orders" className="rounded-xl border bg-white p-4 shadow-card">訂單管理</Link>
           <Link to="/schedule" className="rounded-xl border bg-white p-4 shadow-card">排班/派工</Link>
           <Link to="/report-center" className="rounded-xl border bg-white p-4 shadow-card">回報中心</Link>
-          <Link to="/report-center" className="rounded-xl border bg-white p-4 shadow-card">通知中心</Link>
           <Link to="/payroll" className="rounded-xl border bg-white p-4 shadow-card">薪資</Link>
           <Link to="/me" className="rounded-xl border bg-white p-4 shadow-card">個人設定</Link>
           <Link to="/inventory" className="rounded-xl border bg-white p-4 shadow-card">庫存管理</Link>
