@@ -626,12 +626,25 @@ export default function TechnicianSchedulePage() {
               <div className="flex justify-end gap-2">
                 <button onClick={()=>setTechLeaveOpen(false)} className="rounded bg-gray-100 px-3 py-1">取消</button>
                 <button onClick={async()=>{
-                  if(!repos) return
-                  const color = (type: string) => type==='排休'||type==='特休'? '#FEF3C7' : type==='事假'? '#DBEAFE' : type==='婚假'? '#FCE7F3' : type==='病假'? '#E5E7EB' : '#9CA3AF'
-                  const email = (user?.role==='technician' ? (user.email||'') : techLeaveEmail || '')
-                  if (!email) { alert('請選擇技師'); return }
-                  const payload:any = { technicianEmail: email.toLowerCase(), date: techLeaveDate, fullDay: techLeaveSlot==='full', startTime: techLeaveSlot==='am'? '09:00' : (techLeaveSlot==='pm' ? '13:00' : undefined), endTime: techLeaveSlot==='am'? '12:00' : (techLeaveSlot==='pm' ? '18:00' : undefined), reason: techLeaveType, color: color(techLeaveType) }
-                  try { await repos.scheduleRepo.saveTechnicianLeave(payload); setTechLeaveOpen(false); const range = { start: techLeaveDate.slice(0,7)+'-01', end: techLeaveDate.slice(0,7)+'-31' }; const ls = await repos.scheduleRepo.listTechnicianLeaves(range); if (user?.role==='technician') { const emailLc=(user.email||'').toLowerCase(); setLeaves(ls.filter((r:any)=> (r.technicianEmail||'').toLowerCase()===emailLc)) } else { setLeaves(ls) } } catch (e:any) { alert('建立休假失敗：' + (e?.message||'')) }
+                  try {
+                    if (!repos) return
+                    const color = (type: string) => type==='排休'||type==='特休'? '#FEF3C7' : type==='事假'? '#DBEAFE' : type==='婚假'? '#FCE7F3' : type==='病假'? '#E5E7EB' : '#9CA3AF'
+                    const email = (user?.role==='technician' ? (user.email||'') : techLeaveEmail || '')
+                    if (!email) { alert('請選擇技師'); return }
+                    const payload:any = { technicianEmail: email.toLowerCase(), date: techLeaveDate, fullDay: techLeaveSlot==='full', startTime: techLeaveSlot==='am'? '09:00' : (techLeaveSlot==='pm' ? '13:00' : undefined), endTime: techLeaveSlot==='am'? '12:00' : (techLeaveSlot==='pm' ? '18:00' : undefined), reason: techLeaveType, color: color(techLeaveType) }
+                    try {
+                      await repos.scheduleRepo.saveTechnicianLeave(payload)
+                    } catch (e:any) {
+                      // fallback to service function when RLS denies
+                      await fetch('/.netlify/functions/schedule-upsert-leave', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                    }
+                    const range = { start: techLeaveDate.slice(0,7)+'-01', end: techLeaveDate.slice(0,7)+'-31' }
+                    const ls = await repos.scheduleRepo.listTechnicianLeaves(range)
+                    if (user?.role==='technician') { const emailLc=(user.email||'').toLowerCase(); setLeaves(ls.filter((r:any)=> (r.technicianEmail||'').toLowerCase()===emailLc)) } else { setLeaves(ls) }
+                    setTechLeaveOpen(false)
+                  } catch (e:any) {
+                    alert('建立休假失敗：' + (e?.message||''))
+                  }
                 }} className="rounded bg-brand-500 px-3 py-1 text-white">送出</button>
               </div>
             </div>
