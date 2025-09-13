@@ -285,7 +285,7 @@ export default function NewShop() {
 										</div>
 									)}
 								</div>
-							)
+							)}
 
 						</div>
 					))}
