@@ -546,7 +546,7 @@ export default function TechnicianSchedulePage() {
       {user?.role!=='technician' && (
       <div className="rounded-2xl bg-white p-4 shadow-card">
         <div className="flex items-center justify-between">
-          <div className="text-lg font-semibold">客服排班</div>
+          <div className="text-lg font-semibold">內部排班/請假</div>
           <button onClick={() => setSupportOpen(o => !o)} className="rounded-lg bg-gray-100 px-3 py-1 text-sm">{supportOpen ? '收起' : '展開'}</button>
         </div>
         {supportOpen && (
