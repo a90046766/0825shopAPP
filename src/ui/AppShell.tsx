@@ -108,6 +108,7 @@ function DesktopNav() {
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
   { to: '/admin/broadcast', label: '站內廣播 📢', perm: 'bulletin.manage' },
+  { to: '/admin/settings', label: '自動派工設定', perm: 'promotions.manage' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/documents', label: '文件管理', perm: 'documents.manage' },
   { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
@@ -115,12 +116,13 @@ function DesktopNav() {
   { to: '/quotes', label: '職人語錄', perm: 'dashboard.view' },
   { to: '/store', label: '購物站', perm: 'dashboard.view' },
   { to: '/cms', label: 'CMS 編輯', perm: 'promotions.manage' },
+  { to: '/approvals', label: '待審核', perm: 'approvals.manage' },
+  { to: '/feedback', label: '回饋檢視', perm: 'reports.view' },
   { to: '/me', label: '個人設定', perm: 'dashboard.view' }
 ]
   const menuBottom = [
     { to: '/technicians', label: '技師管理', perm: 'technicians.manage' },
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
-    { to: '/approvals', label: '待審核', perm: 'approvals.manage' },
     { to: '/reports', label: '報表', perm: 'reports.manage' }
   ]
 
@@ -134,10 +136,13 @@ function DesktopNav() {
         // - 訂單：orders confirmed & 未開工
         // - 回報中心：僅未結案且對當前使用者可見
         const a = await loadAdapters()
-        const [ordersAll, threads, resR] = await Promise.all([
+        const [ordersAll, threads, resR, techApps, staffApps, memberApps] = await Promise.all([
           a.orderRepo?.list?.() ?? [],
           (a as any)?.reportsRepo?.list?.() ?? [],
-          fetch('/api/reservations').then(r=>r.json()).catch(()=>({success:true,data:[]}))
+          fetch('/api/reservations').then(r=>r.json()).catch(()=>({success:true,data:[]})),
+          (a as any)?.technicianApplicationRepo?.listPending?.().catch(()=>[]) ?? [],
+          (a as any)?.staffApplicationRepo?.listPending?.().catch(()=>[]) ?? [],
+          (a as any)?.memberApplicationRepo?.listPending?.().catch(()=>[]) ?? []
         ])
         const ordersNew = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && !o.workStartedAt).length
         const needAssign = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && (!Array.isArray(o.assignedTechnicians) || o.assignedTechnicians.length===0)).length
@@ -154,15 +159,14 @@ function DesktopNav() {
           }
           return false
         }).length
-        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: visible }))
+        const approvals = (techApps?.length||0) + (staffApps?.length||0) + (memberApps?.length||0)
+        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: visible, approvals }))
       } catch {}
     })()
   }, [loc.pathname])
 
   const renderItem = (to: string, label: string, perm: any) => {
     let allowed = can(user, perm as any)
-    // 待審核：僅 admin 顯示
-    if (to === '/approvals') allowed = allowed && (user?.role === 'admin')
     const rawBadge = to==='/approvals' ? (counts.approvals||0)
       : to==='/orders' ? (counts.orders||0)
       : to==='/schedule' ? (counts.schedule||0)

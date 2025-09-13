@@ -33,13 +33,18 @@ export default function MemberBell() {
               if (t==='member') return true
               return false
             })
-            .map((n:any)=>({
-              id: n.id,
-              title: n.title,
-              message: n.body || n.message,
-              is_read: false,
-              created_at: n.created_at
-            }))
+            .map((n:any)=>{
+              let dataObj:any = null
+              try { if (n.body && typeof n.body==='string' && n.body.trim().startsWith('{')) dataObj = JSON.parse(n.body) } catch {}
+              return {
+                id: n.id,
+                title: n.title,
+                message: dataObj ? '' : (n.body || n.message),
+                data: dataObj,
+                is_read: false,
+                created_at: n.created_at
+              }
+            })
           // 合併去重（以 id 為準）
           const map: Record<string, any> = {}
           for (const it of [...merged, ...mapped]) { map[it.id] = it }
@@ -114,7 +119,18 @@ export default function MemberBell() {
               return (
               <div key={n.id} className={`p-3 ${n.is_read? 'bg-white':'bg-blue-50'}`}>
                 <div className="text-sm font-medium">{n.title}</div>
-                <div className="text-sm text-gray-600 mt-1">{n.message}</div>
+                {n.data && n.data.kind==='review_prompt' ? (
+                  <div className="mt-2 text-sm">
+                    <div className="text-gray-700">感謝您的評價！請選擇以下其一完成並領取 {Number(n.data.bonus||0)} 點：</div>
+                    <div className="mt-2 flex gap-2">
+                      {(Array.isArray(n.data.options)? n.data.options:[]).slice(0,2).map((opt:any,idx:number)=> (
+                        <a key={idx} href={opt.url} target="_blank" rel="noreferrer" className="inline-block rounded bg-rose-600 px-2 py-1 text-xs text-white hover:bg-rose-700">{opt.label}</a>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-600 mt-1">{n.message}</div>
+                )}
                 {/* 加入 LINE CTA */}
                 <div className="mt-2">
                   <a

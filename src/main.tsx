@@ -53,6 +53,7 @@ const SalaryPage = React.lazy(() => import('./ui/pages/Salary'))
 const LeaveManagementPage = React.lazy(() => import('./ui/pages/LeaveManagement'))
 const DatabaseTestPage = React.lazy(() => import('./ui/pages/DatabaseTest'))
 const AdminContentPage = React.lazy(() => import('./ui/pages/AdminContent'))
+const FeedbackPage = React.lazy(() => import('./ui/pages/Feedback'))
 const AdminSettingsPage = React.lazy(() => import('./ui/pages/AdminSettings'))
 const AdminBroadcastPage = React.lazy(() => import('./ui/pages/AdminBroadcast'))
 const MemberOrdersPage = React.lazy(() => import('./ui/pages/MemberOrders'))
@@ -181,6 +182,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/report-center" element={<PrivateRoute permission="reports.view"><ReportCenterPage /></PrivateRoute>} />
         <Route path="/admin/settings" element={<PrivateRoute permission="promotions.manage"><AdminSettingsPage /></PrivateRoute>} />
         <Route path="/admin/broadcast" element={<PrivateRoute permission="bulletin.manage"><AdminBroadcastPage /></PrivateRoute>} />
+        <Route path="/feedback" element={<PrivateRoute permission="reports.view"><FeedbackPage /></PrivateRoute>} />
         <Route path="/used-items" element={<PrivateRoute permission="inventory.manage"><UsedItemsPage /></PrivateRoute>} />
         <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
         <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
