@@ -255,7 +255,7 @@ export default function NewShop() {
 											) : null}
 										</div>
               )}
-            </div>
+        
 								</>
 							) : (
 								<div className="w-full h-full relative bg-transparent">
