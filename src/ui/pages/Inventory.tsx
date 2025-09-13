@@ -184,23 +184,25 @@ export default function InventoryPage() {
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">工具設備管理（內部用）</div>
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => {
-              setCreating(true)
-              setEdit({
-                name: '',
-                description: '',
-                category: '',
-                quantity: 0,
-                safeStock: 0,
-                unitPrice: 0,
-                imageUrls: []
-              })
-            }} 
-            className="rounded-lg bg-brand-500 px-3 py-1 text-white hover:bg-brand-600"
-          >
-            新增工具設備
-          </button>
+          {(isAdminOrSupport || can(u, 'inventory.create')) && (
+            <button 
+              onClick={() => {
+                setCreating(true)
+                setEdit({
+                  name: '',
+                  description: '',
+                  category: '',
+                  quantity: 0,
+                  safeStock: 0,
+                  unitPrice: 0,
+                  imageUrls: []
+                })
+              }} 
+              className="rounded-lg bg-brand-500 px-3 py-1 text-white hover:bg-brand-600"
+            >
+              新增工具設備
+            </button>
+          )}
         </div>
       </div>
 
@@ -254,11 +256,11 @@ export default function InventoryPage() {
       {/* 工具設備列表 */}
       <div className="space-y-3">
         {filteredRows.map(item => (
-          <div key={item.id} onClick={isAdminOrSupport ? ()=> setEdit(item) : undefined} className={`rounded-xl border p-4 shadow-card hover:shadow-lg transition-shadow ${
+          <div key={item.id} onClick={(isAdminOrSupport || can(u, 'inventory.edit')) ? ()=> setEdit(item) : undefined} className={`rounded-xl border p-4 shadow-card hover:shadow-lg transition-shadow ${
             (item.quantity || 0) <= 0 ? 'border-red-400 bg-red-50' :
             (item.quantity || 0) <= (item.safeStock || 0) ? 'border-amber-400 bg-amber-50' :
             'border-gray-200 bg-white'
-          } ${isAdminOrSupport ? 'cursor-pointer' : ''}`}>
+          } ${(isAdminOrSupport || can(u, 'inventory.edit')) ? 'cursor-pointer' : ''}`}>
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
@@ -345,7 +347,7 @@ export default function InventoryPage() {
       )}
 
       {/* 新增工具設備模態框 */}
-      {creating && (
+      {creating && (isAdminOrSupport || can(u, 'inventory.create')) && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-card max-h-[90vh] overflow-y-auto">
             <div className="mb-4 text-lg font-semibold">新增工具設備</div>
@@ -463,7 +465,7 @@ export default function InventoryPage() {
       )}
 
       {/* 編輯工具設備模態框 */}
-      {edit && !creating && (
+      {edit && !creating && (isAdminOrSupport || can(u, 'inventory.edit')) && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-card max-h-[90vh] overflow-y-auto">
             <div className="mb-4 text-lg font-semibold">編輯工具設備</div>
