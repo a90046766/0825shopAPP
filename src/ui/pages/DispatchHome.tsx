@@ -63,11 +63,24 @@ export default function PageDispatchHome() {
         <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
           <Link to="/orders" className="rounded-xl border bg-white p-4 shadow-card">訂單管理</Link>
           <Link to="/schedule" className="rounded-xl border bg-white p-4 shadow-card">排班/派工</Link>
-          <Link to="/report-center" className="rounded-xl border bg-white p-4 shadow-card">回報管理</Link>
-          <Link to="/notifications" className="rounded-xl border bg-white p-4 shadow-card">通知中心</Link>
+          <Link to="/report-center" className="rounded-xl border bg-white p-4 shadow-card">回報中心</Link>
+          <Link to="/report-center" className="rounded-xl border bg-white p-4 shadow-card">通知中心</Link>
           <Link to="/payroll" className="rounded-xl border bg-white p-4 shadow-card">薪資</Link>
           <Link to="/me" className="rounded-xl border bg-white p-4 shadow-card">個人設定</Link>
-          <Link to="/store" className="rounded-xl border bg-white p-4 shadow-card">購物車</Link>
+          <Link to="/inventory" className="rounded-xl border bg-white p-4 shadow-card">庫存管理</Link>
+          <Link to="/documents" className="rounded-xl border bg-white p-4 shadow-card">文件管理</Link>
+          <Link to="/share-referral" className="rounded-xl border bg-white p-4 shadow-card">分享推薦</Link>
+          <button 
+            onClick={() => {
+              // 登出並導航到購物站
+              localStorage.removeItem('supabase-auth-user')
+              localStorage.removeItem('local-auth-user')
+              window.location.href = '/store'
+            }}
+            className="rounded-xl border bg-white p-4 shadow-card text-left"
+          >
+            購物站
+          </button>
         </div>
       </div>
     </div>

@@ -144,20 +144,18 @@ export default function LoginPage() {
             />
           </div>
 
-          {!remember && (
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="remember"
-                checked={remember}
-                onChange={(e) => { setRemember(e.target.checked); if (!e.target.checked) { try { localStorage.removeItem('remember-login-email') } catch {} } else { saveRemembered(email) } }}
-                className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-              />
-              <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
-                記住帳號
-              </label>
-            </div>
-          )}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="remember"
+              checked={remember}
+              onChange={(e) => { setRemember(e.target.checked); if (!e.target.checked) { try { localStorage.removeItem('remember-login-email') } catch {} } else { saveRemembered(email) } }}
+              className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+            />
+            <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
+              記住帳號
+            </label>
+          </div>
         </div>
 
         <button

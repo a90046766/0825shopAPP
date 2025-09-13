@@ -140,9 +140,13 @@ export default function TechnicianSchedulePage() {
   }, [hoverDate, works, repos])
 
   useEffect(() => {
-    // Admin 檢視全部；其他僅看自己
+    // 只有管理員和客服可以看到客服排班，技師完全看不到
     if (!user) return
     if(!repos) return
+    if (user.role === 'technician') {
+      setSupportShifts([]) // 技師看不到客服排班
+      return
+    }
     repos.scheduleRepo.listSupport().then((rows:any[]) => {
       if (user.role === 'admin') setSupportShifts(rows)
       else {
@@ -359,7 +363,8 @@ export default function TechnicianSchedulePage() {
                     repos.scheduleRepo.listTechnicianLeaves({ start: startMonth, end: endMonth })
                   ])
                   setWorks(ws)
-                  setLeaves(ls)
+                  const userEmail = user?.email?.toLowerCase()
+                  setLeaves(ls.filter((l: any) => (l.technicianEmail || '').toLowerCase() === userEmail))
                 }}
                 markers={workMarkers}
                 emphasis={emphasisMarkers}

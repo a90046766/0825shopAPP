@@ -46,6 +46,12 @@ export default function PageProfile() {
   const staffLabel = (user?.role==='technician' || user?.role==='support' || user?.role==='sales' || user?.role==='admin')
 
   async function handleSave() {
+    // 驗證必填欄位
+    if (staffLabel && !tempContact.trim()) {
+      alert('請填寫臨時聯絡人')
+      return
+    }
+    
     const a: any = await loadAdapters()
     if (user.role === 'technician') {
       await a.technicianRepo.upsert({ id: record?.id, name, shortName: record?.shortName, email, phone, region: record?.region||'all', status: record?.status||'active', skills: record?.skills||{}, revenueShareScheme: record?.revenueShareScheme, tempContact } as any)
@@ -86,15 +92,12 @@ export default function PageProfile() {
           {staffLabel && memberCode && (
             <label className="block">會員編號<input className="mt-1 w-full rounded border px-3 py-2 bg-gray-50" value={memberCode} disabled /></label>
           )}
-          {/* 臨時聯絡人：目前暫存在本地，待資料表補欄位 */}
+          {/* 臨時聯絡人：必填欄位 */}
           {staffLabel && (
-            <label className="block">臨時聯絡人<input className="mt-1 w-full rounded border px-3 py-2" placeholder="（選填）" value={tempContact} onChange={e=>setTempContact(e.target.value)} /></label>
+            <label className="block">臨時聯絡人<input className="mt-1 w-full rounded border px-3 py-2" placeholder="（必填）" value={tempContact} onChange={e=>setTempContact(e.target.value)} required /></label>
           )}
           <div className="pt-2 flex items-center gap-2">
             <button onClick={handleSave} className="rounded-xl bg-brand-500 px-4 py-2 text-white">儲存</button>
-            {memberCode && (
-              <button onClick={()=>setShareOpen(true)} className="rounded-xl bg-rose-600 px-4 py-2 text-white">分享推薦</button>
-            )}
           </div>
         </div>
       </div>

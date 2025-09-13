@@ -17,7 +17,20 @@ export default function ReportCenterPage(){
   const me = authRepo.getCurrentUser()
 
   useEffect(()=>{ (async()=>{ try{ const a: any = await loadAdapters(); const techRepo = a?.technicianRepo; const staffRepo = a?.staffRepo; const [techs, staffs] = await Promise.all([techRepo?.list?.()||[], staffRepo?.list?.()||[]]); const list = [...(techs||[]), ...(staffs||[])].map((p:any)=>({ id:p.id, name:p.name, email:p.email })) ; setPeople(list) }catch{} })() },[])
-  const load = async()=> setRows(await reportsRepo.list())
+  const load = async()=> {
+    const allRows = await reportsRepo.list()
+    // 技師只能看到自己相關的回報
+    if (me?.role === 'technician') {
+      const userEmail = (me.email || '').toLowerCase()
+      setRows(allRows.filter((r: any) => 
+        (r.createdBy || '').toLowerCase() === userEmail || 
+        (r.target === 'all') ||
+        (r.target === 'technicians')
+      ))
+    } else {
+      setRows(allRows)
+    }
+  }
   useEffect(()=>{ load() },[])
   const levelColor = (lvl:string) => lvl==='normal' ? 'bg-blue-100 text-blue-700' : (lvl==='urgent' ? 'bg-pink-100 text-pink-700' : 'bg-red-100 text-red-700')
 
