@@ -107,7 +107,6 @@ function DesktopNav() {
   { to: '/orders', label: '訂單管理', perm: 'orders.list' },
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
-  { to: '/cms', label: 'CMS 編輯', perm: 'promotions.manage' },
   { to: '/admin/broadcast', label: '站內廣播 📢', perm: 'bulletin.manage' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/documents', label: '文件管理', perm: 'documents.manage' },
