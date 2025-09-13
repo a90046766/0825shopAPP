@@ -107,7 +107,7 @@ export default function Approvals() {
     }
   }
 
-  const canView = !!user && user.role==='admin'
+  const canView = !!user && (user.role==='admin' || user.role==='support')
   const canReview = canView
   if (!canView) return <div className="p-4">權限不足</div>
 
