@@ -18,8 +18,14 @@ export default function TechnicianManagementPage() {
   async function resetPassword(email: string, name?: string, phone?: string) {
     try {
       if (!email) { alert('缺少 email'); return }
-      const payload = { email: String(email).toLowerCase(), newPassword: 'a123123', userType: 'technician', name: name||'', phone: phone||'' }
-      const res = await fetch('/.netlify/functions/admin-set-password', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+      const payload = { 
+        email: String(email).toLowerCase(), 
+        role: 'technician', 
+        name: name||'', 
+        phone: phone||'',
+        resetPassword: true  // 強制重設密碼
+      }
+      const res = await fetch('/.netlify/functions/provision-internal-user', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json().catch(()=>({}))
       if (!res.ok || !data?.ok) {
         alert('重設失敗：' + (data?.message || res.statusText))
