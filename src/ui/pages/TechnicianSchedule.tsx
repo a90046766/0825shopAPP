@@ -215,20 +215,27 @@ export default function TechnicianSchedulePage() {
 
   useEffect(() => {
     // 只有管理員和客服可以看到客服排班，技師完全看不到
-    if (!user) return
     if(!repos) return
-    if (user.role === 'technician') {
+    const role = user?.role
+    const emailLc = (user?.email || '').toLowerCase()
+    if (!role) return
+    if (role === 'technician') {
       setSupportShifts([]) // 技師看不到客服排班
       return
     }
-    repos.scheduleRepo.listSupport().then((rows:any[]) => {
-      if (user.role === 'admin') setSupportShifts(rows)
+    const yymm = (supportDate || new Date().toISOString().slice(0,10)).slice(0,7)
+    const startMonth = `${yymm}-01`
+    const endMonthStr = monthEnd(yymm)
+    repos.scheduleRepo.listSupport({ start: startMonth, end: endMonthStr }).then((rows:any[]) => {
+      if (role === 'admin') setSupportShifts(rows)
       else {
-        const mine = rows.filter((r:any) => r.supportEmail && r.supportEmail.toLowerCase() === user.email.toLowerCase())
+        const mine = rows.filter((r:any) => r.supportEmail && String(r.supportEmail).toLowerCase() === emailLc)
         setSupportShifts(mine)
       }
+    }).catch((e:any)=>{
+      console.warn('listSupport failed', e)
     })
-  }, [user, supportDate])
+  }, [repos, supportDate, user?.role, user?.email])
 
   // 將客服排班名稱併入當月日曆 tooltip（管理員/客服可見）
   useEffect(() => {
