@@ -107,8 +107,9 @@ function fromDbRow(row: any): Order {
   }
 }
 
+// 輕量欄位（避免巨大 JSON，例如 photos_* 造成解析失敗或資源不足）
 const ORDERS_COLUMNS =
-  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,photos,photos_before,photos_after,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_by,created_at,updated_at'
+  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_by,created_at,updated_at'
 
 class SupabaseOrderRepo implements OrderRepo {
   async list(): Promise<Order[]> {
@@ -117,16 +118,25 @@ class SupabaseOrderRepo implements OrderRepo {
         .from('orders')
         .select(ORDERS_COLUMNS)
         .order('created_at', { ascending: false })
-      
       if (error) {
         console.error('Supabase orders list error:', error)
-        throw new Error(`訂單?�表載入失�?: ${error.message}`)
+        throw new Error(`訂單清單載入失敗: ${error.message}`)
       }
-      
       return (data || []).map(fromDbRow) as any
-    } catch (error) {
+    } catch (error: any) {
       console.error('Supabase orders list exception:', error)
-      throw new Error('訂單?�表載入失�?')
+      // 備援：若因巨大 JSON 解析失敗，改以更精簡欄位再嘗試一次
+      try {
+        const MIN_COLS = 'id,order_number,customer_name,customer_phone,customer_email,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,status,created_at,updated_at,work_started_at,work_completed_at,service_finished_at'
+        const { data } = await supabase
+          .from('orders')
+          .select(MIN_COLS)
+          .order('created_at', { ascending: false })
+        return (data || []).map(fromDbRow) as any
+      } catch (e2) {
+        console.error('Supabase orders list fallback failed:', e2)
+        throw new Error('訂單清單載入失敗')
+      }
     }
   }
 
