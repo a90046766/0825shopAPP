@@ -123,7 +123,9 @@ function DesktopNav() {
   const menuBottom = [
     { to: '/technicians', label: '技師管理', perm: 'technicians.manage' },
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
-    { to: '/reports', label: '報表', perm: 'reports.manage' }
+    { to: '/reports', label: '報表', perm: 'reports.manage' },
+    // 僅管理員可見：薪資管理（最下方）
+    ...(user?.role === 'admin' ? [{ to: '/payroll', label: '薪資管理', perm: 'payroll.view' }] : [])
   ]
 
   const [counts, setCounts] = useState<Record<string, number>>({})
