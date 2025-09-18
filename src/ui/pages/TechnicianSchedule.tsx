@@ -409,7 +409,7 @@ export default function TechnicianSchedulePage() {
               {recommended.slice(0,8).map(t=>{
                 const s = typeof t.rating_override==='number'? t.rating_override : (typeof (t as any).ratingAvg==='number' ? (t as any).ratingAvg : 80)
                 const load = works.filter(w=> (w.technicianEmail||'').toLowerCase()===(t.email||'').toLowerCase() && w.date===date).length
-                return <span key={t.id} className="rounded-full bg-white px-2 py-0.5 border text-gray-700">{t.shortName||t.name} · {(Math.round(s)/20).toFixed(1)}★ · {load}單</span>
+                return <span key={t.id} className="rounded-full bg-white px-2 py-0.5 border text-gray-700">{t.shortName||t.name} · {(s/20).toFixed(1)}★ · {load}單</span>
               })}
             </div>
             <div className="mt-2">

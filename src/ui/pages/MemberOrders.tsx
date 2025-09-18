@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { getMemberUser } from '../../utils/memberAuth'
 import { Link } from 'react-router-dom'
+import MemberBell from '../components/MemberBell'
 import { Home, ShoppingBag, ClipboardList, CheckCircle2, Share2 } from 'lucide-react'
 import ShareReferral from '../components/ShareReferral'
 import { supabase } from '../../utils/supabase'
@@ -182,7 +183,8 @@ export default function MemberOrdersPage() {
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-base md:text-lg font-bold">我的訂單</div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <MemberBell />
           <button onClick={()=>setTab('orders')} className={`rounded px-3 py-1 text-sm ${tab==='orders'?'bg-blue-600 text-white':'border border-blue-200 text-blue-600'}`}>正式訂單</button>
           <button onClick={()=>setTab('reservations')} className={`rounded px-3 py-1 text-sm ${tab==='reservations'?'bg-amber-600 text-white':'border border-amber-200 text-amber-700'}`}>預約訂單</button>
         </div>
