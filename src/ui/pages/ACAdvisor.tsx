@@ -75,7 +75,7 @@ export default function ACAdvisorPage(){
             </label>
             <label className="flex items-start gap-2">
               <input type="checkbox" checked={ack2} onChange={e=>setAck2(e.target.checked)} />
-              <span>我已了解：如有西曬、頂樓樓層、挑高（>3m），建議多加約 1 坪的冷房能力再行評估。</span>
+              <span>我已了解：如有西曬、頂樓樓層、挑高（&gt;3m），建議多加約 1 坪的冷房能力再行評估。</span>
             </label>
           </div>
         </div>
@@ -99,7 +99,7 @@ export default function ACAdvisorPage(){
               </label>
               <label className="col-span-2 inline-flex items-center gap-2 text-gray-700">
                 <input type="checkbox" checked={westSunOrTopOrHigh} onChange={e=>setWestSunOrTopOrHigh(e.target.checked)} />
-                有西曬 / 頂樓樓層 / 挑高（>3m）
+                有西曬 / 頂樓樓層 / 挑高（&gt;3m）
               </label>
             </div>
             <div className="mt-3 text-xs text-gray-500">坪數計算 = 長 × 寬 × 0.325（計算式不在結果區顯示）</div>
