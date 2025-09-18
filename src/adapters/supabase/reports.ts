@@ -1,6 +1,13 @@
 import type { ReportsRepo, ReportThread, ReportMessage } from '../../core/repository'
 import { supabase } from '../../utils/supabase'
 
+function isValidUUID(str: string): boolean {
+  if (!str) return false
+  const s = String(str).trim()
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  return uuidRegex.test(s)
+}
+
 function fromThreadRow(r: any): ReportThread {
   return {
     id: r.id,
@@ -27,6 +34,16 @@ function toThreadRow(p: Partial<ReportThread>): any {
   if ('readByEmails' in r) { r.read_by_emails = (r as any).readByEmails; delete (r as any).readByEmails }
   if ('createdAt' in r) { delete (r as any).createdAt }
   if ('closedAt' in r) { r.closed_at = (r as any).closedAt; delete (r as any).closedAt }
+  // 清理 order_id：空字串或非 UUID 一律不送，避免 22P02
+  if ('order_id' in r) {
+    const raw = (r as any).order_id
+    const s = (raw === null || raw === undefined) ? '' : String(raw).trim()
+    if (!s || !isValidUUID(s)) {
+      delete (r as any).order_id
+    } else {
+      r.order_id = s
+    }
+  }
   return r
 }
 
