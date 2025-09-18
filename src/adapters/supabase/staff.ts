@@ -19,12 +19,18 @@ function fromStaffRow(r: any): Staff {
 }
 
 function toStaffRow(p: Partial<Staff>): any {
-  const r: any = { ...p }
-  if ('shortName' in r) r.short_name = (r as any).shortName
-  if ('refCode' in r) r.ref_code = (r as any).refCode
-  if ('tempContact' in r) r.temp_contact = (r as any).tempContact
-  if ('updatedAt' in r) delete (r as any).updatedAt
-  return r
+  // 僅允許白名單欄位，避免帶入不存在的欄位（如 points）造成 PGRST204
+  const out: any = {}
+  if (p.name !== undefined) out.name = p.name
+  if ((p as any).shortName !== undefined) out.short_name = (p as any).shortName
+  if (p.email !== undefined) out.email = (p.email || '').toLowerCase()
+  if (p.phone !== undefined) out.phone = p.phone
+  if (p.role !== undefined) out.role = p.role
+  if (p.status !== undefined) out.status = p.status
+  if ((p as any).refCode !== undefined) out.ref_code = (p as any).refCode
+  if ((p as any).tempContact !== undefined) out.temp_contact = (p as any).tempContact
+  // 忽略 updatedAt/points 等前端暫存欄位
+  return out
 }
 
 class SupabaseStaffRepo implements StaffRepo {
