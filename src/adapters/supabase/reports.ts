@@ -41,31 +41,14 @@ function fromMsgRow(r: any): ReportMessage {
 
 class SupabaseReportsRepo implements ReportsRepo {
   async list(): Promise<ReportThread[]> {
-    const { data: threads, error } = await supabase
+    // 輕量清單：僅抓必要欄位與上限，避免一次性載入大量留言導致資源不足
+    const { data, error } = await supabase
       .from('report_threads')
-      .select('*')
+      .select('id, subject, body, category, level, target, target_emails, status, order_id, attachments, read_by_emails, created_at, closed_at')
       .order('created_at', { ascending: false })
+      .limit(100)
     if (error) throw error
-    const ids = (threads || []).map((t: any) => t.id)
-    if (ids.length === 0) return []
-    const { data: msgs, error: e2 } = await supabase
-      .from('report_messages')
-      .select('*')
-      .in('thread_id', ids)
-      .order('created_at', { ascending: true })
-    if (e2) throw e2
-    const map: Record<string, ReportMessage[]> = {}
-    for (const m of msgs || []) {
-      const one = fromMsgRow(m)
-      const tid = m.thread_id
-      if (!map[tid]) map[tid] = []
-      map[tid].push(one)
-    }
-    return (threads || []).map((t: any) => {
-      const base = fromThreadRow(t)
-      base.messages = map[t.id] || []
-      return base
-    })
+    return (data || []).map(fromThreadRow)
   }
 
   async get(id: string): Promise<ReportThread | null> {
