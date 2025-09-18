@@ -158,7 +158,7 @@ export default function Approvals() {
                 <div className="flex items-center space-x-2">
                   {getStatusBadge(app.status)}
                   {canReview && (
-                    <Button size="sm" onClick={() => setSelectedApplication({ app })} disabled={app.status !== 'pending'}>審核</Button>
+                    <Button size="sm" onClick={() => handleReview('technician', app)} disabled={app.status !== 'pending'}>審核</Button>
                   )}
                 </div>
               </div>
