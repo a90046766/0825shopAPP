@@ -4,7 +4,6 @@ import { loadAdapters } from '../../adapters'
 
 export default function ReportCenterPage(){
   const [rows, setRows] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<any>({ category:'other', level:'normal', target:'all', body:'', orderId:'', attachments:[] as Array<{name:string;dataUrl:string}> })
   const [active, setActive] = useState<any|null>(null)
@@ -19,40 +18,23 @@ export default function ReportCenterPage(){
   useEffect(()=>{ (async()=>{ try{ const a: any = await loadAdapters(); setRepo(a.reportsRepo); setMe(a.authRepo.getCurrentUser()); const techRepo = a?.technicianRepo; const staffRepo = a?.staffRepo; const [techs, staffs] = await Promise.all([techRepo?.list?.()||[], staffRepo?.list?.()||[]]); const list = [...(techs||[]), ...(staffs||[])].map((p:any)=>({ id:p.id, name:p.name, email:p.email })) ; setPeople(list) }catch{} })() },[])
   const load = async()=> {
     if (!repo) return
-    setLoading(true)
-    try {
-      const allRows = await repo.list()
-      const emailLc = (me?.email || '').toLowerCase()
-      if (me?.role === 'technician') {
-        setRows((allRows||[]).filter((t:any)=>{
-          if (t.target === 'all') return true
-          if (t.target === 'tech') return true
-          if (t.target === 'subset') {
-            const list = Array.isArray(t.targetEmails)? t.targetEmails.map((x:string)=>(x||'').toLowerCase()):[]
-            return list.includes(emailLc)
-          }
-          return false
-        }))
-      } else if (me?.role === 'support') {
-        setRows((allRows||[]).filter((t:any)=>{
-          if (t.target === 'all') return true
-          if (t.target === 'support') return true
-          if (t.target === 'subset') {
-            const list = Array.isArray(t.targetEmails)? t.targetEmails.map((x:string)=>(x||'').toLowerCase()):[]
-            return list.includes(emailLc)
-          }
-          return true
-        }))
-      } else {
-        setRows(allRows||[])
-      }
-    } finally {
-      setLoading(false)
+    const allRows = await repo.list()
+    // 技師只能看到自己相關的回報
+    if (me?.role === 'technician') {
+      const userEmail = (me.email || '').toLowerCase()
+      setRows(allRows.filter((r: any) => 
+        (r.createdBy || '').toLowerCase() === userEmail || 
+        (r.target === 'all') ||
+        (r.target === 'technicians')
+      ))
+    } else {
+      setRows(allRows)
     }
   }
   useEffect(()=>{ load() },[repo, me])
   const levelColor = (lvl:string) => lvl==='normal' ? 'bg-blue-100 text-blue-700' : (lvl==='urgent' ? 'bg-pink-100 text-pink-700' : 'bg-red-100 text-red-700')
   const isAdminOrSupport = me?.role==='admin' || me?.role==='support'
+  const isAdmin = me?.role==='admin'
   const isTechnician = me?.role==='technician'
 
   const visibleRows = rows.filter(t => {
@@ -134,9 +116,9 @@ export default function ReportCenterPage(){
             </div>
             <div className="flex items-center gap-2">
               <button onClick={async()=>{ await repo.markRead(t.id, me?.email||''); load() }} className="rounded-lg bg-gray-100 px-3 py-1 text-gray-700">已讀</button>
-              <button onClick={async()=>{ const full = await repo.get(t.id).catch(()=>null); setActive(full || t) }} className="rounded-lg bg-gray-900 px-3 py-1 text-white">查看</button>
+              <button onClick={()=>setActive(t)} className="rounded-lg bg-gray-900 px-3 py-1 text-white">查看</button>
               {isAdminOrSupport && t.status==='open' && <button onClick={async()=>{ await repo.close(t.id); load() }} className="rounded-lg bg-rose-500 px-3 py-1 text-white">結案</button>}
-              {isAdminOrSupport && <button onClick={async()=>{ if(!(await confirmTwice('刪除此回報？','刪除後無法復原，仍要刪除？'))) return; await repo.removeThread(t.id); load() }} className="rounded-lg bg-gray-100 px-3 py-1 text-gray-700">刪除</button>}
+              {isAdmin && <button onClick={async()=>{ if(!(await confirmTwice('刪除此回報？','刪除後無法復原，仍要刪除？'))) return; await repo.removeThread(t.id); load() }} className="rounded-lg bg-gray-100 px-3 py-1 text-gray-700">刪除</button>}
             </div>
           </div>
         </div>
@@ -208,19 +190,34 @@ export default function ReportCenterPage(){
                   <button onClick={async()=>{ await repo.update(active.id, { body: active.body, orderId: active.orderId, attachments: active.attachments }) }} className="rounded bg-gray-900 px-3 py-1 text-white">儲存內容</button>
                 </div>
               )}
-              {Array.isArray(active.messages) && active.messages.length>0 && (
-                <div className="mt-2">
-                  <div className="mb-1 text-xs text-gray-600">留言紀錄</div>
-                  <div className="space-y-2 max-h-48 overflow-auto rounded border p-2">
-                    {active.messages.map((m:any)=> (
-                      <div key={m.id} className="rounded bg-gray-50 p-2">
+              <div className="mt-2">
+                <div className="mb-1 text-xs text-gray-600">留言紀錄</div>
+                <div className="space-y-2 max-h-48 overflow-auto rounded border p-2">
+                  {(Array.isArray(active.messages)? active.messages: []).length===0 ? (
+                    <div className="text-xs text-gray-400">尚無回覆</div>
+                  ) : (
+                    (active.messages||[]).map((m:any)=> (
+                      <div key={m.id||m.createdAt} className="rounded bg-gray-50 p-2">
                         <div className="text-xs text-gray-500">{m.authorEmail} · {new Date(m.createdAt).toLocaleString('zh-TW')}</div>
                         <div className="text-sm text-gray-800 whitespace-pre-wrap">{m.body}</div>
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  )}
                 </div>
-              )}
+                <div className="mt-2 flex items-start gap-2">
+                  <textarea className="w-full rounded border px-2 py-1" rows={2} placeholder="輸入回覆內容" value={msg} onChange={e=>setMsg(e.target.value)} />
+                  <button disabled={!msg.trim()} onClick={async()=>{
+                    try {
+                      await repo.appendMessage(active.id, { authorEmail: me?.email||'', body: msg.trim() })
+                      const full = await repo.get(active.id).catch(()=>null)
+                      setActive(full || active)
+                      setMsg('')
+                    } catch {
+                      alert('送出回覆失敗')
+                    }
+                  }} className="rounded bg-brand-500 px-3 py-2 text-white disabled:opacity-50">送出</button>
+                </div>
+              </div>
             </div>
             <div className="mt-3 text-right"><button onClick={()=>setActive(null)} className="rounded bg-gray-100 px-3 py-1">關閉</button></div>
           </div>
