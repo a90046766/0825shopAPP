@@ -5,6 +5,7 @@ export default function ACAdvisorPage(){
   const navigate = useNavigate()
   const [ack1, setAck1] = useState(false)
   const [ack2, setAck2] = useState(false)
+  const [ack3, setAck3] = useState(false)
 
   const [lengthM, setLengthM] = useState<string>('')
   const [widthM, setWidthM] = useState<string>('')
@@ -49,7 +50,7 @@ export default function ACAdvisorPage(){
     return Math.max(0, idx / 6)
   }, [modelIndexInput])
 
-  const canCalc = ack1 && ack2
+  const canCalc = ack1 && ack2 && ack3
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -77,6 +78,10 @@ export default function ACAdvisorPage(){
               <input type="checkbox" checked={ack2} onChange={e=>setAck2(e.target.checked)} />
               <span>我已了解：如有西曬、頂樓樓層、挑高（&gt;3m），建議多加約 1 坪的冷房能力再行評估。</span>
             </label>
+            <label className="flex items-start gap-2">
+              <input type="checkbox" checked={ack3} onChange={e=>setAck3(e.target.checked)} />
+              <span>我已了解：本頁試算僅供參考，實際選型與價格以現場評估與品牌規格為準。</span>
+            </label>
           </div>
         </div>
 
@@ -102,13 +107,25 @@ export default function ACAdvisorPage(){
                 有西曬 / 頂樓樓層 / 挑高（&gt;3m）
               </label>
             </div>
-            <div className="mt-3 text-xs text-gray-500">坪數計算 = 長 × 寬 × 0.325（計算式不在結果區顯示）</div>
+            {/* 坪數計算式提示需求調整：依指示隱藏 */}
           </div>
 
           <div className="rounded-2xl bg-white p-4 md:p-6 shadow-sm border">
             <div className="font-semibold mb-2">結果（建議可大不可小）</div>
+            {/* 強化結果可視性 */}
+            {canCalc && effectivePing>0 ? (
+              <div className="mb-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-4 shadow">
+                <div className="text-xs opacity-90">建議型號（編號）</div>
+                <div className="text-2xl md:text-3xl font-extrabold tracking-wide">{recommendedIndex}</div>
+                <div className="text-sm mt-1">約 {recommendedKW} kW</div>
+              </div>
+            ) : (
+              <div className="mb-3 rounded-xl bg-gray-50 p-4 text-sm text-gray-600 border">
+                請先勾選上方三項說明並輸入條件，方可顯示建議結果。
+              </div>
+            )}
             <div className="space-y-2 text-sm">
-              <div className="text-gray-700">有效坪數：<span className="font-semibold">{effectivePing>0 ? effectivePing.toFixed(2) : '-'} 坪</span></div>
+              <div className="text-gray-700">有效坪數：<span className="font-semibold">{effectivePing>0 ? effectivePing.toFixed(2) : '-' } 坪</span></div>
               <div className="text-gray-700">建議型號（編號）：<span className="font-semibold">{canCalc && effectivePing>0 ? `${recommendedIndex}` : '-'}</span></div>
               <div className="text-gray-700">建議冷房能力：約 <span className="font-semibold">{canCalc && effectivePing>0 ? `${recommendedKW} kW` : '-'}</span></div>
             </div>
@@ -126,7 +143,7 @@ export default function ACAdvisorPage(){
             </label>
             <div className="text-gray-700">建議坪數內：<span className="font-semibold">{canCalc && capacityToPing>0 ? capacityToPing.toFixed(2) : '-'}</span></div>
           </div>
-          <div className="mt-3 text-xs text-gray-500">（計算式不顯示；僅於已勾選上方說明時顯示結果）</div>
+          {/* 依指示隱藏提示文字 */}
         </div>
 
         {/* 參考價目（非標準） */}
