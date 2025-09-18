@@ -48,6 +48,7 @@ import NewShopPage from './ui/pages/NewShop'
 import EntryPage from './ui/pages/Entry'
 const ShopProductsPage = React.lazy(() => import('./ui/pages/ShopProducts'))
 const ACAdvisorPage = React.lazy(() => import('./ui/pages/ACAdvisor'))
+const ACFeesPage = React.lazy(() => import('./ui/pages/ACFees'))
 const ShopCartPage = React.lazy(() => import('./ui/pages/ShopCart'))
 const OrderSuccessPage = React.lazy(() => import('./ui/pages/OrderSuccess'))
 const SalaryPage = React.lazy(() => import('./ui/pages/Salary'))
@@ -145,6 +146,7 @@ createRoot(document.getElementById('root')!).render(
       <Route path="/store" element={<NewShopPage />} />
       <Route path="/store/products" element={<ShopProductsPage />} />
       <Route path="/store/ac-advisor" element={<ACAdvisorPage />} />
+      <Route path="/store/ac-fees" element={<ACFeesPage />} />
       <Route path="/store/cart" element={<ShopCartPage />} />
       <Route path="/store/order-success" element={<OrderSuccessPage />} />
       {/* 會員中心 */}
