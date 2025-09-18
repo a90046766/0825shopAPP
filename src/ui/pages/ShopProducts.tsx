@@ -94,6 +94,7 @@ export default function ShopProductsPage() {
         id: String(r.id ?? r.uuid ?? Math.random().toString(36).slice(2)),
         name: r.name ?? '',
         description: r.description ?? '',
+        content: r.content ?? '',
         price: Number(r.unit_price ?? r.price ?? 0),
         groupPrice: (r.group_price ?? r.groupPrice) ?? null,
         groupMinQty: (r.group_min_qty ?? r.groupMinQty) ?? null,
@@ -128,7 +129,7 @@ export default function ShopProductsPage() {
         // 方案 A：直接查 Supabase（完整欄位 + 排序，若資料表完整）
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
           .order('store_sort', { ascending: true })
           .order('updated_at', { ascending: false })
         if (!(isEditor && editMode)) {
@@ -139,7 +140,7 @@ export default function ShopProductsPage() {
           // 方案 B：移除可能不存在欄位（如 store_sort）
           let q2 = supabase
             .from('products')
-            .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+            .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
             .order('updated_at', { ascending: false })
           if (!(isEditor && editMode)) q2 = q2.eq('published', true)
           const r2 = await q2
@@ -187,7 +188,7 @@ export default function ShopProductsPage() {
     try {
       let q = supabase
         .from('products')
-        .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+        .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
         .order('updated_at', { ascending: false })
       if (!(isEditor && editMode)) q = q.eq('published', true)
       const { data, error } = await q
@@ -219,6 +220,7 @@ export default function ShopProductsPage() {
       id: null,
       name: '',
       description: '',
+      content: '',
       price: 0,
       groupPrice: null,
       groupMinQty: null,
@@ -245,6 +247,7 @@ export default function ShopProductsPage() {
         group_price: edit.groupPrice ?? null,
         group_min_qty: edit.groupMinQty ?? null,
         description: edit.description || '',
+        content: edit.content || '',
         features: Array.isArray(edit.features) ? edit.features : String(edit.features||'').split(',').map((s:string)=>s.trim()).filter(Boolean),
         image_urls: Array.isArray(edit.images) && edit.images.length>0 ? edit.images : (edit.image ? [edit.image] : []),
         category: edit.category,
@@ -625,6 +628,13 @@ export default function ShopProductsPage() {
                       )}
                     </div>
 
+                    {/* 可視內容（富媒體區） */}
+                    {product.content && (
+                      <div className="mb-3 md:mb-4">
+                        <div className="rounded-lg border bg-gray-50 p-2 md:p-3"><div dangerouslySetInnerHTML={{ __html: product.content }} /></div>
+                      </div>
+                    )}
+
                     {/* 特色功能 */}
                     <div className="mb-3 md:mb-4">
                       <div className="flex flex-wrap gap-1">
@@ -794,7 +804,11 @@ export default function ShopProductsPage() {
               </div>
               <label className="md:col-span-2 flex flex-col gap-1">
                 <span className="text-gray-600">描述</span>
-                <textarea rows={3} className="rounded border px-2 py-1" value={edit.description} onChange={e=> setEdit({...edit, description: e.target.value})} />
+                <textarea rows={3} className="rounded border px-2 py-1" value={edit.description} onChange={e=> setEdit({...edit, description: e.target.value})} style={{ height: 'auto' }} onInput={(e)=>{ const el=e.currentTarget; el.style.height='auto'; el.style.height = Math.min(400, Math.max(80, el.scrollHeight))+'px' }} />
+              </label>
+              <label className="md:col-span-2 flex flex-col gap-1">
+                <span className="text-gray-600">內容（可貼圖/HTML，支援圖片URL與貼上Base64）</span>
+                <textarea rows={4} className="rounded border px-2 py-1 font-mono text-xs" placeholder="可貼入 <img src='...'> 或整段HTML" value={edit.content||''} onChange={e=> setEdit({...edit, content: e.target.value})} style={{ height: 'auto' }} onInput={(e)=>{ const el=e.currentTarget; el.style.height='auto'; el.style.height = Math.min(800, Math.max(100, el.scrollHeight))+'px' }} />
               </label>
               <label className="md:col-span-2 flex flex-col gap-1">
                 <span className="text-gray-600">特色（以逗號分隔）</span>

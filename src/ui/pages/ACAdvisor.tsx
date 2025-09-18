@@ -146,33 +146,7 @@ export default function ACAdvisorPage(){
           {/* 依指示隱藏提示文字 */}
         </div>
 
-        {/* 參考價目（非標準） */}
-        <div className="mt-4 rounded-2xl bg-white p-4 md:p-6 shadow-sm border">
-          <div className="font-semibold mb-2">參考價目（非標準，僅供參考）</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-700">
-            <div className="rounded border p-3">
-              <div className="font-medium mb-1">入門／小房間</div>
-              <div>編號 18–22（約 1.8–2.2kW）</div>
-              <div className="text-gray-500 text-xs">參考價：NT$ 18,000 – 28,000</div>
-            </div>
-            <div className="rounded border p-3">
-              <div className="font-medium mb-1">一般臥室／書房</div>
-              <div>編號 25–28（約 2.5–2.8kW）</div>
-              <div className="text-gray-500 text-xs">參考價：NT$ 26,000 – 36,000</div>
-            </div>
-            <div className="rounded border p-3">
-              <div className="font-medium mb-1">客餐廳（中）</div>
-              <div>編號 36–45（約 3.6–4.5kW）</div>
-              <div className="text-gray-500 text-xs">參考價：NT$ 36,000 – 55,000</div>
-            </div>
-            <div className="rounded border p-3">
-              <div className="font-medium mb-1">客餐廳（大）</div>
-              <div>編號 50–71（約 5.0–7.1kW）</div>
-              <div className="text-gray-500 text-xs">參考價：NT$ 50,000 – 85,000</div>
-            </div>
-          </div>
-          <div className="mt-3 text-xs text-gray-500">實際價格因品牌、變頻／能源效率、施工管線與銅管/洞距等不同而異，以現場報價為準。</div>
-        </div>
+        {/* 參考價目表依指示移除，後續另做 */}
 
         <div className="mt-6 flex items-center justify-end gap-2 text-sm">
           <button onClick={()=> navigate('/store/products?category=new')} className="rounded bg-blue-600 px-4 py-2 text-white">前往冷氣商品</button>
