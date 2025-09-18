@@ -613,60 +613,26 @@ export default function Payroll() {
         status: record.status || 'pending'
       }
       if ((record as any).id) minimal.id = (record as any).id
-      // 先嘗試最小 payload
-      const upsertOpts = (minimal.id ? {} : { onConflict: 'month,user_email' }) as any
-      let { error: e1 } = await supabase.from('payroll_records').upsert(minimal, upsertOpts)
-      if (!e1) { await loadData(); return }
-      console.error('Minimal upsert error:', e1)
-      alert(`儲存失敗：${e1?.message || '未知錯誤'}`)
-      return
- 
-      // （保留：若要改回完整 payload 自動回退，移除此 return 並啟用以下區塊）
-      /*
-      const payload: any = {
-        month: record.month,
-        userEmail: (record as any).userEmail,
-        userName: (record as any).userName,
-        employeeId: (record as any).employeeId,
-        baseSalary: record.baseSalary || 0,
-        bonus: record.bonus || 0,
-        points: record.points || 0,
-        pointsMode: record.pointsMode || 'accumulate',
-        platform: record.platform || '同',
-        status: record.status || 'pending',
-        bonusRate: (record as any).bonusRate || 0,
-        techCommission: (record as any).techCommission || 0,
-        shareScheme: (record as any).shareScheme || null,
-        shareRate: (record as any).shareRate || null,
-        baseGuarantee: (record as any).baseGuarantee || null,
-        allowance_fuel: (record as any).allowances?.fuel ?? null,
-        allowance_overtime: (record as any).allowances?.overtime ?? null,
-        allowance_holiday: (record as any).allowances?.holiday ?? null,
-        allowance_duty: (record as any).allowances?.duty ?? null,
-        allowance_other: (record as any).allowances?.other ?? null,
-        deduction_leave: (record as any).deductions?.leave ?? null,
-        deduction_tardiness: (record as any).deductions?.tardiness ?? null,
-        deduction_complaints: (record as any).deductions?.complaints ?? null,
-        deduction_repairCost: (record as any).deductions?.repairCost ?? null,
-        deduction_laborInsurance: (record as any).deductions?.laborInsurance ?? null,
-        deduction_healthInsurance: (record as any).deductions?.healthInsurance ?? null,
-        deduction_other: (record as any).deductions?.other ?? null,
-        notes: (record as any).notes || null
+      // 完整 payload（含 JSON 欄位），若欄位不存在自動回退移除再嘗試
+      const full: any = {
+        ...minimal,
+        bonus_rate: (record as any).bonusRate ?? null,
+        allowances: (record as any).allowances ?? {},
+        deductions: (record as any).deductions ?? {},
+        extra_allowances: (record as any).extraAllowances ?? null,
+        extra_deductions: (record as any).extraDeductions ?? null,
+        notes: (record as any).notes ?? null,
+        updated_at: new Date().toISOString()
       }
-      if ((record as any).id) payload.id = (record as any).id
-      payload.user_email = minimal.user_email
-      payload.user_name = minimal.user_name
-      payload.employee_id = minimal.employee_id
-      payload.base_salary = minimal.base_salary
-      payload.points_mode = minimal.points_mode
- 
-      Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k] })
- 
-      const upsertWithFallback = async (body: any) => {
+      // 去除 undefined 以避免 schema 比對誤判
+      Object.keys(full).forEach(k => { if (full[k] === undefined) delete full[k] })
+
+      const upsertOpts = (full.id ? {} : { onConflict: 'month,user_email' }) as any
+      const tryUpsert = async (body: any) => {
         let attempt = { ...body }
         const tried = new Set<string>()
         for (let i = 0; i < 16; i++) {
-          const { error } = await supabase.from('payroll_records').upsert(attempt)
+          const { error } = await supabase.from('payroll_records').upsert(attempt, upsertOpts)
           if (!error) return
           const msg = String(error?.message || '')
           const m = msg.match(/Could not find the '([^']+)' column/i)
@@ -675,13 +641,17 @@ export default function Payroll() {
             tried.add(m[1])
             continue
           }
+          // 若是 JSON 欄位不支援，逐步移除
+          if (!tried.has('extra_allowances')) { delete (attempt as any).extra_allowances; tried.add('extra_allowances'); continue }
+          if (!tried.has('extra_deductions')) { delete (attempt as any).extra_deductions; tried.add('extra_deductions'); continue }
+          if (!tried.has('allowances')) { delete (attempt as any).allowances; tried.add('allowances'); continue }
+          if (!tried.has('deductions')) { delete (attempt as any).deductions; tried.add('deductions'); continue }
           throw error
         }
       }
- 
-      await upsertWithFallback(payload)
+
+      await tryUpsert(full)
       await loadData()
-      */
     } catch (error) {
       console.error('儲存失敗:', error)
       alert(`儲存失敗：${(error as any)?.message || '未知錯誤'}`)
