@@ -167,6 +167,14 @@ function DesktopNav() {
 
   const renderItem = (to: string, label: string, perm: any) => {
     let allowed = can(user, perm as any)
+    // 特例：非管理員看到「我的薪資」而非薪資管理
+    if (to === '/payroll') {
+      if (user?.role !== 'admin') {
+        to = '/salary'
+        label = '我的薪資'
+        allowed = true
+      }
+    }
     const rawBadge = to==='/approvals' ? (counts.approvals||0)
       : to==='/orders' ? (counts.orders||0)
       : to==='/schedule' ? (counts.schedule||0)
