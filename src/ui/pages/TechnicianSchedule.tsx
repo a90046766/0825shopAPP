@@ -88,8 +88,44 @@ export default function TechnicianSchedulePage() {
       } catch (e) { console.warn('init leaves load failed', e) }
       try {
         const rows = await repos.technicianRepo.list()
-        if (user?.role==='technician') setTechs(rows.filter((t:any) => (t.email||'').toLowerCase()===(user.email||'').toLowerCase()))
-        else setTechs(rows)
+        // 以訂單評分計算各技師平均分數（0~100）與樣本數，合併到技師清單
+        let enriched = rows
+        try {
+          const orders = await repos.orderRepo.list()
+          const byName: Record<string, { sum: number; count: number }> = {}
+          for (const o of orders || []) {
+            const sig: any = (o as any).signatures || {}
+            const r: any = sig.rating
+            if (!r || typeof r.score !== 'number') continue
+            const score = Math.max(0, Math.min(100, Number(r.score)))
+            const names: string[] = []
+            if ((o as any).signatureTechnician) names.push((o as any).signatureTechnician)
+            if (Array.isArray((o as any).assignedTechnicians)) {
+              for (const n of (o as any).assignedTechnicians) {
+                if (n && !names.includes(n)) names.push(n)
+              }
+            }
+            for (const name of names) {
+              const key = String(name || '').trim()
+              if (!key) continue
+              if (!byName[key]) byName[key] = { sum: 0, count: 0 }
+              byName[key].sum += score
+              byName[key].count += 1
+            }
+          }
+          enriched = rows.map((t: any) => {
+            const key = String(t.shortName || t.name || '').trim()
+            const agg = byName[key]
+            if (agg && agg.count > 0) {
+              const avg = Math.round(agg.sum / agg.count)
+              return { ...t, ratingAvg: avg, ratingCount: agg.count }
+            }
+            return t
+          })
+        } catch {}
+
+        if (user?.role==='technician') setTechs(enriched.filter((t:any) => (t.email||'').toLowerCase()===(user.email||'').toLowerCase()))
+        else setTechs(enriched)
       } catch (e) { console.warn('tech list load failed', e) }
     })()
   }, [repos])
@@ -409,7 +445,8 @@ export default function TechnicianSchedulePage() {
               {recommended.slice(0,8).map(t=>{
                 const s = typeof t.rating_override==='number'? t.rating_override : (typeof (t as any).ratingAvg==='number' ? (t as any).ratingAvg : 80)
                 const load = works.filter(w=> (w.technicianEmail||'').toLowerCase()===(t.email||'').toLowerCase() && w.date===date).length
-                return <span key={t.id} className="rounded-full bg-white px-2 py-0.5 border text-gray-700">{t.shortName||t.name} · {(s/20).toFixed(1)}★ · {load}單</span>
+                const count = typeof (t as any).ratingCount==='number' ? (t as any).ratingCount : 0
+                return <span key={t.id} className="rounded-full bg-white px-2 py-0.5 border text-gray-700">{t.shortName||t.name} · {(s/20).toFixed(1)}★ · {load}單 · {count}筆</span>
               })}
             </div>
             <div className="mt-2">
