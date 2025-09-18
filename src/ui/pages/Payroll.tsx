@@ -43,6 +43,7 @@ export default function Payroll() {
   const [shareRate, setShareRate] = useState<number>(30) // 30%
   const [baseGuarantee, setBaseGuarantee] = useState<number>(40000)
   const [showHistory, setShowHistory] = useState<boolean>(false)
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
   // 績效積分來源（推薦+購物）
   const [perfOrders, setPerfOrders] = useState<any[]>([])
   const [perfSelections, setPerfSelections] = useState<Record<string, boolean>>({})
@@ -963,6 +964,137 @@ export default function Payroll() {
     )
   }
 
+  // 管理員：薪資總覽表（更詳細、可展開拆項）
+  const renderAdminTable = () => {
+    if (!can(user, 'admin')) return null
+    const rows = filteredRecords
+    const getKey = (r: any) => String(r.id || `${r.userEmail}-${r.month}`)
+    const toggle = (k: string) => setExpandedRows(s => ({ ...s, [k]: !s[k] }))
+    const A = (r: any) => (r.allowances || {})
+    const D = (r: any) => (r.deductions || {})
+    return (
+      <Card>
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-lg font-semibold">薪資總覽表（{month}）</div>
+          <div className="text-xs text-gray-500">點「詳情」可展開補貼/扣除拆項</div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b bg-gray-50 text-gray-600">
+                <th className="px-2 py-2 text-left">姓名 / Email</th>
+                <th className="px-2 py-2 text-left">角色</th>
+                <th className="px-2 py-2 text-right">底薪</th>
+                <th className="px-2 py-2 text-right">補貼小計</th>
+                <th className="px-2 py-2 text-right">扣除小計</th>
+                <th className="px-2 py-2 text-right">獎金</th>
+                <th className="px-2 py-2 text-right">積分</th>
+                <th className="px-2 py-2 text-right">分潤</th>
+                <th className="px-2 py-2 text-right">淨發</th>
+                <th className="px-2 py-2 text-left">狀態</th>
+                <th className="px-2 py-2 text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length===0 ? (
+                <tr><td className="px-2 py-3" colSpan={11}>本月暫無薪資記錄</td></tr>
+              ) : rows.map((r: any) => {
+                const key = getKey(r)
+                const calc = calculateSalary(r as PayrollRecord)
+                const role = (r as any).__role || 'support'
+                const pointsLabel = r.pointsMode==='include' ? `${r.points||0}（併）` : `${r.points||0}`
+                const techCommission = Number((r as any).techCommission || 0)
+                return (
+                  <>
+                    <tr key={key} className="border-b last:border-0">
+                      <td className="px-2 py-2">
+                        <div className="font-medium">{r.userName || r.userEmail}</div>
+                        <div className="text-xs text-gray-500">{r.userEmail}</div>
+                      </td>
+                      <td className="px-2 py-2">{role==='support'?'客服/管理':'技師'===role? '技師' : role==='sales'?'業務': role}</td>
+                      <td className="px-2 py-2 text-right">${(r.baseSalary||0).toLocaleString()}</td>
+                      <td className="px-2 py-2 text-right">
+                        <div>${calc.totalAllowances.toLocaleString()}</div>
+                        <button className="text-xs text-blue-600 hover:underline" onClick={()=>toggle(key)}>詳情</button>
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <div>${calc.totalDeductions.toLocaleString()}</div>
+                        <button className="text-xs text-blue-600 hover:underline" onClick={()=>toggle(key)}>詳情</button>
+                      </td>
+                      <td className="px-2 py-2 text-right">${(r.bonus||0).toLocaleString()}</td>
+                      <td className="px-2 py-2 text-right">{pointsLabel}</td>
+                      <td className="px-2 py-2 text-right">{role==='technician'? `$${techCommission.toLocaleString()}` : '—'}</td>
+                      <td className="px-2 py-2 text-right font-semibold text-emerald-700">${calc.net.toLocaleString()}</td>
+                      <td className="px-2 py-2">{r.status==='confirmed'? '已確認' : '待確認'}</td>
+                      <td className="px-2 py-2 text-center">
+                        <Button size="sm" variant="outline" onClick={()=>{ setEditingRecord(r as PayrollRecord) }}>編輯</Button>
+                      </td>
+                    </tr>
+                    {expandedRows[key] && (
+                      <tr className="bg-gray-50/60">
+                        <td className="px-2 py-2" colSpan={11}>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="rounded border bg-white p-3">
+                              <div className="font-semibold mb-2">補貼拆項</div>
+                              <div className="grid grid-cols-2 text-sm gap-1">
+                                <div>油資</div><div className="text-right">${Number(A(r).fuel||0).toLocaleString()}</div>
+                                <div>加班</div><div className="text-right">${Number(A(r).overtime||0).toLocaleString()}</div>
+                                <div>節金</div><div className="text-right">${Number(A(r).holiday||0).toLocaleString()}</div>
+                                <div>職務加給</div><div className="text-right">${Number(A(r).duty||0).toLocaleString()}</div>
+                                {'other' in A(r)? (<>
+                                  <div>其他</div><div className="text-right">${Number(A(r).other||0).toLocaleString()}</div>
+                                </>) : null}
+                                {(((r as any).extraAllowances)||[]).map((row:any, idx:number)=> (
+                                  <>
+                                    <div key={`ea-l-${key}-${idx}`}>{row?.title||'其他補貼'}</div>
+                                    <div key={`ea-r-${key}-${idx}`} className="text-right">${Number(row?.amount||0).toLocaleString()}</div>
+                                  </>
+                                ))}
+                                <div className="font-semibold mt-1">小計</div><div className="text-right font-semibold mt-1">${calc.totalAllowances.toLocaleString()}</div>
+                              </div>
+                            </div>
+                            <div className="rounded border bg-white p-3">
+                              <div className="font-semibold mb-2">扣除拆項</div>
+                              <div className="grid grid-cols-2 text-sm gap-1">
+                                <div>請假</div><div className="text-right">${Number(D(r).leave||0).toLocaleString()}</div>
+                                <div>遲到</div><div className="text-right">${Number(D(r).tardiness||0).toLocaleString()}</div>
+                                <div>客訴</div><div className="text-right">${Number(D(r).complaints||0).toLocaleString()}</div>
+                                <div>維修費用</div><div className="text-right">${Number(D(r).repairCost||0).toLocaleString()}</div>
+                                {'laborInsurance' in D(r)? (<>
+                                  <div>勞保</div><div className="text-right">${Number((D(r) as any).laborInsurance||0).toLocaleString()}</div>
+                                </>) : null}
+                                {'healthInsurance' in D(r)? (<>
+                                  <div>健保</div><div className="text-right">${Number((D(r) as any).healthInsurance||0).toLocaleString()}</div>
+                                </>) : null}
+                                {'dependents' in D(r)? (<>
+                                  <div>眷數</div><div className="text-right">${Number((D(r) as any).dependents||0).toLocaleString()}</div>
+                                </>) : null}
+                                {'other' in D(r)? (<>
+                                  <div>其他</div><div className="text-right">${Number((D(r) as any).other||0).toLocaleString()}</div>
+                                </>) : null}
+                                {(((r as any).extraDeductions)||[]).map((row:any, idx:number)=> (
+                                  <>
+                                    <div key={`ed-l-${key}-${idx}`}>{row?.title||'其他扣除'}</div>
+                                    <div key={`ed-r-${key}-${idx}`} className="text-right">${Number(row?.amount||0).toLocaleString()}</div>
+                                  </>
+                                ))}
+                                <div className="font-semibold mt-1">小計</div><div className="text-right font-semibold mt-1">${calc.totalDeductions.toLocaleString()}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    )
+  }
+
   // 技師訂單明細區塊
   const renderTechOrdersPanel = () => {
     if (!editingRecord) return null
@@ -1406,6 +1538,9 @@ export default function Payroll() {
           </div>
         </Card>
       )}
+
+      {/* 管理員：薪資總覽表（詳情可展開） */}
+      {renderAdminTable()}
 
       {/* 記錄列表（依角色顯示） */}
       <div className="space-y-4">
