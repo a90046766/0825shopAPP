@@ -101,7 +101,8 @@ export default function ShopProductsPage() {
         features: Array.isArray(r.features) ? r.features : [],
         image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : (r.image || ''),
         images: Array.isArray(r.image_urls) ? r.image_urls : (Array.isArray(r.images) ? r.images : []),
-        published: r.published !== undefined ? !!r.published : true
+        published: r.published !== undefined ? !!r.published : true,
+        showAcAdvisor: (typeof r.show_ac_advisor === 'boolean') ? r.show_ac_advisor : true
       }))
     }
 
@@ -127,7 +128,7 @@ export default function ShopProductsPage() {
         // 方案 A：直接查 Supabase（完整欄位 + 排序，若資料表完整）
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,store_sort,updated_at')
+          .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
           .order('store_sort', { ascending: true })
           .order('updated_at', { ascending: false })
         if (!(isEditor && editMode)) {
@@ -138,7 +139,7 @@ export default function ShopProductsPage() {
           // 方案 B：移除可能不存在欄位（如 store_sort）
           let q2 = supabase
             .from('products')
-            .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,updated_at')
+            .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
             .order('updated_at', { ascending: false })
           if (!(isEditor && editMode)) q2 = q2.eq('published', true)
           const r2 = await q2
@@ -186,7 +187,7 @@ export default function ShopProductsPage() {
     try {
       let q = supabase
         .from('products')
-        .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,updated_at')
+        .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
         .order('updated_at', { ascending: false })
       if (!(isEditor && editMode)) q = q.eq('published', true)
       const { data, error } = await q
@@ -225,7 +226,8 @@ export default function ShopProductsPage() {
       features: [],
       image: '',
       images: [],
-      published: true
+      published: true,
+      showAcAdvisor: (selectedCategory || 'cleaning') === 'new'
     })
   }
 
@@ -248,6 +250,7 @@ export default function ShopProductsPage() {
         category: edit.category,
         mode_code: edit.category,
         published: !!edit.published,
+        show_ac_advisor: edit.category==='new' ? !!edit.showAcAdvisor : null,
         updated_at: new Date().toISOString()
       }
       // 經過 Functions 透過 Service Role 寫入，避免 CORS/RLS 攔截
@@ -801,6 +804,12 @@ export default function ShopProductsPage() {
                 <span className="text-gray-600">封面圖片URL</span>
                 <input className="rounded border px-2 py-1" value={edit.image || ''} onChange={e=> setEdit({...edit, image: e.target.value})} />
               </label>
+              {edit.category==='new' && (
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={!!edit.showAcAdvisor} onChange={e=> setEdit({...edit, showAcAdvisor: e.target.checked})} />
+                  <span className="text-gray-700">顯示冷氣工具入口（建議計算／非標準費用）</span>
+                </label>
+              )}
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={!!edit.published} onChange={e=> setEdit({...edit, published: e.target.checked})} />
                 <span className="text-gray-700">上架</span>
