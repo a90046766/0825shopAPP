@@ -116,7 +116,7 @@ export default function ReportCenterPage(){
             </div>
             <div className="flex items-center gap-2">
               <button onClick={async()=>{ await repo.markRead(t.id, me?.email||''); load() }} className="rounded-lg bg-gray-100 px-3 py-1 text-gray-700">已讀</button>
-              <button onClick={()=>setActive(t)} className="rounded-lg bg-gray-900 px-3 py-1 text-white">查看</button>
+              <button onClick={async()=>{ try{ const full = await repo.get(t.id); setActive(full||t) } catch { setActive(t) } }} className="rounded-lg bg-gray-900 px-3 py-1 text-white">查看</button>
               {isAdminOrSupport && t.status==='open' && <button onClick={async()=>{ await repo.close(t.id); load() }} className="rounded-lg bg-rose-500 px-3 py-1 text-white">結案</button>}
               {isAdmin && <button onClick={async()=>{ if(!(await confirmTwice('刪除此回報？','刪除後無法復原，仍要刪除？'))) return; await repo.removeThread(t.id); load() }} className="rounded-lg bg-gray-100 px-3 py-1 text-gray-700">刪除</button>}
             </div>
@@ -209,6 +209,8 @@ export default function ReportCenterPage(){
                   <button disabled={!msg.trim()} onClick={async()=>{
                     try {
                       await repo.appendMessage(active.id, { authorEmail: me?.email||'', body: msg.trim() })
+                      // 重新載入清單與當前貼文，確保雙方（管理員/客服）同步看到回覆
+                      await load()
                       const full = await repo.get(active.id).catch(()=>null)
                       setActive(full || active)
                       setMsg('')
