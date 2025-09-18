@@ -192,6 +192,10 @@ function DesktopNav() {
         {menuTop.map(m => renderItem(m.to, m.label, m.perm))}
         <div className="my-2 border-t" />
         {menuBottom.map(m => renderItem(m.to, m.label, m.perm))}
+        {/* 非管理員：補上一個核心功能區「我的薪資」 */}
+        {user?.role !== 'admin' && (
+          <Item to={'/salary'} label={'我的薪資'} />
+        )}
       </nav>
     </aside>
   )
