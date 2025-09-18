@@ -481,6 +481,11 @@ export default function ShopProductsPage() {
                 />
                 <span className="pointer-events-none absolute right-2 md:right-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
               </div>
+              {selectedCategory==='new' && (
+                <Link to="/store/ac-advisor" className="rounded bg-emerald-600 px-3 py-1 text-xs md:text-sm text-white">
+                  冷氣建議計算
+                </Link>
+              )}
               <label className="inline-flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-700">
                 <input type="checkbox" checked={groupOnly} onChange={(e)=> setGroupOnly(e.target.checked)} />
                 只看可團購
