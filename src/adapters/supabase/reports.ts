@@ -22,11 +22,11 @@ function fromThreadRow(r: any): ReportThread {
 
 function toThreadRow(p: Partial<ReportThread>): any {
   const r: any = { ...p }
-  if ('targetEmails' in r) r.target_emails = (r as any).targetEmails
-  if ('orderId' in r) r.order_id = (r as any).orderId
-  if ('readByEmails' in r) r.read_by_emails = (r as any).readByEmails
-  if ('createdAt' in r) delete (r as any).createdAt
-  if ('closedAt' in r) r.closed_at = (r as any).closedAt
+  if ('targetEmails' in r) { r.target_emails = (r as any).targetEmails; delete (r as any).targetEmails }
+  if ('orderId' in r) { r.order_id = (r as any).orderId; delete (r as any).orderId }
+  if ('readByEmails' in r) { r.read_by_emails = (r as any).readByEmails; delete (r as any).readByEmails }
+  if ('createdAt' in r) { delete (r as any).createdAt }
+  if ('closedAt' in r) { r.closed_at = (r as any).closedAt; delete (r as any).closedAt }
   return r
 }
 
