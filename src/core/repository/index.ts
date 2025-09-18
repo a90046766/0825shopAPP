@@ -365,6 +365,9 @@ export interface PayrollRecord {
     complaints?: number
     repairCost?: number
   }
+  // 額外補貼/扣除（可多筆，供「其他補貼」「其他扣除」欄位）
+  extraAllowances?: Array<{ name: string; amount: number; note?: string }>
+  extraDeductions?: Array<{ name: string; amount: number; note?: string }>
   bonusRate?: 10 | 20 | 30 // 獎金比例
   platform?: '同' | '日' | '黃' | '今'
   issuanceDate?: string // 發放日期
