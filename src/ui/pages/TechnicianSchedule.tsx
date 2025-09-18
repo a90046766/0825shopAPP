@@ -28,6 +28,9 @@ export default function TechnicianSchedulePage() {
   const [supportSlot, setSupportSlot] = useState<'am' | 'pm' | 'full'>('am')
   const [supportType, setSupportType] = useState<'排休' | '特休' | '事假' | '婚假' | '病假' | '喪假'>('排休')
   const [supportShifts, setSupportShifts] = useState<any[]>([])
+  const [staffMap, setStaffMap] = useState<Record<string, any>>({})
+  const [staffList, setStaffList] = useState<any[]>([])
+  const [selectedSupportEmail, setSelectedSupportEmail] = useState<string>('')
   const [workMarkers, setWorkMarkers] = useState<Record<string, number>>({})
   const [emphasisMarkers, setEmphasisMarkers] = useState<Record<string, 'warn' | 'danger'>>({})
   const [dayTooltips, setDayTooltips] = useState<Record<string, string>>({})
@@ -127,6 +130,15 @@ export default function TechnicianSchedulePage() {
         if (user?.role==='technician') setTechs(enriched.filter((t:any) => (t.email||'').toLowerCase()===(user.email||'').toLowerCase()))
         else setTechs(enriched)
       } catch (e) { console.warn('tech list load failed', e) }
+      try {
+        const staffRows = await repos.staffRepo.list()
+        const map: Record<string, any> = {}
+        for (const s of staffRows||[]) map[(s.email||'').toLowerCase()] = s
+        setStaffMap(map)
+        setStaffList(staffRows||[])
+        // 預設：客服看到自己；管理員預設顯示全部（空值）
+        if (user?.role==='support') setSelectedSupportEmail((user.email||'').toLowerCase())
+      } catch (e) { console.warn('staff list load failed', e) }
     })()
   }, [repos])
 
@@ -217,6 +229,35 @@ export default function TechnicianSchedulePage() {
       }
     })
   }, [user, supportDate])
+
+  // 將客服排班名稱併入當月日曆 tooltip（管理員/客服可見）
+  useEffect(() => {
+    if (!user) return
+    if (user.role === 'technician') return
+    const yymm = date.slice(0,7)
+    const monthStart = `${yymm}-01`
+    const monthEndStr = monthEnd(yymm)
+    const inMonth = (d: string) => d >= monthStart && d <= monthEndStr
+    const namesByDate: Record<string, string[]> = {}
+    for (const s of supportShifts || []) {
+      const d = String(s.date||'').slice(0,10)
+      if (!d || !inMonth(d)) continue
+      const emailLc = String(s.supportEmail||'').toLowerCase()
+      const name = staffMap[emailLc]?.name || s.supportEmail || ''
+      if (!name) continue
+      if (!namesByDate[d]) namesByDate[d] = []
+      if (!namesByDate[d].includes(name)) namesByDate[d].push(name)
+    }
+    if (Object.keys(namesByDate).length===0) return
+    setDayTooltips(prev => {
+      const out: Record<string,string> = { ...(prev||{}) }
+      for (const [d, arr] of Object.entries(namesByDate)) {
+        const label = `客服：${arr.join('、')}`
+        out[d] = out[d] ? `${out[d]}\n${label}` : label
+      }
+      return out
+    })
+  }, [supportShifts, staffMap, user, date])
 
   const assignable = useMemo(() => {
     // 可用性：無請假且無工單重疊，且符合區域篩選
@@ -622,7 +663,17 @@ export default function TechnicianSchedulePage() {
           </div>
         </div>
         {supportOpen && (
-          <div className="mt-3 space-y-3">
+            <div className="mt-3 space-y-3">
+            {/* 客服篩選 */}
+            <div className="flex items-center gap-2 text-sm">
+              <div className="text-gray-600">查看客服</div>
+              <select className="rounded-lg border px-2 py-1" value={selectedSupportEmail} onChange={(e)=> setSelectedSupportEmail(e.target.value)}>
+                <option value="">全部客服</option>
+                {staffList.map(s => (
+                  <option key={s.id} value={(s.email||'').toLowerCase()}>{s.name || s.email}</option>
+                ))}
+              </select>
+            </div>
             <Calendar value={supportDate} onChange={setSupportDate} header="選擇日期" />
             <div className="flex items-center gap-3 text-sm">
               <div>
@@ -654,11 +705,17 @@ export default function TechnicianSchedulePage() {
               }} className="rounded-xl bg-brand-500 px-4 py-2 text-white">新增</button>
             </div>
             <div className="space-y-2">
-              {supportShifts.filter(s => (s.date || '').startsWith(supportDate.slice(0,7))).map(s => (
+              {supportShifts
+                .filter(s => (s.date || '').startsWith(supportDate.slice(0,7)))
+                .filter(s => !selectedSupportEmail || (String(s.supportEmail||'').toLowerCase()===selectedSupportEmail))
+                .map(s => (
                 <div key={s.id} className="flex items-center justify-between rounded-xl border p-3 text-sm">
                   <div className="flex items-center gap-3">
                     <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: s.color || '#E5E7EB' }} />
-                    <div>{s.date} · {s.slot === 'full' ? '全天' : (s.slot === 'am' ? '上午' : '下午')} · {s.reason}</div>
+                    <div>
+                      {s.date} · {s.slot === 'full' ? '全天' : (s.slot === 'am' ? '上午' : '下午')} · {s.reason}
+                      <span className="ml-2 text-gray-600">客服：{staffMap[(s.supportEmail||'').toLowerCase()]?.name || s.supportEmail}</span>
+                    </div>
                   </div>
                 </div>
               ))}
