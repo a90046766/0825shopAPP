@@ -138,6 +138,12 @@ export default function TechnicianManagementPage() {
                   <option value="custom">自訂</option>
                 </select>
               </div>
+              {edit.revenueShareScheme==='custom' && (
+                <>
+                  <div>自訂金額：<input className="w-full rounded border px-2 py-1" type="number" value={edit.customCommission ?? ''} onChange={e=> setEdit({ ...edit, customCommission: (e.target.value===''? undefined : Number(e.target.value)) })} placeholder="直接輸入每月自訂金額" /></div>
+                  <div>備註：<textarea className="w-full rounded border px-2 py-1" rows={2} value={edit.customCalcNote || ''} onChange={e=> setEdit({ ...edit, customCalcNote: e.target.value })} placeholder="例如：結案/1.05*0.8 僅本季" /></div>
+                </>
+              )}
             </div>
             <div className="mt-2 text-sm">
               <div className="mb-1 font-semibold">技能矩陣</div>

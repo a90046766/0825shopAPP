@@ -72,7 +72,12 @@ export interface Technician {
   region: 'north' | 'central' | 'south' | 'all'
   status: 'active' | 'suspended'
   points?: number
-  revenueShareScheme?: 'pure70' | 'pure72' | 'pure73' | 'pure75' | 'pure80' | 'base1' | 'base2' | 'base3'
+  revenueShareScheme?: 'pure70' | 'pure72' | 'pure73' | 'pure75' | 'pure80' | 'base1' | 'base2' | 'base3' | 'afterTax80' | 'custom'
+  // 自訂方案（預設帶入薪資頁）
+  customCommission?: number
+  customCalcNote?: string
+  // 管理員覆蓋評分（0~100）
+  rating_override?: number
   skills?: Record<string, boolean>
   updatedAt: string
 }
