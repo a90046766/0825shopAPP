@@ -972,6 +972,11 @@ export default function PageOrderDetail() {
                 className={`rounded px-3 py-1 text-white ${canClose? 'bg-gray-900' : 'bg-gray-400'}`}
               >結案</button>
             )}
+            {!canClose && (
+              <div className="text-xs text-rose-600">
+                無法結案原因：{closeDisabledReason || '條件不足'}
+              </div>
+            )}
           </div>
         </div>
       </div>
