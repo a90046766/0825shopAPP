@@ -279,7 +279,7 @@ export default function AppShell() {
       <DesktopNav />
       <main className="flex-1">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/80 px-4 py-3 backdrop-blur">
-          <div className="text-base font-semibold text-gray-800">日式洗濯家電服務 <span className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[10px]">v1.1.3</span></div>
+          <div className="text-base font-semibold text-gray-800">日式洗濯家電服務</div>
           <div className="flex items-center gap-3">
             <div className="text-sm text-gray-700">{getCurrentUser()?.name || ''}</div>
             <button onClick={async ()=>{ 
