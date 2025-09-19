@@ -300,6 +300,10 @@ createRoot(document.getElementById('root')!).render(
       }
       if (event === 'SIGNED_OUT') {
         try { localStorage.removeItem('supabase-auth-user') } catch {}
+        try { localStorage.removeItem('local-auth-user') } catch {}
+        try { localStorage.removeItem('member-auth-user') } catch {}
+        try { localStorage.removeItem('sb-0825shopapp-auth') } catch {}
+        try { localStorage.removeItem('sb-last-valid-ts') } catch {}
       }
     })
   } catch {}

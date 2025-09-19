@@ -71,11 +71,21 @@ export default function PageDispatchHome() {
           <Link to="/models" className="rounded-xl border bg-white p-4 shadow-card">機型管理</Link>
           <Link to="/share-referral" className="rounded-xl border bg-white p-4 shadow-card">分享推薦</Link>
           <button 
-            onClick={() => {
-              // 登出並導航到購物站
-              localStorage.removeItem('supabase-auth-user')
-              localStorage.removeItem('local-auth-user')
-              window.location.href = '/store'
+            onClick={async () => {
+              try {
+                // 完整登出內部帳號，避免返回後出現「假登入」
+                try { const a = await loadAdapters(); await a.authRepo.logout?.() } catch {}
+                try { const mod = await import('../../utils/supabase'); await mod.supabase.auth.signOut().catch(()=>{}) } catch {}
+                try { localStorage.removeItem('supabase-auth-user') } catch {}
+                try { localStorage.removeItem('local-auth-user') } catch {}
+                try { localStorage.removeItem('member-auth-user') } catch {}
+                try { localStorage.removeItem('sb-0825shopapp-auth') } catch {}
+                try { localStorage.removeItem('sb-last-valid-ts') } catch {}
+              } finally {
+                // 導向購物站（優先用環境變數，否則走 /store 子路由）
+                const base = (()=>{ try { return (import.meta as any).env?.VITE_STORE_BASE_URL || '' } catch { return '' } })()
+                window.location.href = base || '/store'
+              }
             }}
             className="rounded-xl border bg-white p-4 shadow-card text-left"
           >
