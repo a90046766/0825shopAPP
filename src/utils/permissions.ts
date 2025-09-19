@@ -94,7 +94,9 @@ const ROLE_PERMISSIONS: Record<User['role'], Permission[]> = {
     // 允許技師查看自己的薪資
     'payroll.view',
     // 允許技師下載文件
-    'documents.manage'
+    'documents.manage',
+    // 允許技師維護機型資料（新增/編輯）
+    'models.manage'
   ],
   member: [
     'notifications.read'
