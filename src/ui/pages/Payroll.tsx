@@ -48,6 +48,10 @@ export default function Payroll() {
   const [shareScheme, setShareScheme] = useState<'pure' | 'base'>('pure')
   const [shareRate, setShareRate] = useState<number>(30) // 30%
   const [baseGuarantee, setBaseGuarantee] = useState<number>(40000)
+  // 技師分潤計算方式：新增「結案金額/1.05*0.8」與自訂
+  const [techCalcMethod, setTechCalcMethod] = useState<'scheme'|'afterTax80'|'custom'>('scheme')
+  const [customCommission, setCustomCommission] = useState<number | ''>('')
+  const [customCalcNote, setCustomCalcNote] = useState<string>('')
   const [showHistory, setShowHistory] = useState<boolean>(false)
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
   const [editTab, setEditTab] = useState<'base'|'allow'|'deduct'|'tech'|'sales'|'notes'>('base')
@@ -303,6 +307,9 @@ export default function Payroll() {
         setShareScheme(((editingRecord as any).shareScheme as any) || 'pure')
         setShareRate(((editingRecord as any).shareRate as any) || 30)
         setBaseGuarantee(((editingRecord as any).baseGuarantee as any) || 40000)
+        setTechCalcMethod((((editingRecord as any).techCalcMethod as any) || 'scheme') as any)
+        setCustomCommission((editingRecord as any).customCommission ?? '')
+        setCustomCalcNote((editingRecord as any).customCalcNote ?? '')
       } catch {
       } finally {
         setTechOrdersLoading(false)
@@ -1136,6 +1143,7 @@ export default function Payroll() {
     const rate = Math.max(0, Math.min(100, shareRate)) / 100
     let sumBasis = 0
     let sumCommission = 0
+    let sumAfterTax80 = 0
     for (const o of techOrders) {
       if (techSelections[o.id] === false) continue
       const totalRaw = Number((o as any).totalAmount ?? (o as any).total ?? 0)
@@ -1145,8 +1153,17 @@ export default function Payroll() {
       const basis = total / techCount
       sumBasis += basis
       sumCommission += Math.round(basis * rate)
+      // 新公式：結案金額/1.05*0.8（不分攤技師數）
+      sumAfterTax80 += (total / 1.05) * 0.8
     }
-    const finalCommission = shareScheme === 'base' ? Math.max(baseGuarantee, sumCommission) : sumCommission
+    let finalCommission = 0
+    if (techCalcMethod === 'scheme') {
+      finalCommission = shareScheme === 'base' ? Math.max(baseGuarantee, sumCommission) : sumCommission
+    } else if (techCalcMethod === 'afterTax80') {
+      finalCommission = Math.round(sumAfterTax80)
+    } else {
+      finalCommission = Math.max(0, Number(customCommission || 0))
+    }
 
     return (
       <Card>
@@ -1155,6 +1172,14 @@ export default function Payroll() {
           <div className="text-sm text-gray-600">訂單數：{techOrders.length}</div>
         </div>
         <div className="mb-3 grid gap-3 md:grid-cols-4">
+          <div>
+            <div className="text-sm text-gray-600 mb-1">計算方式</div>
+            <Select value={techCalcMethod} onChange={(e)=> setTechCalcMethod((e.target.value as any) || 'scheme')}>
+              <option value="scheme">比例/保底（現有）</option>
+              <option value="afterTax80">結案金額/1.05*0.8</option>
+              <option value="custom">自訂</option>
+            </Select>
+          </div>
           <div>
             <div className="text-sm text-gray-600 mb-1">分潤方案</div>
             {can(user, 'admin') ? (
@@ -1170,7 +1195,7 @@ export default function Payroll() {
             <div className="text-sm text-gray-600 mb-1">分潤比例</div>
             {can(user, 'admin') ? (
               <>
-                {shareScheme==='pure' && (
+                {shareScheme==='pure' && techCalcMethod==='scheme' && (
                   <div className="flex items-center gap-2">
                     <Select value={String(shareRate)} onChange={(e)=> setShareRate(Number(e.target.value))}>
                       <option value={70}>純7（70%）</option>
@@ -1185,7 +1210,7 @@ export default function Payroll() {
                     )}
                   </div>
                 )}
-                {shareScheme!=='pure' && (
+                {shareScheme!=='pure' && techCalcMethod==='scheme' && (
                   <Select value={String(shareRate)} onChange={(e)=> setShareRate(Number(e.target.value))}>
                     <option value={10}>10%</option>
                     <option value={20}>20%</option>
@@ -1197,7 +1222,7 @@ export default function Payroll() {
               <div className="rounded border bg-white px-2 py-1 text-gray-700">{shareScheme==='pure' ? (shareRate? `${shareRate}%` : '自訂%') : `${shareRate}%`}</div>
             )}
           </div>
-          {shareScheme==='base' && (
+          {shareScheme==='base' && techCalcMethod==='scheme' && (
             <div>
               <div className="text-sm text-gray-600 mb-1">保底金額</div>
               {can(user,'admin') ? (
@@ -1206,6 +1231,18 @@ export default function Payroll() {
                 <div className="rounded border bg-white px-2 py-1 text-gray-700">${baseGuarantee.toLocaleString()}</div>
               )}
             </div>
+          )}
+          {techCalcMethod==='custom' && (
+            <>
+              <div>
+                <div className="text-sm text-gray-600 mb-1">自訂金額（元）</div>
+                <Input type="number" value={customCommission as any} onChange={(e)=> setCustomCommission((e.target.value===''?'':Number(e.target.value)) as any)} placeholder="直接輸入計算後金額" />
+              </div>
+              <div className="md:col-span-2">
+                <div className="text-sm text-gray-600 mb-1">特殊計算方式備註</div>
+                <Textarea rows={2} value={customCalcNote} onChange={(e)=> setCustomCalcNote(e.target.value)} placeholder="例如：結案金額/1.03*0.78，僅本月適用" />
+              </div>
+            </>
           )}
           <div className="text-right self-end">
             <div className="text-xs text-gray-600">本月分潤（試算）</div>
@@ -1262,9 +1299,20 @@ export default function Payroll() {
         </div>
 
         <div className="mt-3 flex items-center justify-end gap-2">
-          <Button variant="outline" onClick={()=>{ setTechSelections({}); setShareRate(30); setShareScheme('pure'); setBaseGuarantee(40000) }}>重設</Button>
+          <Button variant="outline" onClick={()=>{ setTechSelections({}); setShareRate(30); setShareScheme('pure'); setBaseGuarantee(40000); setTechCalcMethod('scheme'); setCustomCommission(''); setCustomCalcNote('') }}>重設</Button>
           <Button variant="outline" onClick={exportTechOrdersCSV}>下載對帳CSV</Button>
-          <Button onClick={()=>{ const rate = Math.max(0, Math.min(100, shareRate)) / 100; let commission=0; for(const o of techOrders){ if(techSelections[o.id]===false) continue; const totalRaw=Number((o as any).totalAmount ?? (o as any).total ?? 0); const sumItems=(o.serviceItems||[]).reduce((s:number,it:any)=> s+(it.unitPrice||0)*(it.quantity||0),0); const total= totalRaw>0? totalRaw: sumItems; const techCount=Array.isArray(o.assignedTechnicians)&&o.assignedTechnicians.length>0?o.assignedTechnicians.length:1; const basis= total/techCount; commission += Math.round(basis*rate);} const finalCommission = shareScheme==='base'? Math.max(baseGuarantee, commission): commission; setEditingRecord(r=> ({ ...(r as PayrollRecord), techCommission: finalCommission, shareScheme, shareRate, baseGuarantee })); }}>套用到本筆薪資</Button>
+          <Button onClick={()=>{
+            setEditingRecord(r=> ({
+              ...(r as PayrollRecord),
+              techCommission: finalCommission,
+              shareScheme,
+              shareRate,
+              baseGuarantee,
+              techCalcMethod,
+              customCommission: (techCalcMethod==='custom'? (customCommission||0): undefined),
+              customCalcNote: (techCalcMethod==='custom'? customCalcNote: undefined)
+            } as any))
+          }}>套用到本筆薪資</Button>
         </div>
       </Card>
     )
