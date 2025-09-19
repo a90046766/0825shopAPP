@@ -232,7 +232,11 @@ export default function TechnicianManagementPage() {
               <button onClick={()=>setRatingEdit(null)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
               <button onClick={async()=>{
                 try {
-                  await fetch(`/api/employees/${ratingEdit!.id}`, { method:'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ rating_override: ratingEdit!.override }) })
+                  const { error } = await supabase
+                    .from('technicians')
+                    .update({ rating_override: (ratingEdit!.override === null ? null : Number(ratingEdit!.override)) })
+                    .eq('id', ratingEdit!.id)
+                  if (error) throw error
                   setRatingEdit(null); await load()
                 } catch(e:any) { alert(e?.message || '更新失敗') }
               }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">儲存</button>
