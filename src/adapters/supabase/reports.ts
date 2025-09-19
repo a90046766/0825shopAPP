@@ -95,7 +95,7 @@ class SupabaseReportsRepo implements ReportsRepo {
     const now = new Date().toISOString()
     // 僅以最小必要欄位插入（避免 schema 差異 400）
     const base = toThreadRow(thread)
-    const minimal: any = {
+    const minimalRaw: any = {
       body: (base as any).body ?? '',
       category: (base as any).category ?? 'other',
       level: (base as any).level ?? 'normal',
@@ -105,7 +105,11 @@ class SupabaseReportsRepo implements ReportsRepo {
       created_by: (base as any).created_by ?? undefined,
     }
     // 若 subject 存在就帶，否則忽略
-    if ((base as any).subject != null) minimal.subject = (base as any).subject
+    if ((base as any).subject != null) minimalRaw.subject = (base as any).subject
+
+    // 過濾 undefined，避免 400
+    const minimal: any = {}
+    Object.keys(minimalRaw).forEach(k => { const v = (minimalRaw as any)[k]; if (v !== undefined) (minimal as any)[k] = v })
 
     // 多輪容錯：移除回報不支援欄位再試
     const tryInsert = async (): Promise<any> => {
@@ -122,6 +126,11 @@ class SupabaseReportsRepo implements ReportsRepo {
         }
         // 若為 RLS 擋下，拋出讓上層處理（政策需補 INSERT）
         if (/row-level security|RLS|violates/i.test(msg)) throw error
+        // UUID 型別錯誤時，移除 order_id 再試
+        if (/22P02|invalid input syntax for type uuid/i.test(msg)) {
+          delete attempt.order_id
+          continue
+        }
         // 其他未知錯誤時，最後再嘗試移除非關鍵欄位
         if (i < dropList.length && attempt[dropList[i]] !== undefined) {
           delete attempt[dropList[i]]

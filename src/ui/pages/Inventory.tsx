@@ -110,7 +110,10 @@ export default function InventoryPage() {
           messages: [ { authorEmail: String(u?.email||'').toLowerCase(), body: `申請單號：${purchaseRequest.id}` } ]
         } as any
         await repos.reportsRepo.create(report)
-      } catch {}
+      } catch (e: any) {
+        try { console.error('報告建立失敗:', e) } catch {}
+        alert('回報建立失敗：' + (e?.message || e?.details || e?.hint || JSON.stringify(e)))
+      }
       
       alert('購買申請已送出，等待管理員審核')
       load()
