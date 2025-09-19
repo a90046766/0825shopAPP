@@ -106,7 +106,8 @@ export default function InventoryPage() {
           targetEmails: null,
           orderId: '',
           attachments: [],
-          messages: [ { authorEmail: (u.email||'').toLowerCase(), body: `申請單號：${purchaseRequest.id}` } ]
+          createdBy: String(u?.email||'').toLowerCase(),
+          messages: [ { authorEmail: String(u?.email||'').toLowerCase(), body: `申請單號：${purchaseRequest.id}` } ]
         } as any
         await repos.reportsRepo.create(report)
       } catch {}
