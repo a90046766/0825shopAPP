@@ -10,6 +10,7 @@ export default function ReportCenterPage(){
   const [msg, setMsg] = useState('')
   const [people, setPeople] = useState<any[]>([])
   const [selectedNames, setSelectedNames] = useState<Record<string, boolean>>({})
+  const [personQuery, setPersonQuery] = useState('')
   const [filters, setFilters] = useState<{ category: string; level: string; status: string }>({ category:'', level:'', status:'' })
   const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [me, setMe] = useState<any>(null)
@@ -19,14 +20,18 @@ export default function ReportCenterPage(){
   const load = async()=> {
     if (!repo) return
     const allRows = await repo.list()
-    // 技師只能看到自己相關的回報
+    // 技師視野：與徽章一致（群組/點名/我建立）
     if (me?.role === 'technician') {
-      const userEmail = (me.email || '').toLowerCase()
-      setRows(allRows.filter((r: any) => 
-        (r.createdBy || '').toLowerCase() === userEmail || 
-        (r.target === 'all') ||
-        (r.target === 'technicians')
-      ))
+      const userEmail = String(me.email||'').toLowerCase()
+      const visible = (allRows||[]).filter((r: any) => {
+        const target = String(r.target||'').toLowerCase()
+        const list: string[] = Array.isArray(r.targetEmails) ? r.targetEmails.map((x:string)=>String(x||'').toLowerCase()) : []
+        const inGroup = target==='all' || target==='tech' || target==='technician' || target==='technicians'
+        const direct = list.includes(userEmail)
+        const author = String(r.createdBy||'').toLowerCase() === userEmail
+        return inGroup || direct || author
+      })
+      setRows(visible)
     } else {
       setRows(allRows)
     }
@@ -150,8 +155,13 @@ export default function ReportCenterPage(){
               {!isTechnician && (
                 <div>
                   <div className="mb-1 text-xs text-gray-600">名單（以姓名勾選）</div>
+                  <input className="mb-2 w-full rounded border px-2 py-1" placeholder="搜尋姓名或 Email" value={personQuery} onChange={e=>setPersonQuery(e.target.value)} />
                   <div className="max-h-40 space-y-1 overflow-auto rounded border p-2">
-                    {people.map(p=> (
+                    {people.filter(p=>{
+                      if (!personQuery.trim()) return true
+                      const q = personQuery.trim().toLowerCase()
+                      return String(p.name||'').toLowerCase().includes(q) || String(p.email||'').toLowerCase().includes(q)
+                    }).map(p=> (
                       <label key={p.id} className="flex items-center gap-2 text-sm">
                         <input type="checkbox" checked={!!selectedNames[p.id]} onChange={(e)=> setSelectedNames(s=>({ ...s, [p.id]: e.target.checked }))} />
                         <span>{p.name}</span>
@@ -168,7 +178,7 @@ export default function ReportCenterPage(){
               <button onClick={async()=>{
                 if (!repo) return
                 const emails = people.filter(p=>selectedNames[p.id]).map(p=>p.email).filter(Boolean)
-                const payload:any = { body: form.body, category: form.category, level: form.level, target: (!isTechnician && emails.length>0)? 'subset':'support', targetEmails: (!isTechnician ? (emails.length>0? emails : null) : null), orderId: form.orderId, attachments: form.attachments }
+                const payload:any = { body: form.body, category: form.category, level: form.level, target: (!isTechnician && emails.length>0)? 'subset':'support', targetEmails: (!isTechnician ? (emails.length>0? emails : null) : null), orderId: form.orderId, attachments: form.attachments, createdBy: String(me?.email||'').toLowerCase() }
                 await repo.create(payload)
                 setOpen(false); setForm({ category:'other', level:'normal', target:'all', body:'', orderId:'', attachments:[] } as any); setSelectedNames({}); load()
               }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">建立</button>
@@ -183,6 +193,20 @@ export default function ReportCenterPage(){
             <div className="mb-2 text-lg font-semibold">回報內容</div>
             <div className="space-y-2 text-sm">
               <div className="text-xs text-gray-500">等級：<span className={`ml-1 rounded px-2 py-0.5 ${levelColor(active.level)}`}>{active.level}</span></div>
+              <div className="text-xs text-gray-600">
+                <div className="mb-1">發給誰：</div>
+                <div className="flex flex-wrap gap-1">
+                  {Array.isArray(active.targetEmails) && active.targetEmails.length>0 ? (
+                    active.targetEmails.map((em:string)=>{
+                      const p = people.find(x=>String(x.email||'').toLowerCase()===String(em||'').toLowerCase())
+                      const label = p?.name || p?.id || em
+                      return <span key={em} className="rounded-full bg-gray-100 px-2 py-0.5">{label}</span>
+                    })
+                  ) : (
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5">{active.target || '—'}</span>
+                  )}
+                </div>
+              </div>
               <textarea className="w-full rounded border px-2 py-1" value={active.body||''} onChange={e=>setActive({...active, body:e.target.value})} rows={6} />
               <input className="w-full rounded border px-2 py-1" placeholder="關聯訂單ID（可選）" value={active.orderId||''} onChange={e=>setActive({...active, orderId: e.target.value})} />
               <input type="file" multiple onChange={e=>onUpload(e.target.files,'active')} />
