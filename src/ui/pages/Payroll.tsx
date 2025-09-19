@@ -27,6 +27,12 @@ export default function Payroll() {
   const [techMonthlyMap, setTechMonthlyMap] = useState<Record<string, any>>({})
   const [roleFilter, setRoleFilter] = useState<'all' | 'support' | 'sales' | 'technician'>('all')
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed'>('all')
+  const [sortBy, setSortBy] = useState<string>('userName')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [page, setPage] = useState<number>(1)
+  const pageSize = 20
+  const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({})
   
   // 技師只能看到自己的薪資
   const isTechnician = user?.role === 'technician'
@@ -44,6 +50,7 @@ export default function Payroll() {
   const [baseGuarantee, setBaseGuarantee] = useState<number>(40000)
   const [showHistory, setShowHistory] = useState<boolean>(false)
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
+  const [editTab, setEditTab] = useState<'base'|'allow'|'deduct'|'tech'|'sales'|'notes'>('base')
   // 績效積分來源（推薦+購物）
   const [perfOrders, setPerfOrders] = useState<any[]>([])
   const [perfSelections, setPerfSelections] = useState<Record<string, boolean>>({})
@@ -457,9 +464,39 @@ export default function Payroll() {
       const hitView = r.__role === viewRole || (viewRole === 'support' && r.__role === 'support')
       const hitRole = roleFilter === 'all' || r.__role === roleFilter
       const hitQ = !search || r.userName?.toLowerCase?.().includes(search.toLowerCase()) || r.userEmail?.toLowerCase?.().includes(search.toLowerCase())
-      return hitView && hitRole && hitQ
+      const hitStatus = statusFilter === 'all' || String(r.status || 'pending') === statusFilter
+      return hitView && hitRole && hitQ && hitStatus
     })
-  }, [recordsWithRole, roleFilter, search, viewRole])
+  }, [recordsWithRole, roleFilter, search, viewRole, statusFilter])
+
+  // 管理員表格排序 + 分頁
+  const adminSorted = useMemo(() => {
+    const val = (r: any, key: string): any => {
+      if (key === 'role') return (r.__role || '')
+      if (key === 'allowancesSum') return calculateSalary(r as PayrollRecord).totalAllowances
+      if (key === 'deductionsSum') return calculateSalary(r as PayrollRecord).totalDeductions
+      if (key === 'net') return calculateSalary(r as PayrollRecord).net
+      if (key === 'techCommission') return Number((r as any).techCommission || 0)
+      return (r as any)[key]
+    }
+    const rows = [...filteredRecords]
+    rows.sort((a, b) => {
+      const va = val(a, sortBy)
+      const vb = val(b, sortBy)
+      if (va == null && vb == null) return 0
+      if (va == null) return sortDir === 'asc' ? -1 : 1
+      if (vb == null) return sortDir === 'asc' ? 1 : -1
+      if (typeof va === 'number' && typeof vb === 'number') return sortDir === 'asc' ? va - vb : vb - va
+      return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va))
+    })
+    return rows
+  }, [filteredRecords, sortBy, sortDir])
+
+  const totalPages = Math.max(1, Math.ceil(adminSorted.length / pageSize))
+  const adminPageRows = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return adminSorted.slice(start, start + pageSize)
+  }, [adminSorted, page])
 
   const exportCSV = () => {
     const headers = ['姓名','員編','Email','月份','底薪','獎金','積分','模式','油資','加班','節金','職務','請假','遲到','客訴','維修','平台','方案','比例','保底','分潤','狀態','淨發']
@@ -659,7 +696,7 @@ export default function Payroll() {
           throw error
         }
       }
-
+ 
       await tryUpsert(full)
       await loadData()
     } catch (error) {
@@ -679,61 +716,31 @@ export default function Payroll() {
   // 內嵌編輯（不再使用彈窗）
   const renderInlineEditor = () => {
     if (!editingRecord) return null
+    const staff = staffList.find(s => s.email === editingRecord.userEmail)
+    const role = staff ? getRoleOf(staff) : 'support'
+    const calc = calculateSalary(editingRecord)
     return (
       <Card>
-        <div className="text-lg font-semibold mb-3">編輯薪資 - {editingRecord.userName}</div>
-        <div className="space-y-4">
-          <div className="rounded-lg border bg-amber-50 p-3 text-sm">
-            <div className="mb-2 font-semibold text-amber-900">客服薪資（快速表單）</div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-amber-900 mb-1">基本薪資</label>
-                <Input type="number" value={editingRecord.baseSalary || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, baseSalary: Number(e.target.value)})} />
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-lg font-semibold">編輯薪資 - {editingRecord.userName}</div>
+          <div className="hidden md:flex items-center gap-2 text-xs text-gray-600">
+            <span>即時淨發：</span>
+            <span className="text-base font-bold text-emerald-600">${calc.net.toLocaleString()}</span>
               </div>
-              <div>
-                <label className="block text-xs text-amber-900 mb-1">職務加給</label>
-                <Input type="number" value={editingRecord.allowances?.duty || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, allowances: { ...editingRecord.allowances, duty: Number(e.target.value) } })} />
               </div>
-              <div>
-                <label className="block text-xs text-amber-900 mb-1">加班費</label>
-                <Input type="number" value={editingRecord.allowances?.overtime || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, allowances: { ...editingRecord.allowances, overtime: Number(e.target.value) } })} />
+        {/* 分頁切換 */}
+        <div className="mb-3 flex flex-wrap gap-2 text-sm">
+          <button className={`rounded px-3 py-1 border ${editTab==='base'?'bg-gray-900 text-white':'bg-white'}`} onClick={()=>setEditTab('base')}>基本</button>
+          <button className={`rounded px-3 py-1 border ${editTab==='allow'?'bg-gray-900 text-white':'bg-white'}`} onClick={()=>setEditTab('allow')}>補貼</button>
+          <button className={`rounded px-3 py-1 border ${editTab==='deduct'?'bg-gray-900 text-white':'bg-white'}`} onClick={()=>setEditTab('deduct')}>扣除</button>
+          {role==='technician' && <button className={`rounded px-3 py-1 border ${editTab==='tech'?'bg-gray-900 text-white':'bg-white'}`} onClick={()=>setEditTab('tech')}>技師</button>}
+          {role==='sales' && <button className={`rounded px-3 py-1 border ${editTab==='sales'?'bg-gray-900 text-white':'bg-white'}`} onClick={()=>setEditTab('sales')}>業務</button>}
+          <button className={`rounded px-3 py-1 border ${editTab==='notes'?'bg-gray-900 text-white':'bg-white'}`} onClick={()=>setEditTab('notes')}>備註</button>
               </div>
-              <div>
-                <label className="block text-xs text-amber-900 mb-1">節金</label>
-                <Input type="number" value={editingRecord.allowances?.holiday || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, allowances: { ...editingRecord.allowances, holiday: Number(e.target.value) } })} />
-              </div>
-              <div>
-                <label className="block text-xs text-amber-900 mb-1">其他補貼</label>
-                <Input type="number" value={(editingRecord.allowances as any)?.other || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), allowances: { ...(editingRecord as any).allowances, other: Number(e.target.value) } } as any)} />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-xs text-amber-900 mb-1">備註</label>
-                <Textarea value={(editingRecord as any).notes || ''} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), notes: e.target.value })} rows={2} />
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div>
-                <div className="text-red-600 font-semibold mb-1">應扣款項</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input placeholder="勞保" type="number" value={(editingRecord.deductions as any)?.laborInsurance || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), laborInsurance: Number(e.target.value) } } as any)} />
-                  <Input placeholder="健保" type="number" value={(editingRecord.deductions as any)?.healthInsurance || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), healthInsurance: Number(e.target.value) } } as any)} />
-                  <Input placeholder="眷數" type="number" value={(editingRecord.deductions as any)?.dependents || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), dependents: Number(e.target.value) } } as any)} />
-                  <Input placeholder="其他" type="number" value={(editingRecord.deductions as any)?.other || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), other: Number(e.target.value) } } as any)} />
-                </div>
-              </div>
-              <div className="text-right self-end">
-                <div className="text-xs text-gray-600">應領金額</div>
-                <div className="text-lg font-bold text-emerald-600">${calculateSalary(editingRecord).net.toLocaleString()}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* 技師：分潤與訂單清單 */}
-          {renderTechOrdersPanel()}
-
-          {renderPerformancePointsPanel()}
-
-          {/* 原本細項編輯區（保留） */}
+        {/* 主編輯區 + 右側即時試算 */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="md:col-span-2 space-y-4">
+            {editTab==='base' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">基本薪資</label>
@@ -743,9 +750,6 @@ export default function Payroll() {
               <label className="block text-sm font-medium mb-1">獎金</label>
               <Input type="number" value={editingRecord.bonus || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, bonus: Number(e.target.value)})} placeholder="獎金" />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">積分</label>
               <Input type="number" value={editingRecord.points || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, points: Number(e.target.value)})} placeholder="積分" />
@@ -757,16 +761,40 @@ export default function Payroll() {
                 <option value="include">併入薪資</option>
               </Select>
             </div>
+                {role!=='support' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">獎金比例</label>
+                      <Select value={String(editingRecord.bonusRate || 10)} onChange={(e)=> setEditingRecord({ ...editingRecord, bonusRate: Number(e.target.value) as 10 | 20 | 30 })}>
+                        <option value={10}>10%</option>
+                        <option value={20}>20%</option>
+                        <option value={30}>30%</option>
+                      </Select>
           </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">平台</label>
+                      <Select value={editingRecord.platform || '同'} onChange={(e)=> setEditingRecord({ ...editingRecord, platform: e.target.value as '同' | '日' | '黃' | '今' })}>
+                        <option value="同">同</option>
+                        <option value="日">日</option>
+                        <option value="黃">黃</option>
+                        <option value="今">今</option>
+                      </Select>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
+            {editTab==='allow' && (
+              <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <Input type="number" value={editingRecord.allowances?.fuel || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, allowances: { ...editingRecord.allowances, fuel: Number(e.target.value) } })} placeholder="油資補貼" />
             <Input type="number" value={editingRecord.allowances?.overtime || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, allowances: { ...editingRecord.allowances, overtime: Number(e.target.value) } })} placeholder="加班費" />
             <Input type="number" value={editingRecord.allowances?.holiday || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, allowances: { ...editingRecord.allowances, holiday: Number(e.target.value) } })} placeholder="節金" />
             <Input type="number" value={editingRecord.allowances?.duty || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, allowances: { ...editingRecord.allowances, duty: Number(e.target.value) } })} placeholder="職務加給" />
+                  <Input type="number" value={(editingRecord.allowances as any)?.other || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), allowances: { ...(editingRecord as any).allowances, other: Number(e.target.value) } } as any)} placeholder="其他補貼" />
           </div>
-          {/* 其他補貼（可多筆） */}
-          <div className="mt-2">
+                <div>
             <div className="text-sm font-medium mb-1">其他補貼（可多筆）</div>
             <div className="space-y-2">
               {((editingRecord as any).extraAllowances || []).map((row: any, idx: number) => (
@@ -786,15 +814,22 @@ export default function Payroll() {
               <Button variant="outline" onClick={()=> setEditingRecord({ ...(editingRecord as any), extraAllowances: [ ...(((editingRecord as any).extraAllowances)||[]), { title:'', amount:null } ] } as any)}>+ 新增補貼</Button>
             </div>
           </div>
+              </div>
+            )}
 
+            {editTab==='deduct' && (
+              <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <Input type="number" value={editingRecord.deductions?.leave || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, leave: Number(e.target.value) } })} placeholder="休假扣除" />
             <Input type="number" value={editingRecord.deductions?.tardiness || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, tardiness: Number(e.target.value) } })} placeholder="遲到扣除" />
             <Input type="number" value={editingRecord.deductions?.complaints || 0} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, complaints: Number(e.target.value) } })} placeholder="客訴扣除" />
             <Input type="number" value={editingRecord.deductions?.repairCost || '' as any} onChange={(e)=> setEditingRecord({ ...editingRecord, deductions: { ...editingRecord.deductions, repairCost: Number(e.target.value) } })} placeholder="維修費用（封頂30%）" />
+                  <Input placeholder="勞保" type="number" value={(editingRecord.deductions as any)?.laborInsurance || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), laborInsurance: Number(e.target.value) } } as any)} />
+                  <Input placeholder="健保" type="number" value={(editingRecord.deductions as any)?.healthInsurance || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), healthInsurance: Number(e.target.value) } } as any)} />
+                  <Input placeholder="眷數" type="number" value={(editingRecord.deductions as any)?.dependents || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), dependents: Number(e.target.value) } } as any)} />
+                  <Input placeholder="其他" type="number" value={(editingRecord.deductions as any)?.other || 0} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), deductions: { ...((editingRecord as any).deductions || {}), other: Number(e.target.value) } } as any)} />
           </div>
-          {/* 其他扣除（可多筆） */}
-          <div className="mt-2">
+                <div>
             <div className="text-sm font-medium mb-1">其他扣除（可多筆）</div>
             <div className="space-y-2">
               {((editingRecord as any).extraDeductions || []).map((row: any, idx: number) => (
@@ -814,58 +849,48 @@ export default function Payroll() {
               <Button variant="outline" onClick={()=> setEditingRecord({ ...(editingRecord as any), extraDeductions: [ ...(((editingRecord as any).extraDeductions)||[]), { title:'', amount:null } ] } as any)}>+ 新增扣除</Button>
             </div>
           </div>
+              </div>
+            )}
 
-          {(() => { const staff = staffList.find(s => s.email === editingRecord.userEmail); const r = staff ? getRoleOf(staff) : 'support'; return r==='support' ? null : (
-            <div className="grid grid-cols-2 gap-4">
+            {editTab==='tech' && renderTechOrdersPanel()}
+            {editTab==='sales' && renderPerformancePointsPanel()}
+
+            {editTab==='notes' && (
               <div>
-                <label className="block text-sm font-medium mb-1">獎金比例</label>
-                <Select value={String(editingRecord.bonusRate || 10)} onChange={(e)=> setEditingRecord({ ...editingRecord, bonusRate: Number(e.target.value) as 10 | 20 | 30 })}>
-                  <option value={10}>10%</option>
-                  <option value={20}>20%</option>
-                  <option value={30}>30%</option>
-                </Select>
+                <label className="block text-sm font-medium mb-1">備註</label>
+                <Textarea value={(editingRecord as any).notes || ''} onChange={(e)=> setEditingRecord({ ...(editingRecord as any), notes: e.target.value })} rows={3} />
               </div>
+            )}
+          </div>
+
+          {/* 右側即時試算 */}
               <div>
-                <label className="block text-sm font-medium mb-1">平台</label>
-                <Select value={editingRecord.platform || '同'} onChange={(e)=> setEditingRecord({ ...editingRecord, platform: e.target.value as '同' | '日' | '黃' | '今' })}>
-                  <option value="同">同</option>
-                  <option value="日">日</option>
-                  <option value="黃">黃</option>
-                  <option value="今">今</option>
-                </Select>
+            <div className="rounded border bg-white p-3 text-sm">
+              <div className="mb-2 font-semibold">即時淨發試算</div>
+              <div className="space-y-1 text-gray-700">
+                <div>底薪：${calc.base.toLocaleString()}</div>
+                <div>補貼：${calc.totalAllowances.toLocaleString()}</div>
+                <div>扣除：${calc.totalDeductions.toLocaleString()}</div>
+                <div>獎金：${(editingRecord.bonus||0).toLocaleString()}</div>
+                <div>積分（{editingRecord.pointsMode==='include'?'併入':'累積'}）：{editingRecord.points||0}</div>
+                {role==='technician' && (
+                  <div>分潤：${Number((editingRecord as any).techCommission||0).toLocaleString()}</div>
+                )}
               </div>
+              <div className="mt-2 text-right">
+                <div className="text-xs text-gray-600">淨發金額</div>
+                <div className="text-xl font-bold text-emerald-700">${calc.net.toLocaleString()}</div>
             </div>
-          ) })()}
-
-          {/* 業務設定：兼職/正職（積分換薪）*/}
-          {(() => { const staff = staffList.find(s => s.email === editingRecord.userEmail); const r = staff ? getRoleOf(staff) : 'support'; if (r!=='sales') return null; return (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">業務型態</label>
-                <Select value={salesType} onChange={(e)=> setSalesType((e.target.value as any)||'fulltime')}>
-                  <option value="parttime">兼職（僅積分換薪）</option>
-                  <option value="fulltime">正職（底薪＋積分換薪）</option>
-                </Select>
-              </div>
-              <div className="text-right self-end">
-                <div className="text-xs text-gray-600">本月績效積分</div>
-                <div className="text-lg font-bold text-emerald-600">{Number(editingRecord.points||0).toLocaleString()}</div>
-              </div>
             </div>
-          ) })()}
-
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={()=>{ setEditingRecord(null) }}>
-              取消編輯
-            </Button>
-            <Button variant="outline" onClick={autoCalc}>
-              自動計算
-            </Button>
-            <Button onClick={()=> editingRecord && saveRecord(editingRecord)}>
-              儲存
-            </Button>
           </div>
         </div>
+
+        {/* 底部操作列 */}
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="outline" onClick={()=>{ setEditingRecord(null) }}>取消</Button>
+          <Button variant="outline" onClick={autoCalc}>自動計算</Button>
+          <Button onClick={()=> editingRecord && saveRecord(editingRecord)}>儲存</Button>
+              </div>
       </Card>
     )
   }
@@ -903,8 +928,8 @@ export default function Payroll() {
                   <div>本月分潤：<span className="font-medium text-emerald-700">${Number((me as any).techCommission||0).toLocaleString()}</span></div>
                 </>
               )}
+              </div>
             </div>
-          </div>
           <div className="rounded border bg-white p-3">
             <div className="font-semibold mb-2">發放資訊</div>
             <div className="text-sm space-y-1">
@@ -967,7 +992,7 @@ export default function Payroll() {
   // 管理員：薪資總覽表（更詳細、可展開拆項）
   const renderAdminTable = () => {
     if (!can(user, 'admin')) return null
-    const rows = filteredRecords
+    const rows = adminPageRows
     const getKey = (r: any) => String(r.id || `${r.userEmail}-${r.month}`)
     const toggle = (k: string) => setExpandedRows(s => ({ ...s, [k]: !s[k] }))
     const A = (r: any) => (r.allowances || {})
@@ -1090,6 +1115,14 @@ export default function Payroll() {
               })}
             </tbody>
           </table>
+        </div>
+        {/* 分頁 */}
+        <div className="mt-3 flex items-center justify-between text-sm">
+          <div>共 {adminSorted.length} 筆，頁 {page}/{totalPages}</div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={()=> setPage(p=> Math.max(1, p-1))} disabled={page<=1}>上一頁</Button>
+            <Button variant="outline" onClick={()=> setPage(p=> Math.min(totalPages, p+1))} disabled={page>=totalPages}>下一頁</Button>
+          </div>
         </div>
       </Card>
     )
@@ -1453,13 +1486,18 @@ export default function Payroll() {
           <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-40" />
           {!isTechnician && (
             <>
-              <Select value={roleFilter} onChange={(e)=>setRoleFilter(e.target.value as any)} className="w-36">
-                <option value="all">全部</option>
-                <option value="support">客服/管理員</option>
-                <option value="sales">業務</option>
-                <option value="technician">技師</option>
+          <Select value={roleFilter} onChange={(e)=>setRoleFilter(e.target.value as any)} className="w-36">
+            <option value="all">全部</option>
+            <option value="support">客服/管理員</option>
+            <option value="sales">業務</option>
+            <option value="technician">技師</option>
+          </Select>
+              <Select value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value as any)} className="w-32">
+                <option value="all">所有狀態</option>
+                <option value="pending">待確認</option>
+                <option value="confirmed">已確認</option>
               </Select>
-              <Input placeholder="搜尋姓名/Email" value={search} onChange={(e)=>setSearch(e.target.value)} className="w-48" />
+          <Input placeholder="搜尋姓名/Email" value={search} onChange={(e)=>setSearch(e.target.value)} className="w-48" />
             </>
           )}
           {can(user, 'admin') && (
@@ -1473,11 +1511,11 @@ export default function Payroll() {
       </div>
 
       {!isTechnician && (
-        <div className="flex items-center gap-2">
-          <Tab to="/payroll/support" label="客服/管理員" />
-          <Tab to="/payroll/sales" label="業務" />
-          <Tab to="/payroll/technician" label="技師" />
-        </div>
+      <div className="flex items-center gap-2">
+        <Tab to="/payroll/support" label="客服/管理員" />
+        <Tab to="/payroll/sales" label="業務" />
+        <Tab to="/payroll/technician" label="技師" />
+      </div>
       )}
 
       {/* 單一角色人員選取 */}
