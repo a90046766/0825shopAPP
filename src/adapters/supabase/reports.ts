@@ -93,13 +93,46 @@ class SupabaseReportsRepo implements ReportsRepo {
 
   async create(thread: Omit<ReportThread, 'id' | 'createdAt' | 'messages' | 'status'> & { messages?: ReportMessage[] }): Promise<ReportThread> {
     const now = new Date().toISOString()
-    const payload = { ...toThreadRow(thread), status: 'open', created_at: now }
-    const { data, error } = await supabase
-      .from('report_threads')
-      .insert(payload)
-      .select()
-      .single()
-    if (error) throw error
+    // 僅以最小必要欄位插入（避免 schema 差異 400）
+    const base = toThreadRow(thread)
+    const minimal: any = {
+      body: (base as any).body ?? '',
+      category: (base as any).category ?? 'other',
+      level: (base as any).level ?? 'normal',
+      target: (base as any).target ?? null,
+      target_emails: (base as any).target_emails ?? null,
+      order_id: (base as any).order_id ?? undefined,
+      created_by: (base as any).created_by ?? undefined,
+    }
+    // 若 subject 存在就帶，否則忽略
+    if ((base as any).subject != null) minimal.subject = (base as any).subject
+
+    // 多輪容錯：移除回報不支援欄位再試
+    const tryInsert = async (): Promise<any> => {
+      const attempt: any = { ...minimal }
+      const dropList = ['subject', 'category', 'level', 'target', 'target_emails', 'order_id', 'created_by']
+      for (let i = 0; i < dropList.length + 2; i++) {
+        const { data, error } = await supabase.from('report_threads').insert(attempt).select().single()
+        if (!error) return data
+        const msg = String((error as any)?.message || '')
+        const m = msg.match(/Could not find the '([^']+)' column/i)
+        if (m && m[1]) {
+          delete attempt[m[1]]
+          continue
+        }
+        // 若為 RLS 擋下，拋出讓上層處理（政策需補 INSERT）
+        if (/row-level security|RLS|violates/i.test(msg)) throw error
+        // 其他未知錯誤時，最後再嘗試移除非關鍵欄位
+        if (i < dropList.length && attempt[dropList[i]] !== undefined) {
+          delete attempt[dropList[i]]
+          continue
+        }
+        throw error
+      }
+      throw new Error('report_threads insert failed')
+    }
+
+    const data = await tryInsert()
     const created = fromThreadRow(data)
     const messages = thread.messages || []
     if (messages.length > 0) {

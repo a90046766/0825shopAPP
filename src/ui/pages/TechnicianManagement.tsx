@@ -134,6 +134,8 @@ export default function TechnicianManagementPage() {
                   <option value="base1">保1（40k+10%）</option>
                   <option value="base2">保2（40k+20%）</option>
                   <option value="base3">保3（40k+30%）</option>
+                  <option value="afterTax80">結案金額/1.05*0.8</option>
+                  <option value="custom">自訂</option>
                 </select>
               </div>
             </div>
