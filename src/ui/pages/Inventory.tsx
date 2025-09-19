@@ -142,6 +142,25 @@ export default function InventoryPage() {
       
       await repos.inventoryRepo.updatePurchaseRequest(requestId, updateData)
       
+      // A：審核通過才扣庫存（最小改動，避免超賣）
+      if (approved) {
+        try {
+          const item = (rows || []).find(x => x.id === request.itemId) || await repos.inventoryRepo.get?.(request.itemId)
+          if (item) {
+            const nextQty = Math.max(0, Number(item.quantity || 0) - Number(request.requestedQuantity || 0))
+            await repos.inventoryRepo.upsert({ ...item, quantity: nextQty })
+          }
+        } catch {}
+        
+        // 審核通過時，補一則回報中心留言通知申請者
+        try {
+          await repos.reportsRepo.appendMessage?.(request.reportThreadId || '', {
+            authorEmail: String(u?.email||'').toLowerCase(),
+            body: `已核准並扣減庫存：${request.itemName} x${request.requestedQuantity}`
+          })
+        } catch {}
+      }
+      
       // 發送通知給申請者
       const notification = {
         id: `NOT-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
