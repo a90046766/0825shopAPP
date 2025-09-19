@@ -39,6 +39,7 @@ export default function AdminBroadcastPage() {
   const [cities, setCities] = useState<string[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [previewCount, setPreviewCount] = useState<number | null>(null)
+  const [previewMsg, setPreviewMsg] = useState<string>('')
   const [scheduleAt, setScheduleAt] = useState<string>('')
   const [expireAt, setExpireAt] = useState<string>('')
 
@@ -124,10 +125,15 @@ export default function AdminBroadcastPage() {
 
   const preview = async () => {
     setPreviewCount(null)
+    setPreviewMsg('')
     try {
       const { supabase } = await import('../../utils/supabase')
       if (target==='user') { setPreviewCount(1); return }
-      if (cities.length===0 && categories.length===0) { setPreviewCount(null); alert('未選擇分群條件，將依目標直接發送'); return }
+      if (cities.length===0 && categories.length===0) { 
+        setPreviewCount(null)
+        setPreviewMsg('未選擇分群條件，將依目標直接發送')
+        return 
+      }
       const { data, error } = await supabase.from('orders').select('customer_email,customer_address,service_items')
       if (error) throw error
       const emailSet: Record<string, boolean> = {}
@@ -145,7 +151,9 @@ export default function AdminBroadcastPage() {
         }
         if (cityOk && catOk) emailSet[email] = true
       })
-      setPreviewCount(Object.keys(emailSet).length)
+      const count = Object.keys(emailSet).length
+      setPreviewCount(count)
+      setPreviewMsg(`預估收件人：${count} 人`)
     } catch (e:any) {
       alert(e?.message || '預覽失敗')
     }
@@ -204,22 +212,27 @@ export default function AdminBroadcastPage() {
           )}
         </div>
         {/* 分群條件（選填）：城市與服務類別 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">城市（可多選）</label>
-            <select multiple value={cities} onChange={e=>{ const opts=[...e.target.selectedOptions].map(o=>o.value); setCities(opts) }} className="h-28 w-full rounded border px-3 py-2">
-              {Object.keys(TAIWAN_CITIES).map(c=> (<option key={c} value={c}>{c}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">服務類別（可多選）</label>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              {['cleaning','home','new','used'].map(cat=> (
-                <label key={cat} className="inline-flex items-center gap-2">
-                  <input type="checkbox" checked={categories.includes(cat)} onChange={(e)=>{ if(e.target.checked) setCategories([...categories, cat]); else setCategories(categories.filter(x=>x!==cat)) }} />
-                  {cat}
-                </label>
-              ))}
+        <div className="rounded border p-3">
+          <div className="text-xs text-gray-600 mb-2">分群條件（選填）— 未選擇時將依「目標」直接發送</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">城市（可多選）</label>
+              <select multiple value={cities} onChange={e=>{ const opts=[...e.target.selectedOptions].map(o=>o.value); setCities(opts) }} className="h-28 w-full rounded border px-3 py-2">
+                {Object.keys(TAIWAN_CITIES).map(c=> (<option key={c} value={c}>{c}</option>))}
+              </select>
+              <div className="mt-1 text-xs text-gray-500">已選城市：{cities.length} 個</div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">服務類別（可多選）</label>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {['cleaning','home','new','used'].map(cat=> (
+                  <label key={cat} className="inline-flex items-center gap-2">
+                    <input type="checkbox" checked={categories.includes(cat)} onChange={(e)=>{ if(e.target.checked) setCategories([...categories, cat]); else setCategories(categories.filter(x=>x!==cat)) }} />
+                    {cat}
+                  </label>
+                ))}
+              </div>
+              <div className="mt-1 text-xs text-gray-500">已選類別：{categories.length} 項</div>
             </div>
           </div>
         </div>
@@ -236,7 +249,7 @@ export default function AdminBroadcastPage() {
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={preview} className="rounded bg-gray-100 px-3 py-2 text-gray-800">預覽收件人數</button>
-          {typeof previewCount==='number' && <span className="text-sm text-gray-600">預估收件人：{previewCount} 人</span>}
+          {previewMsg && <span className="text-sm text-gray-600">{previewMsg}</span>}
         </div>
         <div className="pt-2">
           <button disabled={sending} onClick={send} className="rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-60">{sending?'送出中...':'送出'}</button>

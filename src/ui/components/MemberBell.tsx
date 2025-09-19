@@ -20,11 +20,12 @@ export default function MemberBell() {
         const j = await res.json()
         if (j?.success && Array.isArray(j.data)) merged = j.data
       } catch {}
-      // 回退：讀取 Supabase notifications（target=all 或 user=email）
+      // 回退：讀取 Supabase notifications（target=all 或 user=email），並套用到期/排程過濾
       try {
         const emailLc = (member.email||'').toLowerCase()
         const { data, error } = await supabase.from('notifications').select('*').order('created_at', { ascending: false })
         if (!error && Array.isArray(data)) {
+          const now = new Date()
           const mapped = (data||[])
             .filter((n:any)=>{
               const t = n.target
@@ -32,6 +33,12 @@ export default function MemberBell() {
               if (t==='user') return (String(n.target_user_email||'').toLowerCase()===emailLc)
               if (t==='member') return true
               return false
+            })
+            .filter((n:any)=>{
+              // 到期過濾與排程觸發過濾
+              const notExpired = !n.expires_at || new Date(n.expires_at) > now
+              const delivered = (n.sent_at && new Date(n.sent_at) <= now) || (n.scheduled_at && new Date(n.scheduled_at) <= now)
+              return notExpired && delivered
             })
             .map((n:any)=>{
               let dataObj:any = null
