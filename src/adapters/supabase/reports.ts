@@ -21,6 +21,7 @@ function fromThreadRow(r: any): ReportThread {
     orderId: r.order_id || undefined,
     attachments: r.attachments || [],
     readByEmails: r.read_by_emails || [],
+    createdBy: (r.created_by || undefined),
     messages: [],
     createdAt: r.created_at || new Date().toISOString(),
     closedAt: r.closed_at || undefined,
@@ -32,6 +33,7 @@ function toThreadRow(p: Partial<ReportThread>): any {
   if ('targetEmails' in r) { r.target_emails = (r as any).targetEmails; delete (r as any).targetEmails }
   if ('orderId' in r) { r.order_id = (r as any).orderId; delete (r as any).orderId }
   if ('readByEmails' in r) { r.read_by_emails = (r as any).readByEmails; delete (r as any).readByEmails }
+  if ('createdBy' in r) { r.created_by = String((r as any).createdBy||'').toLowerCase(); delete (r as any).createdBy }
   if ('createdAt' in r) { delete (r as any).createdAt }
   if ('closedAt' in r) { r.closed_at = (r as any).closedAt; delete (r as any).closedAt }
   // 清理 order_id：空字串或非 UUID 一律不送，避免 22P02
@@ -61,7 +63,7 @@ class SupabaseReportsRepo implements ReportsRepo {
     // 輕量清單：僅抓必要欄位與上限，避免一次性載入大量留言導致資源不足
     const { data, error } = await supabase
       .from('report_threads')
-      .select('id, subject, body, category, level, target, target_emails, status, order_id, attachments, read_by_emails, created_at, closed_at')
+      .select('id, subject, body, category, level, target, target_emails, status, order_id, attachments, read_by_emails, created_by, created_at, closed_at')
       .order('created_at', { ascending: false })
       .limit(100)
     if (error) throw error

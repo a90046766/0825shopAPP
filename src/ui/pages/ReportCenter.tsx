@@ -110,6 +110,8 @@ export default function ReportCenterPage(){
                   <span>{t.category}</span>
                   <span>{t.status}</span>
                   {t.orderId && <a className="text-brand-600 underline" href={`#/orders/${t.orderId}`}>訂單 {t.orderId}</a>}
+                  {t.target && (<span>對象：{t.target==='subset' ? `名單(${(t.targetEmails||[]).length})` : t.target}</span>)}
+                  {t.createdBy && (<span>發送者：{t.createdBy}</span>)}
                   {t.createdAt && <span>{new Date(t.createdAt).toLocaleString('zh-TW')}</span>}
                 </div>
               </div>

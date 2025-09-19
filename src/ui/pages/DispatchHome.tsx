@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { can } from '../../utils/permissions'
 // 改為動態從 adapters 取得 authRepo
 import { loadAdapters } from '../../adapters'
+import { supabase } from '../../utils/supabase'
 
 export default function PageDispatchHome() {
   const [user, setUser] = useState<any>(null)
@@ -30,27 +31,28 @@ export default function PageDispatchHome() {
         if (!repos) return
         const me = repos.authRepo.getCurrentUser()
         if (!me || me.role !== 'technician') { setBadges({}); return }
-        const [orders, threads] = await Promise.all([
-          repos.orderRepo?.list?.() ?? [],
-          (repos as any)?.reportsRepo?.list?.() ?? []
-        ])
         const emailLc = String(me.email||'').toLowerCase()
         const name = String(me.name||'')
-        // 訂單：指派給我，狀態為已確認/服務中
-        const ordersCount = (orders||[]).filter((o:any)=>{
-          const at = Array.isArray(o.assignedTechnicians) ? o.assignedTechnicians : []
-          const mine = at.some((t:any)=> String(t||'')===name || String(t||'').toLowerCase()===emailLc)
-          const st = String(o.status||'')
-          return mine && (st==='confirmed' || st==='in_progress')
-        }).length
-        // 回報：未結案且與我相關（all/tech/technician(s)/subset含我/我發起）
-        const reportsCount = (threads||[]).filter((t:any)=>{
-          if (String(t.status||'') !== 'open') return false
-          const target = String(t.target||'')
-          const list = Array.isArray(t.targetEmails) ? t.targetEmails.map((x:string)=>String(x||'').toLowerCase()) : []
-          const hit = (target==='all') || (target==='tech') || (target==='technician') || (target==='technicians') || (list.includes(emailLc)) || (String(t.createdBy||'').toLowerCase()===emailLc)
-          return hit
-        }).length
+        // 輕量計數：訂單（服務中/已確認，且我在指派名單）
+        let ordersCount = 0
+        try {
+          const base = supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['confirmed','in_progress'])
+          const byName = name ? await base.contains('assigned_technicians', [name]) : { count: 0 }
+          const byEmail = emailLc ? await base.contains('assigned_technicians', [emailLc]) : { count: 0 }
+          ordersCount = Math.max(Number(byName.count||0), Number(byEmail.count||0))
+        } catch { ordersCount = 0 }
+        // 回報：仍以 repo.list() 但僅一次，過濾未結案與與我相關
+        let reportsCount = 0
+        try {
+          const threads = await ((repos as any)?.reportsRepo?.list?.() ?? [])
+          reportsCount = (threads||[]).filter((t:any)=>{
+            if (String(t.status||'') !== 'open') return false
+            const target = String(t.target||'')
+            const list = Array.isArray(t.targetEmails) ? t.targetEmails.map((x:string)=>String(x||'').toLowerCase()) : []
+            const hit = (target==='all') || (target==='tech') || (target==='technician') || (target==='technicians') || (list.includes(emailLc)) || (String(t.createdBy||'').toLowerCase()===emailLc)
+            return hit
+          }).length
+        } catch { reportsCount = 0 }
         setBadges({ orders: ordersCount, reports: reportsCount })
       } catch { setBadges({}) }
     })()
