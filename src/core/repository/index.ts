@@ -457,8 +457,10 @@ export interface ProductRepo {
 export interface ScheduleRepo {
   listSupport(range?: { start: string; end: string }): Promise<SupportShift[]>
   saveSupportShift(shift: Omit<SupportShift, 'id' | 'updatedAt'> & { id?: string }): Promise<SupportShift>
+  removeSupportShift(id: string): Promise<void>
   listTechnicianLeaves(range?: { start: string; end: string }): Promise<TechnicianLeave[]>
   saveTechnicianLeave(leave: Omit<TechnicianLeave, 'id' | 'updatedAt'> & { id?: string }): Promise<TechnicianLeave>
+  removeTechnicianLeave(id: string): Promise<void>
   listWork(range?: { start: string; end: string }, technicianEmail?: string): Promise<TechnicianWork[]>
   saveWork(work: Omit<TechnicianWork, 'id' | 'updatedAt'> & { id?: string }): Promise<TechnicianWork>
   removeWork(id: string): Promise<void>

@@ -43,6 +43,11 @@ class LocalScheduleRepo implements ScheduleRepo {
     return next
   }
 
+  async removeSupportShift(id: string): Promise<void> {
+    const rows = this.load<SupportShift[]>(this.supportKey, [])
+    this.save(this.supportKey, rows.filter(r => r.id !== id))
+  }
+
   async listTechnicianLeaves(range?: { start: string; end: string }): Promise<TechnicianLeave[]> {
     const rows = this.load<TechnicianLeave[]>(this.techLeaveKey, [])
     if (!range) return rows
@@ -66,6 +71,11 @@ class LocalScheduleRepo implements ScheduleRepo {
     else rows.push(next)
     this.save(this.techLeaveKey, rows)
     return next
+  }
+
+  async removeTechnicianLeave(id: string): Promise<void> {
+    const rows = this.load<TechnicianLeave[]>(this.techLeaveKey, [])
+    this.save(this.techLeaveKey, rows.filter(r => r.id !== id))
   }
 
   async listWork(range?: { start: string; end: string }, technicianEmail?: string): Promise<TechnicianWork[]> {

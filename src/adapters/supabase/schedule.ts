@@ -112,6 +112,11 @@ class SupabaseScheduleRepo implements ScheduleRepo {
     return fromSupportRow(data)
   }
 
+  async removeSupportShift(id: string): Promise<void> {
+    const { error } = await supabase.from('support_shifts').delete().eq('id', id)
+    if (error) throw error
+  }
+
   async listTechnicianLeaves(range?: { start: string; end: string }): Promise<TechnicianLeave[]> {
     let query = supabase.from('technician_leaves').select('*')
     if (range) query = query.gte('date', range.start).lte('date', range.end)
@@ -140,6 +145,11 @@ class SupabaseScheduleRepo implements ScheduleRepo {
       .single()
     if (error) throw error
     return fromLeaveRow(data)
+  }
+
+  async removeTechnicianLeave(id: string): Promise<void> {
+    const { error } = await supabase.from('technician_leaves').delete().eq('id', id)
+    if (error) throw error
   }
 
   async listWork(range?: { start: string; end: string }, technicianEmail?: string): Promise<TechnicianWork[]> {
