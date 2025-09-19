@@ -166,7 +166,7 @@ export default function ReportCenterPage(){
               <button onClick={async()=>{
                 if (!repo) return
                 const emails = people.filter(p=>selectedNames[p.id]).map(p=>p.email).filter(Boolean)
-                const payload:any = { body: form.body, category: form.category, level: form.level, target: (!isTechnician && emails.length>0)? 'subset':'support', targetEmails: (!isTechnician ? emails : []), orderId: form.orderId, attachments: form.attachments }
+                const payload:any = { body: form.body, category: form.category, level: form.level, target: (!isTechnician && emails.length>0)? 'subset':'support', targetEmails: (!isTechnician ? (emails.length>0? emails : null) : null), orderId: form.orderId, attachments: form.attachments }
                 await repo.create(payload)
                 setOpen(false); setForm({ category:'other', level:'normal', target:'all', body:'', orderId:'', attachments:[] } as any); setSelectedNames({}); load()
               }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">建立</button>

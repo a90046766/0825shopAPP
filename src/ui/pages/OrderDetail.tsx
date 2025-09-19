@@ -180,11 +180,11 @@ export default function PageOrderDetail() {
     requirePhotosOk
   )
   const closeDisabledReason = (()=>{
-    if (!(order.status==='in_progress' || order.status==='unservice' || order.status==='completed')) return '尚未開始/或已標記無法服務'
+    if (!(order.status==='in_progress' || order.status==='unservice' || order.status==='completed')) return (order.status==='confirmed' ? '尚未開始服務' : '尚未開始/或已標記無法服務')
     if (timeLeftSec>0) return `剩餘 ${String(Math.floor(timeLeftSec/60)).padStart(2,'0')}:${String(timeLeftSec%60).padStart(2,'0')}`
     if (!hasTechSignature || !hasCustomerSignature) return '需完成雙簽名'
     if (!(payStatus==='paid' || payStatus==='nopay')) return '需完成付款或標記不用付款'
-    if (!requirePhotosOk) return '需上傳至少一張服務照片'
+    if (!requirePhotosOk) return '需上傳至少一張服務照片（前或後皆可）'
     return ''
   })()
   return (
@@ -580,7 +580,7 @@ export default function PageOrderDetail() {
           </div>
           <div className="text-xs text-gray-700">
             會員：
-            {can(user,'orders.update') ? (
+            {(can(user,'orders.update') && (user?.role==='admin' || user?.role==='support')) ? (
               <span className="inline-flex items-center gap-2">
                 <input className="rounded border px-2 py-1 text-sm" placeholder="輸入 MOxxxx" value={memberCode} onChange={e=>setMemberCode(e.target.value)} />
                 <button className="rounded bg-gray-900 px-2 py-1 text-white" onClick={async()=>{
