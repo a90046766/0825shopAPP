@@ -370,12 +370,11 @@ export default function ShopCartPage() {
 
   // 計算最終價格
   const getFinalPrice = () => {
-    const total = getTotalPrice()
-    const groupBuySavings = getGroupBuySavings()
+    // 注意：getTotalPrice() 已經套用團購價，不可再次扣除 groupBuySavings
+    const totalAfterGroup = getTotalPrice()
     const discountAmount = getDiscountAmount()
     const pointsDiscount = getPointsDiscount()
-    
-    return Math.max(0, total - groupBuySavings - discountAmount - pointsDiscount)
+    return Math.max(0, totalAfterGroup - discountAmount - pointsDiscount)
   }
 
   // 尚差幾件達團購（跨品項清洗）
