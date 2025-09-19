@@ -111,6 +111,10 @@ function fromDbRow(row: any): Order {
 const ORDERS_COLUMNS =
   'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_by,created_at,updated_at'
 
+// 詳細頁欄位（單筆讀取可接受較大欄位，需包含照片供結案檢核）
+const ORDER_COLUMNS_DETAIL =
+  ORDERS_COLUMNS + ',photos,photos_before,photos_after'
+
 class SupabaseOrderRepo implements OrderRepo {
   async list(): Promise<Order[]> {
     try {
@@ -144,7 +148,7 @@ class SupabaseOrderRepo implements OrderRepo {
     try {
       let query = supabase
         .from('orders')
-        .select(ORDERS_COLUMNS)
+        .select(ORDER_COLUMNS_DETAIL)
       
       // 以 UUID 為主，否則以 order_number 查詢（不再限定必須 OD 開頭）
       if (isValidUUID(id)) {
