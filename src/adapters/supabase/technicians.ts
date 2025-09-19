@@ -25,7 +25,7 @@ function toDb(patch: Partial<Technician>): any {
   const r: any = { ...patch }
   if ('shortName' in r) { r.short_name = (r as any).shortName; delete (r as any).shortName }
   if ('revenueShareScheme' in r) { r.revenue_share_scheme = (r as any).revenueShareScheme; delete (r as any).revenueShareScheme }
-  if ('tempContact' in r) { r.temp_contact = (r as any).tempContact }
+  if ('tempContact' in r) { r.temp_contact = (r as any).tempContact; delete (r as any).tempContact }
   if ('updatedAt' in r) delete (r as any).updatedAt
   return r
 }
