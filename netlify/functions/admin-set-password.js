@@ -34,10 +34,10 @@ exports.handler = async (event) => {
 
     if (!email) return json(400, { ok: false, error: 'email_required' })
 
-    // ?–ä½¿?¨è€?
+    // ?ï¿½ä½¿?ï¿½ï¿½?
     const { data: existing, error: ge } = await supabase.auth.admin.listUsers(email)
     if (ge && String(ge.message||'').includes('not found') === false) {
-      // ?¶ä??¯èª¤
+      // ?ï¿½ï¿½??ï¿½èª¤
       return json(500, { ok: false, error: 'get_user_failed', message: ge.message })
     }
 

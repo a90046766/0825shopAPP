@@ -33,7 +33,10 @@ export default function LoginPage() {
       const a = await loadAdapters()
       const norm = normalizeEmail(email)
       const pass = (password || '').trim() || 'a123123'
-      const u = await a.authRepo.login(norm, pass)
+      const u = await Promise.race([
+        a.authRepo.login(norm, pass),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('登入逾時，請稍後重試')), 15000))
+      ])
       
       // 處理記住帳號
       if (remember) localStorage.setItem('remember-login-email', norm)
