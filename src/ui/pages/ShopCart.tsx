@@ -986,6 +986,7 @@ export default function ShopCartPage() {
                       <span>應付金額</span>
                       <span>NT$ {getFinalPrice().toLocaleString()}</span>
                     </div>
+                    <div className="text-[11px] md:text-xs text-gray-500">消費回饋點數於服務完成後反饋</div>
                     {getGroupBuySavings() > 0 && (
                       <div className="text-[11px] md:text-xs text-green-600">已為您節省：NT$ {getGroupBuySavings().toLocaleString()}</div>
                     )}
