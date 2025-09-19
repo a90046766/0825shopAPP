@@ -36,6 +36,8 @@ function toThreadRow(p: Partial<ReportThread>): any {
   if ('createdBy' in r) { r.created_by = String((r as any).createdBy||'').toLowerCase(); delete (r as any).createdBy }
   if ('createdAt' in r) { delete (r as any).createdAt }
   if ('closedAt' in r) { r.closed_at = (r as any).closedAt; delete (r as any).closedAt }
+  // 維持 target_emails NOT NULL 的資料庫時，避免傳 null
+  if (r.target_emails === null || r.target_emails === undefined) r.target_emails = []
   // 清理 order_id：空字串或非 UUID 一律不送，避免 22P02
   if ('order_id' in r) {
     const raw = (r as any).order_id
