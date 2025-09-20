@@ -212,9 +212,11 @@ createRoot(document.getElementById('root')!).render(
   try {
     if ('serviceWorker' in navigator) {
       const swUrl = '/sw.js'
-      // 避免非 HTTPS 或 localhost 以外環境報錯
+      const host = location.hostname || ''
+      const isStore = host === 'store.942clean.com.tw' || host.indexOf('store.') === 0
+      // 僅內部（非 store 子網域）註冊 SW
       const isSecure = location.protocol === 'https:' || location.hostname === 'localhost'
-      if (isSecure) {
+      if (!isStore && isSecure) {
         navigator.serviceWorker.register(swUrl, { scope: '/' }).catch(()=>{})
       }
     }

@@ -4,7 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#111827" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <link id="pwa-manifest" rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      (function(){
+        try {
+          var host = location.hostname || '';
+          var el = document.getElementById('pwa-manifest');
+          if (!el) return;
+          var isStore = host === 'store.942clean.com.tw' || host.indexOf('store.') === 0;
+          if (isStore) {
+            // 客戶端不啟用 PWA：移除 manifest link
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+          } else {
+            // 內部人員：使用內部 manifest，start_url 指向 /dispatch
+            el.setAttribute('href', '/manifest-admin.webmanifest');
+          }
+        } catch {}
+      })();
+    </script>
     <title>日式洗濯家電服務</title>
     <meta name="description" content="專業購物站 提供專業的家電清潔與服務預約" />
     <meta property="og:title" content="日式洗濯家電服務" />
