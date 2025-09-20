@@ -11,6 +11,12 @@
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "shortcuts": [
+    { "name": "首頁", "short_name": "首頁", "url": "/store" },
+    { "name": "商品清單", "short_name": "商品", "url": "/store/products" },
+    { "name": "購物車", "short_name": "購物車", "url": "/store/cart" },
+    { "name": "會員中心", "short_name": "會員", "url": "/store/member/orders" }
   ]
 }
 
