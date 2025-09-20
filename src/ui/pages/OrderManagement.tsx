@@ -42,6 +42,10 @@ export default function OrderManagementPage() {
     photos:[], 
     signatures:{} 
   })
+  const [draftId, setDraftId] = useState<string>('')
+  const [formDirty, setFormDirty] = useState<boolean>(false)
+  const [isAutoSaving, setIsAutoSaving] = useState<boolean>(false)
+  const [lastSavedAt, setLastSavedAt] = useState<string>('')
   const [activePercent, setActivePercent] = useState<number>(0)
   const [products, setProducts] = useState<any[]>([])
   const load = async () => { if (!repos) return; setRows(await repos.orderRepo.list()) }
@@ -49,6 +53,61 @@ export default function OrderManagementPage() {
   useEffect(()=>{ if (repos) load() },[repos])
   useEffect(()=>{ getActivePercent().then(setActivePercent) },[creating])
   useEffect(()=>{ (async()=>{ try { const a = repos || (await loadAdapters()); setProducts(await a.productRepo.list()) } catch {} })() },[creating, repos])
+
+  // 當開啟新建視窗，且已填姓名與手機時，自動建立草稿
+  useEffect(()=>{
+    if (!creating) return
+    if (!repos) return
+    if (draftId) return
+    if (!form.customerName || !form.customerPhone) return
+    let cancelled = false
+    ;(async()=>{
+      try {
+        const draftPayload: any = {
+          customerName: form.customerName,
+          customerPhone: form.customerPhone,
+          customerEmail: form.customerEmail || '',
+          customerAddress: form.customerAddress || '',
+          preferredDate: form.preferredDate || undefined,
+          preferredTimeStart: form.preferredTimeStart,
+          preferredTimeEnd: form.preferredTimeEnd,
+          platform: form.platform || '日',
+          referrerCode: form.referrerCode || '',
+          serviceItems: form.serviceItems || [],
+          assignedTechnicians: [],
+          signatures: {},
+          status: 'draft'
+        }
+        const o = await repos.orderRepo.create(draftPayload)
+        if (!cancelled && o?.id) {
+          setDraftId(o.id as string)
+          setFormDirty(false)
+          setLastSavedAt(new Date().toISOString())
+        }
+      } catch {}
+    })()
+    return ()=>{ cancelled = true }
+  }, [creating, repos, draftId, form.customerName, form.customerPhone])
+
+  // 每 5 秒自動儲存草稿（僅在有變更時）
+  useEffect(()=>{
+    if (!creating) return
+    if (!repos) return
+    if (!draftId) return
+    const h = setInterval(async()=>{
+      if (!formDirty) return
+      setIsAutoSaving(true)
+      try {
+        const clean: any = { ...form }
+        if (!clean.preferredDate) delete clean.preferredDate
+        await repos.orderRepo.update(draftId, { ...clean, status: 'draft' } as any)
+        setFormDirty(false)
+        setLastSavedAt(new Date().toISOString())
+      } catch {}
+      setIsAutoSaving(false)
+    }, 5000)
+    return ()=>clearInterval(h)
+  }, [creating, repos, draftId, formDirty, form])
   const isTech = user?.role === 'technician'
   const isOwner = (o:any) => {
     if (!isTech) return true
@@ -126,7 +185,9 @@ export default function OrderManagementPage() {
             })
             setRows(list as any)
           }} />
-          {can(user,'orders.create') && <button onClick={()=>setCreating(true)} className="rounded-lg bg-brand-500 px-3 py-1 text-white">新建訂單</button>}
+          {can(user,'orders.create') && <button onClick={()=>{ setCreating(true); setDraftId(''); setFormDirty(false); setIsAutoSaving(false); setLastSavedAt(''); setForm({ 
+            customerName:'', customerPhone:'', customerAddress:'', customerCity:'', customerDistrict:'', customerDetailAddress:'', preferredDate:'', preferredTimeStart:'09:00', preferredTimeEnd:'12:00', platform:'日', referrerCode:'', serviceItems:[{name:'服務',quantity:1,unitPrice:1000}], assignedTechnicians:[], photos:[], signatures:{} 
+          }) }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">新建訂單</button>}
           <button onClick={async()=>{
             const input = document.createElement('input')
             input.type = 'file'
@@ -307,8 +368,8 @@ export default function OrderManagementPage() {
           <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-card">
             <div className="mb-2 text-lg font-semibold">新建訂單</div>
             <div className="space-y-2 text-sm">
-              <input className="w-full rounded border px-2 py-1" placeholder="客戶姓名" value={form.customerName} onChange={e=>setForm({...form,customerName:e.target.value})} />
-              <input className="w-full rounded border px-2 py-1" placeholder="手機" value={form.customerPhone} onChange={e=>setForm({...form,customerPhone:e.target.value})} />
+              <input className="w-full rounded border px-2 py-1" placeholder="客戶姓名" value={form.customerName} onChange={e=>{ setForm({...form,customerName:e.target.value}); setFormDirty(true) }} />
+              <input className="w-full rounded border px-2 py-1" placeholder="手機" value={form.customerPhone} onChange={e=>{ setForm({...form,customerPhone:e.target.value}); setFormDirty(true) }} />
               
               {/* 地址管理 */}
               <div className="grid grid-cols-3 gap-2">
@@ -323,6 +384,7 @@ export default function OrderManagementPage() {
                       customerDistrict: '',
                       customerAddress: formatAddressDisplay(city, form.customerDistrict, form.customerDetailAddress)
                     })
+                    setFormDirty(true)
                   }}
                 >
                   <option value="">選擇縣市</option>
@@ -341,6 +403,7 @@ export default function OrderManagementPage() {
                       customerDistrict: district,
                       customerAddress: formatAddressDisplay(form.customerCity, district, form.customerDetailAddress)
                     })
+                    setFormDirty(true)
                   }}
                   disabled={!form.customerCity}
                 >
@@ -361,6 +424,7 @@ export default function OrderManagementPage() {
                       customerDetailAddress: detailAddress,
                       customerAddress: formatAddressDisplay(form.customerCity, form.customerDistrict, detailAddress)
                     })
+                    setFormDirty(true)
                   }} 
                 />
               </div>
@@ -397,18 +461,18 @@ export default function OrderManagementPage() {
                 </div>
               )}
               <div className="flex gap-2">
-                <input type="date" className="w-full rounded border px-2 py-1" value={form.preferredDate} onChange={e=>setForm({...form,preferredDate:e.target.value})} />
-                <input type="time" className="w-full rounded border px-2 py-1" value={form.preferredTimeStart} onChange={e=>setForm({...form,preferredTimeStart:e.target.value})} />
-                <input type="time" className="w-full rounded border px-2 py-1" value={form.preferredTimeEnd} onChange={e=>setForm({...form,preferredTimeEnd:e.target.value})} />
+                <input type="date" className="w-full rounded border px-2 py-1" value={form.preferredDate} onChange={e=>{ setForm({...form,preferredDate:e.target.value}); setFormDirty(true) }} />
+                <input type="time" className="w-full rounded border px-2 py-1" value={form.preferredTimeStart} onChange={e=>{ setForm({...form,preferredTimeStart:e.target.value}); setFormDirty(true) }} />
+                <input type="time" className="w-full rounded border px-2 py-1" value={form.preferredTimeEnd} onChange={e=>{ setForm({...form,preferredTimeEnd:e.target.value}); setFormDirty(true) }} />
               </div>
-              <input className="w-full rounded border px-2 py-1" placeholder="推薦碼（MOxxxx / SRxxx / SExxx）" value={form.referrerCode} onChange={e=>setForm({...form,referrerCode:e.target.value})} />
+              <input className="w-full rounded border px-2 py-1" placeholder="推薦碼（MOxxxx / SRxxx / SExxx）" value={form.referrerCode} onChange={e=>{ setForm({...form,referrerCode:e.target.value}); setFormDirty(true) }} />
               <div className="grid gap-1 text-xs text-gray-500">
                 <div>活動折扣：{activePercent > 0 ? `${activePercent}%` : '—'}</div>
-                <input className="w-full rounded border px-2 py-1 text-sm" placeholder="會員編號（MOxxxx）可選" value={(form as any).memberCode||''} onChange={e=>setForm({...form, memberCode: e.target.value})} />
+                <input className="w-full rounded border px-2 py-1 text-sm" placeholder="會員編號（MOxxxx）可選" value={(form as any).memberCode||''} onChange={e=>{ setForm({...form, memberCode: e.target.value}); setFormDirty(true) }} />
               </div>
               <div>
                 <label className="mr-2 text-sm text-gray-600">平台</label>
-                <select className="rounded border px-2 py-1 text-sm" value={form.platform||'日'} onChange={e=>setForm({...form, platform: e.target.value})}>
+                <select className="rounded border px-2 py-1 text-sm" value={form.platform||'日'} onChange={e=>{ setForm({...form, platform: e.target.value}); setFormDirty(true) }}>
                   <option value="日">日</option>
                   <option value="同">同</option>
                   <option value="黃">黃</option>
@@ -420,24 +484,24 @@ export default function OrderManagementPage() {
                   <div key={idx} className="grid grid-cols-6 items-center gap-2">
                     <select className="col-span-2 rounded border px-2 py-1" value={it.productId||''} onChange={e=>{
                       const val=e.target.value; const arr=[...form.serviceItems]; if(!val){ arr[idx]={...arr[idx], productId:'', name: it.name}; setForm({...form, serviceItems: arr}); return }
-                      const p = products.find((x:any)=>x.id===val); arr[idx]={...arr[idx], productId: val, name: p?.name || it.name, unitPrice: p?.unitPrice || it.unitPrice}; setForm({...form, serviceItems: arr})
+                      const p = products.find((x:any)=>x.id===val); arr[idx]={...arr[idx], productId: val, name: p?.name || it.name, unitPrice: p?.unitPrice || it.unitPrice}; setForm({...form, serviceItems: arr}); setFormDirty(true)
                     }}>
                       <option value="">自訂</option>
                       {products.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
                     </select>
-                    <input className="col-span-2 rounded border px-2 py-1" placeholder="項目" value={it.name} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], name:e.target.value}; setForm({...form, serviceItems: arr}) }} />
-                    <input type="number" className="rounded border px-2 py-1" placeholder="數量" value={it.quantity} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], quantity:Number(e.target.value)}; setForm({...form, serviceItems: arr}) }} />
+                    <input className="col-span-2 rounded border px-2 py-1" placeholder="項目" value={it.name} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], name:e.target.value}; setForm({...form, serviceItems: arr}); setFormDirty(true) }} />
+                    <input type="number" className="rounded border px-2 py-1" placeholder="數量" value={it.quantity} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], quantity:Number(e.target.value)}; setForm({...form, serviceItems: arr}); setFormDirty(true) }} />
                     <div className="flex items-center gap-2">
-                      <input type="number" className="w-24 rounded border px-2 py-1" placeholder="單價" value={it.unitPrice} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], unitPrice:Number(e.target.value)}; setForm({...form, serviceItems: arr}) }} />
-                      <button onClick={()=>{ const arr=[...form.serviceItems]; arr.splice(idx,1); setForm({...form, serviceItems: arr.length?arr:[{ name:'服務', quantity:1, unitPrice:0 }]}) }} className="rounded bg-gray-100 px-2 py-1 text-xs">刪</button>
+                      <input type="number" className="w-24 rounded border px-2 py-1" placeholder="單價" value={it.unitPrice} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], unitPrice:Number(e.target.value)}; setForm({...form, serviceItems: arr}); setFormDirty(true) }} />
+                      <button onClick={()=>{ const arr=[...form.serviceItems]; arr.splice(idx,1); setForm({...form, serviceItems: arr.length?arr:[{ name:'服務', quantity:1, unitPrice:0 }]}); setFormDirty(true) }} className="rounded bg-gray-100 px-2 py-1 text-xs">刪</button>
                     </div>
                   </div>
                 ))}
-                <button onClick={()=>setForm({...form, serviceItems:[...form.serviceItems, { name:'', quantity:1, unitPrice:0 }]})} className="rounded bg-gray-100 px-2 py-1 text-xs">新增品項</button>
+                <button onClick={()=>{ setForm({...form, serviceItems:[...form.serviceItems, { name:'', quantity:1, unitPrice:0 }]}); setFormDirty(true) }} className="rounded bg-gray-100 px-2 py-1 text-xs">新增品項</button>
               </div>
             </div>
             <div className="mt-3 flex justify-end gap-2">
-              <button onClick={()=>setCreating(false)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
+              <button onClick={async()=>{ try{ if(draftId && repos){ await repos.orderRepo.delete(draftId, 'cancel new order draft') } }catch{} setCreating(false); setDraftId(''); setFormDirty(false); setIsAutoSaving(false); setLastSavedAt('') }} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
               <button onClick={async()=>{
                 try {
                   if(!repos) return
@@ -489,8 +553,16 @@ export default function OrderManagementPage() {
                   if ((clean as any).memberCode && String((clean as any).memberCode).toUpperCase().startsWith('MO')) {
                     try { const m = await repos.memberRepo.findByCode(String((clean as any).memberCode).toUpperCase()); if (m) memberId = m.id } catch {}
                   }
-                  await repos.orderRepo.create({ ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items } as any)
+                  if (draftId) {
+                    await repos.orderRepo.update(draftId, { ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items } as any)
+                  } else {
+                    await repos.orderRepo.create({ ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items } as any)
+                  }
                   setCreating(false)
+                  setDraftId('')
+                  setFormDirty(false)
+                  setIsAutoSaving(false)
+                  setLastSavedAt('')
                   setForm({ 
                     customerName:'', 
                     customerPhone:'', 
@@ -514,6 +586,9 @@ export default function OrderManagementPage() {
                   alert('建立失敗：' + (e?.message || '未知錯誤'))
                 }
               }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">建立</button>
+            </div>
+            <div className="mt-2 text-right text-[11px] text-gray-500">
+              {isAutoSaving ? '自動儲存中…' : (lastSavedAt ? `已自動儲存於 ${new Date(lastSavedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '輸入姓名與手機後會自動建立草稿')}
             </div>
           </div>
         </div>

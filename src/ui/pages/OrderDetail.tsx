@@ -905,79 +905,78 @@ export default function PageOrderDetail() {
               </span>
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-2">
-            {order.status==='confirmed' && (
-              <button 
-                onClick={async()=>{
-                  if (!confirm('是否確認開始服務？')) return
-                  const now = new Date().toISOString()
-                  await repos.orderRepo.update(order.id, { 
-                    status: 'in_progress', 
-                    workStartedAt: now
-                  })
-                  const o=await repos.orderRepo.get(order.id); setOrder(o)
-                }}
-                className="rounded bg-brand-500 px-3 py-1 text-white"
-              >
-                開始服務
-                {order.workStartedAt && (
-                  <span className="ml-2 text-xs">
-                    {new Date(order.workStartedAt).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}號 {new Date(order.workStartedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                )}
-              </button>
-            )}
-            {order.status==='in_progress' && timeLeftSec===0 && (
-              <button
-                onClick={async()=>{
-                  if (!confirm('是否確認服務完成？')) return
-                  const now = new Date().toISOString()
-                  await repos.orderRepo.update(order.id, { 
-                    status: 'completed', 
-                    workCompletedAt: now
-                  })
-                  const o=await repos.orderRepo.get(order.id); setOrder(o)
-                }}
-                className="rounded bg-green-600 px-3 py-1 text-white"
-              >
-                服務完成
-                {order.workCompletedAt && (
-                  <span className="ml-2 text-xs">
-                    {new Date(order.workCompletedAt).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}號 {new Date(order.workCompletedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                )}
-              </button>
-            )}
-            {(order.status==='in_progress' || order.status==='unservice' || order.status==='completed') && (
-              <button
-                disabled={!canClose}
-                title={canClose ? '' : closeDisabledReason}
-                onClick={async()=>{
-                  if (!hasSignature) { alert('請先完成客戶與技師雙簽名'); return }
-                  if (!confirm('是否確認服務完成並結案？')) return
-                  // 直接設定為已結案狀態，並觸發積分計算
-                  const now = new Date().toISOString()
-                  await repos.orderRepo.update(order.id, { 
-                    status: 'closed', 
-                    workCompletedAt: order.workCompletedAt || now,
-                    closedAt: now
-                  })
-                  try {
-                    const { applyPointsOnOrderCompletion } = await import('../../services/points')
-                    const fresh = await repos.orderRepo.get(order.id)
-                    if (fresh) await applyPointsOnOrderCompletion(fresh, repos)
-                  } catch (e) { console.warn('apply points failed', e) }
-                  const o=await repos.orderRepo.get(order.id); setOrder(o)
-                }}
-                className={`rounded px-3 py-1 text-white ${canClose? 'bg-gray-900' : 'bg-gray-400'}`}
-              >結案</button>
-            )}
-            {!canClose && (
-              <div className="text-xs text-rose-600">
-                無法結案原因：{closeDisabledReason || '條件不足'}
-              </div>
-            )}
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            <button 
+              disabled={order.status!=='confirmed'}
+              onClick={async()=>{
+                if (order.status!=='confirmed') return
+                if (!confirm('是否確認開始服務？')) return
+                const now = new Date().toISOString()
+                await repos.orderRepo.update(order.id, { 
+                  status: 'in_progress', 
+                  workStartedAt: now
+                })
+                const o=await repos.orderRepo.get(order.id); setOrder(o)
+              }}
+              className={`rounded px-3 py-1 text-white ${order.status==='confirmed' ? 'bg-brand-500' : 'bg-gray-300 cursor-not-allowed'}`}
+            >
+              開始服務
+              {order.workStartedAt && (
+                <span className="ml-2 text-xs">
+                  {new Date(order.workStartedAt).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}號 {new Date(order.workStartedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+            </button>
+            <button
+              disabled={order.status!=='in_progress' || timeLeftSec>0}
+              title={order.status!=='in_progress' ? '尚未開始服務' : (timeLeftSec>0 ? `冷卻中，剩餘 ${String(Math.floor(timeLeftSec/60)).padStart(2,'0')}:${String(timeLeftSec%60).padStart(2,'0')}` : '')}
+              onClick={async()=>{
+                if (order.status!=='in_progress' || timeLeftSec>0) return
+                if (!confirm('是否確認服務完成？')) return
+                const now = new Date().toISOString()
+                await repos.orderRepo.update(order.id, { 
+                  status: 'completed', 
+                  workCompletedAt: now
+                })
+                const o=await repos.orderRepo.get(order.id); setOrder(o)
+              }}
+              className={`rounded px-3 py-1 text-white ${(order.status==='in_progress' && timeLeftSec===0)?'bg-green-600':'bg-green-400/60 cursor-not-allowed'}`}
+            >
+              服務完成
+              {order.workCompletedAt && (
+                <span className="ml-2 text-xs">
+                  {new Date(order.workCompletedAt).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}號 {new Date(order.workCompletedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+            </button>
+            <button
+              disabled={!canClose}
+              title={canClose ? '' : closeDisabledReason}
+              onClick={async()=>{
+                if (!hasSignature) { alert('請先完成客戶與技師雙簽名'); return }
+                if (!confirm('是否確認服務完成並結案？')) return
+                // 直接設定為已結案狀態，並觸發積分計算
+                const now = new Date().toISOString()
+                await repos.orderRepo.update(order.id, { 
+                  status: 'closed', 
+                  workCompletedAt: order.workCompletedAt || now,
+                  closedAt: now
+                })
+                try {
+                  const { applyPointsOnOrderCompletion } = await import('../../services/points')
+                  const fresh = await repos.orderRepo.get(order.id)
+                  if (fresh) await applyPointsOnOrderCompletion(fresh, repos)
+                } catch (e) { console.warn('apply points failed', e) }
+                const o=await repos.orderRepo.get(order.id); setOrder(o)
+              }}
+              className={`rounded px-3 py-1 text-white ${canClose? 'bg-gray-900' : 'bg-gray-400 cursor-not-allowed'}`}
+            >結案</button>
           </div>
+          {!canClose && (
+            <div className="mt-2 text-xs text-rose-600">
+              無法結案原因：{closeDisabledReason || '條件不足'}
+            </div>
+          )}
         </div>
       </div>
 
