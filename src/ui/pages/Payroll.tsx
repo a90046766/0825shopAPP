@@ -303,13 +303,24 @@ export default function Payroll() {
         const sel: Record<string, boolean> = {}
         for (const o of mine) { sel[o.id] = (o.status==='completed' || o.status==='done' || !!o.workCompletedAt) }
         setTechSelections(sel)
-        // 初始化方案/比例（若記錄上已有，沿用）
+        // 初始化方案/比例（若記錄上已有，沿用）。若未指定，沿用技師預設。
         setShareScheme(((editingRecord as any).shareScheme as any) || 'pure')
         setShareRate(((editingRecord as any).shareRate as any) || 30)
         setBaseGuarantee(((editingRecord as any).baseGuarantee as any) || 40000)
         setTechCalcMethod((((editingRecord as any).techCalcMethod as any) || 'scheme') as any)
         setCustomCommission((editingRecord as any).customCommission ?? '')
         setCustomCalcNote((editingRecord as any).customCalcNote ?? '')
+        try {
+          if (!((editingRecord as any).techCalcMethod)) {
+            const scheme: string | undefined = (staff as any).revenueShareScheme
+            if (scheme === 'afterTax80') setTechCalcMethod('afterTax80')
+            if (scheme === 'custom') {
+              setTechCalcMethod('custom')
+              if ((customCommission === '' || customCommission === undefined)) setCustomCommission((staff as any).customCommission ?? '')
+              if (!customCalcNote) setCustomCalcNote((staff as any).customCalcNote ?? '')
+            }
+          }
+        } catch {}
       } catch {
       } finally {
         setTechOrdersLoading(false)
@@ -446,6 +457,35 @@ export default function Payroll() {
           bonusRate: 10,
           platform: '同',
           status: 'pending'
+        }
+        // 若為技師，預設帶入技師管理上的方案與自訂欄位
+        const role = getRoleOf(staff)
+        if (role === 'technician') {
+          const scheme: string | undefined = (staff as any).revenueShareScheme
+          const customCommissionPref = (staff as any).customCommission
+          const customCalcNotePref = (staff as any).customCalcNote
+          if (scheme === 'afterTax80') {
+            ;(newRecord as any).techCalcMethod = 'afterTax80'
+          } else if (scheme === 'custom') {
+            ;(newRecord as any).techCalcMethod = 'custom'
+            if (typeof customCommissionPref === 'number') {
+              ;(newRecord as any).customCommission = customCommissionPref
+            }
+            if (customCalcNotePref) {
+              ;(newRecord as any).customCalcNote = customCalcNotePref
+            }
+          } else if (scheme && scheme.startsWith('pure')) {
+            ;(newRecord as any).techCalcMethod = 'scheme'
+            ;(newRecord as any).shareScheme = 'pure'
+            const pct = Number(String(scheme).replace('pure', ''))
+            ;(newRecord as any).shareRate = isFinite(pct) && pct > 0 ? pct : 70
+          } else if (scheme && scheme.startsWith('base')) {
+            ;(newRecord as any).techCalcMethod = 'scheme'
+            ;(newRecord as any).shareScheme = 'base'
+            const rateMap: Record<string, number> = { base1: 10, base2: 20, base3: 30 }
+            ;(newRecord as any).shareRate = rateMap[scheme] ?? 10
+            ;(newRecord as any).baseGuarantee = 40000
+          }
         }
         setEditingRecord(newRecord as PayrollRecord)
       }
