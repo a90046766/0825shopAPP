@@ -2,6 +2,8 @@
   "name": "日式洗濯",
   "short_name": "日式洗濯",
   "start_url": "/store",
+  "id": "/store-app",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#111827",
   "theme_color": "#111827",

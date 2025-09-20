@@ -2,6 +2,8 @@
   "name": "日式洗濯（內部）",
   "short_name": "日式洗濯",
   "start_url": "/login",
+  "id": "/admin-app",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#111827",
   "theme_color": "#111827",
