@@ -208,15 +208,12 @@ createRoot(document.getElementById('root')!).render(
   // 背景初始化 adapters（供各頁按需使用），避免阻塞首屏
   loadAdapters().catch(()=>{})
 
-  // 註冊不快取版 Service Worker（若存在）
+  // 註冊不快取版 Service Worker（內部與購物站皆可在安全環境註冊）
   try {
     if ('serviceWorker' in navigator) {
       const swUrl = '/sw.js'
-      const host = location.hostname || ''
-      const isStore = host === 'store.942clean.com.tw' || host.indexOf('store.') === 0
-      // 僅內部（非 store 子網域）註冊 SW
       const isSecure = location.protocol === 'https:' || location.hostname === 'localhost'
-      if (!isStore && isSecure) {
+      if (isSecure) {
         navigator.serviceWorker.register(swUrl, { scope: '/' }).catch(()=>{})
       }
     }

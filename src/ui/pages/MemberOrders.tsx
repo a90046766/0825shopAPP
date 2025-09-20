@@ -39,6 +39,32 @@ export default function MemberOrdersPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [shareOpen, setShareOpen] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState<any>(null)
+  const [isIOS, setIsIOS] = useState(false)
+  const [isSafari, setIsSafari] = useState(false)
+
+  // PWA 安裝提示（Android/桌面 Chrome/Edge）與 iOS Safari 判斷
+  useEffect(() => {
+    const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e) }
+    window.addEventListener('beforeinstallprompt', handler as any)
+    try {
+      const ua = navigator.userAgent || ''
+      const iOS = /iPad|iPhone|iPod/.test(ua)
+      const safari = /^((?!chrome|android).)*safari/i.test(ua)
+      setIsIOS(iOS)
+      setIsSafari(safari)
+    } catch {}
+    return () => window.removeEventListener('beforeinstallprompt', handler as any)
+  }, [])
+
+  async function installApp() {
+    try {
+      if (!installPrompt) { alert('若未出現按鈕，請用 Chrome/Edge（Android/桌面）或 Safari（iPhone）開啟。'); return }
+      installPrompt.prompt()
+      await installPrompt.userChoice
+      setInstallPrompt(null)
+    } catch {}
+  }
 
   const load = async () => {
     if (!member) return
@@ -185,10 +211,23 @@ export default function MemberOrdersPage() {
         <div className="text-base md:text-lg font-bold">我的訂單</div>
         <div className="flex gap-2 items-center">
           <MemberBell />
+          {/* 安裝 App（Android/桌面） */}
+          <button
+            onClick={installApp}
+            disabled={!installPrompt}
+            title={!installPrompt ? '請用 Chrome/Edge 或等待安裝提示出現' : ''}
+            className={`rounded px-3 py-1 text-sm ${installPrompt? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'}`}
+          >安裝 App</button>
           <button onClick={()=>setTab('orders')} className={`rounded px-3 py-1 text-sm ${tab==='orders'?'bg-blue-600 text-white':'border border-blue-200 text-blue-600'}`}>正式訂單</button>
           <button onClick={()=>setTab('reservations')} className={`rounded px-3 py-1 text-sm ${tab==='reservations'?'bg-amber-600 text-white':'border border-amber-200 text-amber-700'}`}>預約訂單</button>
         </div>
       </div>
+      {/* iPhone 安裝引導（Safari） */}
+      {isIOS && isSafari && (
+        <div className="mb-3 rounded-lg border bg-amber-50 p-2 text-xs text-amber-800">
+          iPhone 安裝：使用 Safari，點分享（上箭頭）→ 加到主畫面。
+        </div>
+      )}
       {/* 快速入口卡牌 */}
       <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
         <Link to="/store" className="rounded-xl border border-blue-200 bg-blue-50 p-3 hover:bg-blue-100/70 transition-colors">

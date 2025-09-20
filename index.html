@@ -13,10 +13,10 @@
           if (!el) return;
           var isStore = host === 'store.942clean.com.tw' || host.indexOf('store.') === 0;
           if (isStore) {
-            // 客戶端不啟用 PWA：移除 manifest link
-            if (el && el.parentNode) el.parentNode.removeChild(el);
+            // 購物站：沿用預設 manifest（/manifest.webmanifest）
+            el.setAttribute('href', '/manifest.webmanifest');
           } else {
-            // 內部人員：使用內部 manifest，start_url 指向 /dispatch
+            // 內部人員：使用內部 manifest，start_url 指向 /login
             el.setAttribute('href', '/manifest-admin.webmanifest');
           }
         } catch {}

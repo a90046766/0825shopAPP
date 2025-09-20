@@ -1,7 +1,7 @@
 {
   "name": "日式洗濯（內部）",
   "short_name": "日式洗濯",
-  "start_url": "/dispatch",
+  "start_url": "/login",
   "display": "standalone",
   "background_color": "#111827",
   "theme_color": "#111827",
@@ -11,5 +11,6 @@
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
+
 
 
