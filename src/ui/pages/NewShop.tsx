@@ -211,7 +211,7 @@ export default function NewShop() {
 		const cmsSlides = (cmsEnabled && published && Array.isArray((published as any).carousel) ? (published as any).carousel as any[] : null)
 		const fallbackSlides = [
 			{ bg: 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/banners1/slide1.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJiYW5uZXJzMS9zbGlkZTEud2VicCIsImlhdCI6MTc1NzY4OTE0OSwiZXhwIjoxODIwNzYxMTQ5fQ.S_yrCrdiwFF6m0foNJBGnmNlCKQYZRa_iiLmzr-W_vY', title: '加入會員享好康', subtitle: '推薦加入就送100積分', ctaText: '立即加入會員', ctaLink: '/register/member' },
-			{ bg: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=1600&auto=format&fit=crop', title: '積分回饋制度', subtitle: '消費$100=1積分，每一積分=$1元，可全額折抵！', ctaText: '會員中心', ctaLink: '/store/member/orders' },
+			{ bg: 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/slide3/slide3.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzbGlkZTMvc2xpZGUzLndlYnAiLCJpYXQiOjE3NTgzNTUzMzUsImV4cCI6MTgyMTQyNzMzNX0.rzL_-tj6ciGzdq6YblbTpsqZj4UnKEpG0pMdKMxnpew', title: '', subtitle: '', ctaText: '了解更多', ctaLink: '/store' },
 			{ bg: 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/slide2/slide2.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzbGlkZTIvc2xpZGUyLndlYnAiLCJpYXQiOjE3NTc3NjUyMTcsImV4cCI6MTgyMDgzNzIxN30.c64qcvnx1RWYYRtEJ9Vr4bbNZMKhUYJHF976G5Nu8g4', title: '專業日式洗濯服務', subtitle: '讓您的家電煥然一新，享受如新機般的清潔效果！', ctaText: '立即預約', ctaLink: '/store/products?category=cleaning' }
 		]
 		const slides = (cmsSlides && cmsSlides.length > 0)
@@ -236,7 +236,7 @@ export default function NewShop() {
 										className="absolute inset-0 w-full h-full object-cover"
 									/>
 									<div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-transparent" />
-									{(i === 0 || i === 2) ? (
+									{(i === 0 || i === 1 || i === 2) ? (
 										<div className="absolute left-4 bottom-4 z-20">
 											{s.ctaText && s.ctaLink ? (
 												<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
@@ -265,7 +265,7 @@ export default function NewShop() {
 										className="absolute inset-0 w-full h-full object-contain object-center"
 										onError={(e)=>{ (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop' }}
 									/>
-									{(i === 0 || i === 2) ? (
+										{(i === 0 || i === 1 || i === 2) ? (
 										<div className="absolute left-4 bottom-4 z-10">
 											{s.ctaText && s.ctaLink ? (
 												<Link to={s.ctaLink} className="inline-block bg-white text-blue-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">{s.ctaText}</Link>
