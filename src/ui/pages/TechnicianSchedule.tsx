@@ -266,6 +266,52 @@ export default function TechnicianSchedulePage() {
     })
   }, [supportShifts, staffMap, user, date])
 
+  // 重新整理指定月份的工單與休假，並刷新日曆徽章與不可指派依據
+  const refreshMonth = async (yymm?: string) => {
+    if (!repos) return
+    const yymmKey = yymm || date.slice(0,7)
+    const startMonth = `${yymmKey}-01`
+    const endMonthStr = monthEnd(yymmKey)
+    try {
+      const [ws, ls] = await Promise.all([
+        repos.scheduleRepo.listWork({ start: startMonth, end: endMonthStr }),
+        repos.scheduleRepo.listTechnicianLeaves({ start: startMonth, end: endMonthStr })
+      ])
+      let filteredWorks = ws
+      if (user?.role === 'technician') {
+        const emailLc = (user.email || '').toLowerCase()
+        filteredWorks = ws.filter((w: any) => (w.technicianEmail || '').toLowerCase() === emailLc)
+        setLeaves(ls.filter((l:any)=> String(l.technicianEmail||'').toLowerCase() === emailLc))
+      } else {
+        setLeaves(ls)
+      }
+      setWorks(filteredWorks)
+
+      const map: Record<string, number> = {}
+      const overlapCount: Record<string, number> = {}
+      const leaveCount: Record<string, number> = {}
+      for (const w of filteredWorks) {
+        map[w.date] = (map[w.date] || 0) + 1
+        if (overlaps(w.startTime, w.endTime, start, end)) overlapCount[w.date] = (overlapCount[w.date] || 0) + 1
+      }
+      const visibleLeaves = (user?.role==='technician') ? (ls.filter((x:any)=> String(x.technicianEmail||'').toLowerCase()===(user?.email||'').toLowerCase())) : ls
+      for (const l of visibleLeaves) leaveCount[l.date] = (leaveCount[l.date] || 0) + 1
+      const emph: Record<string, 'warn' | 'danger'> = {}
+      Object.keys(overlapCount).forEach(d => { const c = overlapCount[d]; emph[d] = c >= 5 ? 'danger' : 'warn' })
+      const tips: Record<string, string> = {}
+      const days = new Set([...Object.keys(map), ...Object.keys(leaveCount)])
+      days.forEach(d => {
+        const w = map[d] || 0
+        const l = leaveCount[d] || 0
+        if (user?.role === 'technician') tips[d] = `我的工單 ${w}、請假 ${l}`
+        else tips[d] = `工單 ${w}、請假 ${l}`
+      })
+      setWorkMarkers(map)
+      setEmphasisMarkers(emph)
+      setDayTooltips(tips)
+    } catch {}
+  }
+
   const assignable = useMemo(() => {
     // 可用性：無請假且無工單重疊，且符合區域篩選
     const selectedKeys = Object.keys(skillFilter).filter(k => skillFilter[k])
@@ -276,7 +322,15 @@ export default function TechnicianSchedulePage() {
       }
       
       const emailLc = (t.email || '').toLowerCase()
-      const hasLeave = leaves.some(l => (l.technicianEmail || '').toLowerCase() === emailLc && l.date === date)
+      const hasLeave = leaves.some(l => {
+        const okTech = String(l.technicianEmail||'').toLowerCase() === emailLc
+        const okDate = l.date === date
+        if (!okTech || !okDate) return false
+        if (l.fullDay) return true
+        const startT = l.startTime || '00:00'
+        const endT = l.endTime || '23:59'
+        return overlaps(startT, endT, start, end)
+      })
       if (hasLeave) return false
       const hasOverlap = works.some(w => ((w.technicianEmail || '').toLowerCase() === emailLc) && w.date === date && overlaps(w.startTime, w.endTime, start, end))
       if (hasOverlap) return false
@@ -734,7 +788,7 @@ export default function TechnicianSchedulePage() {
                           if (!confirm('確定刪除此客服/業務排班（休假）？')) return
                           try {
                             await repos.scheduleRepo.removeSupportShift(s.id)
-                            // 重新載入當月清單
+                            // 重新載入當月清單與徽章
                             const yymm = (supportDate || new Date().toISOString().slice(0,10)).slice(0,7)
                             const startMonth = `${yymm}-01`
                             const endMonthStr = monthEnd(yymm)
@@ -744,6 +798,7 @@ export default function TechnicianSchedulePage() {
                               const emailLc = String(user?.email||'').toLowerCase()
                               setSupportShifts(rows.filter((r:any)=> String(r.supportEmail||'').toLowerCase()===emailLc))
                             }
+                            await refreshMonth(yymm)
                           } catch (e:any) {
                             alert('刪除失敗：' + (e?.message || ''))
                           }
@@ -869,8 +924,9 @@ export default function TechnicianSchedulePage() {
                     if (!confirm('確定刪除此技師休假？')) return
                     try {
                       await repos.scheduleRepo.removeTechnicianLeave(l.id)
-                      // 從列表移除
+                      // 從列表移除並刷新月份資料（避免仍被判定不可指派）
                       setLeaves(prev => (prev||[]).filter(x => x.id !== l.id))
+                      await refreshMonth(l.date.slice(0,7))
                     } catch (e:any) {
                       alert('刪除失敗：' + (e?.message || ''))
                     }
