@@ -208,6 +208,18 @@ createRoot(document.getElementById('root')!).render(
   // 背景初始化 adapters（供各頁按需使用），避免阻塞首屏
   loadAdapters().catch(()=>{})
 
+  // 註冊不快取版 Service Worker（若存在）
+  try {
+    if ('serviceWorker' in navigator) {
+      const swUrl = '/sw.js'
+      // 避免非 HTTPS 或 localhost 以外環境報錯
+      const isSecure = location.protocol === 'https:' || location.hostname === 'localhost'
+      if (isSecure) {
+        navigator.serviceWorker.register(swUrl, { scope: '/' }).catch(()=>{})
+      }
+    }
+  } catch {}
+
   async function mapSessionToLocalUser(session: any) {
     if (!session?.user) return
     const email = (session.user.email || '').toLowerCase()

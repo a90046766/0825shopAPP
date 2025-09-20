@@ -44,6 +44,24 @@ export default function PageProfile() {
 
   const memberCode = user?.role==='technician' ? (record?.code || '') : (record?.refCode || '')
   const staffLabel = (user?.role==='technician' || user?.role==='support' || user?.role==='sales' || user?.role==='admin')
+  const [installPrompt, setInstallPrompt] = useState<any>(null)
+  const [isIOS, setIsIOS] = useState(false)
+  const [isSafari, setIsSafari] = useState(false)
+
+  // PWA 安裝提示：攔截 beforeinstallprompt（Android/桌面 Chrome/Edge）
+  useEffect(()=>{
+    const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e) }
+    window.addEventListener('beforeinstallprompt', handler as any)
+    // iOS/Safari 判斷
+    try {
+      const ua = navigator.userAgent || ''
+      const iOS = /iPad|iPhone|iPod/.test(ua)
+      const safari = /^((?!chrome|android).)*safari/i.test(ua)
+      setIsIOS(iOS)
+      setIsSafari(safari)
+    } catch {}
+    return ()=> window.removeEventListener('beforeinstallprompt', handler as any)
+  }, [])
 
   async function handleSave() {
     // 驗證必填欄位
@@ -51,7 +69,6 @@ export default function PageProfile() {
       alert('請填寫臨時聯絡人')
       return
     }
-    
     const a: any = await loadAdapters()
     if (user.role === 'technician') {
       await a.technicianRepo.upsert({ id: record?.id, name, shortName: record?.shortName, email, phone, region: record?.region||'all', status: record?.status||'active', skills: record?.skills||{}, revenueShareScheme: record?.revenueShareScheme, tempContact } as any)
@@ -68,6 +85,15 @@ export default function PageProfile() {
       const f = e.target.files?.[0]; if(!f) return; const reader = new FileReader(); reader.onload=()=>{ const url = String(reader.result||''); setAvatar(url); try { localStorage.setItem('avatar:'+String(email).toLowerCase(), url) } catch {} }; reader.readAsDataURL(f)
     };
     input.click()
+  }
+
+  async function installApp() {
+    try {
+      if (!installPrompt) { alert('若未出現按鈕，請用 Chrome/Edge（Android/桌面）或 Safari（iPhone）開啟。'); return }
+      installPrompt.prompt()
+      await installPrompt.userChoice
+      setInstallPrompt(null)
+    } catch {}
   }
 
   return (
@@ -99,7 +125,20 @@ export default function PageProfile() {
           <div className="pt-2 flex items-center gap-2">
             <span className="inline-flex items-center rounded bg-gray-100 px-2 py-1 text-xs text-gray-700">版本 v1.3.1</span>
             <button onClick={handleSave} className="rounded-xl bg-brand-500 px-4 py-2 text-white">儲存</button>
+            {/* 安裝 App（Android/桌面） */}
+            <button
+              onClick={installApp}
+              disabled={!installPrompt}
+              title={!installPrompt ? '請用 Chrome/Edge 或等待安裝提示出現' : ''}
+              className={`rounded-xl px-4 py-2 ${installPrompt? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'}`}
+            >安裝 App</button>
           </div>
+          {/* iPhone 安裝引導（Safari） */}
+          {isIOS && isSafari && (
+            <div className="mt-2 rounded-lg border bg-amber-50 p-2 text-xs text-amber-800">
+              iPhone 安裝：使用 Safari，點分享（上箭頭）→ 加到主畫面。
+            </div>
+          )}
         </div>
       </div>
 
