@@ -134,8 +134,8 @@ createRoot(document.getElementById('root')!).render(
         element={(() => {
           try {
             const host = typeof window !== 'undefined' ? window.location.hostname : ''
-            const envStoreHost = (() => { try { return new URL((import.meta as any).env?.VITE_STORE_BASE_URL || '').hostname } catch { return '' } })()
-            const isStoreHost = !!host && (host === 'store.942clean.com.tw' || host.startsWith('store.') || (envStoreHost && host === envStoreHost))
+            // 僅識別 store 子網域為購物站，其餘一律導向後台登入
+            const isStoreHost = !!host && (host === 'store.942clean.com.tw' || host.startsWith('store.'))
             return <Navigate to={isStoreHost ? '/store' : '/login'} replace />
           } catch {
             return <Navigate to="/login" replace />
