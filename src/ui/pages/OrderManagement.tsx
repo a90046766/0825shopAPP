@@ -128,7 +128,7 @@ export default function OrderManagementPage() {
       if (statusTab==='pending') return o.status==='draft'
       if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
       if (statusTab==='completed') return o.status==='completed'
-      if (statusTab==='closed') return o.status==='closed' || o.status==='canceled' || (o as any).status==='unservice'
+      if (statusTab==='closed') return o.status==='closed'
       if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
       return true
     })()
@@ -142,8 +142,8 @@ export default function OrderManagementPage() {
     pending: ownRows.filter(o=> o.status==='draft').length,
     confirmed: ownRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
     completed: ownRows.filter(o=> o.status==='completed').length,
-    closed: ownRows.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
-    invoice: ownRows.filter(o=> o.status==='completed' && !o.invoiceCode).length,
+    closed: ownRows.filter(o=> o.status==='closed').length,
+    invoice: ownRows.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
   } as any
   const yearOptions = Array.from(new Set((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean))).sort()
   return (
