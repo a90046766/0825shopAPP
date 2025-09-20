@@ -131,7 +131,7 @@ class SupabaseOrderRepo implements OrderRepo {
       console.error('Supabase orders list exception:', error)
       // 備援：若因巨大 JSON 解析失敗，改以更精簡欄位再嘗試一次
       try {
-        const MIN_COLS = 'id,order_number,customer_name,customer_phone,customer_email,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,status,created_at,updated_at,work_started_at,work_completed_at,service_finished_at'
+        const MIN_COLS = 'id,order_number,customer_name,customer_phone,customer_email,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,status,created_at,updated_at,work_started_at,work_completed_at,service_finished_at'
         const { data } = await supabase
           .from('orders')
           .select(MIN_COLS)
