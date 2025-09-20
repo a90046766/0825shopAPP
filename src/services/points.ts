@@ -1,4 +1,100 @@
 import type { Order } from '../core/repository'
+import { supabase } from '../utils/supabase'
+
+/**
+ * 在訂單結案後，自動推播「評價提示 +50 點」通知（7 天有效），並避免重複推送。
+ * 規則：
+ * - 目標對象為該訂單的會員 Email（優先使用 order.customerEmail，其次透過 memberId 查詢）
+ * - 防重條件：同會員 + 同 orderId + kind=review_prompt 若已存在則不再推送
+ * - 有效期：7 天（expires_at）
+ */
+export async function applyPointsOnOrderCompletion(order: Order, repos: any): Promise<void> {
+  try {
+    // 1) 解析目標 Email
+    let targetEmail = String(order.customerEmail || '').toLowerCase()
+    try {
+      if (!targetEmail && order.memberId && repos?.memberRepo?.get) {
+        const m = await repos.memberRepo.get(order.memberId)
+        if (m?.email) targetEmail = String(m.email).toLowerCase()
+      }
+    } catch {}
+    if (!targetEmail) return
+
+    // 2) 防重：查詢近期該用戶的通知並比對 body JSON（kind=review_prompt && orderId 匹配）
+    try {
+      const { data: prior, error: priorErr } = await supabase
+        .from('notifications')
+        .select('id, body, target, target_user_email, created_at')
+        .eq('target', 'user')
+        .eq('target_user_email', targetEmail)
+        .order('created_at', { ascending: false })
+        .limit(100)
+      if (!priorErr && Array.isArray(prior)) {
+        const exists = prior.some((row: any) => {
+          try {
+            const b = row?.body
+            if (!b || typeof b !== 'string' || !b.trim().startsWith('{')) return false
+            const j = JSON.parse(b)
+            return j?.kind === 'review_prompt' && String(j?.orderId || '') === String(order.id || '')
+          } catch { return false }
+        })
+        if (exists) return
+      }
+    } catch {}
+
+    // 3) 讀取設定：reviewBonusPoints，預設 50
+    let bonusPoints = 50
+    try {
+      if (repos?.settingsRepo?.get) {
+        const s = await repos.settingsRepo.get()
+        if (typeof s?.reviewBonusPoints === 'number') bonusPoints = s.reviewBonusPoints
+      }
+    } catch {}
+
+    // 4) 組合通知內容（JSON 放在 body，MemberBell 會解析 data.kind === 'review_prompt'）
+    const bodyJson = {
+      kind: 'review_prompt',
+      orderId: order.id,
+      bonus: bonusPoints,
+      options: [
+        { label: 'Google 評論', url: 'https://g.page/r/942clean/review' },
+        { label: 'Facebook 評價', url: 'https://www.facebook.com/942clean/reviews' }
+      ]
+    }
+
+    const nowIso = new Date().toISOString()
+    const expiresIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
+    // 5) 寫入通知（立即送出 + 到期時間）
+    if (repos?.notificationRepo?.push) {
+      await repos.notificationRepo.push({
+        title: '完成服務回饋 +50 點',
+        body: JSON.stringify(bodyJson),
+        level: 'success',
+        target: 'user',
+        targetUserEmail: targetEmail,
+        sentAt: nowIso,
+        expiresAt: expiresIso,
+      } as any)
+    } else {
+      // 後備方案：直接呼叫 Supabase
+      await supabase.from('notifications').insert({
+        title: '完成服務回饋 +50 點',
+        body: JSON.stringify(bodyJson),
+        level: 'success',
+        target: 'user',
+        target_user_email: targetEmail,
+        sent_at: nowIso,
+        expires_at: expiresIso,
+        created_at: nowIso,
+      } as any)
+    }
+  } catch (error) {
+    try { console.warn('applyPointsOnOrderCompletion failed:', (error as any)?.message || error) } catch {}
+  }
+}
+
+import type { Order } from '../core/repository'
 import { loadAdapters } from '../adapters'
 
 function calcSubTotal(order: Order): number {
