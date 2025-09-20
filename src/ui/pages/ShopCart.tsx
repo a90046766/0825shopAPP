@@ -291,15 +291,20 @@ export default function ShopCartPage() {
     toast.success('購物車已清空')
   }
 
-  // 清洗類別團購：跨品項累計數量（只要是有 groupPrice 的 cleaning 類別）
+  // 清洗類別團購：跨品項累計數量（以購物車項目本身欄位為主，缺值時退回 allProducts）
   const getCleaningGroupContext = () => {
     const cleaningItems = cart.filter(it => {
-      const p = allProducts.find(x => x.id === it.id)
-      return p?.category === 'cleaning' && (p as any)?.groupPrice
+      const fallback = allProducts.find(x => x.id === it.id) as any
+      const category = it.category ?? fallback?.category
+      const groupPrice = it.groupPrice ?? fallback?.groupPrice
+      return category === 'cleaning' && !!groupPrice
     })
     const totalQty = cleaningItems.reduce((acc, it) => acc + (it.quantity || 0), 0)
     const thresholds = cleaningItems
-      .map(it => (allProducts.find(x => x.id === it.id) as any)?.groupMinQty || 3)
+      .map(it => {
+        const fallback = allProducts.find(x => x.id === it.id) as any
+        return (it as any).groupMinQty ?? fallback?.groupMinQty ?? 3
+      })
     const minThreshold = thresholds.length ? Math.min(...thresholds) : 3
     const active = totalQty >= minThreshold
     return { totalQty, minThreshold, active }
@@ -309,21 +314,23 @@ export default function ShopCartPage() {
   const getTotalPrice = () => {
     const ctx = getCleaningGroupContext()
     return cart.reduce((sum, item) => {
-      const product = allProducts.find(p => p.id === item.id) as any
-      if (!product) return sum
-      if (product.category === 'cleaning' && product.groupPrice && ctx.active) {
-        return sum + (product.groupPrice * item.quantity)
+      const fallback = allProducts.find(p => p.id === item.id) as any
+      const category = item.category ?? fallback?.category
+      const price = (typeof item.price === 'number' && !Number.isNaN(item.price)) ? item.price : (fallback?.price || 0)
+      const groupPrice = (typeof (item as any).groupPrice === 'number' && !Number.isNaN((item as any).groupPrice)) ? (item as any).groupPrice : fallback?.groupPrice
+      if (category === 'cleaning' && groupPrice && ctx.active) {
+        return sum + (groupPrice * item.quantity)
       }
-      return sum + (product.price || 0) * item.quantity
+      return sum + price * item.quantity
     }, 0)
   }
 
-  // 計算團購前原價總計
+  // 計算團購前原價總計（不套用團購價）
   const getGroupBuyPrice = () => {
     return cart.reduce((sum, item) => {
-      const product = allProducts.find(p => p.id === item.id) as any
-      if (!product) return sum
-      return sum + (product.price || 0) * item.quantity
+      const fallback = allProducts.find(p => p.id === item.id) as any
+      const price = (typeof item.price === 'number' && !Number.isNaN(item.price)) ? item.price : (fallback?.price || 0)
+      return sum + price * item.quantity
     }, 0)
   }
 
@@ -334,9 +341,12 @@ export default function ShopCartPage() {
 
   // 檢查是否適用團購價（跨品項：清洗類別、開啟時所有清洗品項皆適用）
   const isGroupBuyEligible = (productId: string) => {
-    const product = allProducts.find(p => p.id === productId) as any
+    const item = cart.find(i => i.id === productId)
+    const fallback = allProducts.find(p => p.id === productId) as any
+    const category = item?.category ?? fallback?.category
+    const groupPrice = (item as any)?.groupPrice ?? fallback?.groupPrice
     const ctx = getCleaningGroupContext()
-    return !!(product && product.category === 'cleaning' && product.groupPrice && ctx.active)
+    return !!(category === 'cleaning' && groupPrice && ctx.active)
   }
 
   // 取得適用團購價的商品
@@ -346,8 +356,10 @@ export default function ShopCartPage() {
 
   // 針對清洗類：距離團購門檻還差幾件（跨品項累計）
   const getRemainingForGroup = (productId: string) => {
-    const product = allProducts.find(p => p.id === productId) as any
-    if (!product || product.category !== 'cleaning') return 0
+    const item = cart.find(i => i.id === productId)
+    const fallback = allProducts.find(p => p.id === productId) as any
+    const category = item?.category ?? fallback?.category
+    if (category !== 'cleaning') return 0
     const ctx = getCleaningGroupContext()
     return Math.max(0, ctx.minThreshold - ctx.totalQty)
   }
