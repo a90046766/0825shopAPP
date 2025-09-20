@@ -211,10 +211,13 @@ class SupabaseOrderRepo implements OrderRepo {
       const row = toDbRow(draft)
       row.id = generateUUID()
       
-      // 生成唯一的訂單編號
-      const timestamp = Date.now()
+      // 生成較簡潔的訂單編號：OD + YYMMDD + 隨機三碼
+      const now = new Date()
+      const yy = String(now.getFullYear()).slice(2)
+      const mm = String(now.getMonth() + 1).padStart(2, '0')
+      const dd = String(now.getDate()).padStart(2, '0')
       const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-      row.order_number = `OD${timestamp}${random}`
+      row.order_number = `OD${yy}${mm}${dd}${random}`
       
       // 檢查是否重複，如果重複則重新生成
       let attempts = 0
@@ -228,9 +231,12 @@ class SupabaseOrderRepo implements OrderRepo {
         if (!existing) break // 沒有重複，可以使用
         
         // 重複了，重新生成
-        const newTimestamp = Date.now()
+        const _now = new Date()
+        const _yy = String(_now.getFullYear()).slice(2)
+        const _mm = String(_now.getMonth() + 1).padStart(2, '0')
+        const _dd = String(_now.getDate()).padStart(2, '0')
         const newRandom = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-        row.order_number = `OD${newTimestamp}${newRandom}`
+        row.order_number = `OD${_yy}${_mm}${_dd}${newRandom}`
         attempts++
       }
 
