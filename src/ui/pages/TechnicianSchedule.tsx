@@ -724,6 +724,34 @@ export default function TechnicianSchedulePage() {
                       <span className="ml-2 text-gray-600">客服：{staffMap[(s.supportEmail||'').toLowerCase()]?.name || s.supportEmail}</span>
                     </div>
                   </div>
+                  {(() => {
+                    const allowed = (user?.role==='admin') || (String(s.supportEmail||'').toLowerCase() === String(user?.email||'').toLowerCase())
+                    if (!allowed) return null
+                    return (
+                      <button
+                        onClick={async()=>{
+                          if (!repos) return
+                          if (!confirm('確定刪除此客服/業務排班（休假）？')) return
+                          try {
+                            await repos.scheduleRepo.removeSupportShift(s.id)
+                            // 重新載入當月清單
+                            const yymm = (supportDate || new Date().toISOString().slice(0,10)).slice(0,7)
+                            const startMonth = `${yymm}-01`
+                            const endMonthStr = monthEnd(yymm)
+                            const rows:any[] = await repos.scheduleRepo.listSupport({ start: startMonth, end: endMonthStr })
+                            if (user?.role==='admin') setSupportShifts(rows)
+                            else {
+                              const emailLc = String(user?.email||'').toLowerCase()
+                              setSupportShifts(rows.filter((r:any)=> String(r.supportEmail||'').toLowerCase()===emailLc))
+                            }
+                          } catch (e:any) {
+                            alert('刪除失敗：' + (e?.message || ''))
+                          }
+                        }}
+                        className="rounded bg-rose-600 px-2 py-1 text-white"
+                      >刪除</button>
+                    )
+                  })()}
                 </div>
               ))}
               {supportShifts.length === 0 && <div className="text-gray-500">目前無排班資料</div>}
@@ -824,9 +852,34 @@ export default function TechnicianSchedulePage() {
       </div>
       {leaves.map((l) => (
         <div key={l.id} className="rounded-xl border bg-white p-4 shadow-card">
-          <div className="text-sm text-gray-600">{l.date} {l.fullDay ? '全天' : `${l.startTime || ''} ~ ${l.endTime || ''}`}</div>
-          <div className="mt-1 text-base">{emailToTech[(l.technicianEmail||'').toLowerCase()]?.name || l.technicianEmail}</div>
-          {l.reason && <div className="text-sm text-gray-500">{l.reason}</div>}
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm text-gray-600">{l.date} {l.fullDay ? '全天' : `${l.startTime || ''} ~ ${l.endTime || ''}`}</div>
+              <div className="mt-1 text-base">{emailToTech[(l.technicianEmail||'').toLowerCase()]?.name || l.technicianEmail}</div>
+              {l.reason && <div className="text-sm text-gray-500">{l.reason}</div>}
+            </div>
+            {(() => {
+              const isOwner = String(l.technicianEmail||'').toLowerCase() === String(user?.email||'').toLowerCase()
+              const allowed = (user?.role==='admin') || (user?.role==='technician' && isOwner)
+              if (!allowed) return null
+              return (
+                <button
+                  onClick={async()=>{
+                    if (!repos) return
+                    if (!confirm('確定刪除此技師休假？')) return
+                    try {
+                      await repos.scheduleRepo.removeTechnicianLeave(l.id)
+                      // 從列表移除
+                      setLeaves(prev => (prev||[]).filter(x => x.id !== l.id))
+                    } catch (e:any) {
+                      alert('刪除失敗：' + (e?.message || ''))
+                    }
+                  }}
+                  className="rounded bg-rose-600 px-2 py-1 text-white text-xs"
+                >刪除</button>
+              )
+            })()}
+          </div>
         </div>
       ))}
       {leaves.length === 0 && <div className="text-gray-500">近期無資料</div>}
