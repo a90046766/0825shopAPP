@@ -269,15 +269,13 @@ export default function OrderManagementPage() {
       {/* 技師卡牌式入口：顯示各分類數量，可點擊切換 */}
       {isTech && (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {([ 
-            ['all','全部', counts.all],
-            ['pending','待確認', counts.pending],
+          {([
             ['confirmed','待服務', counts.confirmed],
             ['completed','已完成', counts.completed],
-            ['invoice','發票未寄送', counts.invoice],
             ['closed','已結案', counts.closed],
+            ['all','全部', counts.all],
           ] as any[]).map(([key,label,num])=> (
-            <button key={key} onClick={()=>setStatusTab(key)} className={`rounded-2xl border p-4 text-left shadow-card ${statusTab===key? 'ring-2 ring-brand-400' : ''}`}>
+            <button key={key} onClick={()=>setStatusTab(key as any)} className={`rounded-2xl border p-4 text-left shadow-card ${statusTab===key? 'ring-2 ring-brand-400' : ''}`}>
               <div className="text-xs text-gray-500">{label}</div>
               <div className="mt-1 text-2xl font-extrabold tabular-nums">{num}</div>
             </button>
