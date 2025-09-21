@@ -22,7 +22,7 @@ export default function OrderManagementPage() {
   const [q, setQ] = useState('')
   const [yy, setYy] = useState('')
   const [mm, setMm] = useState('')
-  const [statusTab, setStatusTab] = useState<'all'|'pending'|'confirmed'|'completed'|'closed'|'invoice'>('all')
+  const [statusTab, setStatusTab] = useState<'confirmed'|'completed'|'closed'|'all'>('confirmed')
   const [pf, setPf] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<any>({ 
@@ -152,12 +152,10 @@ export default function OrderManagementPage() {
         <div className="text-lg font-semibold">訂單管理</div>
       <div className="flex items-center gap-2 text-xs">
         {([
-          ['all','全部'],
-          ['pending','待確認'],
           ['confirmed','待服務'],
           ['completed','已完成'],
-          ['invoice','發票未寄送'],
           ['closed','已結案'],
+          ['all','全部'],
         ] as any[]).map(([key,label])=> (
           <button
             key={key}
