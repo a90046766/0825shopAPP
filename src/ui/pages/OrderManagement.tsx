@@ -48,11 +48,37 @@ export default function OrderManagementPage() {
   const [lastSavedAt, setLastSavedAt] = useState<string>('')
   const [activePercent, setActivePercent] = useState<number>(0)
   const [products, setProducts] = useState<any[]>([])
+  // 技師視圖：若客服已從排班指派，但尚未寫入 orders.assignedTechnicians，也能顯示
+  const [ownBySchedule, setOwnBySchedule] = useState<Record<string, boolean>>({})
   const load = async () => { if (!repos) return; setRows(await repos.orderRepo.list()) }
   useEffect(()=>{ (async()=>{ const a = await loadAdapters(); setRepos(a); })() },[])
   useEffect(()=>{ if (repos) load() },[repos])
   useEffect(()=>{ getActivePercent().then(setActivePercent) },[creating])
   useEffect(()=>{ (async()=>{ try { const a = repos || (await loadAdapters()); setProducts(await a.productRepo.list()) } catch {} })() },[creating, repos])
+
+  // 技師視圖：依目前年份/月份（或當月）抓取班表，將屬於自己的 orderId 做為後援過濾
+  useEffect(()=>{
+    if (!repos) return
+    if (user?.role !== 'technician') { setOwnBySchedule({}); return }
+    const now = new Date()
+    const year = yy || String(now.getFullYear())
+    const month = mm || String(now.getMonth()+1).padStart(2,'0')
+    const start = `${year}-${month}-01`
+    const lastDay = new Date(Number(year), Number(month), 0).getDate()
+    const end = `${year}-${month}-${String(lastDay).padStart(2,'0')}`
+    ;(async()=>{
+      try{
+        const ws = await repos.scheduleRepo.listWork({ start, end })
+        const emailLc = String(user?.email||'').toLowerCase()
+        const mine = (ws||[]).filter((w:any)=> String(w.technicianEmail||'').toLowerCase()===emailLc)
+        const map: Record<string, boolean> = {}
+        for (const w of mine) { if (w.orderId) map[w.orderId] = true }
+        setOwnBySchedule(map)
+      } catch {
+        setOwnBySchedule({})
+      }
+    })()
+  }, [repos, user?.role, user?.email, yy, mm])
 
   // 當開啟新建視窗，且已填姓名與手機時，自動建立草稿
   useEffect(()=>{
@@ -112,7 +138,12 @@ export default function OrderManagementPage() {
   const isOwner = (o:any) => {
     if (!isTech) return true
     const names: string[] = Array.isArray(o.assignedTechnicians)? o.assignedTechnicians : []
-    return names.includes(user?.name || '')
+    const myName = user?.name || ''
+    const sigTech = (o as any).signatureTechnician || ''
+    const byAssigned = names.includes(myName)
+    const bySignature = sigTech === myName
+    const bySchedule = !!ownBySchedule[o.id]
+    return byAssigned || bySignature || bySchedule
   }
 
   const filtered = rows.filter(o => {
