@@ -46,6 +46,8 @@ export default function OrderManagementPage() {
   const [formDirty, setFormDirty] = useState<boolean>(false)
   const [isAutoSaving, setIsAutoSaving] = useState<boolean>(false)
   const [lastSavedAt, setLastSavedAt] = useState<string>('')
+  const [submitting, setSubmitting] = useState<boolean>(false)
+  const [draftCreating, setDraftCreating] = useState<boolean>(false)
   const [activePercent, setActivePercent] = useState<number>(0)
   const [products, setProducts] = useState<any[]>([])
   // 技師視圖：若客服已從排班指派，但尚未寫入 orders.assignedTechnicians，也能顯示
@@ -86,7 +88,9 @@ export default function OrderManagementPage() {
     if (!repos) return
     if (draftId) return
     if (!form.customerName || !form.customerPhone) return
+    if (draftCreating) return
     let cancelled = false
+    setDraftCreating(true)
     ;(async()=>{
       try {
         const draftPayload: any = {
@@ -110,16 +114,17 @@ export default function OrderManagementPage() {
           setFormDirty(false)
           setLastSavedAt(new Date().toISOString())
         }
-      } catch {}
+      } catch {} finally { setDraftCreating(false) }
     })()
     return ()=>{ cancelled = true }
-  }, [creating, repos, draftId, form.customerName, form.customerPhone])
+  }, [creating, repos, draftId, form.customerName, form.customerPhone, draftCreating])
 
   // 每 5 秒自動儲存草稿（僅在有變更時）
   useEffect(()=>{
     if (!creating) return
     if (!repos) return
     if (!draftId) return
+    if (submitting || draftCreating) return
     const h = setInterval(async()=>{
       if (!formDirty) return
       setIsAutoSaving(true)
@@ -133,7 +138,7 @@ export default function OrderManagementPage() {
       setIsAutoSaving(false)
     }, 5000)
     return ()=>clearInterval(h)
-  }, [creating, repos, draftId, formDirty, form])
+  }, [creating, repos, draftId, formDirty, form, submitting, draftCreating])
   const isTech = user?.role === 'technician'
   const isOwner = (o:any) => {
     if (!isTech) return true
@@ -532,6 +537,8 @@ export default function OrderManagementPage() {
               <button onClick={async()=>{
                 try {
                   if(!repos) return
+                  if (submitting) return
+                  setSubmitting(true)
                   
                   // 地址驗證：檢查是否為非標準服務區
                   const addressValidation = validateServiceArea(form.customerCity, form.customerDistrict)
@@ -611,11 +618,13 @@ export default function OrderManagementPage() {
                   load()
                 } catch (e:any) {
                   alert('建立失敗：' + (e?.message || '未知錯誤'))
+                } finally {
+                  setSubmitting(false)
                 }
-              }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">建立</button>
+              }} className={`rounded-lg px-3 py-1 text-white ${submitting?'bg-gray-400 cursor-not-allowed':'bg-brand-500'}`} disabled={submitting}>建立</button>
             </div>
             <div className="mt-2 text-right text-[11px] text-gray-500">
-              {isAutoSaving ? '自動儲存中…' : (lastSavedAt ? `已自動儲存於 ${new Date(lastSavedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '輸入姓名與手機後會自動建立草稿')}
+              {submitting ? '送出中…' : isAutoSaving ? '自動儲存中…' : (lastSavedAt ? `已自動儲存於 ${new Date(lastSavedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '輸入姓名與手機後會自動建立草稿')}
             </div>
           </div>
         </div>

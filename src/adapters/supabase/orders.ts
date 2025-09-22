@@ -1,6 +1,21 @@
 import type { OrderRepo, Order } from '../../core/repository'
 import { supabase } from '../../utils/supabase'
 
+// 輕量重試工具：處理偶發網路/瞬時錯誤
+async function withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
+  let lastError: any
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err: any) {
+      lastError = err
+      const waitMs = 300 + attempt * 400
+      await new Promise(res => setTimeout(res, waitMs))
+    }
+  }
+  throw lastError
+}
+
 // UUID 驗�??�數
 function isValidUUID(str: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -219,18 +234,15 @@ class SupabaseOrderRepo implements OrderRepo {
       const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
       row.order_number = `OD${yy}${mm}${dd}${random}`
       
-      // 檢查是否重複，如果重複則重新生成
+      // 檢查是否重複，如果重複則重新生成（maybeSingle 避免未命中即丟錯）
       let attempts = 0
       while (attempts < 5) {
         const { data: existing } = await supabase
           .from('orders')
           .select('id')
           .eq('order_number', row.order_number)
-          .single()
-        
-        if (!existing) break // 沒有重複，可以使用
-        
-        // 重複了，重新生成
+          .maybeSingle()
+        if (!existing) break
         const _now = new Date()
         const _yy = String(_now.getFullYear()).slice(2)
         const _mm = String(_now.getMonth() + 1).padStart(2, '0')
@@ -240,7 +252,7 @@ class SupabaseOrderRepo implements OrderRepo {
         attempts++
       }
 
-      const { data, error } = await supabase.from('orders').insert(row).select(ORDERS_COLUMNS).single()
+      const { data, error } = await withRetry(() => supabase.from('orders').insert(row).select(ORDERS_COLUMNS).single())
       if (error) {
         console.error('Supabase order create error:', error)
         throw new Error(`訂單建立失敗: ${error.message}`)
@@ -257,23 +269,19 @@ class SupabaseOrderRepo implements OrderRepo {
       let query = supabase
         .from('orders')
         .update(toDbRow(patch))
-      
-      // 以 UUID 為主，否則用 order_number 更新
       if (isValidUUID(id)) {
         query = query.eq('id', id)
       } else {
         query = query.eq('order_number', id)
       }
-      
-      const { error } = await query
-      
+      const { error } = await withRetry(() => query)
       if (error) {
         console.error('Supabase order update error:', error)
-        throw new Error(`訂單?�新失�?: ${error.message}`)
+        throw new Error(`訂單更新失敗: ${error.message}`)
       }
     } catch (error) {
       console.error('Supabase order update exception:', error)
-      throw new Error('訂單?�新失�?')
+      throw new Error('訂單更新失敗')
     }
   }
 
