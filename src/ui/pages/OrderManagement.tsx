@@ -22,7 +22,7 @@ export default function OrderManagementPage() {
   const [q, setQ] = useState('')
   const [yy, setYy] = useState('')
   const [mm, setMm] = useState('')
-  const [statusTab, setStatusTab] = useState<'confirmed'|'completed'|'closed'|'all'>('confirmed')
+  const [statusTab, setStatusTab] = useState<'pending'|'confirmed'|'completed'|'closed'|'all'>('confirmed')
   const [pf, setPf] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<any>({ 
@@ -156,6 +156,7 @@ export default function OrderManagementPage() {
     return ()=>clearInterval(h)
   }, [creating, repos, draftId, formDirty, form, submitting, draftCreating])
   const isTech = user?.role === 'technician'
+  const isSupportOrAdmin = user?.role === 'admin' || user?.role === 'support'
   const isOwner = (o:any) => {
     if (!isTech) return true
     const names: string[] = Array.isArray(o.assignedTechnicians)? o.assignedTechnicians : []
@@ -203,12 +204,21 @@ export default function OrderManagementPage() {
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">訂單管理</div>
       <div className="flex items-center gap-2 text-xs">
-        {([
-          ['confirmed','待服務'],
-          ['completed','已完成'],
-          ['closed','已結案'],
-          ['all','全部'],
-        ] as any[]).map(([key,label])=> (
+        {((isTech
+          ? ([
+              ['confirmed','待服務'],
+              ['completed','已完成'],
+              ['closed','已結案'],
+              ['all','全部'],
+            ] as any[])
+          : ([
+              ['pending','待確認'],
+              ['confirmed','待服務'],
+              ['completed','已完成'],
+              ['closed','已結案'],
+              ['all','全部'],
+            ] as any[])
+        )).map(([key,label])=> (
           <button
             key={key}
             onClick={()=>setStatusTab(key)}
@@ -298,20 +308,52 @@ export default function OrderManagementPage() {
         </div>
       </div>
 
-      {/* 技師卡牌式入口：顯示各分類數量，可點擊切換 */}
+      {/* 卡牌式入口（角色化）：技師不顯示「待確認」，客服/管理員顯示五張卡 */}
+      {!isTech && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          {([
+            ['pending','待確認', counts.pending],
+            ['confirmed','待服務', counts.confirmed],
+            ['completed','已完成', counts.completed],
+            ['closed','已結案', counts.closed],
+            ['all','全部', counts.all],
+          ] as any[]).map(([key,label,num])=> {
+            const color = key==='pending' ? 'yellow' : key==='confirmed' ? 'blue' : key==='completed' ? 'emerald' : key==='closed' ? 'gray' : 'purple'
+            const selected = statusTab===key
+            return (
+              <button
+                key={key}
+                onClick={()=>setStatusTab(key as any)}
+                className={`rounded-2xl border p-5 text-left shadow-card transition ${selected? `ring-2 ring-${color}-400` : ''} bg-${color}-50 border-${color}-200 text-${color}-800 hover:shadow-md`}
+              >
+                <div className="text-sm">{label}</div>
+                <div className="mt-1 text-3xl font-extrabold tabular-nums">{num}</div>
+              </button>
+            )
+          })}
+        </div>
+      )}
       {isTech && (
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {([
             ['confirmed','待服務', counts.confirmed],
             ['completed','已完成', counts.completed],
             ['closed','已結案', counts.closed],
             ['all','全部', counts.all],
-          ] as any[]).map(([key,label,num])=> (
-            <button key={key} onClick={()=>setStatusTab(key as any)} className={`rounded-2xl border p-4 text-left shadow-card ${statusTab===key? 'ring-2 ring-brand-400' : ''}`}>
-              <div className="text-xs text-gray-500">{label}</div>
-              <div className="mt-1 text-2xl font-extrabold tabular-nums">{num}</div>
-            </button>
-          ))}
+          ] as any[]).map(([key,label,num])=> {
+            const color = key==='confirmed' ? 'blue' : key==='completed' ? 'emerald' : key==='closed' ? 'gray' : 'purple'
+            const selected = statusTab===key
+            return (
+              <button
+                key={key}
+                onClick={()=>setStatusTab(key as any)}
+                className={`rounded-2xl border p-5 text-left shadow-card transition ${selected? `ring-2 ring-${color}-400` : ''} bg-${color}-50 border-${color}-200 text-${color}-800 hover:shadow-md`}
+              >
+                <div className="text-sm">{label}</div>
+                <div className="mt-1 text-3xl font-extrabold tabular-nums">{num}</div>
+              </button>
+            )
+          })}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 text-xs">
