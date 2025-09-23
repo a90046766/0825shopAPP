@@ -200,6 +200,8 @@ export default function OrderManagementPage() {
     invoice: ownRows.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
   } as any
   const yearOptions = Array.from(new Set((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean))).sort()
+  const MAX_ALL_ITEMS = 1000
+  const listed = statusTab==='all' ? filtered.slice(0, MAX_ALL_ITEMS) : filtered
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -429,7 +431,10 @@ export default function OrderManagementPage() {
         )}
       </div>
       <div className="rounded-2xl bg-white p-2 shadow-card">
-        {filtered.map(o => (
+        {statusTab==='all' && filtered.length>MAX_ALL_ITEMS && (
+          <div className="p-2 text-xs text-gray-500">顯示前 {MAX_ALL_ITEMS} 筆，請使用上方篩選縮小範圍</div>
+        )}
+        {listed.map(o => (
           <Link key={o.id} to={`/orders/${o.id}`} className="flex items-center justify-between border-b p-3 text-sm">
             <div>
               <div className="font-semibold">{o.id} <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] ${o.platform==='日'?'bg-blue-100 text-blue-700':o.platform==='同'?'bg-purple-100 text-purple-700':o.platform==='黃'?'bg-amber-100 text-amber-700':'bg-green-100 text-green-700'}`}>{o.platform}</span></div>
