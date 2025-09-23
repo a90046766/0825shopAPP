@@ -145,6 +145,98 @@ const ORDER_COLUMNS_DETAIL =
   ORDERS_COLUMNS + ',photos,photos_before,photos_after'
 
 class SupabaseOrderRepo implements OrderRepo {
+  private buildYearMonthRange(year?: string, month?: string): { start?: string; end?: string } {
+    try {
+      const now = new Date()
+      const y = year && year.length===4 ? Number(year) : now.getFullYear()
+      if (!month) {
+        const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0)).toISOString()
+        const end = new Date(Date.UTC(y + 1, 0, 1, 0, 0, 0)).toISOString()
+        return { start, end }
+      }
+      const m = Math.max(1, Math.min(12, Number(month))) - 1
+      const start = new Date(Date.UTC(y, m, 1, 0, 0, 0)).toISOString()
+      const end = new Date(Date.UTC(y, m + 1, 1, 0, 0, 0)).toISOString()
+      return { start, end }
+    } catch { return {} }
+  }
+
+  async listByFilter(opts?: {
+    year?: string,
+    month?: string,
+    status?: 'all'|'pending'|'confirmed'|'completed'|'closed'|'canceled',
+    q?: string,
+    platforms?: string[],
+    limit?: number,
+    offset?: number,
+  }): Promise<{ rows: Order[]; total?: number }> {
+    const { year, month, status = 'all', q, platforms, limit, offset } = opts || {}
+    const RANGE = this.buildYearMonthRange(year, month)
+    const LIST_COLS = 'id,order_number,customer_name,customer_phone,customer_email,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,status,created_by,created_at,updated_at,work_started_at,work_completed_at,service_finished_at'
+    let query = supabase.from('orders').select(LIST_COLS, { count: 'exact' })
+    if (RANGE.start && RANGE.end) {
+      // 月/年範圍：以 created_at 或 work_completed_at 任一落在範圍內
+      query = query.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end})`)
+    }
+    if (Array.isArray(platforms) && platforms.length>0) {
+      query = query.in('platform', platforms as any)
+    }
+    if (q && q.trim()) {
+      const kw = q.trim()
+      query = query.or(`order_number.ilike.%${kw}%,customer_name.ilike.%${kw}%`)
+    }
+    if (status && status!=='all') {
+      if (status==='pending') {
+        query = query.eq('status','draft').not('customer_name','eq','').not('customer_phone','eq','')
+      } else if (status==='confirmed') {
+        query = query.in('status', ['confirmed','in_progress'] as any)
+      } else if (status==='completed') {
+        query = query.eq('status','completed')
+      } else if (status==='closed') {
+        query = query.eq('status','closed')
+      } else if (status==='canceled') {
+        query = query.or('status.eq.canceled,status.eq.unservice')
+      }
+    }
+    query = query.order('created_at', { ascending: false })
+    if (typeof limit === 'number') {
+      const from = Math.max(0, Number(offset||0))
+      const to = from + Math.max(0, limit) - 1
+      if (to >= from) query = query.range(from, to)
+    }
+    const { data, error, count } = await query
+    if (error) throw new Error(`訂單清單讀取失敗: ${error.message}`)
+    return { rows: (data||[]).map(fromDbRow), total: count||undefined }
+  }
+
+  async countByStatus(opts?: {
+    year?: string,
+    month?: string,
+    q?: string,
+    platforms?: string[],
+  }): Promise<{ all: number; pending: number; confirmed: number; completed: number; closed: number; canceled: number }> {
+    const { year, month, q, platforms } = opts || {}
+    const RANGE = this.buildYearMonthRange(year, month)
+    const base = () => {
+      let qy = supabase.from('orders').select('id', { count: 'exact', head: true })
+      if (RANGE.start && RANGE.end) qy = qy.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end})`)
+      if (Array.isArray(platforms) && platforms.length>0) qy = qy.in('platform', platforms as any)
+      if (q && q.trim()) qy = qy.or(`order_number.ilike.%${q.trim()}%,customer_name.ilike.%${q.trim()}%`)
+      return qy
+    }
+    const get = async (mod: (x: any)=>any) => {
+      const { count, error } = await mod(base())
+      if (error) return 0
+      return count || 0
+    }
+    const all = await get(x=>x)
+    const pending = await get(x=> x.eq('status','draft').not('customer_name','eq','').not('customer_phone','eq',''))
+    const confirmed = await get(x=> x.in('status', ['confirmed','in_progress'] as any))
+    const completed = await get(x=> x.eq('status','completed'))
+    const closed = await get(x=> x.eq('status','closed'))
+    const canceled = await get(x=> x.or('status.eq.canceled,status.eq.unservice'))
+    return { all, pending, confirmed, completed, closed, canceled }
+  }
   async list(): Promise<Order[]> {
     try {
       const { data, error } = await supabase

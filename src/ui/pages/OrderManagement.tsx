@@ -16,6 +16,9 @@ import {
 
 export default function OrderManagementPage() {
   const [rows, setRows] = useState<any[]>([])
+  const [total, setTotal] = useState<number>(0)
+  const [page, setPage] = useState<number>(0)
+  const PAGE_SIZE = 200
   const [repos, setRepos] = useState<any>(null)
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
   const user = getCurrentUser()
@@ -55,9 +58,17 @@ export default function OrderManagementPage() {
   const [selectedMap, setSelectedMap] = useState<Record<string, boolean>>({})
   // 技師視圖：若客服已從排班指派，但尚未寫入 orders.assignedTechnicians，也能顯示
   const [ownBySchedule, setOwnBySchedule] = useState<Record<string, boolean>>({})
-  const load = async () => { if (!repos) return; setRows(await repos.orderRepo.list()) }
+  const load = async () => { 
+    if (!repos) return
+    try {
+      const res = await (repos.orderRepo.listByFilter ? repos.orderRepo.listByFilter({ year: yy, month: mm, status: statusTab as any, q, platforms: Object.keys(pf).filter(k=>pf[k]), limit: PAGE_SIZE, offset: page*PAGE_SIZE }) : { rows: await repos.orderRepo.list(), total: 0 })
+      setRows(res.rows||[])
+      setTotal(res.total|| (res.rows||[]).length)
+    } catch { }
+  }
   useEffect(()=>{ (async()=>{ const a = await loadAdapters(); setRepos(a); })() },[])
   useEffect(()=>{ if (repos) load() },[repos])
+  useEffect(()=>{ if (repos) load() },[yy, mm, statusTab, q, JSON.stringify(pf), page])
   useEffect(()=>{ getActivePercent().then(setActivePercent) },[creating])
   useEffect(()=>{ (async()=>{ try { const a = repos || (await loadAdapters()); setProducts(await a.productRepo.list()) } catch {} })() },[creating, repos])
 
@@ -247,12 +258,11 @@ export default function OrderManagementPage() {
           </select>
           <input type="month" className="rounded border px-2 py-1 text-sm" onChange={e=>{
             const ym = e.target.value
-            if (!ym) { load(); return }
-            const list = (rows||[]).filter((o:any)=>{
-              const d = (o.workCompletedAt||o.createdAt||'').slice(0,7)
-              return d === ym
-            })
-            setRows(list as any)
+            if (!ym){ setYy(''); setMm(''); setPage(0); return }
+            const [y,m] = ym.split('-')
+            setYy(y||'')
+            setMm((m||'').padStart(2,'0'))
+            setPage(0)
           }} />
           {can(user,'orders.create') && <button onClick={async()=>{ 
             try {
@@ -350,128 +360,14 @@ export default function OrderManagementPage() {
           )}
         </div>
       </div>
-
-      {/* 卡牌式入口（角色化）：技師不顯示「待確認」，客服/管理員顯示五張卡 */}
-      {!isTech && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          {([
-            ['pending','待確認', counts.pending],
-            ['confirmed','待服務', counts.confirmed],
-            ['completed','已完成', counts.completed],
-            ['closed','已結案', counts.closed],
-            ...(counts.canceled>0 ? [['canceled','已取消', counts.canceled]] : []),
-            ['all','全部', counts.all],
-          ] as any[]).map(([key,label,num])=> {
-            const color = key==='pending' ? 'yellow' : key==='confirmed' ? 'blue' : key==='completed' ? 'emerald' : key==='closed' ? 'gray' : 'purple'
-            const selected = statusTab===key
-            return (
-              <button
-                key={key}
-                onClick={()=>setStatusTab(key as any)}
-                className={`rounded-2xl border p-5 text-left shadow-card transition ${selected? `ring-2 ring-${color}-400` : ''} bg-${color}-50 border-${color}-200 text-${color}-800 hover:shadow-md`}
-              >
-                <div className="text-sm">{label}</div>
-                <div className="mt-1 text-3xl font-extrabold tabular-nums">{num}</div>
-              </button>
-            )
-          })}
+      {total>PAGE_SIZE && (
+        <div className="flex items-center justify-end gap-2 text-xs">
+          <span>共 {total} 筆</span>
+          <button disabled={page===0} onClick={()=>setPage(p=>Math.max(0,p-1))} className={`rounded px-2 py-1 ${page===0?'bg-gray-100 text-gray-400':'bg-gray-100 hover:bg-gray-200'}`}>上一頁</button>
+          <span>{page+1} / {Math.max(1, Math.ceil(total/PAGE_SIZE))}</span>
+          <button disabled={(page+1)>=Math.ceil(total/PAGE_SIZE)} onClick={()=>setPage(p=>p+1)} className={`rounded px-2 py-1 ${((page+1)>=Math.ceil(total/PAGE_SIZE))?'bg-gray-100 text-gray-400':'bg-gray-100 hover:bg-gray-200'}`}>下一頁</button>
         </div>
       )}
-      {isTech && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {([
-            ['confirmed','待服務', counts.confirmed],
-            ['completed','已完成', counts.completed],
-            ['closed','已結案', counts.closed],
-            ...(counts.canceled>0 ? [['canceled','已取消', counts.canceled]] : []),
-            ['all','全部', counts.all],
-          ] as any[]).map(([key,label,num])=> {
-            const color = key==='confirmed' ? 'blue' : key==='completed' ? 'emerald' : key==='closed' ? 'gray' : 'purple'
-            const selected = statusTab===key
-            return (
-              <button
-                key={key}
-                onClick={()=>setStatusTab(key as any)}
-                className={`rounded-2xl border p-5 text-left shadow-card transition ${selected? `ring-2 ring-${color}-400` : ''} bg-${color}-50 border-${color}-200 text-${color}-800 hover:shadow-md`}
-              >
-                <div className="text-sm">{label}</div>
-                <div className="mt-1 text-3xl font-extrabold tabular-nums">{num}</div>
-              </button>
-            )
-          })}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        {['日','同','黃','今'].map(p=> (
-          <button key={p} onClick={()=>setPf(s=>({ ...s, [p]: !s[p] }))} className={`rounded-full px-2.5 py-1 ${pf[p]? 'bg-brand-100 text-brand-700 ring-1 ring-brand-300' : 'bg-gray-100 text-gray-700'}`}>{p}</button>
-        ))}
-        <button onClick={()=>setPf({})} className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100">清除</button>
-        {filtered.length>0 && (
-          <>
-            <button onClick={()=>{
-              const header = ['項次','日期','平台','訂單編號','地區','數量','服務技師','結案金額']
-              const lines = filtered.map((o:any, index: number)=>{
-                // 提取地址資訊
-                const location = extractLocationFromAddress(o.customerAddress)
-                const region = location.city && location.district ? `${location.city}${location.district}` : o.customerAddress
-                
-                // 計算數量
-                const quantity = calculateOrderQuantity(o.serviceItems || [])
-                
-                // 格式化技師顯示
-                const technicians = formatTechniciansDisplay(o.assignedTechnicians || [])
-                
-                // 計算結案金額
-                const finalAmount = calculateFinalAmount(o.serviceItems || [], o.status)
-                
-                return [
-                  index + 1,
-                  o.preferredDate || '',
-                  o.platform || '',
-                  o.id || '',
-                  region,
-                  quantity,
-                  technicians,
-                  finalAmount
-                ].join(',')
-              })
-              const csv = [header.join(','),...lines].join('\n')
-              const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = 'orders_report.csv'
-              a.click(); URL.revokeObjectURL(url)
-            }} className="ml-auto rounded bg-gray-900 px-2.5 py-1 text-white">匯出報表 CSV</button>
-            <button onClick={()=>{
-              const header = ['項次','日期','平台','訂單編號','地區','數量','服務技師','結案金額']
-              const rowsHtml = filtered.map((o:any, index: number)=>{
-                // 提取地址資訊
-                const location = extractLocationFromAddress(o.customerAddress)
-                const region = location.city && location.district ? `${location.city}${location.district}` : o.customerAddress
-                
-                // 計算數量
-                const quantity = calculateOrderQuantity(o.serviceItems || [])
-                
-                // 格式化技師顯示
-                const technicians = formatTechniciansDisplay(o.assignedTechnicians || [])
-                
-                // 計算結案金額
-                const finalAmount = calculateFinalAmount(o.serviceItems || [], o.status)
-                
-                return `<tr><td>${index + 1}</td><td>${o.preferredDate || ''}</td><td>${o.platform || ''}</td><td>${o.id || ''}</td><td>${region}</td><td>${quantity}</td><td>${technicians}</td><td>${finalAmount}</td></tr>`
-              }).join('')
-              const html = `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body><table><thead><tr>${header.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`
-              const blob = new Blob([html], { type: 'application/vnd.ms-excel' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = 'orders_report.xls'
-              a.click(); URL.revokeObjectURL(url)
-            }} className="rounded bg-brand-600 px-2.5 py-1 text-white">匯出報表 Excel</button>
-          </>
-        )}
-      </div>
       <div className="rounded-2xl bg-white p-2 shadow-card">
         {listed.map(o => (
           <Link key={o.id} to={`/orders/${o.id}`} className="flex items-center justify-between border-b p-3 text-sm">
