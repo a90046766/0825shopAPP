@@ -192,6 +192,9 @@ class SupabaseOrderRepo implements OrderRepo {
 
   async create(draft: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
     try {
+      // 若是後台要建立的草稿單，直接走回退流程（避免 RPC 延遲或限制）
+      const isDraftFlow = (draft as any)?.status === 'draft'
+
       // 優先使用 RPC 將「產生單號 + 寫入 header/items」包成交易
       const payload: any = {
         customerName: (draft as any).customerName,
@@ -210,16 +213,18 @@ class SupabaseOrderRepo implements OrderRepo {
         serviceItems: (draft as any).serviceItems || []
       }
 
-      try {
-        const { data: rpcRow, error: rpcErr } = await supabase.rpc('create_reservation_order', {
-          p_member_id: (draft as any).memberId || null,
-          p_payload: payload
-        })
-        if (rpcErr) throw rpcErr
-        if (rpcRow) return fromDbRow(rpcRow)
-      } catch (rpcError: any) {
-        // RPC 不存在或失敗時，回退到舊流程（兩段式）
-        console.warn('create_reservation_order RPC 不可用，回退兩段式建立：', rpcError?.message || rpcError)
+      if (!isDraftFlow) {
+        try {
+          const { data: rpcRow, error: rpcErr } = await supabase.rpc('create_reservation_order', {
+            p_member_id: (draft as any).memberId || null,
+            p_payload: payload
+          })
+          if (rpcErr) throw rpcErr
+          if (rpcRow) return fromDbRow(rpcRow)
+        } catch (rpcError: any) {
+          // RPC 不存在或失敗時，回退到舊流程（兩段式）
+          console.warn('create_reservation_order RPC 不可用，回退兩段式建立：', rpcError?.message || rpcError)
+        }
       }
 
       // 回退流程（兩段式）：先產生單號再插入
@@ -260,7 +265,7 @@ class SupabaseOrderRepo implements OrderRepo {
       return fromDbRow(data)
     } catch (error) {
       console.error('Supabase order create exception:', error)
-      throw new Error('訂單建�?失�?')
+      throw new Error('訂單建立失敗')
     }
   }
 

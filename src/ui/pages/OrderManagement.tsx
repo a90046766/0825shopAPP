@@ -235,9 +235,20 @@ export default function OrderManagementPage() {
             })
             setRows(list as any)
           }} />
-          {can(user,'orders.create') && <button onClick={()=>{ setCreating(true); setDraftId(''); setFormDirty(false); setIsAutoSaving(false); setLastSavedAt(''); setForm({ 
-            customerName:'', customerPhone:'', customerAddress:'', customerCity:'', customerDistrict:'', customerDetailAddress:'', preferredDate:'', preferredTimeStart:'09:00', preferredTimeEnd:'12:00', platform:'日', referrerCode:'', serviceItems:[{name:'服務',quantity:1,unitPrice:1000}], assignedTechnicians:[], photos:[], signatures:{} 
-          }) }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">新建訂單</button>}
+          {can(user,'orders.create') && <button onClick={async()=>{ 
+            try {
+              const a = repos || (await loadAdapters())
+              // 先建立最小草稿（draft），取得正式單號/ID
+              const payload: any = {
+                customerName:'', customerPhone:'', customerAddress:'', preferredTimeStart:'09:00', preferredTimeEnd:'12:00', platform:'日', serviceItems:[{name:'服務',quantity:1,unitPrice:1000}], assignedTechnicians:[], signatures:{}, status:'draft'
+              }
+              const o = await a.orderRepo.create(payload)
+              // 導向正式訂單頁編輯
+              location.assign(`/orders/${o.id}`)
+            } catch (e:any) {
+              alert('建立草稿失敗：' + (e?.message||'未知錯誤'))
+            }
+          }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">新建訂單</button>}
           <button onClick={async()=>{
             const input = document.createElement('input')
             input.type = 'file'
