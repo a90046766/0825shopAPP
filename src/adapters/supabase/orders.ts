@@ -157,6 +157,26 @@ class SupabaseOrderRepo implements OrderRepo {
         try { sessionStorage.setItem('cache-orders', JSON.stringify({ t: Date.now(), rows })) } catch {}
         return rows
       } catch (e2) {
+        // NEW: 萃取有效草稿與正式單分開緩存，避免一次載入過多
+        try {
+          const { data: d1 } = await supabase
+            .from('orders')
+            .select('id,order_number,customer_name,customer_phone,preferred_date,preferred_time_start,preferred_time_end,assigned_technicians,signature_technician,status,created_at,updated_at')
+            .in('status', ['confirmed','in_progress','completed','closed'])
+            .order('created_at', { ascending: false })
+          const rows1 = (d1 || []).map(fromDbRow) as any
+          try { sessionStorage.setItem('cache-orders-hot', JSON.stringify({ t: Date.now(), rows: rows1 })) } catch {}
+          // 草稿用更小欄位，且只取近14天
+          const fourteen = new Date(Date.now() - 14*24*60*60*1000).toISOString()
+          const { data: d2 } = await supabase
+            .from('orders')
+            .select('id,order_number,customer_name,customer_phone,status,created_at,updated_at')
+            .eq('status','draft')
+            .gte('created_at', fourteen)
+            .order('created_at', { ascending: false })
+          const rows2 = (d2 || []).map(fromDbRow) as any
+          return [...rows2, ...rows1]
+        } catch {}
         // 最後備援：讀 15 秒內緩存，避免白屏
         try {
           const raw = sessionStorage.getItem('cache-orders')

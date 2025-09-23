@@ -168,6 +168,7 @@ export default function OrderManagementPage() {
     return byAssigned || bySignature || bySchedule
   }
 
+  const hasEssential = (o:any) => Boolean((o.customerName||'').trim() && (o.customerPhone||'').trim())
   const filtered = rows.filter(o => {
     const hit = !q || o.id.includes(q) || (o.customerName||'').includes(q)
     const pfKeys = Object.keys(pf).filter(k=>pf[k])
@@ -178,7 +179,7 @@ export default function OrderManagementPage() {
     const byDate = (!yy || y===yy) && (!mm || m===mm)
     const byStatus = (()=>{
       if (statusTab==='all') return true
-      if (statusTab==='pending') return o.status==='draft'
+      if (statusTab==='pending') return o.status==='draft' && hasEssential(o)
       if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
       if (statusTab==='completed') return o.status==='completed'
       if (statusTab==='closed') return o.status==='closed'
@@ -192,7 +193,7 @@ export default function OrderManagementPage() {
   const ownRows = rows.filter(isOwner)
   const counts = {
     all: ownRows.length,
-    pending: ownRows.filter(o=> o.status==='draft').length,
+    pending: ownRows.filter(o=> o.status==='draft' && hasEssential(o)).length,
     confirmed: ownRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
     completed: ownRows.filter(o=> o.status==='completed').length,
     closed: ownRows.filter(o=> o.status==='closed').length,
