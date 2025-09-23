@@ -602,7 +602,26 @@ export default function PageOrderDetail() {
               <div className="flex items-center justify-between">
                 <span>已指派：</span>
                 <button 
-                  onClick={() => navigate(`/schedule?orderId=${order.id}&date=${order.preferredDate}&start=${order.preferredTimeStart}&end=${order.preferredTimeEnd}`)}
+                  onClick={() => {
+                    try {
+                      const host = typeof window !== 'undefined' ? window.location.hostname : ''
+                      const isStore = host === 'store.942clean.com.tw' || (host||'').startsWith('store.')
+                      const params = new URLSearchParams({
+                        orderId: String(order.id||''),
+                        date: String(order.preferredDate||''),
+                        start: String(order.preferredTimeStart||''),
+                        end: String(order.preferredTimeEnd||'')
+                      }).toString()
+                      const path = `/schedule?${params}`
+                      if (isStore) {
+                        window.location.assign(`https://0825shopapp.netlify.app${path}`)
+                      } else {
+                        navigate(path)
+                      }
+                    } catch {
+                      navigate(`/schedule?orderId=${order.id}`)
+                    }
+                  }}
                   className="rounded bg-brand-500 px-3 py-1 text-white text-xs"
                 >
                   選擇技師
