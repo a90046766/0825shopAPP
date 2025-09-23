@@ -82,6 +82,20 @@ function toDbRow(input: Partial<Order>): any {
 function fromDbRow(row: any): Order {
   const r = row || {}
   const pick = (a: string, b: string) => (r[a] ?? r[b])
+  const normalizeStatus = (s: any): any => {
+    try {
+      const x = String(s||'').toLowerCase()
+      if (!x) return 'draft'
+      if (['draft','pending'].includes(x)) return 'draft'
+      if (['confirm','confirmed'].includes(x)) return 'confirmed'
+      if (['in_progress','inprogress','servicing','service'].includes(x)) return 'in_progress'
+      if (['completed','complete','finished','finish','done'].includes(x)) return 'completed'
+      if (['closed','close'].includes(x)) return 'closed'
+      if (['canceled','cancelled','cancel'].includes(x)) return 'canceled'
+      if (['unservice','no_service','cannot_service','unable'].includes(x)) return 'unservice' as any
+      return s
+    } catch { return s }
+  }
   return {
     // 使用 order_number 作為顯示 ID，�??��??��?使用 UUID
     id: r.order_number || r.id,
@@ -105,7 +119,7 @@ function fromDbRow(row: any): Order {
     serviceItems: pick('serviceItems', 'service_items') || [],
     assignedTechnicians: pick('assignedTechnicians', 'assigned_technicians') || [],
     signatureTechnician: r.signatureTechnician || r.signature_technician,
-    status: r.status || 'draft',
+    status: normalizeStatus(r.status || 'draft'),
     platform: r.platform || '日',
     photos: r.photos || [],
     photosBefore: pick('photosBefore', 'photos_before') || [],
