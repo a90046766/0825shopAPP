@@ -22,7 +22,7 @@ export default function OrderManagementPage() {
   const [q, setQ] = useState('')
   const [yy, setYy] = useState<string>(String(new Date().getFullYear()))
   const [mm, setMm] = useState('')
-  const [statusTab, setStatusTab] = useState<'pending'|'confirmed'|'completed'|'closed'|'all'>('confirmed')
+  const [statusTab, setStatusTab] = useState<'pending'|'confirmed'|'completed'|'closed'|'canceled'|'all'>('confirmed')
   const [pf, setPf] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<any>({ 
@@ -188,6 +188,7 @@ export default function OrderManagementPage() {
     if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
     if (statusTab==='completed') return o.status==='completed'
     if (statusTab==='closed') return o.status==='closed'
+    if (statusTab==='canceled') return o.status==='canceled' || (o as any).status==='unservice'
     if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
     return true
   })
@@ -199,6 +200,7 @@ export default function OrderManagementPage() {
     confirmed: baseRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
     completed: baseRows.filter(o=> o.status==='completed').length,
     closed: baseRows.filter(o=> o.status==='closed').length,
+    canceled: baseRows.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
     invoice: baseRows.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
   } as any
   const yearOptions = Array.from(new Set([ String(new Date().getFullYear()), ...((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean)) ])).sort()
@@ -208,21 +210,24 @@ export default function OrderManagementPage() {
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">訂單管理</div>
       <div className="flex items-center gap-2 text-xs">
-        {((isTech
-          ? ([
-              ['confirmed','待服務'],
-              ['completed','已完成'],
-              ['closed','已結案'],
-              ['all','全部'],
-            ] as any[])
-          : ([
-              ['pending','待確認'],
-              ['confirmed','待服務'],
-              ['completed','已完成'],
-              ['closed','已結案'],
-              ['all','全部'],
-            ] as any[])
-        )).map(([key,label])=> (
+        {(
+          isTech
+            ? ([
+                ['confirmed','待服務'],
+                ['completed','已完成'],
+                ['closed','已結案'],
+                ...(counts.canceled>0 ? [['canceled','已取消']] : []),
+                ['all','全部'],
+              ] as any[])
+            : ([
+                ['pending','待確認'],
+                ['confirmed','待服務'],
+                ['completed','已完成'],
+                ['closed','已結案'],
+                ...(counts.canceled>0 ? [['canceled','已取消']] : []),
+                ['all','全部'],
+              ] as any[])
+        ).map(([key,label])=> (
           <button
             key={key}
             onClick={()=>setStatusTab(key)}
@@ -354,6 +359,7 @@ export default function OrderManagementPage() {
             ['confirmed','待服務', counts.confirmed],
             ['completed','已完成', counts.completed],
             ['closed','已結案', counts.closed],
+            ...(counts.canceled>0 ? [['canceled','已取消', counts.canceled]] : []),
             ['all','全部', counts.all],
           ] as any[]).map(([key,label,num])=> {
             const color = key==='pending' ? 'yellow' : key==='confirmed' ? 'blue' : key==='completed' ? 'emerald' : key==='closed' ? 'gray' : 'purple'
@@ -377,6 +383,7 @@ export default function OrderManagementPage() {
             ['confirmed','待服務', counts.confirmed],
             ['completed','已完成', counts.completed],
             ['closed','已結案', counts.closed],
+            ...(counts.canceled>0 ? [['canceled','已取消', counts.canceled]] : []),
             ['all','全部', counts.all],
           ] as any[]).map(([key,label,num])=> {
             const color = key==='confirmed' ? 'blue' : key==='completed' ? 'emerald' : key==='closed' ? 'gray' : 'purple'
