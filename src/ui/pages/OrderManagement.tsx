@@ -200,7 +200,7 @@ export default function OrderManagementPage() {
     invoice: ownRows.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
   } as any
   const yearOptions = Array.from(new Set((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean))).sort()
-  const MAX_ALL_ITEMS = 1000
+  const MAX_ALL_ITEMS = 200
   const listed = statusTab==='all' ? filtered.slice(0, MAX_ALL_ITEMS) : filtered
   return (
     <div className="space-y-3">
