@@ -102,6 +102,23 @@ export default function PageOrderDetail() {
     setCustomerDistrictEdit(location.district)
     setCustomerDetailAddressEdit(location.address)
   },[order])
+
+  // 監看「縣市/區域/詳細」選單：自動組合並去抖儲存至 customerAddress（避免只改選單未點完整地址欄而未儲存）
+  useEffect(() => {
+    if (!order || !repos) return
+    const combined = formatAddressDisplay(customerCityEdit, customerDistrictEdit, customerDetailAddressEdit)
+    if (!combined || combined === (order.customerAddress || '')) return
+    const h = setTimeout(async () => {
+      try {
+        await repos.orderRepo.update(order.id, { customerAddress: combined })
+        const o = await repos.orderRepo.get(order.id)
+        setOrder(o)
+        setCustomerAddressEdit(combined)
+        try { setAddressSavedAt(new Date().toISOString()) } catch {}
+      } catch {}
+    }, 600)
+    return () => clearTimeout(h)
+  }, [customerCityEdit, customerDistrictEdit, customerDetailAddressEdit, order?.id, repos])
   // 指派技師顯示：若訂單內沒有 names，嘗試從排班 work 反推
   const [derivedAssigned, setDerivedAssigned] = useState<string[]>([])
   useEffect(()=>{ (async()=>{
