@@ -193,32 +193,40 @@ class SupabaseOrderRepo implements OrderRepo {
 
   async get(id: string): Promise<Order | null> {
     try {
-      let query = supabase
-        .from('orders')
-        .select(ORDER_COLUMNS_DETAIL)
-      
-      // 以 UUID 為主，否則以 order_number 查詢（不再限定必須 OD 開頭）
-      if (isValidUUID(id)) {
-        query = query.eq('id', id)
-      } else {
-        query = query.eq('order_number', id)
+      // 先嘗試詳細欄位（含照片）
+      {
+        let query = supabase.from('orders').select(ORDER_COLUMNS_DETAIL)
+        if (isValidUUID(id)) query = query.eq('id', id)
+        else query = query.eq('order_number', id)
+        const { data, error } = await query.single()
+        if (!error) return fromDbRow(data)
+        if (error.code === 'PGRST116') return null
+        console.warn('Supabase order get error (detail), fallback to light:', error)
       }
-      
-      const { data, error } = await query.single()
-      
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // ?��??��??��?返�? null
-          return null
-        }
-        console.error('Supabase order get error:', error)
-        throw new Error(`訂單載入失�?: ${error.message}`)
+
+      // 再嘗試輕量欄位（不含大欄位，降低 JSON 解析風險）
+      {
+        let query = supabase.from('orders').select(ORDERS_COLUMNS)
+        if (isValidUUID(id)) query = query.eq('id', id)
+        else query = query.eq('order_number', id)
+        const { data, error } = await query.maybeSingle()
+        if (!error && data) return fromDbRow(data)
+        if (error && error.code === 'PGRST116') return null
+        if (error) console.warn('Supabase order get error (light), fallback to minimal:', error)
       }
-      
-      return fromDbRow(data)
+
+      // 最後備援：最小欄位集合
+      {
+        const MIN_COLS = 'id,order_number,customer_name,customer_phone,customer_email,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,status,created_at,updated_at,work_started_at,work_completed_at,service_finished_at'
+        let query = supabase.from('orders').select(MIN_COLS)
+        if (isValidUUID(id)) query = query.eq('id', id)
+        else query = query.eq('order_number', id)
+        const { data } = await query.maybeSingle()
+        return data ? fromDbRow(data) : null
+      }
     } catch (error) {
       console.error('Supabase order get exception:', error)
-      throw new Error('訂單載入失�?')
+      throw new Error('訂單載入失敗')
     }
   }
 
