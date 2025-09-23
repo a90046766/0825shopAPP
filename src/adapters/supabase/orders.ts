@@ -141,7 +141,9 @@ class SupabaseOrderRepo implements OrderRepo {
         console.error('Supabase orders list error:', error)
         throw new Error(`訂單清單載入失敗: ${error.message}`)
       }
-      return (data || []).map(fromDbRow) as any
+      const rows = (data || []).map(fromDbRow) as any
+      try { sessionStorage.setItem('cache-orders', JSON.stringify({ t: Date.now(), rows })) } catch {}
+      return rows
     } catch (error: any) {
       console.error('Supabase orders list exception:', error)
       // 備援：若因巨大 JSON 解析失敗，改以更精簡欄位再嘗試一次
@@ -151,8 +153,18 @@ class SupabaseOrderRepo implements OrderRepo {
           .from('orders')
           .select(MIN_COLS)
           .order('created_at', { ascending: false })
-        return (data || []).map(fromDbRow) as any
+        const rows = (data || []).map(fromDbRow) as any
+        try { sessionStorage.setItem('cache-orders', JSON.stringify({ t: Date.now(), rows })) } catch {}
+        return rows
       } catch (e2) {
+        // 最後備援：讀 15 秒內緩存，避免白屏
+        try {
+          const raw = sessionStorage.getItem('cache-orders')
+          if (raw) {
+            const { t, rows } = JSON.parse(raw)
+            if (Date.now() - t < 15_000) return rows
+          }
+        } catch {}
         console.error('Supabase orders list fallback failed:', e2)
         throw new Error('訂單清單載入失敗')
       }

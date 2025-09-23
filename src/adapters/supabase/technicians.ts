@@ -56,12 +56,26 @@ const TECH_COLUMNS = 'id,code,name,short_name,email,phone,region,status,points,r
 
 class SupabaseTechnicianRepo implements TechnicianRepo {
   async list(): Promise<Technician[]> {
-    const { data, error } = await supabase
-      .from('technicians')
-      .select(TECH_COLUMNS)
-      .order('updated_at', { ascending: false })
-    if (error) throw error
-    return (data || []).map(fromDb)
+    try {
+      const { data, error } = await supabase
+        .from('technicians')
+        .select(TECH_COLUMNS)
+        .order('updated_at', { ascending: false })
+      if (error) throw error
+      const rows = (data || []).map(fromDb)
+      try { sessionStorage.setItem('cache-techs', JSON.stringify({ t: Date.now(), rows })) } catch {}
+      return rows
+    } catch (e) {
+      // 快取備援（1 分鐘）
+      try {
+        const raw = sessionStorage.getItem('cache-techs')
+        if (raw) {
+          const { t, rows } = JSON.parse(raw)
+          if (Date.now() - t < 60_000) return rows
+        }
+      } catch {}
+      throw e
+    }
   }
 
   async upsert(tech: Omit<Technician, 'id' | 'updatedAt'> & { id?: string }): Promise<Technician> {
