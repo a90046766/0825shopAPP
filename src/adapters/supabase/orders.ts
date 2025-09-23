@@ -303,9 +303,17 @@ class SupabaseOrderRepo implements OrderRepo {
 
   async update(id: string, patch: Partial<Order>): Promise<void> {
     try {
+      const payload = toDbRow(patch)
+      // 防止將地址覆蓋為空字串
+      if (Object.prototype.hasOwnProperty.call(payload, 'customer_address')) {
+        const val = payload['customer_address']
+        if (val === '' || val === null || val === undefined) {
+          delete payload['customer_address']
+        }
+      }
       let query = supabase
         .from('orders')
-        .update(toDbRow(patch))
+        .update(payload)
       if (isValidUUID(id)) {
         query = query.eq('id', id)
       } else {

@@ -543,10 +543,8 @@ export default function PageOrderDetail() {
                     const v = e.target.value as any
                     const patch: any = { status: v }
                     
-                    // 建單人邏輯：商城/業務單轉確認時設定建單人
-                    if (v === 'confirmed' && !order.createdBy) {
-                      patch.createdBy = user?.name || '系統'
-                    }
+                    // 建單人：若尚未有建單人，第一次進入編輯區就鎖定為當前使用者
+                    if (!order.createdBy) patch.createdBy = user?.name || '系統'
                     
                     // 自動設定完成時間
                     if (v === 'completed' && !order.workCompletedAt) {
