@@ -50,6 +50,8 @@ export default function OrderManagementPage() {
   const [draftCreating, setDraftCreating] = useState<boolean>(false)
   const [activePercent, setActivePercent] = useState<number>(0)
   const [products, setProducts] = useState<any[]>([])
+  const [quickAddress, setQuickAddress] = useState<string>('')
+  const [savedAddresses, setSavedAddresses] = useState<Array<{ id?: string; label?: string; address: string }>>([])
   // 技師視圖：若客服已從排班指派，但尚未寫入 orders.assignedTechnicians，也能顯示
   const [ownBySchedule, setOwnBySchedule] = useState<Record<string, boolean>>({})
   const load = async () => { if (!repos) return; setRows(await repos.orderRepo.list()) }
@@ -81,6 +83,20 @@ export default function OrderManagementPage() {
       }
     })()
   }, [repos, user?.role, user?.email, yy, mm])
+
+  // 依手機載入常用地址（若已存在客戶）
+  useEffect(()=>{
+    if (!repos) return
+    const phone = (form.customerPhone||'').trim()
+    if (!phone) { setSavedAddresses([]); return }
+    ;(async()=>{
+      try {
+        const c = await repos.customerRepo.findByPhone(phone)
+        const addrs = (c?.addresses || []) as Array<{ id?: string; label?: string; address: string }>
+        setSavedAddresses(addrs)
+      } catch { setSavedAddresses([]) }
+    })()
+  }, [repos, form.customerPhone])
 
   // 當開啟新建視窗，且已填姓名與手機時，自動建立草稿
   useEffect(()=>{
@@ -405,6 +421,67 @@ export default function OrderManagementPage() {
               
               {/* 地址管理 */}
               <div className="grid grid-cols-3 gap-2">
+                {/* 快速貼上完整地址 → 自動解析 */}
+                <input 
+                  className="col-span-3 rounded border px-2 py-1" 
+                  placeholder="快速貼上完整地址（自動解析縣市/區域/詳細）" 
+                  value={quickAddress}
+                  onChange={e=>setQuickAddress(e.target.value)}
+                  onBlur={()=>{
+                    const raw = quickAddress.trim()
+                    if (!raw) return
+                    const loc = extractLocationFromAddress(raw)
+                    const city = loc.city || form.customerCity
+                    const district = loc.district || form.customerDistrict
+                    const detail = loc.address || form.customerDetailAddress || raw
+                    setForm({
+                      ...form,
+                      customerCity: city,
+                      customerDistrict: district,
+                      customerDetailAddress: detail,
+                      customerAddress: formatAddressDisplay(city, district, detail)
+                    })
+                    setFormDirty(true)
+                  }}
+                />
+
+                {/* 常用地址（依手機） */}
+                {savedAddresses.length>0 && (
+                  <div className="col-span-3 grid grid-cols-3 gap-2">
+                    <select 
+                      className="col-span-2 rounded border px-2 py-1"
+                      onChange={e=>{
+                        const addr = e.target.value
+                        if (!addr) return
+                        const loc = extractLocationFromAddress(addr)
+                        const city = loc.city || ''
+                        const district = loc.district || ''
+                        const detail = loc.address || addr
+                        setForm({
+                          ...form,
+                          customerCity: city,
+                          customerDistrict: district,
+                          customerDetailAddress: detail,
+                          customerAddress: formatAddressDisplay(city, district, detail)
+                        })
+                        setFormDirty(true)
+                      }}
+                    >
+                      <option value="">選擇常用地址</option>
+                      {savedAddresses.map((a, i)=> (
+                        <option key={(a.id||'')+i} value={a.address}>{a.label ? `${a.label}：${a.address}` : a.address}</option>
+                      ))}
+                    </select>
+                    <button 
+                      className="rounded bg-gray-100 px-2 py-1 text-xs"
+                      onClick={()=>{
+                        if (!form.customerAddress) return
+                        alert('已套用常用地址')
+                      }}
+                    >套用</button>
+                  </div>
+                )}
+
                 <select 
                   className="rounded border px-2 py-1" 
                   value={form.customerCity} 
@@ -554,8 +631,7 @@ export default function OrderManagementPage() {
                   // 自動新增客戶（如果不存在）
                   if (clean.customerPhone && clean.customerName) {
                     try {
-                      const existingCustomers = await repos.customerRepo.list()
-                      const existingCustomer = existingCustomers.find((c: any) => c.phone === clean.customerPhone)
+                      const existingCustomer = await repos.customerRepo.findByPhone(clean.customerPhone)
                       
                       if (!existingCustomer) {
                         // 創建新客戶
@@ -572,6 +648,16 @@ export default function OrderManagementPage() {
                         }
                         await repos.customerRepo.upsert(newCustomer)
                         console.log('已自動新增客戶:', clean.customerName)
+                      } else {
+                        // 若有新地址，補齊常用地址
+                        const addr = (clean.customerAddress||'').trim()
+                        if (addr) {
+                          const exists = (existingCustomer.addresses||[]).some((a:any)=> a.address === addr)
+                          if (!exists) {
+                            const updated = { ...existingCustomer, addresses: [ ...(existingCustomer.addresses||[]), { id:`ADDR-${Math.random().toString(36).slice(2,8)}`, address: addr } ] }
+                            await repos.customerRepo.upsert(updated)
+                          }
+                        }
                       }
                     } catch (error) {
                       console.log('自動新增客戶失敗:', error)

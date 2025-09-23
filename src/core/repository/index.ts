@@ -510,6 +510,7 @@ export interface ModelsRepo {
 export interface CustomerRepo {
   list(): Promise<Customer[]>
   get(id: string): Promise<Customer | null>
+  findByPhone(phone: string): Promise<Customer | null>
   upsert(customer: Omit<Customer, 'id' | 'updatedAt'> & { id?: string }): Promise<Customer>
   remove(id: string): Promise<void>
 }

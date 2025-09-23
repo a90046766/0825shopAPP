@@ -28,6 +28,13 @@ class SupabaseCustomerRepo implements CustomerRepo {
     }
     return fromRow(data)
   }
+  async findByPhone(phone: string): Promise<Customer | null> {
+    const p = (phone || '').trim()
+    if (!p) return null
+    const { data, error } = await supabase.from('customers').select('*').eq('phone', p).maybeSingle()
+    if (error && (error as any).code !== 'PGRST116') throw error
+    return data ? fromRow(data) : null
+  }
   async upsert(c: Omit<Customer, 'id' | 'updatedAt'> & { id?: string }): Promise<Customer> {
     const now = new Date().toISOString()
     const row: any = { id: c.id, name: c.name, phone: c.phone, email: c.email, addresses: c.addresses||[], notes: c.notes, blacklisted: !!c.blacklisted, updated_at: now }
