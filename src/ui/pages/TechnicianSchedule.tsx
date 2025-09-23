@@ -31,6 +31,9 @@ export default function TechnicianSchedulePage() {
   const [staffMap, setStaffMap] = useState<Record<string, any>>({})
   const [staffList, setStaffList] = useState<any[]>([])
   const [selectedSupportEmail, setSelectedSupportEmail] = useState<string>('')
+  const [selectedTechEmail, setSelectedTechEmail] = useState<string>('')
+  const [leaveListMonth, setLeaveListMonth] = useState<string>(new Date().toISOString().slice(0,7))
+  const [leavesList, setLeavesList] = useState<any[]>([])
   const [workMarkers, setWorkMarkers] = useState<Record<string, number>>({})
   const [emphasisMarkers, setEmphasisMarkers] = useState<Record<string, 'warn' | 'danger'>>({})
   const [dayTooltips, setDayTooltips] = useState<Record<string, string>>({})
@@ -237,6 +240,20 @@ export default function TechnicianSchedulePage() {
     })
   }, [repos, supportDate, user?.role, user?.email])
 
+  useEffect(()=>{
+    (async()=>{
+      if (!repos) return
+      if (!selectedTechEmail) { setLeavesList([]); return }
+      const startMonth = `${leaveListMonth}-01`
+      const endMonthStr = monthEnd(leaveListMonth)
+      try {
+        const rows = await repos.scheduleRepo.listTechnicianLeaves({ start: startMonth, end: endMonthStr })
+        const emailLc = selectedTechEmail.toLowerCase()
+        setLeavesList((rows||[]).filter((l:any)=> String(l.technicianEmail||'').toLowerCase()===emailLc))
+      } catch { setLeavesList([]) }
+    })()
+  }, [repos, selectedTechEmail, leaveListMonth])
+
   // 將客服排班名稱併入當月日曆 tooltip（管理員/客服可見）
   useEffect(() => {
     if (!user) return
@@ -257,12 +274,21 @@ export default function TechnicianSchedulePage() {
     }
     if (Object.keys(namesByDate).length===0) return
     setDayTooltips(prev => {
-      const out: Record<string,string> = { ...(prev||{}) }
+      // 先移除既有 tooltip 中以「客服：」開頭的行，避免重覆堆疊
+      const next: Record<string, string> = {}
+      for (const [d, text] of Object.entries(prev || {})) {
+        const base = String(text || '')
+          .split('\n')
+          .filter(line => line.trim() && !line.startsWith('客服：'))
+          .join('\n')
+          .trim()
+        if (base) next[d] = base
+      }
       for (const [d, arr] of Object.entries(namesByDate)) {
         const label = `客服：${arr.join('、')}`
-        out[d] = out[d] ? `${out[d]}\n${label}` : label
+        next[d] = next[d] ? `${next[d]}\n${label}` : label
       }
-      return out
+      return next
     })
   }, [supportShifts, staffMap, user, date])
 
@@ -450,11 +476,15 @@ export default function TechnicianSchedulePage() {
                     repos.scheduleRepo.listWork({ start: startMonth, end: endMonth }),
                     repos.scheduleRepo.listTechnicianLeaves({ start: startMonth, end: endMonth })
                   ])
-                  // 技師視角：切月時僅看自己的資料
+                  // 技師視角：切月時僅看自己的資料；管理員/客服顯示全部
                   const isTech = user?.role === 'technician'
                   setWorks(isTech ? ws.filter((w:any)=> (w.technicianEmail||'').toLowerCase() === (user?.email||'').toLowerCase()) : ws)
-                  const userEmail = user?.email?.toLowerCase()
-                  setLeaves(isTech ? ls.filter((l: any) => (l.technicianEmail || '').toLowerCase() === userEmail) : ls)
+                  if (isTech) {
+                    const userEmail = (user?.email || '').toLowerCase()
+                    setLeaves(ls.filter((l: any) => (l.technicianEmail || '').toLowerCase() === userEmail))
+                  } else {
+                    setLeaves(ls)
+                  }
                 }}
                 markers={workMarkers}
                 emphasis={emphasisMarkers}
@@ -905,7 +935,22 @@ export default function TechnicianSchedulePage() {
           <span className="inline-flex items-center gap-1"><i className="h-3 w-3 rounded" style={{background:'#9CA3AF'}}/>喪假</span>
         </div>
       </div>
-      {leaves.map((l) => (
+      {/* 技師休假下拉與月份選擇（未選擇前不顯示清單） */}
+      <div className="mb-2 flex items-center gap-3">
+        <div className="text-sm text-gray-600">技師</div>
+        <select className="rounded border px-2 py-1 text-sm" value={selectedTechEmail} onChange={e=>setSelectedTechEmail(e.target.value)}>
+          <option value="">請選擇</option>
+          {techs.map((t:any)=> (
+            <option key={t.id} value={(t.email||'').toLowerCase()}>{t.shortName||t.name}（{t.email}）</option>
+          ))}
+        </select>
+        <div className="text-sm text-gray-600">月份</div>
+        <input type="month" className="rounded border px-2 py-1 text-sm" value={leaveListMonth} onChange={e=>setLeaveListMonth(e.target.value || new Date().toISOString().slice(0,7))} />
+      </div>
+      {!selectedTechEmail && (
+        <div className="text-gray-500">請先選擇技師與月份，才會顯示當月休假</div>
+      )}
+      {selectedTechEmail && leavesList.map((l) => (
         <div key={l.id} className="rounded-xl border bg-white p-4 shadow-card">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -924,8 +969,7 @@ export default function TechnicianSchedulePage() {
                     if (!confirm('確定刪除此技師休假？')) return
                     try {
                       await repos.scheduleRepo.removeTechnicianLeave(l.id)
-                      // 從列表移除並刷新月份資料（避免仍被判定不可指派）
-                      setLeaves(prev => (prev||[]).filter(x => x.id !== l.id))
+                      setLeavesList(prev => (prev||[]).filter(x => x.id !== l.id))
                       await refreshMonth(l.date.slice(0,7))
                     } catch (e:any) {
                       alert('刪除失敗：' + (e?.message || ''))
