@@ -732,10 +732,11 @@ export default function OrderManagementPage() {
                   if ((clean as any).memberCode && String((clean as any).memberCode).toUpperCase().startsWith('MO')) {
                     try { const m = await repos.memberRepo.findByCode(String((clean as any).memberCode).toUpperCase()); if (m) memberId = m.id } catch {}
                   }
+                  const createdBy = (user?.name || user?.email || '系統')
                   if (draftId) {
-                    await repos.orderRepo.update(draftId, { ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items } as any)
+                    await repos.orderRepo.update(draftId, { ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items, createdBy } as any)
                   } else {
-                    await repos.orderRepo.create({ ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items } as any)
+                    await repos.orderRepo.create({ ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items, createdBy } as any)
                   }
                   setCreating(false)
                   setDraftId('')

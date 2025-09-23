@@ -269,6 +269,8 @@ class SupabaseOrderRepo implements OrderRepo {
 
       // 回退流程（兩段式）：先產生單號再插入
       const row = toDbRow(draft)
+      // 若有 createdBy，轉到 snake case 欄位
+      if ((draft as any).createdBy && !row['created_by']) row['created_by'] = (draft as any).createdBy
       row.id = generateUUID()
       
       // 生成較簡潔的訂單編號：OD + YYMMDD + 隨機三碼
