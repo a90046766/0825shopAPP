@@ -321,11 +321,14 @@ class SupabaseOrderRepo implements OrderRepo {
           delete payload['customer_address']
         }
       }
-      // 統一以 id 更新，避免由於 order_number 被客戶端當作顯示碼時的 CORS 反爬策略
       let query = supabase
         .from('orders')
         .update(payload)
-      query = query.eq('id', isValidUUID(id) ? id : (typeof (id as any) === 'string' ? (id as any) : ''))
+      if (isValidUUID(id)) {
+        query = query.eq('id', id)
+      } else {
+        query = query.eq('order_number', id)
+      }
       const { error } = await withRetry(() => query)
       if (error) {
         console.error('Supabase order update error:', error)
