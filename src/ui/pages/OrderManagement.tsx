@@ -455,9 +455,6 @@ export default function OrderManagementPage() {
         )}
       </div>
       <div className="rounded-2xl bg-white p-2 shadow-card">
-        {statusTab==='all' && filtered.length>MAX_ALL_ITEMS && (
-          <div className="p-2 text-xs text-gray-500">顯示前 {MAX_ALL_ITEMS} 筆，請使用上方篩選縮小範圍</div>
-        )}
         {listed.map(o => (
           <Link key={o.id} to={`/orders/${o.id}`} className="flex items-center justify-between border-b p-3 text-sm">
             <div>
