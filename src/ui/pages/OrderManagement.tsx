@@ -20,7 +20,7 @@ export default function OrderManagementPage() {
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
   const user = getCurrentUser()
   const [q, setQ] = useState('')
-  const [yy, setYy] = useState('')
+  const [yy, setYy] = useState<string>(String(new Date().getFullYear()))
   const [mm, setMm] = useState('')
   const [statusTab, setStatusTab] = useState<'pending'|'confirmed'|'completed'|'closed'|'all'>('confirmed')
   const [pf, setPf] = useState<Record<string, boolean>>({})
@@ -169,7 +169,8 @@ export default function OrderManagementPage() {
   }
 
   const hasEssential = (o:any) => Boolean((o.customerName||'').trim() && (o.customerPhone||'').trim())
-  const filtered = rows.filter(o => {
+  // 基礎集合：依搜尋/平台/年份月份/權限
+  const baseRows = rows.filter(o => {
     const hit = !q || o.id.includes(q) || (o.customerName||'').includes(q)
     const pfKeys = Object.keys(pf).filter(k=>pf[k])
     const byPf = pfKeys.length===0 || pfKeys.includes(o.platform)
@@ -177,31 +178,30 @@ export default function OrderManagementPage() {
     const y = dateKey.slice(0,4)
     const m = dateKey.slice(5,7)
     const byDate = (!yy || y===yy) && (!mm || m===mm)
-    const byStatus = (()=>{
-      if (statusTab==='all') return true
-      if (statusTab==='pending') return o.status==='draft' && hasEssential(o)
-      if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
-      if (statusTab==='completed') return o.status==='completed'
-      if (statusTab==='closed') return o.status==='closed'
-      if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
-      return true
-    })()
-    return hit && byPf && byDate && byStatus && isOwner(o)
+    return hit && byPf && byDate && isOwner(o)
+  })
+  // 依頁籤狀態再過濾
+  const filtered = baseRows.filter(o => {
+    if (statusTab==='all') return true
+    if (statusTab==='pending') return o.status==='draft' && hasEssential(o)
+    if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
+    if (statusTab==='completed') return o.status==='completed'
+    if (statusTab==='closed') return o.status==='closed'
+    if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
+    return true
   })
 
-  // 技師卡牌式統計
-  const ownRows = rows.filter(isOwner)
+  // 卡牌統計：以基礎集合為準（年切齊）
   const counts = {
-    all: ownRows.length,
-    pending: ownRows.filter(o=> o.status==='draft' && hasEssential(o)).length,
-    confirmed: ownRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
-    completed: ownRows.filter(o=> o.status==='completed').length,
-    closed: ownRows.filter(o=> o.status==='closed').length,
-    invoice: ownRows.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
+    all: baseRows.length,
+    pending: baseRows.filter(o=> o.status==='draft' && hasEssential(o)).length,
+    confirmed: baseRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
+    completed: baseRows.filter(o=> o.status==='completed').length,
+    closed: baseRows.filter(o=> o.status==='closed').length,
+    invoice: baseRows.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
   } as any
-  const yearOptions = Array.from(new Set((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean))).sort()
-  const MAX_ALL_ITEMS = 200
-  const listed = statusTab==='all' ? filtered.slice(0, MAX_ALL_ITEMS) : filtered
+  const yearOptions = Array.from(new Set([ String(new Date().getFullYear()), ...((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean)) ])).sort()
+  const listed = filtered
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
