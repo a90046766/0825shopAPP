@@ -24,6 +24,79 @@
         } catch {}
       })();
     </script>
+    <style>
+      .top-utility-bar{position:fixed;left:0;right:0;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;background:rgba(17,24,39,.85);backdrop-filter:saturate(180%) blur(8px);color:#fff;padding:.35rem .75rem;font-size:.75rem}
+      .top-utility-bar a,.top-utility-bar button{color:#fff;border:1px solid rgba(255,255,255,.25);padding:.2rem .5rem;border-radius:.5rem;margin-left:.35rem;background:transparent;cursor:pointer}
+      .top-utility-bar .left{display:flex;align-items:center;gap:.5rem}
+      .top-utility-bar .right{display:flex;align-items:center}
+      .top-utility-spacer{height:32px}
+      @media (min-width:768px){.top-utility-bar{font-size:.8125rem}.top-utility-spacer{height:34px}}
+    </style>
+    <script>
+      // 輕量頂部工具列：
+      // - 未登入：顯示「歡迎回來」+ 登入/註冊
+      // - 員工：顯示「返回工作系統」
+      // - 內部系統：顯示「返回購物站」
+      (function(){
+        try{
+          var host = location.hostname||''
+          var isStore = host === 'store.942clean.com.tw' || host.indexOf('store.') === 0
+          var isInternal = !isStore
+          // 讀使用者（會員/本地/內部）
+          function readUser(){
+            try{
+              var u = localStorage.getItem('supabase-auth-user') || localStorage.getItem('local-auth-user') || ''
+              return u ? JSON.parse(u) : null
+            }catch{return null}
+          }
+          function readRole(){
+            var raw = readUser(); if(!raw) return ''
+            try{ return (raw.role || (raw.user&&raw.user.role) || '').toLowerCase() }catch{ return '' }
+          }
+          function readMember(){
+            var raw = readUser(); if(!raw) return {name:'', code:''}
+            try{
+              var name = raw.name || (raw.user&&raw.user.user_metadata&&raw.user.user_metadata.name) || (raw.user&&raw.user.email) || ''
+              var code = raw.code || raw.memberCode || ''
+              return { name:name||'', code:code||'' }
+            }catch{ return {name:'', code:''} }
+          }
+          var role = readRole()
+          var member = readMember()
+          var bar = document.createElement('div'); bar.className='top-utility-bar'
+          var left = document.createElement('div'); left.className='left'
+          var right = document.createElement('div'); right.className='right'
+          // 左側：歡迎回來（未登入也顯示占位）
+          var greet = document.createElement('div'); greet.textContent = '歡迎回來' + (member.name? ('，'+member.name + (member.code? ('（'+member.code+'）') : '')) : '')
+          left.appendChild(greet)
+          // 右側：按鈕群
+          function mkLink(text, href){ var a=document.createElement('a'); a.textContent=text; a.href=href; return a }
+          function mkBtn(text, onclick){ var b=document.createElement('button'); b.textContent=text; b.onclick=onclick; return b }
+          if (isStore){
+            // 員工可見：返回工作系統
+            if (role==='technician' || role==='support' || role==='admin'){
+              right.appendChild(mkLink('返回工作系統', 'https://0825shopapp.netlify.app/login?returnTo='+encodeURIComponent(location.href)))
+            }
+            // 會員登入/註冊/登出（僅購物站）
+            if (!member.name){
+              right.appendChild(mkLink('登入', '/login/member'))
+              right.appendChild(mkLink('註冊', '/register'))
+            } else {
+              right.appendChild(mkBtn('登出', function(){ try{ localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('local-auth-user'); localStorage.removeItem('sb-0825shopapp-auth'); location.reload() }catch{ location.reload() } }))
+            }
+          } else {
+            // 內部系統：顯示返回購物站
+            right.appendChild(mkLink('返回購物站', 'https://store.942clean.com.tw/store'))
+          }
+          bar.appendChild(left); bar.appendChild(right)
+          // 插入頁面
+          var spacer = document.createElement('div'); spacer.className='top-utility-spacer'
+          document.addEventListener('DOMContentLoaded', function(){
+            try{ document.body.prepend(spacer); document.body.prepend(bar) }catch{}
+          })
+        }catch{}
+      })();
+    </script>
     <title>日式洗濯家電服務</title>
     <meta name="description" content="專業購物站 提供專業的家電清潔與服務預約" />
     <meta property="og:title" content="日式洗濯家電服務" />
