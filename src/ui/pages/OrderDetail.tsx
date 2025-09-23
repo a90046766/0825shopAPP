@@ -85,6 +85,8 @@ export default function PageOrderDetail() {
   const [customerCityEdit, setCustomerCityEdit] = useState('')
   const [customerDistrictEdit, setCustomerDistrictEdit] = useState('')
   const [customerDetailAddressEdit, setCustomerDetailAddressEdit] = useState('')
+  const [savingAddress, setSavingAddress] = useState(false)
+  const [addressSavedAt, setAddressSavedAt] = useState('')
   useEffect(()=>{
     if (!order) return
     setCustomerNameEdit(order.customerName||'')
@@ -273,7 +275,8 @@ export default function PageOrderDetail() {
                       if (customerAddressEdit===(order.customerAddress||'')) return; 
                       await repos.orderRepo.update(order.id, { customerAddress: customerAddressEdit }); 
                       const o=await repos.orderRepo.get(order.id); 
-                      setOrder(o) 
+                      setOrder(o)
+                      try { setAddressSavedAt(new Date().toISOString()) } catch {}
                     }} 
                   />
                   <a 
@@ -283,7 +286,25 @@ export default function PageOrderDetail() {
                   >
                     地圖
                   </a>
+                  <button
+                    onClick={async()=>{
+                      try {
+                        setSavingAddress(true)
+                        await repos.orderRepo.update(order.id, { customerAddress: customerAddressEdit })
+                        const o = await repos.orderRepo.get(order.id)
+                        setOrder(o)
+                        try { setAddressSavedAt(new Date().toISOString()) } catch {}
+                      } finally {
+                        setSavingAddress(false)
+                      }
+                    }}
+                    className={`rounded px-3 py-1 ${savingAddress? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-brand-500 text-white'}`}
+                    disabled={savingAddress}
+                  >{savingAddress ? '儲存中…' : '儲存地址'}</button>
                 </div>
+                {addressSavedAt && (
+                  <div className="mt-1 text-[11px] text-gray-500">已儲存於 {new Date(addressSavedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+                )}
               </div>
           <div>會員編號：<span className="text-gray-700">{memberCode||'—'}</span></div>
         </div>
