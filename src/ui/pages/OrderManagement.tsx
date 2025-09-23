@@ -52,6 +52,7 @@ export default function OrderManagementPage() {
   const [products, setProducts] = useState<any[]>([])
   const [quickAddress, setQuickAddress] = useState<string>('')
   const [savedAddresses, setSavedAddresses] = useState<Array<{ id?: string; label?: string; address: string }>>([])
+  const [selectedMap, setSelectedMap] = useState<Record<string, boolean>>({})
   // 技師視圖：若客服已從排班指派，但尚未寫入 orders.assignedTechnicians，也能顯示
   const [ownBySchedule, setOwnBySchedule] = useState<Record<string, boolean>>({})
   const load = async () => { if (!repos) return; setRows(await repos.orderRepo.list()) }
@@ -308,6 +309,40 @@ export default function OrderManagementPage() {
             }
             input.click()
           }} className="rounded-lg bg-emerald-600 px-3 py-1 text-white">匯入</button>
+          {/* 多選刪除（僅管理員顯示） */}
+          {can(user,'orders.delete') && (
+            <div className="ml-2 flex items-center gap-2">
+              <span className="text-gray-600">已選 {Object.keys(selectedMap).filter(id=>selectedMap[id]).length} 筆</span>
+              <button
+                onClick={()=>{
+                  const map: Record<string, boolean> = {}
+                  listed.forEach(o=>{ map[o.id] = true })
+                  setSelectedMap(map)
+                }}
+                className="rounded bg-gray-100 px-2 py-1"
+              >全選本列表</button>
+              <button
+                onClick={()=> setSelectedMap({})}
+                className="rounded bg-gray-100 px-2 py-1"
+              >清除選取</button>
+              <button
+                onClick={async()=>{
+                  const ids = Object.keys(selectedMap).filter(id=> selectedMap[id])
+                  if (ids.length===0) { alert('尚未選取任何訂單'); return }
+                  if (!confirm(`將刪除已選取 ${ids.length} 筆訂單，且無法復原，是否繼續？`)) return
+                  const reason = prompt('請輸入刪除原因', 'admin bulk delete') || 'admin bulk delete'
+                  let ok = 0
+                  for (const id of ids) {
+                    try { await repos.orderRepo.delete(id, reason); ok++ } catch {}
+                  }
+                  setRows(prev => prev.filter(x => !ids.includes(x.id)))
+                  setSelectedMap({})
+                  alert(`已刪除 ${ok}/${ids.length} 筆`)
+                }}
+                className="rounded bg-rose-600 px-2 py-1 text-white"
+              >刪除選取</button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -461,6 +496,15 @@ export default function OrderManagementPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              {can(user,'orders.delete') && (
+                <input
+                  type="checkbox"
+                  checked={!!selectedMap[o.id]}
+                  onChange={(e)=>{ e.preventDefault(); e.stopPropagation(); const checked = e.target.checked; setSelectedMap(s=> ({ ...s, [o.id]: checked })) }}
+                  onClick={(e)=>{ e.preventDefault(); e.stopPropagation() }}
+                  title="選取刪除"
+                />
+              )}
               {can(user,'orders.delete') && (
                 <button
                   onClick={async (e)=>{
