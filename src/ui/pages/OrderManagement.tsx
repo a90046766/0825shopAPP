@@ -52,7 +52,6 @@ export default function OrderManagementPage() {
   const [products, setProducts] = useState<any[]>([])
   const [quickAddress, setQuickAddress] = useState<string>('')
   const [savedAddresses, setSavedAddresses] = useState<Array<{ id?: string; label?: string; address: string }>>([])
-  const [deletingPending, setDeletingPending] = useState<boolean>(false)
   // 技師視圖：若客服已從排班指派，但尚未寫入 orders.assignedTechnicians，也能顯示
   const [ownBySchedule, setOwnBySchedule] = useState<Record<string, boolean>>({})
   const load = async () => { if (!repos) return; setRows(await repos.orderRepo.list()) }
@@ -309,29 +308,6 @@ export default function OrderManagementPage() {
             }
             input.click()
           }} className="rounded-lg bg-emerald-600 px-3 py-1 text-white">匯入</button>
-          {can(user,'orders.delete') && (
-            <button
-              disabled={deletingPending}
-              onClick={async()=>{
-                try {
-                  const draftToDelete = baseRows.filter(o=> o.status==='draft')
-                  if (draftToDelete.length===0) { alert('本年無待確認可刪除'); return }
-                  if (!confirm(`將刪除本年待確認 ${draftToDelete.length} 筆，且無法復原，是否繼續？`)) return
-                  const reason = prompt('請輸入刪除原因（將記錄於系統）', 'bulk remove pending (admin)') || 'bulk remove pending (admin)'
-                  setDeletingPending(true)
-                  for (const o of draftToDelete) {
-                    try { await repos.orderRepo.delete(o.id, reason) } catch {}
-                  }
-                  await load()
-                  alert(`已刪除 ${draftToDelete.length} 筆待確認`)
-                } finally {
-                  setDeletingPending(false)
-                }
-              }}
-              className={`rounded-lg px-3 py-1 text-white ${deletingPending?'bg-gray-400 cursor-not-allowed':'bg-rose-600'}`}
-              title="僅管理員可執行：刪除本年所有待確認"
-            >{deletingPending ? '刪除中…' : '刪除本年待確認'}</button>
-          )}
         </div>
       </div>
 
@@ -485,6 +461,22 @@ export default function OrderManagementPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              {can(user,'orders.delete') && (
+                <button
+                  onClick={async (e)=>{
+                    e.preventDefault(); e.stopPropagation()
+                    if (!confirm(`確定刪除訂單 ${o.id}？此動作無法復原`)) return
+                    const reason = prompt('請輸入刪除原因', 'admin manual delete') || 'admin manual delete'
+                    try {
+                      await repos.orderRepo.delete(o.id, reason)
+                      setRows(prev => prev.filter(x => x.id !== o.id))
+                    } catch {
+                      alert('刪除失敗，請重試')
+                    }
+                  }}
+                  className="rounded bg-rose-600 px-2 py-1 text-white"
+                >刪除</button>
+              )}
               <div className="text-gray-600">›</div>
             </div>
           </Link>
