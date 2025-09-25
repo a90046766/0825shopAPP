@@ -214,6 +214,18 @@ export default function OrderManagementPage() {
     canceled: baseRows.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
     invoice: baseRows.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
   } as any
+  // 技師「新派」徽章：以目前待服務（confirmed/in_progress）中屬於自己的訂單，與本機已讀集合比較
+  const myEmailLc = (user?.email||'').toLowerCase()
+  const seenKey = `seen-assigned:${myEmailLc}`
+  const getSeenIds = (): Set<string> => {
+    try { const raw = localStorage.getItem(seenKey); return new Set(raw ? JSON.parse(raw) : []) } catch { return new Set() }
+  }
+  const markSeen = (ids: string[]) => { try { localStorage.setItem(seenKey, JSON.stringify(Array.from(new Set(ids)))) } catch {} }
+  const ownConfirmedIds = (rows||[])
+    .filter(isOwner)
+    .filter((o:any)=> ['confirmed','in_progress'].includes(o.status))
+    .map((o:any)=> String(o.id))
+  const newAssignedCount = (()=>{ const seen = getSeenIds(); return ownConfirmedIds.filter(id=> !seen.has(id)).length })()
   const yearOptions = Array.from(new Set([ String(new Date().getFullYear()), ...((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean)) ])).sort()
   const listed = filtered
   return (
@@ -243,7 +255,14 @@ export default function OrderManagementPage() {
             key={key}
             onClick={()=>setStatusTab(key)}
             className={`rounded-full px-3 py-1.5 font-medium shadow-sm transition ${statusTab===key? 'bg-gray-900 text-white ring-2 ring-gray-700' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50'}`}
-          >{label}</button>
+          >
+            <span className="relative inline-flex items-center">
+              {label}
+              {isTech && key==='confirmed' && newAssignedCount>0 && (
+                <span title="新派單" className="ml-1 inline-flex items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{newAssignedCount}</span>
+              )}
+            </span>
+          </button>
         ))}
       </div>
         <div className="flex items-center gap-2">
