@@ -641,7 +641,8 @@ export default function PageOrderDetail() {
                       }).toString()
                       const path = `/schedule?${params}`
                       if (isStore) {
-                        window.location.assign(`https://0825shopapp.netlify.app${path}`)
+                        const loginUrl = `https://0825shopapp.netlify.app/login?returnTo=${encodeURIComponent(path)}`
+                        window.location.assign(loginUrl)
                       } else {
                         navigate(path)
                       }
