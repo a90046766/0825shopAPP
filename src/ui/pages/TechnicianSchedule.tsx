@@ -68,6 +68,7 @@ export default function TechnicianSchedulePage() {
   const navigate = useNavigate()
   const [hoverDate, setHoverDate] = useState<string>('')
   const [hoverOrders, setHoverOrders] = useState<Record<string, any>>({})
+  const [dayOrders, setDayOrders] = useState<any[]>([])
 
   const [repos, setRepos] = useState<any>(null)
   const [appSettings, setAppSettings] = useState<{ autoDispatchEnabled?: boolean; autoDispatchMinScore?: number; reviewBonusPoints?: number } | null>(null)
@@ -205,7 +206,7 @@ export default function TechnicianSchedulePage() {
   // 當 hoverDate 變更時，補取當日工單細節（數量用）
   useEffect(() => {
     (async () => {
-      if (!repos || !hoverDate) return
+      if (!repos || !hoverDate) { setDayOrders([]); return }
       const ids = Array.from(new Set(works.filter(w=>w.date===hoverDate).map(w=>w.orderId))).filter(Boolean)
       const miss = ids.filter(id => !hoverOrders[id])
       if (miss.length === 0) return
@@ -213,6 +214,7 @@ export default function TechnicianSchedulePage() {
       const next = { ...hoverOrders }
       for (const [id, o] of pairs) if (o) next[id] = o
       setHoverOrders(next)
+      setDayOrders(ids.map(id => next[id]).filter(Boolean) as any[])
     })()
   }, [hoverDate, works, repos])
 
@@ -494,7 +496,7 @@ export default function TechnicianSchedulePage() {
               />
             </div>
             
-            {/* 當日概覽 */}
+            {/* 當日概覽（固定顯示，點日期更新） */}
             {hoverDate && (
               <div className="mt-4 rounded-lg border bg-gray-50 p-3">
                 <div className="mb-2 font-semibold">當日概覽 - {hoverDate}</div>
@@ -502,11 +504,11 @@ export default function TechnicianSchedulePage() {
                   {/* 已指派工單 */}
                   <div>
                     <div className="font-medium text-gray-700">已指派工單：</div>
-                    {Object.values(hoverOrders).length > 0 ? (
+                    {dayOrders.length > 0 ? (
                       <div className="mt-1 space-y-1">
-                        {Object.values(hoverOrders).map((order: any, i: number) => (
-                          <div key={i} className="rounded bg-white p-2 text-xs">
-                            <div>工單：{order.id}</div>
+                        {dayOrders.map((order: any, i: number) => (
+                          <div key={i} className="rounded bg-white p-2 text-xs cursor-pointer hover:bg-gray-50" onClick={()=> navigate(`/orders/${order.id}`)}>
+                            <div className="font-semibold">工單：{order.id}</div>
                             <div>時間：{order.preferredTimeStart} - {order.preferredTimeEnd}</div>
                             <div>區域：{(() => { const firstName = (order.assignedTechnicians||[])[0]; const t = techs.find((x:any)=>x.name===firstName); return t?.region ? (t.region==='all'?'全區':t.region) : '未指定' })()}</div>
                             <div>數量：{formatServiceQuantity(order.serviceItems || [])}</div>
@@ -541,7 +543,7 @@ export default function TechnicianSchedulePage() {
             <div className="mt-4">
               <Calendar
                 value={date}
-                onChange={(newDate) => navigate(`/schedule?date=${newDate}`)}
+                onChange={(newDate) => { setHoverDate(newDate); navigate(`/schedule?date=${newDate}`) }}
                 onMonthChange={async (year, month) => {
                   const yymm = `${year}-${String(month + 1).padStart(2, '0')}`
                   const startMonth = `${yymm}-01`

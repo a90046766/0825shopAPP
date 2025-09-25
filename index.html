@@ -80,7 +80,7 @@
             // 會員登入/註冊/登出（僅購物站）
             if (!member.name){
               right.appendChild(mkLink('登入', '/login/member'))
-              right.appendChild(mkLink('註冊', '/register'))
+              right.appendChild(mkLink('註冊', '/login/member'))
             } else {
               right.appendChild(mkBtn('登出', function(){ try{ localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('local-auth-user'); localStorage.removeItem('sb-0825shopapp-auth'); location.reload() }catch{ location.reload() } }))
             }
