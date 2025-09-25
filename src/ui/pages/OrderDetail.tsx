@@ -1033,7 +1033,18 @@ export default function PageOrderDetail() {
         <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <div className="mb-1 font-semibold">清洗前 <span className="text-xs text-gray-500">({(order.photosBefore||[]).length}/8)</span></div>
-            <PhotoGrid urls={order.photosBefore || []} />
+            <PhotoGrid
+              urls={order.photosBefore || []}
+              deletable={user?.role==='admin' || user?.role==='support' || user?.role==='technician'}
+              onDelete={async (idx:number)=>{
+                try{
+                  const arr = Array.isArray(order.photosBefore) ? [...order.photosBefore] : []
+                  arr.splice(idx,1)
+                  await repos.orderRepo.update(order.id, { photosBefore: arr })
+                  const o = await repos.orderRepo.get(order.id); setOrder(o)
+                }catch{ alert('刪除失敗，請重試') }
+              }}
+            />
             <div className="mt-2 text-sm">
               <input type="file" accept="image/*" multiple disabled={uploadingBefore} onChange={async (e)=>{
                 const files = Array.from(e.target.files || [])
@@ -1053,7 +1064,18 @@ export default function PageOrderDetail() {
           </div>
           <div>
             <div className="mb-1 font-semibold">清洗後 <span className="text-xs text-gray-500">({(order.photosAfter||[]).length}/8)</span></div>
-            <PhotoGrid urls={order.photosAfter || []} />
+            <PhotoGrid
+              urls={order.photosAfter || []}
+              deletable={user?.role==='admin' || user?.role==='support' || user?.role==='technician'}
+              onDelete={async (idx:number)=>{
+                try{
+                  const arr = Array.isArray(order.photosAfter) ? [...order.photosAfter] : []
+                  arr.splice(idx,1)
+                  await repos.orderRepo.update(order.id, { photosAfter: arr })
+                  const o = await repos.orderRepo.get(order.id); setOrder(o)
+                }catch{ alert('刪除失敗，請重試') }
+              }}
+            />
             <div className="mt-2 text-sm">
               <input type="file" accept="image/*" multiple disabled={uploadingAfter} onChange={async (e)=>{
                 const files = Array.from(e.target.files || [])
