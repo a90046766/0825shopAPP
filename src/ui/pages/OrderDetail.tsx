@@ -169,6 +169,7 @@ export default function PageOrderDetail() {
   const isAdminOrSupport = user?.role==='admin' || user?.role==='support'
   const isAssignedTech = user?.role==='technician' && Array.isArray(order.assignedTechnicians) && order.assignedTechnicians.includes(user?.name || '')
   const isTechnician = user?.role === 'technician'
+  const isClosed = order?.status === 'closed'
   const statusText = (s: string) => s==='draft' ? '待確認' : s==='confirmed' ? '已確認' : s==='in_progress' ? '服務中' : s==='completed' ? '已完成' : s==='closed' ? '已結案' : s==='canceled' ? '已取消' : s
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n || 0)
   const subTotal = (order.serviceItems||[]).reduce((s:number,it:any)=>s+it.unitPrice*it.quantity,0)
@@ -215,8 +216,8 @@ export default function PageOrderDetail() {
         
         
         <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-          <div>姓名：<input className="w-full rounded border px-2 py-1" value={customerNameEdit} onChange={e=>setCustomerNameEdit(e.target.value)} onBlur={async()=>{ if (customerNameEdit===order.customerName) return; await repos.orderRepo.update(order.id, { customerName: customerNameEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} /></div>
-          <div>手機：<div className="flex gap-2"><input className="w-full rounded border px-2 py-1" value={customerPhoneEdit} onChange={e=>setCustomerPhoneEdit(e.target.value)} onBlur={async()=>{ if (customerPhoneEdit===order.customerPhone) return; await repos.orderRepo.update(order.id, { customerPhone: customerPhoneEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} /><a href={`tel:${order.customerPhone}`} className="rounded bg-brand-500 px-3 py-1 text-white">撥打</a></div></div>
+          <div>姓名：<input disabled={isTechnician || isClosed} className="w-full rounded border px-2 py-1" value={customerNameEdit} onChange={e=>setCustomerNameEdit(e.target.value)} onBlur={async()=>{ if (isTechnician || isClosed) return; if (customerNameEdit===order.customerName) return; await repos.orderRepo.update(order.id, { customerName: customerNameEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} /></div>
+          <div>手機：<div className="flex gap-2"><input disabled={isTechnician || isClosed} className="w-full rounded border px-2 py-1" value={customerPhoneEdit} onChange={e=>setCustomerPhoneEdit(e.target.value)} onBlur={async()=>{ if (isTechnician || isClosed) return; if (customerPhoneEdit===order.customerPhone) return; await repos.orderRepo.update(order.id, { customerPhone: customerPhoneEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} /><a href={`tel:${order.customerPhone}`} className="rounded bg-brand-500 px-3 py-1 text-white">撥打</a></div></div>
           <div>信箱：<input className="w-full rounded border px-2 py-1" value={customerEmailEdit} onChange={e=>setCustomerEmailEdit(e.target.value)} onBlur={async()=>{ if (customerEmailEdit===(order.customerEmail||'')) return; await repos.orderRepo.update(order.id, { customerEmail: customerEmailEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} /></div>
           <div>抬頭：<input className="w-full rounded border px-2 py-1" value={customerTitleEdit} onChange={e=>setCustomerTitleEdit(e.target.value)} onBlur={async()=>{ if (customerTitleEdit===(order.customerTitle||'')) return; await repos.orderRepo.update(order.id, { customerTitle: customerTitleEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} /></div>
           <div>統編：<input className="w-full rounded border px-2 py-1" value={customerTaxIdEdit} onChange={e=>setCustomerTaxIdEdit(e.target.value)} onBlur={async()=>{ if (customerTaxIdEdit===(order.customerTaxId||'')) return; await repos.orderRepo.update(order.id, { customerTaxId: customerTaxIdEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} /></div>
@@ -276,10 +277,12 @@ export default function PageOrderDetail() {
                 
                 <div className="flex gap-2">
                   <input 
+                    disabled={isTechnician || isClosed}
                     className="flex-1 rounded border px-2 py-1" 
                     value={customerAddressEdit} 
                     onChange={e=>setCustomerAddressEdit(e.target.value)} 
                     onBlur={async()=>{ 
+                      if (isTechnician || isClosed) return
                       if (customerAddressEdit===(order.customerAddress||'')) return; 
                       await repos.orderRepo.update(order.id, { customerAddress: customerAddressEdit }); 
                       const o=await repos.orderRepo.get(order.id); 
@@ -297,6 +300,7 @@ export default function PageOrderDetail() {
                   <button
                     onClick={async()=>{
                       try {
+                        if (isTechnician || isClosed) return
                         setSavingAddress(true)
                         await repos.orderRepo.update(order.id, { customerAddress: customerAddressEdit })
                         const o = await repos.orderRepo.get(order.id)
@@ -1035,9 +1039,12 @@ export default function PageOrderDetail() {
             <div className="mb-1 font-semibold">清洗前 <span className="text-xs text-gray-500">({(order.photosBefore||[]).length}/8)</span></div>
             <PhotoGrid
               urls={order.photosBefore || []}
-              deletable={user?.role==='admin' || user?.role==='support' || user?.role==='technician'}
+              deletable={!isClosed && (user?.role==='admin' || user?.role==='support' || user?.role==='technician')}
               onDelete={async (idx:number)=>{
                 try{
+                  if (isClosed) return
+                  if (!confirm('確認刪除這張照片？')) return
+                  if (!confirm('再確認一次，是否確定刪除？')) return
                   const arr = Array.isArray(order.photosBefore) ? [...order.photosBefore] : []
                   arr.splice(idx,1)
                   await repos.orderRepo.update(order.id, { photosBefore: arr })
@@ -1066,9 +1073,12 @@ export default function PageOrderDetail() {
             <div className="mb-1 font-semibold">清洗後 <span className="text-xs text-gray-500">({(order.photosAfter||[]).length}/8)</span></div>
             <PhotoGrid
               urls={order.photosAfter || []}
-              deletable={user?.role==='admin' || user?.role==='support' || user?.role==='technician'}
+              deletable={!isClosed && (user?.role==='admin' || user?.role==='support' || user?.role==='technician')}
               onDelete={async (idx:number)=>{
                 try{
+                  if (isClosed) return
+                  if (!confirm('確認刪除這張照片？')) return
+                  if (!confirm('再確認一次，是否確定刪除？')) return
                   const arr = Array.isArray(order.photosAfter) ? [...order.photosAfter] : []
                   arr.splice(idx,1)
                   await repos.orderRepo.update(order.id, { photosAfter: arr })

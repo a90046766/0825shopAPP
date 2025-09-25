@@ -235,26 +235,13 @@ export default function OrderManagementPage() {
       <div className="flex items-center gap-2 text-xs">
         {(
           isTech
-            ? ([
-                ['confirmed','待服務'],
-                ['completed','已完成'],
-                ['closed','已結案'],
-                ...(counts.canceled>0 ? [['canceled','已取消']] : []),
-                ['all','全部'],
-              ] as any[])
-            : ([
-                ['pending','待確認'],
-                ['confirmed','待服務'],
-                ['completed','已完成'],
-                ['closed','已結案'],
-                ...(counts.canceled>0 ? [['canceled','已取消']] : []),
-                ['all','全部'],
-              ] as any[])
+            ? ([['confirmed','待服務'],['completed','已完成'],['closed','已結案'],...(counts.canceled>0 ? [['canceled','已取消']] : []),['all','全部']] as any[])
+            : ([['pending','待確認'],['confirmed','待服務'],['completed','已完成'],['closed','已結案'],...(counts.canceled>0 ? [['canceled','已取消']] : []),['all','全部']] as any[])
         ).map(([key,label])=> (
           <button
             key={key}
             onClick={()=>setStatusTab(key)}
-            className={`rounded-full px-3 py-1.5 font-medium shadow-sm transition ${statusTab===key? 'bg-gray-900 text-white ring-2 ring-gray-700' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50'}`}
+            className={`rounded-2xl px-4 py-2 font-medium shadow-card transition ${statusTab===key? 'ring-2 ring-gray-700' : ''} ${key==='pending' ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' : key==='confirmed' ? 'bg-blue-50 border border-blue-200 text-blue-800' : key==='completed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : key==='closed' ? 'bg-gray-50 border border-gray-200 text-gray-800' : key==='canceled' ? 'bg-rose-50 border border-rose-200 text-rose-800' : 'bg-purple-50 border border-purple-200 text-purple-800'}`}
           >
             <span className="relative inline-flex items-center">
               {label}
