@@ -5,6 +5,7 @@ import { authRepo } from '../../adapters/local/auth'
 import Calendar from '../components/Calendar'
 import { overlaps } from '../../utils/time'
 import { formatServiceQuantity } from '../../utils/serviceQuantity'
+import { extractLocationFromAddress } from '../../utils/location'
 
 export default function TechnicianSchedulePage() {
   const [leaves, setLeaves] = useState<any[]>([])
@@ -149,13 +150,26 @@ export default function TechnicianSchedulePage() {
   // 依月份載入工單占用，並建立月曆徽章
   const lastLoadedMonthKeyRef = useRef<string>('')
   const monthLoadingRef = useRef<boolean>(false)
+  const monthCacheRef = useRef<{ key: string; works: any[]; leaves: any[] } | null>(null)
   useEffect(() => {
     const yymm = date.slice(0, 7)
     const startMonth = `${yymm}-01`
     const endMonth = monthEnd(yymm)
     if(!repos) return
     const key = `${startMonth}_${endMonth}`
-    if (lastLoadedMonthKeyRef.current === key || monthLoadingRef.current) return
+    if (monthCacheRef.current && monthCacheRef.current.key === key){
+      const ws = monthCacheRef.current.works
+      const ls = monthCacheRef.current.leaves
+      let filteredWorks = ws
+      if (user?.role === 'technician') {
+        const userEmail = (user.email || '').toLowerCase()
+        filteredWorks = ws.filter((w: any) => (w.technicianEmail || '').toLowerCase() === userEmail)
+      }
+      setWorks(filteredWorks)
+      setLeaves(ls)
+      return
+    }
+    if (monthLoadingRef.current) return
     monthLoadingRef.current = true
     ;(async()=>{
       try {
@@ -170,6 +184,7 @@ export default function TechnicianSchedulePage() {
           filteredWorks = ws.filter((w: any) => (w.technicianEmail || '').toLowerCase() === userEmail)
         }
         setWorks(filteredWorks)
+        monthCacheRef.current = { key, works: ws, leaves: ls }
         const map: Record<string, number> = {}
         const overlapCount: Record<string, number> = {}
         const leaveCount: Record<string, number> = {}
@@ -209,11 +224,12 @@ export default function TechnicianSchedulePage() {
       if (!repos || !hoverDate) { setDayOrders([]); return }
       const ids = Array.from(new Set(works.filter(w=>w.date===hoverDate).map(w=>w.orderId))).filter(Boolean)
       const miss = ids.filter(id => !hoverOrders[id])
-      if (miss.length === 0) return
-      const pairs = await Promise.all(miss.map(async (id) => { try { const o = await repos.orderRepo.get(id); return [id, o] as const } catch { return [id, null] as const } }))
-      const next = { ...hoverOrders }
-      for (const [id, o] of pairs) if (o) next[id] = o
-      setHoverOrders(next)
+      let next = { ...hoverOrders }
+      if (miss.length > 0) {
+        const pairs = await Promise.all(miss.map(async (id) => { try { const o = await repos.orderRepo.get(id); return [id, o] as const } catch { return [id, null] as const } }))
+        for (const [id, o] of pairs) if (o) next[id] = o
+        setHoverOrders(next)
+      }
       setDayOrders(ids.map(id => next[id]).filter(Boolean) as any[])
     })()
   }, [hoverDate, works, repos])
@@ -487,6 +503,7 @@ export default function TechnicianSchedulePage() {
                   } else {
                     setLeaves(ls)
                   }
+                  monthCacheRef.current = { key: `${startMonth}_${endMonth}`, works: ws, leaves: ls }
                 }}
                 markers={workMarkers}
                 emphasis={emphasisMarkers}
@@ -510,7 +527,7 @@ export default function TechnicianSchedulePage() {
                           <div key={i} className="rounded bg-white p-2 text-xs cursor-pointer hover:bg-gray-50" onClick={()=> navigate(`/orders/${order.id}`)}>
                             <div className="font-semibold">工單：{order.id}</div>
                             <div>時間：{order.preferredTimeStart} - {order.preferredTimeEnd}</div>
-                            <div>區域：{(() => { const firstName = (order.assignedTechnicians||[])[0]; const t = techs.find((x:any)=>x.name===firstName); return t?.region ? (t.region==='all'?'全區':t.region) : '未指定' })()}</div>
+                            <div>地區：{(() => { const loc = extractLocationFromAddress(order.customerAddress||''); return (loc.city||'') + (loc.district||'') || '—' })()}</div>
                             <div>數量：{formatServiceQuantity(order.serviceItems || [])}</div>
                           </div>
                         ))}
