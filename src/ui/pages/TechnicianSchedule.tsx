@@ -69,6 +69,7 @@ export default function TechnicianSchedulePage() {
   const navigate = useNavigate()
   const [hoverDate, setHoverDate] = useState<string>('')
   const [hoverOrders, setHoverOrders] = useState<Record<string, any>>({})
+  const [dateOrdersMap, setDateOrdersMap] = useState<Record<string, any>>({})
   const [dayOrders, setDayOrders] = useState<any[]>([])
 
   const [repos, setRepos] = useState<any>(null)
@@ -234,6 +235,36 @@ export default function TechnicianSchedulePage() {
     })()
   }, [hoverDate, works, repos])
 
+  // 依「目前選定日期」載入該日涉及的訂單，用於過濾舊的 work 紀錄（避免不可指派誤判）
+  useEffect(()=>{
+    (async()=>{
+      try{
+        if (!repos) return
+        const ids = Array.from(new Set(works.filter(w=>w.date===date).map(w=>w.orderId))).filter(Boolean)
+        if (ids.length===0) { setDateOrdersMap({}); return }
+        const pairs = await Promise.all(ids.map(async (id:string)=>{ try{ const o=await repos.orderRepo.get(id); return [id,o] as const }catch{ return [id,null] as const } }))
+        const map: Record<string, any> = {}
+        for (const [id,o] of pairs) if (o) map[id]=o
+        setDateOrdersMap(map)
+      }catch{}
+    })()
+  }, [repos, works, date])
+
+  // 以實際訂單指派過濾當日占用，避免誤將已改派的技師列為不可指派
+  const effectiveWorksForDate = ((): any[] => {
+    try{
+      return works.filter((w:any)=>{
+        if (w.date !== date) return true
+        const o = dateOrdersMap[w.orderId]
+        if (!o) return true
+        const emailLc = String(w.technicianEmail||'').toLowerCase()
+        const t = techs.find((x:any)=> String(x.email||'').toLowerCase()===emailLc)
+        const name = t?.name || ''
+        return Array.isArray(o.assignedTechnicians) ? o.assignedTechnicians.includes(name) : true
+      })
+    }catch{return works}
+  })()
+
   useEffect(() => {
     // 只有管理員和客服可以看到客服排班，技師完全看不到
     if(!repos) return
@@ -376,7 +407,7 @@ export default function TechnicianSchedulePage() {
         return overlaps(startT, endT, start, end)
       })
       if (hasLeave) return false
-      const hasOverlap = works.some(w => ((w.technicianEmail || '').toLowerCase() === emailLc) && w.date === date && overlaps(w.startTime, w.endTime, start, end))
+      const hasOverlap = effectiveWorksForDate.some(w => ((w.technicianEmail || '').toLowerCase() === emailLc) && w.date === date && overlaps(w.startTime, w.endTime, start, end))
       if (hasOverlap) return false
       if (selectedKeys.length > 0) {
         const skills = t.skills || {}
@@ -398,7 +429,7 @@ export default function TechnicianSchedulePage() {
         const emailLc = (t.email || '').toLowerCase()
         const leave = leaves.find(l => (l.technicianEmail || '').toLowerCase() === emailLc && l.date === date)
         if (leave) return { t, reason: '請假' }
-        const conflicts = works.filter(w => ((w.technicianEmail || '').toLowerCase() === emailLc) && w.date === date && overlaps(w.startTime, w.endTime, start, end))
+        const conflicts = effectiveWorksForDate.filter(w => ((w.technicianEmail || '').toLowerCase() === emailLc) && w.date === date && overlaps(w.startTime, w.endTime, start, end))
         if (conflicts.length > 0) {
           const first = conflicts[0]
           return { t, reason: `重疊 ${first.startTime}~${first.endTime}` }
@@ -410,13 +441,13 @@ export default function TechnicianSchedulePage() {
 
   // 建議順序（依評分高→當日負荷少）
   const recommended = useMemo(() => {
-    const countWorks = (emailLc: string) => works.filter(w => (w.technicianEmail||'').toLowerCase()===emailLc && w.date===date).length
+    const countWorks = (emailLc: string) => effectiveWorksForDate.filter(w => (w.technicianEmail||'').toLowerCase()===emailLc && w.date===date).length
     const score = (t:any) => typeof t.rating_override === 'number' ? t.rating_override : (typeof t.ratingAvg==='number' ? t.ratingAvg : 80)
     return [...assignable]
       .map(t => ({ t, s: score(t), load: countWorks((t.email||'').toLowerCase()) }))
       .sort((a,b)=> b.s - a.s || a.load - b.load)
       .map(x=> x.t)
-  }, [assignable, works, date])
+  }, [assignable, effectiveWorksForDate, date])
 
   const toggleSelect = (id: string) => setSelected(s => ({ ...s, [id]: !s[id] }))
   const emailToTech = useMemo(()=>{
