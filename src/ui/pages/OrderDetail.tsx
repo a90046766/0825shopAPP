@@ -36,6 +36,7 @@ export default function PageOrderDetail() {
   const [transferAmount, setTransferAmount] = useState<string>('')
   const [transferLast5, setTransferLast5] = useState<string>('')
   const [note, setNote] = useState<string>(order?.note || '')
+  const [supportNote, setSupportNote] = useState<string>((order as any)?.supportNote || '')
   const [unserviceOpen, setUnserviceOpen] = useState(false)
   const [unserviceFare, setUnserviceFare] = useState<'none'|'fare400'>('none')
   const [unserviceReason, setUnserviceReason] = useState('')
@@ -150,6 +151,7 @@ export default function PageOrderDetail() {
     return () => { if (h) clearInterval(h) }
   }, [order?.workStartedAt, order?.status])
   useEffect(()=>{ setNote((order as any)?.note || '') }, [order?.note])
+  useEffect(()=>{ setSupportNote((order as any)?.supportNote || '') }, [order?.supportNote])
   // 簽名技師：改為在已指派名單旁的勾選框設定
   // 僅一位已指派時自動套用為簽名技師（避免還要選）
   const [autoSigTried, setAutoSigTried] = useState(false)
@@ -1120,6 +1122,19 @@ export default function PageOrderDetail() {
             rows={4}
           />
         </div>
+        {isAdminOrSupport && (
+          <div className="mt-4">
+            <div className="mb-1 text-sm font-medium text-gray-700">客服備註（僅客服/管理員可見）</div>
+            <textarea
+              value={supportNote}
+              onChange={(e)=> setSupportNote(e.target.value)}
+              onBlur={async()=>{ if (((order as any).supportNote||'')===supportNote) return; await repos.orderRepo.update(order.id, { supportNote: supportNote as any }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}
+              placeholder="內部客服備註，客戶與技師不會看到"
+              className="w-full rounded-lg border px-3 py-2 text-sm bg-amber-50"
+              rows={3}
+            />
+          </div>
+        )}
         
         {/* 無法服務按鈕 */}
         {user?.role !== 'technician' && (
