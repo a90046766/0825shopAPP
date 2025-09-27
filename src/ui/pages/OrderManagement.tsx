@@ -134,7 +134,8 @@ export default function OrderManagementPage() {
           serviceItems: form.serviceItems || [],
           assignedTechnicians: [],
           signatures: {},
-          status: 'draft'
+          status: 'draft',
+          createdBy: (user?.name || user?.email || '系統')
         }
         const o = await repos.orderRepo.create(draftPayload)
         if (!cancelled && o?.id) {
@@ -274,9 +275,10 @@ export default function OrderManagementPage() {
             try {
               const a = repos || (await loadAdapters())
               // 先建立最小草稿（draft），取得正式單號/ID
-              const payload: any = {
+          const payload: any = {
                 customerName:'', customerPhone:'', customerAddress:'', preferredTimeStart:'09:00', preferredTimeEnd:'12:00', platform:'日', serviceItems:[{name:'服務',quantity:1,unitPrice:1000}], assignedTechnicians:[], signatures:{}, status:'draft'
               }
+          payload.createdBy = (user?.name || user?.email || '系統')
               const o = await a.orderRepo.create(payload)
               // 導向正式訂單頁編輯
               location.assign(`/orders/${o.id}`)
