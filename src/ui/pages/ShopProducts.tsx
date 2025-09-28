@@ -245,8 +245,19 @@ export default function ShopProductsPage() {
         .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
         .order('updated_at', { ascending: false })
       if (!(isEditor && editMode)) q = q.eq('published', true)
-      const { data, error } = await q
-      if (error) throw error
+      let { data, error } = await q
+      if (error) {
+        // 欄位不存在（42703）或其他欄位不相容 → 回退查詢，移除 detail_html
+        let q2 = supabase
+          .from('products')
+          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+          .order('updated_at', { ascending: false })
+        if (!(isEditor && editMode)) q2 = q2.eq('published', true)
+        const r2 = await q2
+        data = r2.data as any
+        error = r2.error as any
+        if (error) throw error
+      }
       const mapped = (data || []).map((r: any) => ({
         id: String(r.id ?? Math.random().toString(36).slice(2)),
         name: r.name ?? '',
@@ -368,17 +379,43 @@ export default function ShopProductsPage() {
             .update(row)
             .eq('id', edit.id)
           if (upErr) {
-            // 若更新失敗再嘗試 upsert（建立或更新）
-            const { error: upsertErr } = await supabase
-              .from('products')
-              .upsert({ id: edit.id, ...row }, { onConflict: 'id' } as any)
-            if (upsertErr) throw upsertErr
+            // 若為欄位不存在（42703），回退為不含 detail_html 的寫入
+            const msg = (upErr as any)?.message || ''
+            const code = (upErr as any)?.code || ''
+            if (code === '42703' || /detail_html/i.test(msg)) {
+              const rowLegacy: any = { ...row }
+              delete rowLegacy.detail_html
+              const { error: upErr2 } = await supabase
+                .from('products')
+                .update(rowLegacy)
+                .eq('id', edit.id)
+              if (upErr2) throw upErr2
+            } else {
+              // 其他錯誤 → 嘗試 upsert
+              const { error: upsertErr } = await supabase
+                .from('products')
+                .upsert({ id: edit.id, ...row }, { onConflict: 'id' } as any)
+              if (upsertErr) throw upsertErr
+            }
           }
         } else {
-          const { error: insErr } = await supabase
+          let { error: insErr } = await supabase
             .from('products')
             .insert([{ ...row }])
-          if (insErr) throw insErr
+          if (insErr) {
+            const msg = (insErr as any)?.message || ''
+            const code = (insErr as any)?.code || ''
+            if (code === '42703' || /detail_html/i.test(msg)) {
+              const rowLegacy: any = { ...row }
+              delete rowLegacy.detail_html
+              const { error: insErr2 } = await supabase
+                .from('products')
+                .insert([{ ...rowLegacy }])
+              if (insErr2) throw insErr2
+            } else {
+              throw insErr
+            }
+          }
         }
       }
 

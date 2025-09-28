@@ -74,8 +74,19 @@ export default function ShopProductDetailPage() {
           .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published')
           .eq('id', id)
         if (!isEditor) q = q.eq('published', true)
-        const { data, error } = await q.maybeSingle()
-        if (error) throw error
+        let { data, error } = await q.maybeSingle()
+        if (error) {
+          // 欄位不存在時回退移除 detail_html
+          let q2 = supabase
+            .from('products')
+            .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published')
+            .eq('id', id)
+          if (!isEditor) q2 = q2.eq('published', true)
+          const r2 = await q2.maybeSingle()
+          data = r2.data as any
+          error = r2.error as any
+          if (error) throw error
+        }
         if (!data) { setProduct(seed); setLoading(false); return }
         const mapped = {
           id: String(data.id),
