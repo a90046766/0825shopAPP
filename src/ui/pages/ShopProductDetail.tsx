@@ -9,6 +9,16 @@ function getLocalCart(): any[] {
 function setLocalCart(cart: any[]) {
   try { localStorage.setItem('shopCart', JSON.stringify(cart)) } catch {}
 }
+function getDetailCache(id: string): any | null {
+  try {
+    const raw = localStorage.getItem('product-detail:'+id)
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return null
+}
+function setDetailCache(id: string, data: any) {
+  try { localStorage.setItem('product-detail:'+id, JSON.stringify(data)) } catch {}
+}
 function getCurrentUser(): any | null {
   try {
     const s = localStorage.getItem('supabase-auth-user')
@@ -42,33 +52,22 @@ export default function ShopProductDetailPage() {
       groupPrice: null, groupMinQty: null, category: 'cleaning',
       features: [], image: '', images: [], published: true
     }
+    // 以歷史/快取預先顯示，減少感知延遲
+    try {
+      const hist = JSON.parse(localStorage.getItem('shopHistory') || '[]')
+      const hit = Array.isArray(hist) ? hist.find((h:any)=> String(h.id)===String(id)) : null
+      if (hit) {
+        setProduct({ id: hit.id, name: hit.name, price: hit.price, image: hit.image, images: [], description: '', content: '', category: hit.category, features: [], published: true })
+      }
+    } catch {}
+    try {
+      const cached = id ? getDetailCache(String(id)) : null
+      if (cached) setProduct(cached)
+    } catch {}
     const load = async () => {
       if (!id) { setError('缺少商品ID'); setLoading(false); return }
       setLoading(true); setError(null)
       try {
-        // 先從 Functions 嘗試（若有），設定超時快速回退
-        try {
-          const controller = new AbortController()
-          const t = setTimeout(() => controller.abort(), 2500)
-          const res = await fetch('/api/products-get?id=' + encodeURIComponent(id), { method: 'GET', signal: controller.signal })
-          clearTimeout(t)
-          if (res.ok) {
-            const j = await res.json()
-            if (j?.ok && j.data) {
-              if (!isEditor && j.data && j.data.published === false) {
-                setError('商品未上架或不存在');
-                setProduct(null);
-                setLoading(false);
-                return
-              }
-              setProduct(j.data)
-              // 嘗試載入相關商品
-              try { await loadRelated(j.data) } catch {}
-              setLoading(false)
-              return
-            }
-          }
-        } catch {}
         // 直接查 DB
         let q = supabase
           .from('products')
@@ -99,6 +98,7 @@ export default function ShopProductDetailPage() {
           return
         }
         setProduct(mapped)
+        try { setDetailCache(String(mapped.id), mapped) } catch {}
         try { await loadRelated(mapped) } catch {}
       } catch (e: any) {
         setError(e?.message || String(e))
@@ -177,7 +177,7 @@ export default function ShopProductDetailPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-10">
-        {loading && <div className="rounded border p-3 text-gray-600 text-sm">載入中…</div>}
+        {!product && loading && <div className="rounded border p-3 text-gray-600 text-sm">載入中…</div>}
         {error && (
           <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-yellow-800 text-sm">
             {error}
@@ -186,7 +186,7 @@ export default function ShopProductDetailPage() {
             </div>
           </div>
         )}
-        {!!product && !loading && (
+        {!!product && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
             {/* 圖片區 */}
             <div className="lg:col-span-6">
