@@ -28,6 +28,8 @@ export default function ShopProductDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [product, setProduct] = useState<any | null>(null)
+  const [related, setRelated] = useState<any[]>([])
+  const [activeIdx, setActiveIdx] = useState<number>(0)
   const [cart, setCart] = useState<any[]>(getLocalCart())
   const user = getCurrentUser()
   const isEditor = user?.role === 'admin' || user?.role === 'support'
@@ -44,20 +46,26 @@ export default function ShopProductDetailPage() {
       if (!id) { setError('缺少商品ID'); setLoading(false); return }
       setLoading(true); setError(null)
       try {
-        // 先從 Functions 嘗試（若有）
+        // 先從 Functions 嘗試（若有），設定超時快速回退
         try {
-          const res = await fetch('/api/products-get?id=' + encodeURIComponent(id), { method: 'GET' })
+          const controller = new AbortController()
+          const t = setTimeout(() => controller.abort(), 2500)
+          const res = await fetch('/api/products-get?id=' + encodeURIComponent(id), { method: 'GET', signal: controller.signal })
+          clearTimeout(t)
           if (res.ok) {
             const j = await res.json()
             if (j?.ok && j.data) {
-              // 非管理者：未上架不可見
               if (!isEditor && j.data && j.data.published === false) {
                 setError('商品未上架或不存在');
                 setProduct(null);
                 setLoading(false);
                 return
               }
-              setProduct(j.data); setLoading(false); return
+              setProduct(j.data)
+              // 嘗試載入相關商品
+              try { await loadRelated(j.data) } catch {}
+              setLoading(false)
+              return
             }
           }
         } catch {}
@@ -91,6 +99,7 @@ export default function ShopProductDetailPage() {
           return
         }
         setProduct(mapped)
+        try { await loadRelated(mapped) } catch {}
       } catch (e: any) {
         setError(e?.message || String(e))
       } finally {
@@ -99,6 +108,32 @@ export default function ShopProductDetailPage() {
     }
     load()
   }, [id])
+
+  async function loadRelated(base: any) {
+    if (!base?.category) { setRelated([]); return }
+    try {
+      let rq = supabase
+        .from('products')
+        .select('id,name,unit_price,description,image_urls,category,published,updated_at')
+        .eq('category', base.category)
+        .neq('id', base.id)
+        .order('updated_at', { ascending: false })
+        .limit(6)
+      rq = rq.eq('published', true)
+      const { data, error } = await rq
+      if (error) throw error
+      const mapped = (data || []).map((r:any)=> ({
+        id: String(r.id),
+        name: r.name || '',
+        price: Number(r.unit_price ?? 0),
+        description: r.description || '',
+        image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : ''
+      }))
+      setRelated(mapped)
+    } catch {
+      setRelated([])
+    }
+  }
 
   const quantityInCart = useMemo(() => {
     if (!product) return 0
@@ -152,46 +187,54 @@ export default function ShopProductDetailPage() {
           </div>
         )}
         {!!product && !loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
-            <div>
-              <div className="aspect-[4/3] bg-white rounded-2xl overflow-hidden shadow">
-                {product.image ? (
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">無圖片</div>
-                )}
-              </div>
-              {Array.isArray(product.images) && product.images.length>1 && (
-                <div className="mt-3 grid grid-cols-5 gap-2">
-                  {product.images.slice(0,5).map((url:string,idx:number)=> (
-                    <div key={idx} className="aspect-square bg-gray-100 rounded overflow-hidden">
-                      <img src={url} alt="thumb" className="w-full h-full object-cover" />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
+            {/* 圖片區 */}
+            <div className="lg:col-span-6">
+              {(() => {
+                const gallery: string[] = Array.from(new Set([
+                  ...(product.image ? [product.image] : []),
+                  ...(Array.isArray(product.images) ? product.images : [])
+                ].filter(Boolean)))
+                const main = gallery[activeIdx] || gallery[0]
+                return (
+                  <>
+                    <div className="aspect-[4/3] bg-white rounded-2xl overflow-hidden shadow">
+                      {main ? (
+                        <img src={main} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">無圖片</div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
+                    {gallery.length > 1 && (
+                      <div className="mt-3 grid grid-cols-5 gap-2">
+                        {gallery.slice(0,5).map((url:string,idx:number)=> (
+                          <button key={idx} onClick={()=> setActiveIdx(idx)} className={`aspect-square rounded overflow-hidden border ${idx===activeIdx? 'border-blue-500':'border-transparent'}`}>
+                            <img src={url} alt="thumb" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
 
-            <div>
+            {/* 資訊區 */}
+            <div className="lg:col-span-6">
               <div className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{product.name}</div>
-              <div className="text-gray-600 mb-4">{product.description}</div>
+              <div className="text-gray-600 mb-4 leading-relaxed">{product.description}</div>
               <div className="text-2xl font-extrabold text-blue-600 mb-2">NT$ {Number(product.price||0).toLocaleString()}</div>
               {product.groupPrice && product.groupMinQty && (
-                <div className="text-sm text-orange-600 mb-3">團購價：NT$ {product.groupPrice.toLocaleString()} (滿{product.groupMinQty}件)</div>
+                <div className="text-sm text-orange-600 mb-4">團購價：NT$ {product.groupPrice.toLocaleString()} (滿{product.groupMinQty}件)</div>
               )}
 
               {product.features && product.features.length>0 && (
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {product.features.slice(0,5).map((f:string, i:number)=> (
-                    <span key={i} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">{f}</span>
-                  ))}
-                </div>
-              )}
-
-              {product.content && (
-                <div className="mb-6">
-                  <div className="rounded-lg border bg-gray-50 p-3">
-                    <div dangerouslySetInnerHTML={{ __html: product.content }} />
+                <div className="mb-5">
+                  <div className="text-sm text-gray-800 font-semibold mb-2">特色</div>
+                  <div className="flex flex-wrap gap-2">
+                    {product.features.map((f:string, i:number)=> (
+                      <span key={i} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">{f}</span>
+                    ))}
                   </div>
                 </div>
               )}
@@ -204,6 +247,36 @@ export default function ShopProductDetailPage() {
                 </button>
                 <Link to="/store/cart" className="rounded bg-gray-900 px-4 py-2 text-white">前往結帳</Link>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* 商品介紹（內容） */}
+        {!!product?.content && (
+          <div className="mt-10">
+            <div className="text-lg font-bold text-gray-900 mb-3">商品介紹</div>
+            <div className="rounded-2xl border bg-white p-4 md:p-6 prose max-w-none">
+              <div dangerouslySetInnerHTML={{ __html: product.content }} />
+            </div>
+          </div>
+        )}
+
+        {/* 相關商品 */}
+        {related.length>0 && (
+          <div className="mt-10">
+            <div className="text-lg font-bold text-gray-900 mb-3">你也許會喜歡</div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {related.map((r:any)=> (
+                <div key={r.id} className="bg-white rounded-xl border shadow hover:shadow-md transition overflow-hidden cursor-pointer" onClick={()=> navigate(`/store/products/${r.id}`)}>
+                  <div className="aspect-square bg-gray-100">
+                    {r.image ? <img src={r.image} alt={r.name} className="w-full h-full object-cover" /> : null}
+                  </div>
+                  <div className="p-2">
+                    <div className="text-xs font-semibold text-gray-900 line-clamp-2">{r.name}</div>
+                    <div className="text-[11px] text-gray-600">NT$ {r.price.toLocaleString()}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
