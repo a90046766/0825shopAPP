@@ -56,6 +56,27 @@ export default function ShopProductsPage() {
   const user = getCurrentUser()
   const isEditor = user?.role === 'admin' || user?.role === 'support'
 
+  // 確保具備 Supabase 員工登入（避免以匿名/會員身分被 RLS 擋下）
+  const ensureStaffAuth = async (): Promise<boolean> => {
+    try {
+      const { data } = await supabase.auth.getSession()
+      const sess = data?.session
+      const userType = (sess?.user?.user_metadata as any)?.user_type
+      if (!sess || userType === 'member') {
+        const ret = encodeURIComponent(location.pathname + location.search)
+        alert('請先以員工身分登入後台再儲存（admin/support）。將帶您前往登入。')
+        try { window.location.assign(`/login?returnTo=${ret}`) } catch {}
+        return false
+      }
+      return true
+    } catch {
+      const ret = encodeURIComponent(location.pathname + location.search)
+      alert('請先以員工身分登入後台再儲存（admin/support）。將帶您前往登入。')
+      try { window.location.assign(`/login?returnTo=${ret}`) } catch {}
+      return false
+    }
+  }
+
   // 以 id 批次補齊缺漏欄位（特別是 content）
   const hydrateMissingContent = async (rows: any[]) => {
     try {
@@ -294,6 +315,9 @@ export default function ShopProductsPage() {
     if (!edit) return
     setSaving(true)
     try {
+      // 無員工登入時直接導向登入，避免匿名被 RLS 擋下導致資料消失
+      const ok = await ensureStaffAuth()
+      if (!ok) { setSaving(false); return }
       // 避免 content 被空字串覆蓋：若為空則讀回 DB 既有值
       let contentToSave: string = (edit as any).content ?? ''
       if (edit.id && (!contentToSave || contentToSave.trim()==='')) {
