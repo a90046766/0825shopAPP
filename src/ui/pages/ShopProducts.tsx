@@ -118,7 +118,8 @@ export default function ShopProductsPage() {
             const res = await fetch('/api/products-list?publishedOnly=' + (isEditor && editMode ? '0' : '1'), { method: 'GET' })
             const j = await res.json()
             if (j?.ok && Array.isArray(j.data)) {
-              setAllProducts(j.data)
+              const mapped = safeMap(j.data)
+              setAllProducts(mapped)
               if (j.data.length === 0) setFallbackNotice('目前尚無上架商品，請於管理模式新增')
               setLoading(false)
               return
@@ -197,6 +198,7 @@ export default function ShopProductsPage() {
         id: String(r.id ?? Math.random().toString(36).slice(2)),
         name: r.name ?? '',
         description: r.description ?? '',
+        content: r.content ?? '',
         price: Number(r.unit_price ?? r.price ?? 0),
         groupPrice: r.group_price ?? null,
         groupMinQty: r.group_min_qty ?? null,
