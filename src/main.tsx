@@ -47,6 +47,7 @@ const QuotesPage = React.lazy(() => import('./ui/pages/Quotes'))
 import NewShopPage from './ui/pages/NewShop'
 import EntryPage from './ui/pages/Entry'
 const ShopProductsPage = React.lazy(() => import('./ui/pages/ShopProducts'))
+const ShopProductDetailPage = React.lazy(() => import('./ui/pages/ShopProductDetail'))
 const ACAdvisorPage = React.lazy(() => import('./ui/pages/ACAdvisor'))
 const ShopCartPage = React.lazy(() => import('./ui/pages/ShopCart'))
 const OrderSuccessPage = React.lazy(() => import('./ui/pages/OrderSuccess'))
@@ -144,6 +145,7 @@ createRoot(document.getElementById('root')!).render(
       />
       <Route path="/store" element={<NewShopPage />} />
       <Route path="/store/products" element={<ShopProductsPage />} />
+      <Route path="/store/products/:id" element={<ShopProductDetailPage />} />
       <Route path="/store/ac-advisor" element={<ACAdvisorPage />} />
       <Route path="/store/cart" element={<ShopCartPage />} />
       <Route path="/store/order-success" element={<OrderSuccessPage />} />

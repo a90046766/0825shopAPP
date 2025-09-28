@@ -550,14 +550,15 @@ export default function ShopProductsPage() {
               {filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden"
+                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden cursor-pointer"
+                  onClick={()=> { addToHistory(product); navigate(`/store/products/${product.id}`) }}
                 >
                   {/* 產品圖片 */}
-                  <div className="h-40 md:h-48 bg-gray-100 relative" onClick={()=> addToHistory(product)}>
+                  <div className="h-40 md:h-48 bg-gray-100 relative cursor-pointer" onClick={()=> { addToHistory(product); navigate(`/store/products/${product.id}`) }}>
                     <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                     {isEditor && editMode && (
                       <div className="absolute right-2 top-2 z-10 flex gap-1">
-                        <button onClick={()=> beginEdit(product)} className="rounded bg-white/90 px-2 py-0.5 text-xs text-gray-800 hover:bg-white">編輯</button>
+                        <button onClick={(e)=> { e.stopPropagation(); beginEdit(product) }} className="rounded bg-white/90 px-2 py-0.5 text-xs text-gray-800 hover:bg-white">編輯</button>
                       </div>
                     )}
                     {(!product.published) && (
@@ -604,6 +605,26 @@ export default function ShopProductsPage() {
                       {product.description}
                     </p>
 
+                    {/* 詳情連結 */}
+                    <div className="mb-3 md:mb-4 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={(e)=> { e.stopPropagation(); navigate(`/store/products/${product.id}`) }}
+                        className="text-blue-600 hover:text-blue-700 text-sm md:text-base inline-flex items-center gap-1"
+                      >
+                        <ArrowRight className="h-4 w-4" /> 查看詳情
+                      </button>
+                      <a
+                        href={`/store/products/${product.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-600 hover:text-gray-800 text-xs underline"
+                        onClick={(e)=> e.stopPropagation()}
+                      >
+                        新分頁開啟
+                      </a>
+                    </div>
+
                     {/* 價格資訊 */}
                     <div className="mb-3 md:mb-4">
                       <div className="flex items-center gap-2 mb-1.5 md:mb-2">
@@ -646,7 +667,7 @@ export default function ShopProductsPage() {
 
                     {/* 加入購物車按鈕 */}
                     <button
-                      onClick={() => addToCart(product)}
+                      onClick={(e) => { e.stopPropagation(); addToCart(product) }}
                       className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 md:py-3 px-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 text-sm md:text-base"
                     >
                       <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
