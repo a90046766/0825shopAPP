@@ -56,6 +56,37 @@ export default function ShopProductsPage() {
   const user = getCurrentUser()
   const isEditor = user?.role === 'admin' || user?.role === 'support'
 
+  // 以 id 批次補齊缺漏欄位（特別是 content）
+  const hydrateMissingContent = async (rows: any[]) => {
+    try {
+      const missing = rows.filter(r => !r.content && r.id).map(r => r.id)
+      if (missing.length === 0) return rows
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, content, features, image_urls, unit_price, group_price, group_min_qty, mode_code')
+        .in('id', missing)
+      if (error) return rows
+      const map = new Map<string, any>((data||[]).map((r:any)=>[String(r.id), r]))
+      return rows.map(r => {
+        const m = map.get(String(r.id))
+        if (!m) return r
+        return {
+          ...r,
+          content: m.content ?? r.content,
+          features: Array.isArray(r.features) ? r.features : (Array.isArray(m.features) ? m.features : []),
+          image: r.image,
+          images: Array.isArray(r.images) && r.images.length>0 ? r.images : (Array.isArray(m.image_urls)? m.image_urls : []),
+          price: r.price ?? Number(m.unit_price||0),
+          groupPrice: r.groupPrice ?? m.group_price ?? null,
+          groupMinQty: r.groupMinQty ?? m.group_min_qty ?? null,
+          category: r.category ?? m.mode_code ?? 'cleaning'
+        }
+      })
+    } catch {
+      return rows
+    }
+  }
+
   // 當網址列的 category 變化時同步
   useEffect(() => {
     const p = new URLSearchParams(location.search)
@@ -118,7 +149,8 @@ export default function ShopProductsPage() {
             const res = await fetch('/api/products-list?publishedOnly=' + (isEditor && editMode ? '0' : '1'), { method: 'GET' })
             const j = await res.json()
             if (j?.ok && Array.isArray(j.data)) {
-              const mapped = safeMap(j.data)
+              let mapped = safeMap(j.data)
+              mapped = await hydrateMissingContent(mapped)
               setAllProducts(mapped)
               if (j.data.length === 0) setFallbackNotice('目前尚無上架商品，請於管理模式新增')
               setLoading(false)
@@ -235,21 +267,50 @@ export default function ShopProductsPage() {
     })
   }
 
-  const beginEdit = (p: any) => {
-    setEdit({ ...p, features: Array.isArray(p.features) ? p.features : [] })
+  const beginEdit = async (p: any) => {
+    const base = { ...p, features: Array.isArray(p.features) ? p.features : [] }
+    setEdit(base)
+    // 若 content 缺失則即時讀回 DB，避免空白覆蓋
+    try {
+      if (p?.id && (!p.content || p.content==='')) {
+        const { data, error } = await supabase
+          .from('products')
+          .select('content, features, image_urls')
+          .eq('id', p.id)
+          .maybeSingle()
+        if (!error && data) {
+          setEdit(prev => prev ? {
+            ...prev,
+            content: data.content ?? prev.content,
+            features: Array.isArray(prev.features) ? prev.features : (Array.isArray(data.features)? data.features : []),
+            images: Array.isArray(prev.images) && prev.images.length>0 ? prev.images : (Array.isArray(data.image_urls)? data.image_urls : [])
+          } : prev)
+        }
+      }
+    } catch {}
   }
 
   const saveEdit = async () => {
     if (!edit) return
     setSaving(true)
     try {
+      // 避免 content 被空字串覆蓋：若為空則讀回 DB 既有值
+      let contentToSave: string = (edit as any).content ?? ''
+      if (edit.id && (!contentToSave || contentToSave.trim()==='')) {
+        try {
+          const { data } = await supabase.from('products').select('content').eq('id', edit.id).maybeSingle()
+          if (data && typeof data.content === 'string' && data.content.trim()!=='') {
+            contentToSave = data.content
+          }
+        } catch {}
+      }
       const row: any = {
         name: edit.name || '',
         unit_price: Number(edit.price || 0),
         group_price: edit.groupPrice ?? null,
         group_min_qty: edit.groupMinQty ?? null,
         description: edit.description || '',
-        content: edit.content || '',
+        content: contentToSave,
         features: Array.isArray(edit.features) ? edit.features : String(edit.features||'').split(',').map((s:string)=>s.trim()).filter(Boolean),
         image_urls: Array.isArray(edit.images) && edit.images.length>0 ? edit.images : (edit.image ? [edit.image] : []),
         category: edit.category,
