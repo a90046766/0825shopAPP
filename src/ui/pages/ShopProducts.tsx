@@ -84,7 +84,7 @@ export default function ShopProductsPage() {
       if (missing.length === 0) return rows
       const { data, error } = await supabase
         .from('products')
-        .select('id, content, features, image_urls, unit_price, group_price, group_min_qty, mode_code')
+        .select('id, detail_html, content, features, image_urls, unit_price, group_price, group_min_qty, mode_code')
         .in('id', missing)
       if (error) return rows
       const map = new Map<string, any>((data||[]).map((r:any)=>[String(r.id), r]))
@@ -93,7 +93,7 @@ export default function ShopProductsPage() {
         if (!m) return r
         return {
           ...r,
-          content: m.content ?? r.content,
+          content: (m.detail_html ?? m.content) ?? r.content,
           features: Array.isArray(r.features) ? r.features : (Array.isArray(m.features) ? m.features : []),
           image: r.image,
           images: Array.isArray(r.images) && r.images.length>0 ? r.images : (Array.isArray(m.image_urls)? m.image_urls : []),
@@ -146,7 +146,7 @@ export default function ShopProductsPage() {
         id: String(r.id ?? r.uuid ?? Math.random().toString(36).slice(2)),
         name: r.name ?? '',
         description: r.description ?? '',
-        content: r.content ?? '',
+        content: (r.detail_html ?? r.content) ?? '',
         price: Number(r.unit_price ?? r.price ?? 0),
         groupPrice: (r.group_price ?? r.groupPrice) ?? null,
         groupMinQty: (r.group_min_qty ?? r.groupMinQty) ?? null,
@@ -183,7 +183,7 @@ export default function ShopProductsPage() {
         // 方案 A：直接查 Supabase（完整欄位 + 排序，若資料表完整）
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
           .order('store_sort', { ascending: true })
           .order('updated_at', { ascending: false })
         if (!(isEditor && editMode)) {
@@ -194,7 +194,7 @@ export default function ShopProductsPage() {
           // 方案 B：移除可能不存在欄位（如 store_sort）
           let q2 = supabase
             .from('products')
-            .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+            .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
             .order('updated_at', { ascending: false })
           if (!(isEditor && editMode)) q2 = q2.eq('published', true)
           const r2 = await q2
@@ -242,7 +242,7 @@ export default function ShopProductsPage() {
     try {
       let q = supabase
         .from('products')
-        .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+        .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
         .order('updated_at', { ascending: false })
       if (!(isEditor && editMode)) q = q.eq('published', true)
       const { data, error } = await q
@@ -251,7 +251,7 @@ export default function ShopProductsPage() {
         id: String(r.id ?? Math.random().toString(36).slice(2)),
         name: r.name ?? '',
         description: r.description ?? '',
-        content: r.content ?? '',
+        content: (r.detail_html ?? r.content) ?? '',
         price: Number(r.unit_price ?? r.price ?? 0),
         groupPrice: r.group_price ?? null,
         groupMinQty: r.group_min_qty ?? null,
@@ -296,13 +296,13 @@ export default function ShopProductsPage() {
       if (p?.id && (!p.content || p.content==='')) {
         const { data, error } = await supabase
           .from('products')
-          .select('content, features, image_urls')
+          .select('detail_html, content, features, image_urls')
           .eq('id', p.id)
           .maybeSingle()
         if (!error && data) {
           setEdit(prev => prev ? {
             ...prev,
-            content: data.content ?? prev.content,
+            content: (data.detail_html ?? data.content) ?? prev.content,
             features: Array.isArray(prev.features) ? prev.features : (Array.isArray(data.features)? data.features : []),
             images: Array.isArray(prev.images) && prev.images.length>0 ? prev.images : (Array.isArray(data.image_urls)? data.image_urls : [])
           } : prev)
@@ -334,6 +334,9 @@ export default function ShopProductsPage() {
         group_price: edit.groupPrice ?? null,
         group_min_qty: edit.groupMinQty ?? null,
         description: edit.description || '',
+        // 新欄位：商品詳述（HTML）
+        detail_html: contentToSave,
+        // 舊欄位仍同步寫入一次，確保相容（後續可移除）
         content: contentToSave,
         features: Array.isArray(edit.features) ? edit.features : String(edit.features||'').split(',').map((s:string)=>s.trim()).filter(Boolean),
         image_urls: Array.isArray(edit.images) && edit.images.length>0 ? edit.images : (edit.image ? [edit.image] : []),

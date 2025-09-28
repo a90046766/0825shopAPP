@@ -71,7 +71,7 @@ export default function ShopProductDetailPage() {
         // 直接查 DB
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published')
           .eq('id', id)
         if (!isEditor) q = q.eq('published', true)
         const { data, error } = await q.maybeSingle()
@@ -81,7 +81,7 @@ export default function ShopProductDetailPage() {
           id: String(data.id),
           name: data.name || '商品',
           description: data.description || '',
-          content: data.content || '',
+          content: (data.detail_html ?? data.content) || '',
           price: Number(data.unit_price ?? 0),
           groupPrice: data.group_price ?? null,
           groupMinQty: data.group_min_qty ?? null,
