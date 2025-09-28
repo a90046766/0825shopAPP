@@ -256,14 +256,42 @@ export default function ShopProductsPage() {
         show_ac_advisor: edit.category==='new' ? !!edit.showAcAdvisor : null,
         updated_at: new Date().toISOString()
       }
-      // 經過 Functions 透過 Service Role 寫入，避免 CORS/RLS 攔截
-      const res = await fetch('/api/products-upsert', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: edit.id, ...row })
-      })
-      const j = await res.json().catch(()=>({ ok:false }))
-      if (!j?.ok) throw new Error(j?.error || '保存失敗')
+      // 優先嘗試 Functions（Service Role），失敗則直接寫入 Supabase
+      let saved = false
+      try {
+        const res = await fetch('/api/products-upsert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: edit.id, ...row })
+        })
+        const j = await res.json().catch(()=>({ ok:false }))
+        if (j?.ok) {
+          saved = true
+        }
+      } catch {}
+
+      if (!saved) {
+        // 直接寫入資料庫（可能受 RLS 影響；更新優先，其次插入）
+        if (edit.id) {
+          const { error: upErr } = await supabase
+            .from('products')
+            .update(row)
+            .eq('id', edit.id)
+          if (upErr) {
+            // 若更新失敗再嘗試 upsert（建立或更新）
+            const { error: upsertErr } = await supabase
+              .from('products')
+              .upsert({ id: edit.id, ...row }, { onConflict: 'id' } as any)
+            if (upsertErr) throw upsertErr
+          }
+        } else {
+          const { error: insErr } = await supabase
+            .from('products')
+            .insert([{ ...row }])
+          if (insErr) throw insErr
+        }
+      }
+
       setEdit(null)
       await reloadProducts()
     } catch (e: any) {
