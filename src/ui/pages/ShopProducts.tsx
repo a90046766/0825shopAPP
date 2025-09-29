@@ -799,12 +799,7 @@ export default function ShopProductsPage() {
                       )}
                     </div>
 
-                    {/* 可視內容（富媒體區） */}
-                    {product.content && (
-                      <div className="mb-3 md:mb-4">
-                        <div className="rounded-lg border bg-gray-50 p-2 md:p-3"><div dangerouslySetInnerHTML={{ __html: product.content }} /></div>
-                      </div>
-                    )}
+                    {/* 隱藏內容：內容僅在詳情頁顯示 */}
 
                     {/* 特色功能 */}
                     <div className="mb-3 md:mb-4">
