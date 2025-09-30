@@ -27,8 +27,21 @@ exports.handler = async (event) => {
     if (!row.id) {
       row.id = (Date.now().toString(36) + Math.random().toString(36).slice(2))
     }
-    const { data, error } = await supabase.from('products').upsert(row, { onConflict: 'id' }).select('id').single()
-    if (error) throw error
+    let { data, error } = await supabase.from('products').upsert(row, { onConflict: 'id' }).select('id').single()
+    if (error) {
+      const msg = String(error.message||'').toLowerCase()
+      const code = String(error.code||'')
+      const schemaIssue = code === '42703' || msg.includes('head_images') || msg.includes('column')
+      if (schemaIssue) {
+        const fallback = { ...row }
+        delete fallback.head_images
+        const r2 = await supabase.from('products').upsert(fallback, { onConflict: 'id' }).select('id').single()
+        if (r2.error) throw r2.error
+        data = r2.data
+      } else {
+        throw error
+      }
+    }
     return { statusCode: 200, headers: successHeaders(), body: JSON.stringify({ ok: true, id: data.id }) }
   } catch (e) {
     return { statusCode: 200, headers: corsHeaders(), body: JSON.stringify({ ok: false, error: String(e?.message || e) }) }

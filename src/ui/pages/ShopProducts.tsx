@@ -85,7 +85,7 @@ export default function ShopProductsPage() {
       if (missing.length === 0) return rows
       const { data, error } = await supabase
         .from('products')
-        .select('id, detail_html, content, features, image_urls, head_images, unit_price, group_price, group_min_qty, mode_code')
+        .select('id, detail_html, content, features, image_urls, unit_price, group_price, group_min_qty, mode_code')
         .in('id', missing)
       if (error) return rows
       const map = new Map<string, any>((data||[]).map((r:any)=>[String(r.id), r]))
@@ -98,7 +98,7 @@ export default function ShopProductsPage() {
           features: Array.isArray(r.features) ? r.features : (Array.isArray(m.features) ? m.features : []),
           image: r.image,
           images: Array.isArray(r.images) && r.images.length>0 ? r.images : (Array.isArray(m.image_urls)? m.image_urls : []),
-          headImages: Array.isArray(r.headImages) && r.headImages.length>0 ? r.headImages : (Array.isArray(m.head_images)? m.head_images : []),
+          headImages: Array.isArray(r.headImages) ? r.headImages : [],
           price: r.price ?? Number(m.unit_price||0),
           groupPrice: r.groupPrice ?? m.group_price ?? null,
           groupMinQty: r.groupMinQty ?? m.group_min_qty ?? null,
@@ -186,7 +186,7 @@ export default function ShopProductsPage() {
         // 方案 A：直接查 Supabase（完整欄位 + 排序，若資料表完整）
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
           .order('store_sort', { ascending: true })
           .order('updated_at', { ascending: false })
         if (!(isEditor && editMode)) {
@@ -197,7 +197,7 @@ export default function ShopProductsPage() {
           // 方案 B：移除可能不存在欄位（如 store_sort）
           let q2 = supabase
             .from('products')
-            .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
+            .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
             .order('updated_at', { ascending: false })
           if (!(isEditor && editMode)) q2 = q2.eq('published', true)
           const r2 = await q2
@@ -245,7 +245,7 @@ export default function ShopProductsPage() {
     try {
         let q = supabase
         .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
         .order('updated_at', { ascending: false })
       if (!(isEditor && editMode)) q = q.eq('published', true)
       let { data, error } = await q
@@ -253,7 +253,7 @@ export default function ShopProductsPage() {
         // 欄位不存在（42703）或其他欄位不相容 → 回退查詢，移除 detail_html
         let q2 = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
           .order('updated_at', { ascending: false })
         if (!(isEditor && editMode)) q2 = q2.eq('published', true)
         const r2 = await q2
@@ -273,7 +273,7 @@ export default function ShopProductsPage() {
         features: Array.isArray(r.features) ? r.features : [],
         image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : (r.image || ''),
         images: Array.isArray(r.image_urls) ? r.image_urls : [],
-        headImages: Array.isArray(r.head_images) ? r.head_images : [],
+        headImages: Array.isArray(r.head_images) ? r.head_images : (Array.isArray((r as any).headImages) ? (r as any).headImages : []),
         published: !!r.published
       }))
       if (mapped.length === 0) setFallbackNotice('目前顯示預設商品（暫無上架商品）')

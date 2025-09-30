@@ -33,7 +33,7 @@ exports.handler = async (event) => {
     if (!data) {
       let q = supabase
         .from('products')
-        .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,head_images,category,mode_code,published,updated_at')
+        .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,category,mode_code,published,updated_at')
         .order('updated_at', { ascending: false })
       if (publishedOnly) q = q.eq('published', true)
       const { data: d, error } = await q
