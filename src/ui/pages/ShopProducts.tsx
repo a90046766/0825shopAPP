@@ -309,11 +309,15 @@ export default function ShopProductsPage() {
     // 若 content 缺失則即時讀回 DB，避免空白覆蓋
     try {
       if (p?.id && (!p.content || p.content==='')) {
+        // 加 5 秒超時避免卡住
+        const controller = new AbortController()
+        const t = setTimeout(() => controller.abort(), 5000)
         const { data, error } = await supabase
           .from('products')
           .select('detail_html, content, features, image_urls')
           .eq('id', p.id)
-          .maybeSingle()
+          .maybeSingle({ head: false, count: 'exact' }) as any
+        clearTimeout(t)
         if (!error && data) {
           setEdit(prev => prev ? {
             ...prev,
@@ -329,6 +333,11 @@ export default function ShopProductsPage() {
   const saveEdit = async () => {
     if (!edit) return
     setSaving(true)
+    // 20 秒看門狗，避免長時間網路阻塞導致 UI 卡在「儲存中」
+    const watchdog = setTimeout(() => {
+      try { setSaving(false) } catch {}
+      try { alert('儲存逾時，請稍後重試') } catch {}
+    }, 20000)
     try {
       // 無員工登入時直接導向登入，避免匿名被 RLS 擋下導致資料消失
       const ok = await ensureStaffAuth()
@@ -383,16 +392,24 @@ export default function ShopProductsPage() {
       if (row.show_ac_advisor === null) delete row.show_ac_advisor
       // 優先嘗試 Functions（Service Role），失敗則直接寫入 Supabase
       let saved = false
+      // 對雲端函式加入 8 秒超時，避免長時間卡住
+      async function fetchJsonWithTimeout(url: string, options: any, timeoutMs: number): Promise<any> {
+        const controller = new AbortController()
+        const id = setTimeout(() => controller.abort(), timeoutMs)
+        try {
+          const res = await fetch(url, { ...options, signal: controller.signal })
+          try { return await res.json() } catch { return { ok: false } }
+        } finally {
+          clearTimeout(id)
+        }
+      }
       try {
-        const res = await fetch('/api/products-upsert', {
+        const j = await fetchJsonWithTimeout('/api/products-upsert', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: edit.id, ...row })
-        })
-        const j = await res.json().catch(()=>({ ok:false }))
-        if (j?.ok) {
-          saved = true
-        }
+        }, 8000)
+        if (j?.ok) saved = true
       } catch {}
 
       if (!saved) {
@@ -462,6 +479,7 @@ export default function ShopProductsPage() {
     } catch (e: any) {
       alert(`儲存失敗：${e?.message || e}`)
     } finally {
+      try { clearTimeout(watchdog) } catch {}
       setSaving(false)
     }
   }
