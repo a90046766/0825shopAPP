@@ -333,10 +333,26 @@ export default function ShopProductsPage() {
       let contentToSave: string = (edit as any).content ?? ''
       if (edit.id && (!contentToSave || contentToSave.trim()==='')) {
         try {
-          const { data } = await supabase.from('products').select('content').eq('id', edit.id).maybeSingle()
-          if (data && typeof data.content === 'string' && data.content.trim()!=='') {
-            contentToSave = data.content
+          const { data } = await supabase
+            .from('products')
+            .select('detail_html, content')
+            .eq('id', edit.id)
+            .maybeSingle()
+          const existingDetail = (data as any)?.detail_html
+          const existingContent = (data as any)?.content
+          if (typeof existingDetail === 'string' && existingDetail.trim() !== '') {
+            contentToSave = existingDetail
+          } else if (typeof existingContent === 'string' && existingContent.trim() !== '') {
+            contentToSave = existingContent
           }
+        } catch {}
+      }
+      // 先嘗試以 RPC 更新 HTML 欄位（RLS 下較穩定）
+      let rpcOk = false
+      if (edit.id) {
+        try {
+          const { data: ok, error: rpcErr } = await supabase.rpc('update_product_html', { p_id: edit.id, p_html: contentToSave })
+          if (!rpcErr && ok === true) rpcOk = true
         } catch {}
       }
       const row: any = {
@@ -357,6 +373,9 @@ export default function ShopProductsPage() {
         show_ac_advisor: edit.category==='new' ? !!edit.showAcAdvisor : null,
         updated_at: new Date().toISOString()
       }
+      if (rpcOk) { delete row.detail_html; delete row.content }
+      // 避免將 null 寫入不可為空或不存在的欄位
+      if (row.show_ac_advisor === null) delete row.show_ac_advisor
       // 優先嘗試 Functions（Service Role），失敗則直接寫入 Supabase
       let saved = false
       try {
@@ -374,10 +393,11 @@ export default function ShopProductsPage() {
       if (!saved) {
         // 直接寫入資料庫（可能受 RLS 影響；更新優先，其次插入）
         if (edit.id) {
-          const { error: upErr } = await supabase
+          const { data: upRows, error: upErr } = await supabase
             .from('products')
             .update(row)
             .eq('id', edit.id)
+            .select('id, content, detail_html')
           if (upErr) {
             // 若為欄位不存在（42703），回退為不含 detail_html 的寫入
             const msg = (upErr as any)?.message || ''
@@ -385,11 +405,18 @@ export default function ShopProductsPage() {
             if (code === '42703' || /detail_html/i.test(msg)) {
               const rowLegacy: any = { ...row }
               delete rowLegacy.detail_html
-              const { error: upErr2 } = await supabase
+              const { data: upRows2, error: upErr2 } = await supabase
                 .from('products')
                 .update(rowLegacy)
                 .eq('id', edit.id)
+                .select('id, content')
               if (upErr2) throw upErr2
+              if (!upRows2 || upRows2.length === 0) {
+                const { error: upsertErrLegacy } = await supabase
+                  .from('products')
+                  .upsert({ id: edit.id, ...rowLegacy } as any, { onConflict: 'id' } as any)
+                if (upsertErrLegacy) throw upsertErrLegacy
+              }
             } else {
               // 其他錯誤 → 嘗試 upsert
               const { error: upsertErr } = await supabase
@@ -397,6 +424,12 @@ export default function ShopProductsPage() {
                 .upsert({ id: edit.id, ...row }, { onConflict: 'id' } as any)
               if (upsertErr) throw upsertErr
             }
+          } else if (!upRows || upRows.length === 0) {
+            // 無錯但未更新任何列 → 回退採用 upsert 以確保寫入
+            const { error: upsertErr } = await supabase
+              .from('products')
+              .upsert({ id: edit.id, ...row }, { onConflict: 'id' } as any)
+            if (upsertErr) throw upsertErr
           }
         } else {
           let { error: insErr } = await supabase
