@@ -186,7 +186,7 @@ export default function ShopProductsPage() {
         // 方案 A：直接查 Supabase（完整欄位 + 排序，若資料表完整）
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
           .order('store_sort', { ascending: true })
           .order('updated_at', { ascending: false })
         if (!(isEditor && editMode)) {
@@ -197,7 +197,7 @@ export default function ShopProductsPage() {
           // 方案 B：移除可能不存在欄位（如 store_sort）
           let q2 = supabase
             .from('products')
-            .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+            .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
             .order('updated_at', { ascending: false })
           if (!(isEditor && editMode)) q2 = q2.eq('published', true)
           const r2 = await q2
@@ -245,7 +245,7 @@ export default function ShopProductsPage() {
     try {
         let q = supabase
         .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
         .order('updated_at', { ascending: false })
       if (!(isEditor && editMode)) q = q.eq('published', true)
       let { data, error } = await q
@@ -253,7 +253,7 @@ export default function ShopProductsPage() {
         // 欄位不存在（42703）或其他欄位不相容 → 回退查詢，移除 detail_html
         let q2 = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
           .order('updated_at', { ascending: false })
         if (!(isEditor && editMode)) q2 = q2.eq('published', true)
         const r2 = await q2

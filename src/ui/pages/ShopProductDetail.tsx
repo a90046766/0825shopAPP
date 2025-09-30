@@ -79,7 +79,7 @@ export default function ShopProductDetailPage() {
           // 欄位不存在時回退移除 detail_html
           let q2 = supabase
             .from('products')
-            .select('id,name,unit_price,group_price,group_minQty,description,content,features,image_urls,category,mode_code,published')
+            .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,head_images,category,mode_code,published')
             .eq('id', id)
           if (!isEditor) q2 = q2.eq('published', true)
           const r2 = await q2.maybeSingle()
