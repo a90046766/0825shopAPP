@@ -60,6 +60,13 @@ const defaultContent: CmsContent = {
 };
 
 export default function NewShop() {
+	// 簡易超時包裝：不改動 supabase 內部型別
+	const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> => {
+		return new Promise<T>((resolve, reject) => {
+			const t = setTimeout(() => reject(new Error('timeout')), ms);
+			p.then((v) => { clearTimeout(t); resolve(v); }).catch((e) => { clearTimeout(t); reject(e); });
+		});
+	};
 	const [cmsEnabled, setCmsEnabled] = React.useState<boolean>(false);
 	const [isAdminSupport, setIsAdminSupport] = React.useState<boolean>(false);
 	const [published, setPublished] = React.useState<CmsContent | null>(null);
@@ -69,7 +76,7 @@ export default function NewShop() {
 	const [carouselIndex, setCarouselIndex] = React.useState<number>(0);
 
 	React.useEffect(() => {
-		const safetyTimer = setTimeout(() => setLoading(false), 4000);
+		const safetyTimer = setTimeout(() => setLoading(false), 2000);
 		const forcedNoCms =
 			typeof window !== 'undefined' &&
 			new URLSearchParams(window.location.search).get('nocms') === '1';
@@ -107,19 +114,19 @@ export default function NewShop() {
 					setMemberId(memberNum);
 				} catch {}
 
-				// 讀全站開關（失敗則當作未啟用，顯示固定版）
+				// 讀全站開關（失敗則當作未啟用，顯示固定版），加 3 秒超時
 				let enabled = false;
 				try {
-					const { data: settings } = await supabase.rpc('get_site_settings');
-					enabled = !!settings?.cms_enabled;
-      } catch {}
+					const settingsResp: any = await withTimeout((supabase.rpc('get_site_settings') as any), 3000);
+					enabled = !!settingsResp?.data?.cms_enabled;
+				} catch {}
 				setCmsEnabled(enabled);
 
 				// 若啟用則讀已發布內容（失敗也顯示固定版）
 				if (enabled) {
 					try {
-						const { data: pub } = await supabase.rpc('get_cms_published', { p_id: 'home' });
-						const parsed = (pub?.content as any) || null;
+						const pubResp: any = await withTimeout((supabase.rpc('get_cms_published', { p_id: 'home' }) as any), 3000);
+						const parsed = (pubResp?.data?.content as any) || null;
 						if (parsed && typeof parsed === 'object') {
 							setPublished({
 								hero: { ...defaultContent.hero, ...(parsed.hero ?? {}) },
@@ -624,7 +631,7 @@ export default function NewShop() {
 						)}
                   </div>
 					<div className="flex items-center space-x-3">
-						<Link to="/account" className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">
+							<Link to="/store/member/orders" className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">
 							前往會員中心
 						</Link>
 						{isAdminSupport && (

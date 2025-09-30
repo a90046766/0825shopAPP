@@ -56,4 +56,24 @@ export const checkSupabaseConnection = async () => {
   }
 }
 
+// 背景 30 秒心跳：低風險刷新 session 與偵測連線；失敗不打擾使用者
+(() => {
+  try {
+    let timer: any = null
+    const beat = async () => {
+      try {
+        await supabase.auth.getSession()
+      } catch {}
+      finally {
+        timer = setTimeout(beat, 30_000)
+      }
+    }
+    // 僅在瀏覽器啟動
+    if (typeof window !== 'undefined') {
+      timer = setTimeout(beat, 30_000)
+      window.addEventListener('beforeunload', () => { try { clearTimeout(timer) } catch {} })
+    }
+  } catch {}
+})()
+
 
