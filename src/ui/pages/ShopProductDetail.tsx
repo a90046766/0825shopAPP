@@ -71,7 +71,7 @@ export default function ShopProductDetailPage() {
         // 直接查 DB
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published')
           .eq('id', id)
         if (!isEditor) q = q.eq('published', true)
         let { data, error } = await q.maybeSingle()
@@ -79,7 +79,7 @@ export default function ShopProductDetailPage() {
           // 欄位不存在時回退移除 detail_html
           let q2 = supabase
             .from('products')
-            .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published')
+            .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,head_images,category,mode_code,published')
             .eq('id', id)
           if (!isEditor) q2 = q2.eq('published', true)
           const r2 = await q2.maybeSingle()
@@ -100,6 +100,7 @@ export default function ShopProductDetailPage() {
           features: Array.isArray(data.features) ? data.features : [],
           image: Array.isArray(data.image_urls) && data.image_urls[0] ? data.image_urls[0] : '',
           images: Array.isArray(data.image_urls) ? data.image_urls : [],
+          headImages: Array.isArray((data as any).head_images) ? (data as any).head_images : [],
           published: !!data.published
         }
         if (!isEditor && mapped.published === false) {
@@ -206,9 +207,19 @@ export default function ShopProductDetailPage() {
                   ...(product.image ? [product.image] : []),
                   ...(Array.isArray(product.images) ? product.images : [])
                 ].filter(Boolean)))
+                const headStrip: string[] = Array.isArray((product as any).headImages) ? (product as any).headImages : []
                 const main = gallery[activeIdx] || gallery[0]
                 return (
                   <>
+                    {headStrip.length > 0 && (
+                      <div className="mb-3 flex gap-2 overflow-x-auto">
+                        {headStrip.map((url: string, idx: number) => (
+                          <div key={idx} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border bg-white">
+                            <img src={url} alt="head" className="w-full h-full object-cover" loading="lazy" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="aspect-[4/3] bg-white rounded-2xl overflow-hidden shadow">
                       {main ? (
                         <img src={main} alt={product.name} className="w-full h-full object-cover" />

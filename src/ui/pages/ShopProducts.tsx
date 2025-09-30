@@ -52,6 +52,7 @@ export default function ShopProductsPage() {
   const [edit, setEdit] = useState<any | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [headUrlInput, setHeadUrlInput] = useState('')
 
   const user = getCurrentUser()
   const isEditor = user?.role === 'admin' || user?.role === 'support'
@@ -84,7 +85,7 @@ export default function ShopProductsPage() {
       if (missing.length === 0) return rows
       const { data, error } = await supabase
         .from('products')
-        .select('id, detail_html, content, features, image_urls, unit_price, group_price, group_min_qty, mode_code')
+        .select('id, detail_html, content, features, image_urls, head_images, unit_price, group_price, group_min_qty, mode_code')
         .in('id', missing)
       if (error) return rows
       const map = new Map<string, any>((data||[]).map((r:any)=>[String(r.id), r]))
@@ -97,6 +98,7 @@ export default function ShopProductsPage() {
           features: Array.isArray(r.features) ? r.features : (Array.isArray(m.features) ? m.features : []),
           image: r.image,
           images: Array.isArray(r.images) && r.images.length>0 ? r.images : (Array.isArray(m.image_urls)? m.image_urls : []),
+          headImages: Array.isArray(r.headImages) && r.headImages.length>0 ? r.headImages : (Array.isArray(m.head_images)? m.head_images : []),
           price: r.price ?? Number(m.unit_price||0),
           groupPrice: r.groupPrice ?? m.group_price ?? null,
           groupMinQty: r.groupMinQty ?? m.group_min_qty ?? null,
@@ -154,6 +156,7 @@ export default function ShopProductsPage() {
         features: Array.isArray(r.features) ? r.features : [],
         image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : (r.image || ''),
         images: Array.isArray(r.image_urls) ? r.image_urls : (Array.isArray(r.images) ? r.images : []),
+      headImages: Array.isArray((r as any).head_images) ? (r as any).head_images : (Array.isArray((r as any).headImages) ? (r as any).headImages : []),
         published: r.published !== undefined ? !!r.published : true,
         showAcAdvisor: (typeof r.show_ac_advisor === 'boolean') ? r.show_ac_advisor : true
       }))
@@ -183,7 +186,7 @@ export default function ShopProductsPage() {
         // 方案 A：直接查 Supabase（完整欄位 + 排序，若資料表完整）
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
           .order('store_sort', { ascending: true })
           .order('updated_at', { ascending: false })
         if (!(isEditor && editMode)) {
@@ -194,7 +197,7 @@ export default function ShopProductsPage() {
           // 方案 B：移除可能不存在欄位（如 store_sort）
           let q2 = supabase
             .from('products')
-            .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+            .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
             .order('updated_at', { ascending: false })
           if (!(isEditor && editMode)) q2 = q2.eq('published', true)
           const r2 = await q2
@@ -240,9 +243,9 @@ export default function ShopProductsPage() {
     setError(null)
     setFallbackNotice(null)
     try {
-      let q = supabase
+        let q = supabase
         .from('products')
-        .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
         .order('updated_at', { ascending: false })
       if (!(isEditor && editMode)) q = q.eq('published', true)
       let { data, error } = await q
@@ -250,7 +253,7 @@ export default function ShopProductsPage() {
         // 欄位不存在（42703）或其他欄位不相容 → 回退查詢，移除 detail_html
         let q2 = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,category,mode_code,published,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
           .order('updated_at', { ascending: false })
         if (!(isEditor && editMode)) q2 = q2.eq('published', true)
         const r2 = await q2
@@ -270,6 +273,7 @@ export default function ShopProductsPage() {
         features: Array.isArray(r.features) ? r.features : [],
         image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : (r.image || ''),
         images: Array.isArray(r.image_urls) ? r.image_urls : [],
+        headImages: Array.isArray(r.head_images) ? r.head_images : [],
         published: !!r.published
       }))
       if (mapped.length === 0) setFallbackNotice('目前顯示預設商品（暫無上架商品）')
@@ -367,6 +371,7 @@ export default function ShopProductsPage() {
         content: contentToSave,
         features: Array.isArray(edit.features) ? edit.features : String(edit.features||'').split(',').map((s:string)=>s.trim()).filter(Boolean),
         image_urls: Array.isArray(edit.images) && edit.images.length>0 ? edit.images : (edit.image ? [edit.image] : []),
+        head_images: Array.isArray((edit as any).headImages) ? (edit as any).headImages : [],
         category: edit.category,
         mode_code: edit.category,
         published: !!edit.published,
@@ -475,6 +480,80 @@ export default function ShopProductsPage() {
     } finally {
       setDeleting(false)
     }
+  }
+
+  // 工具：壓縮圖片（最大邊 1600，JPEG 0.85）
+  async function compressImage(file: File): Promise<{ base64: string, contentType: string, filename: string }> {
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const fr = new FileReader()
+      fr.onload = () => resolve(String(fr.result))
+      fr.onerror = reject
+      fr.readAsDataURL(file)
+    })
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image()
+      i.onload = () => resolve(i)
+      i.onerror = reject
+      i.src = dataUrl
+    })
+    const maxSize = 1600
+    let { width, height } = img
+    const scale = Math.min(1, maxSize / Math.max(width, height))
+    const w = Math.round(width * scale)
+    const h = Math.round(height * scale)
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(img, 0, 0, w, h)
+    const out = canvas.toDataURL('image/jpeg', 0.85)
+    const base64 = out.split(',')[1]
+    return { base64, contentType: 'image/jpeg', filename: file.name || 'image.jpg' }
+  }
+
+  const [uploadingHead, setUploadingHead] = useState(false)
+  async function handleHeadUpload(files: FileList | null) {
+    if (!files || files.length === 0 || !edit) return
+    setUploadingHead(true)
+    try {
+      const list = Array.from(files)
+      for (const f of list) {
+        const { base64, contentType, filename } = await compressImage(f)
+        const res = await fetch('/api/upload-head-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId: edit.id || 'new', filename, contentType, dataBase64: base64 })
+        })
+        const j = await res.json().catch(()=>({ ok:false }))
+        if (j?.ok && j.url) {
+          setEdit(prev => prev ? { ...prev, headImages: [...(prev.headImages||[]), j.url] } : prev)
+        }
+      }
+    } catch (e:any) {
+      alert(`上傳失敗：${e?.message || e}`)
+    } finally {
+      setUploadingHead(false)
+    }
+  }
+
+  function addHeadUrl() {
+    if (!edit) return
+    const u = (headUrlInput || '').trim()
+    if (!u) return
+    setEdit({ ...edit, headImages: [...(edit.headImages || []), u] })
+    setHeadUrlInput('')
+  }
+  function moveHead(idx: number, dir: -1 | 1) {
+    if (!edit?.headImages) return
+    const arr = [...edit.headImages]
+    const j = idx + dir
+    if (j < 0 || j >= arr.length) return
+    const tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp
+    setEdit({ ...edit, headImages: arr })
+  }
+  function removeHead(idx: number) {
+    if (!edit?.headImages) return
+    const arr = edit.headImages.filter((_:string, i:number) => i !== idx)
+    setEdit({ ...edit, headImages: arr })
   }
 
   useEffect(() => {
@@ -1009,6 +1088,37 @@ export default function ShopProductsPage() {
                 <span className="text-gray-600">內容（可貼圖/HTML，支援圖片URL與貼上Base64）</span>
                 <textarea rows={4} className="rounded border px-2 py-1 font-mono text-xs" placeholder="可貼入 <img src='...'> 或整段HTML" value={edit.content||''} onChange={e=> setEdit({...edit, content: e.target.value})} style={{ height: 'auto' }} onInput={(e)=>{ const el=e.currentTarget; el.style.height='auto'; el.style.height = Math.min(800, Math.max(100, el.scrollHeight))+'px' }} />
               </label>
+              {/* 頭圖列（內容上方） */}
+              <div className="md:col-span-2">
+                <div className="text-gray-600 mb-1">內容上方圖片（建議寬度≤1600px）</div>
+                {Array.isArray(edit.headImages) && edit.headImages.length>0 && (
+                  <div className="mb-2 flex gap-2 overflow-x-auto">
+                    {edit.headImages.map((u:string, idx:number)=> (
+                      <div key={idx} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border relative">
+                        <img src={u} alt="head" className="w-full h-full object-cover" loading="lazy" />
+                        <div className="absolute inset-x-0 bottom-0 flex justify-between text-[10px]">
+                          <button className="bg-white/80 px-1" onClick={()=> moveHead(idx, -1)}>上移</button>
+                          <button className="bg-white/80 px-1" onClick={()=> moveHead(idx, 1)}>下移</button>
+                          <button className="bg-white/80 px-1 text-red-600" onClick={()=> removeHead(idx)}>刪除</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-col md:flex-row gap-2 items-start">
+                  <div className="flex items-center gap-2">
+                    <input className="rounded border px-2 py-1 w-64" placeholder="貼上圖片 URL" value={headUrlInput} onChange={e=> setHeadUrlInput(e.target.value)} />
+                    <button className="rounded bg-gray-800 px-3 py-1 text-xs text-white" onClick={addHeadUrl}>新增 URL</button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="rounded bg-blue-600 px-3 py-1 text-xs text-white cursor-pointer">
+                      上傳圖片
+                      <input type="file" accept="image/*" className="hidden" onChange={(e)=> handleHeadUpload(e.target.files)} multiple />
+                    </label>
+                    {uploadingHead && <span className="text-xs text-gray-500">上傳中…</span>}
+                  </div>
+                </div>
+              </div>
               <label className="md:col-span-2 flex flex-col gap-1">
                 <span className="text-gray-600">特色（以逗號分隔）</span>
                 <input className="rounded border px-2 py-1" value={Array.isArray(edit.features)? edit.features.join(',') : ''} onChange={e=> setEdit({...edit, features: e.target.value.split(',').map((s:string)=>s.trim()).filter(Boolean)})} />
