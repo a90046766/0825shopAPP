@@ -43,6 +43,9 @@ export default function ShopProductDetailPage() {
   const [cart, setCart] = useState<any[]>(getLocalCart())
   const [addonOn, setAddonOn] = useState<boolean>(false)
   const [addonQty, setAddonQty] = useState<number>(0)
+  const [addonQuantities, setAddonQuantities] = useState<Record<number, number>>({})
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIdx, setLightboxIdx] = useState(0)
   const user = getCurrentUser()
   const isEditor = user?.role === 'admin' || user?.role === 'support'
 
@@ -51,6 +54,7 @@ export default function ShopProductDetailPage() {
     // 切換商品時，重置加購狀態
     setAddonOn(!!(product as any)?.addonConfig?.enabled)
     setAddonQty(0)
+    setAddonQuantities({})
   }, [product?.id])
 
   useEffect(() => {
@@ -163,8 +167,6 @@ export default function ShopProductDetailPage() {
 
   const addToCart = () => {
     if (!product) return
-    const addonData = (product as any).addonConfig
-    const shouldAddAddon = !!addonOn && addonQty > 0 && addonData && Number(addonData.price) > 0
     setCart(prev => {
       let next = [...prev]
       const idx = next.findIndex(i => i.id === product.id)
@@ -178,14 +180,20 @@ export default function ShopProductDetailPage() {
       } else {
         next = [{ ...product, quantity: 1 }, ...next]
       }
-      if (shouldAddAddon) {
-        const addonId = `addon:${product.id}`
-        const j = next.findIndex(i => i.id === addonId)
-        if (j >= 0) {
-          next[j] = { ...next[j], quantity: (next[j].quantity || 0) + addonQty }
-        } else {
-          next.unshift({ id: addonId, name: `加購 - ${addonData.name}`, price: Number(addonData.price), category: 'addon', quantity: addonQty })
-        }
+      const config = (product as any).addonConfig
+      if (config && Array.isArray(config.items)) {
+        config.items.forEach((it:any, i:number) => {
+          const q = addonQuantities[i]||0
+          if (q > 0 && Number(it?.price)>0) {
+            const addonId = `addon:${product.id}:${i}`
+            const j = next.findIndex(x => x.id === addonId)
+            if (j >= 0) {
+              next[j] = { ...next[j], quantity: (next[j].quantity || 0) + q }
+            } else {
+              next.unshift({ id: addonId, name: `加購 - ${it.name||('項目#'+(i+1))}`, price: Number(it.price), category: 'addon', quantity: q })
+            }
+          }
+        })
       }
       return next
     })
@@ -233,28 +241,20 @@ export default function ShopProductDetailPage() {
                   ...(Array.isArray(product.images) ? product.images : [])
                 ].filter(Boolean)))
                 const headStrip: string[] = Array.isArray((product as any).headImages) ? (product as any).headImages : []
-                const main = gallery[activeIdx] || gallery[0]
+                const combined: string[] = Array.from(new Set([...(gallery||[]), ...(headStrip||[])]))
+                const main = combined[activeIdx] || combined[0]
                 return (
                   <>
-                    {headStrip.length > 0 && (
-                      <div className="mb-3 flex gap-2 overflow-x-auto">
-                        {headStrip.map((url: string, idx: number) => (
-                          <div key={idx} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border bg-white">
-                            <img src={url} alt="head" className="w-full h-full object-cover" loading="lazy" />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="aspect-[4/3] bg-white rounded-2xl overflow-hidden shadow">
+                    <div className="aspect-[4/3] bg-black rounded-2xl overflow-hidden shadow cursor-zoom-in" onClick={()=>{ setLightboxIdx(activeIdx); setLightboxOpen(true) }}>
                       {main ? (
-                        <img src={main} alt={product.name} className="w-full h-full object-cover" />
+                        <img src={main} alt={product.name} className="w-full h-full object-contain" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-400">無圖片</div>
                       )}
                     </div>
-                    {gallery.length > 1 && (
+                    {combined.length > 1 && (
                       <div className="mt-3 grid grid-cols-5 gap-2">
-                        {gallery.slice(0,5).map((url:string,idx:number)=> (
+                        {combined.slice(0,10).map((url:string,idx:number)=> (
                           <button key={idx} onClick={()=> setActiveIdx(idx)} className={`aspect-square rounded overflow-hidden border ${idx===activeIdx? 'border-blue-500':'border-transparent'}`}>
                             <img src={url} alt="thumb" className="w-full h-full object-cover" />
                           </button>
@@ -286,20 +286,23 @@ export default function ShopProductDetailPage() {
                 </div>
               )}
 
-            {/* 加購區塊 */}
-            {!!(product as any)?.addonConfig?.enabled && Number((product as any).addonConfig?.price) > 0 && !/四方吹/.test(product?.name||'') && (
+            {/* 加購區塊（多項目） */}
+            {!!(product as any)?.addonConfig?.enabled && Array.isArray((product as any)?.addonConfig?.items) && (product as any).addonConfig.items.length>0 && !/四方吹/.test(product?.name||'') && (
               <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50/50 p-3">
-                <label className="flex items-center gap-2 text-sm text-gray-800">
-                  <input type="checkbox" checked={addonOn} onChange={(e)=> { const on = e.target.checked; setAddonOn(on); if (on && addonQty===0) setAddonQty(1); if (!on) setAddonQty(0) }} />
-                  <span>加購：{(product as any).addonConfig?.name} +NT$ {Number((product as any).addonConfig?.price||0).toLocaleString()}</span>
-                </label>
-                {addonOn && (
-                  <div className="mt-2 flex items-center gap-3">
-                    <button onClick={()=> setAddonQty(q=> Math.max(0, q-1))} className="rounded bg-white border px-3 py-1 text-gray-700"><Minus className="h-4 w-4" /></button>
-                    <div className="min-w-[2rem] text-center font-semibold">{addonQty}</div>
-                    <button onClick={()=> setAddonQty(q=> q+1)} className="rounded bg-white border px-3 py-1 text-gray-700"><Plus className="h-4 w-4" /></button>
-                  </div>
-                )}
+                <div className="text-sm text-gray-800 font-semibold mb-2">加購選項</div>
+                <div className="space-y-2">
+                  {(product as any).addonConfig.items.map((it:any, idx:number) => (
+                    <div key={idx} className="flex items-center justify-between gap-2">
+                      <div className="text-sm text-gray-800 truncate">{it?.name || `加購項目 #${idx+1}`}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs text-gray-600">+NT$ {Number(it?.price||0).toLocaleString()}</div>
+                        <button onClick={()=> setAddonQuantities(prev=> ({...prev, [idx]: Math.max(0, (prev[idx]||0)-1)}))} className="rounded bg-white border px-2 py-1 text-gray-700"><Minus className="h-4 w-4" /></button>
+                        <div className="min-w-[2rem] text-center font-semibold">{addonQuantities[idx]||0}</div>
+                        <button onClick={()=> setAddonQuantities(prev=> ({...prev, [idx]: (prev[idx]||0)+1}))} className="rounded bg-white border px-2 py-1 text-gray-700"><Plus className="h-4 w-4" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
