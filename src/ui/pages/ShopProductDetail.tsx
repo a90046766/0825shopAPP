@@ -271,6 +271,15 @@ export default function ShopProductDetailPage() {
                         ))}
                       </div>
                     )}
+                    {/* 燈箱 */}
+                    {lightboxOpen && (
+                      <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center" onClick={()=> setLightboxOpen(false)}>
+                        <button className="absolute left-3 md:left-6 text-white text-2xl" onClick={(e)=>{ e.stopPropagation(); setLightboxIdx(i=> Math.max(0, i-1)) }}>‹</button>
+                        <img src={combined[lightboxIdx]||main} alt="preview" className="max-w-[95vw] max-height-[85vh] object-contain" />
+                        <button className="absolute right-3 md:right-6 text-white text-2xl" onClick={(e)=>{ e.stopPropagation(); setLightboxIdx(i=> Math.min(combined.length-1, i+1)) }}>›</button>
+                        <button className="absolute top-3 right-3 text-white text-xl" onClick={(e)=>{ e.stopPropagation(); setLightboxOpen(false) }}>✕</button>
+                      </div>
+                    )}
                   </>
                 )
               })()}
