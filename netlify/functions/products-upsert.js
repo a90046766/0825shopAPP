@@ -20,7 +20,8 @@ exports.handler = async (event) => {
     const payload = JSON.parse(event.body || '{}')
     const allowed = [
       'id','name','unit_price','group_price','group_min_qty','description','detail_html','content',
-      'features','image_urls','head_images','category','mode_code','published','show_ac_advisor','updated_at'
+      'features','image_urls','head_images','category','mode_code','published','show_ac_advisor','updated_at',
+      'addon_config'
     ]
     const row = {}
     for (const k of allowed) if (k in payload) row[k] = payload[k]
@@ -31,10 +32,12 @@ exports.handler = async (event) => {
     if (error) {
       const msg = String(error.message||'').toLowerCase()
       const code = String(error.code||'')
-      const schemaIssue = code === '42703' || msg.includes('head_images') || msg.includes('column')
+      const schemaIssue = code === '42703' || msg.includes('column') || msg.includes('head_images') || msg.includes('addon_config') || msg.includes('detail_html')
       if (schemaIssue) {
         const fallback = { ...row }
         delete fallback.head_images
+        delete fallback.addon_config
+        delete fallback.detail_html
         const r2 = await supabase.from('products').upsert(fallback, { onConflict: 'id' }).select('id').single()
         if (r2.error) throw r2.error
         data = r2.data

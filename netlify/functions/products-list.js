@@ -23,7 +23,7 @@ exports.handler = async (event) => {
     {
       let q = supabase
         .from('products')
-        .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,head_images,category,mode_code,published,store_sort,updated_at')
+        .select('id,name,unit_price,group_price,group_min_qty,description,features,image_urls,head_images,category,mode_code,published,store_sort,updated_at,addon_config')
         .order('store_sort', { ascending: true })
         .order('updated_at', { ascending: false })
       if (publishedOnly) q = q.eq('published', true)
@@ -55,6 +55,7 @@ exports.handler = async (event) => {
       headImages: Array.isArray(r.head_images) ? r.head_images : [],
       published: !!r.published,
       updatedAt: r.updated_at || null,
+      addonConfig: r.addon_config || null,
     }))
 
     return {

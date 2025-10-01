@@ -41,10 +41,17 @@ export default function ShopProductDetailPage() {
   const [related, setRelated] = useState<any[]>([])
   const [activeIdx, setActiveIdx] = useState<number>(0)
   const [cart, setCart] = useState<any[]>(getLocalCart())
+  const [addonOn, setAddonOn] = useState<boolean>(false)
+  const [addonQty, setAddonQty] = useState<number>(0)
   const user = getCurrentUser()
   const isEditor = user?.role === 'admin' || user?.role === 'support'
 
   useEffect(() => { setLocalCart(cart) }, [cart])
+  useEffect(() => {
+    // 切換商品時，重置加購狀態
+    setAddonOn(!!(product as any)?.addonConfig?.enabled)
+    setAddonQty(0)
+  }, [product?.id])
 
   useEffect(() => {
     const seed = {
@@ -71,7 +78,7 @@ export default function ShopProductDetailPage() {
         // 直接查 DB
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,addon_config')
           .eq('id', id)
         if (!isEditor) q = q.eq('published', true)
         let { data, error } = await q.maybeSingle()
@@ -101,7 +108,8 @@ export default function ShopProductDetailPage() {
           image: Array.isArray(data.image_urls) && data.image_urls[0] ? data.image_urls[0] : '',
           images: Array.isArray(data.image_urls) ? data.image_urls : [],
           headImages: Array.isArray((data as any).head_images) ? (data as any).head_images : (Array.isArray((data as any).headImages) ? (data as any).headImages : []),
-          published: !!data.published
+          published: !!data.published,
+          addonConfig: (data as any).addon_config || null
         }
         if (!isEditor && mapped.published === false) {
           setError('商品未上架或不存在')
@@ -155,15 +163,32 @@ export default function ShopProductDetailPage() {
 
   const addToCart = () => {
     if (!product) return
-    const exists = cart.find(i => i.id === product.id)
-    if (exists) {
-      // 類別規則沿用列表頁
-      const maxByCategory = product.category === 'new' ? 2 : Infinity
-      if (exists.quantity >= maxByCategory) return
-      setCart(cart.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i))
-    } else {
-      setCart([{ ...product, quantity: 1 }, ...cart])
-    }
+    const addonData = (product as any).addonConfig
+    const shouldAddAddon = !!addonOn && addonQty > 0 && addonData && Number(addonData.price) > 0
+    setCart(prev => {
+      let next = [...prev]
+      const idx = next.findIndex(i => i.id === product.id)
+      if (idx >= 0) {
+        const category = product.category
+        const maxByCategory = category === 'new' ? 2 : Infinity
+        const cur = next[idx]
+        if (cur.quantity < maxByCategory) {
+          next[idx] = { ...cur, quantity: cur.quantity + 1 }
+        }
+      } else {
+        next = [{ ...product, quantity: 1 }, ...next]
+      }
+      if (shouldAddAddon) {
+        const addonId = `addon:${product.id}`
+        const j = next.findIndex(i => i.id === addonId)
+        if (j >= 0) {
+          next[j] = { ...next[j], quantity: (next[j].quantity || 0) + addonQty }
+        } else {
+          next.unshift({ id: addonId, name: `加購 - ${addonData.name}`, price: Number(addonData.price), category: 'addon', quantity: addonQty })
+        }
+      }
+      return next
+    })
   }
 
   const decFromCart = () => {
@@ -260,6 +285,23 @@ export default function ShopProductDetailPage() {
                   </div>
                 </div>
               )}
+
+            {/* 加購區塊 */}
+            {!!(product as any)?.addonConfig?.enabled && Number((product as any).addonConfig?.price) > 0 && (
+              <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50/50 p-3">
+                <label className="flex items-center gap-2 text-sm text-gray-800">
+                  <input type="checkbox" checked={addonOn} onChange={(e)=> { const on = e.target.checked; setAddonOn(on); if (on && addonQty===0) setAddonQty(1); if (!on) setAddonQty(0) }} />
+                  <span>加購：{(product as any).addonConfig?.name} +NT$ {Number((product as any).addonConfig?.price||0).toLocaleString()}</span>
+                </label>
+                {addonOn && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <button onClick={()=> setAddonQty(q=> Math.max(0, q-1))} className="rounded bg-white border px-3 py-1 text-gray-700"><Minus className="h-4 w-4" /></button>
+                    <div className="min-w-[2rem] text-center font-semibold">{addonQty}</div>
+                    <button onClick={()=> setAddonQty(q=> q+1)} className="rounded bg-white border px-3 py-1 text-gray-700"><Plus className="h-4 w-4" /></button>
+                  </div>
+                )}
+              </div>
+            )}
 
               <div className="flex items-center gap-3">
                 <button onClick={decFromCart} className="rounded bg-gray-100 px-3 py-2 text-gray-700"><Minus className="h-4 w-4" /></button>

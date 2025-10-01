@@ -158,7 +158,8 @@ export default function ShopProductsPage() {
         images: Array.isArray(r.image_urls) ? r.image_urls : (Array.isArray(r.images) ? r.images : []),
       headImages: Array.isArray((r as any).head_images) ? (r as any).head_images : (Array.isArray((r as any).headImages) ? (r as any).headImages : []),
         published: r.published !== undefined ? !!r.published : true,
-        showAcAdvisor: (typeof r.show_ac_advisor === 'boolean') ? r.show_ac_advisor : true
+        showAcAdvisor: (typeof r.show_ac_advisor === 'boolean') ? r.show_ac_advisor : true,
+        addonConfig: (r as any).addon_config || (r as any).addonConfig || null
       }))
     }
 
@@ -186,7 +187,7 @@ export default function ShopProductsPage() {
         // 方案 A：直接查 Supabase（完整欄位 + 排序，若資料表完整）
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,store_sort,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,store_sort,updated_at,show_ac_advisor,addon_config')
           .order('store_sort', { ascending: true })
           .order('updated_at', { ascending: false })
         if (!(isEditor && editMode)) {
@@ -197,7 +198,7 @@ export default function ShopProductsPage() {
           // 方案 B：移除可能不存在欄位（如 store_sort）
           let q2 = supabase
             .from('products')
-            .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
+            .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor,addon_config')
             .order('updated_at', { ascending: false })
           if (!(isEditor && editMode)) q2 = q2.eq('published', true)
           const r2 = await q2
@@ -245,12 +246,12 @@ export default function ShopProductsPage() {
     try {
         let q = supabase
         .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor,addon_config')
         .order('updated_at', { ascending: false })
       if (!(isEditor && editMode)) q = q.eq('published', true)
       let { data, error } = await q
       if (error) {
-        // 欄位不存在（42703）或其他欄位不相容 → 回退查詢，移除 detail_html
+        // 欄位不存在（42703）或其他欄位不相容 → 回退查詢，移除 detail_html / addon_config
         let q2 = supabase
           .from('products')
           .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
@@ -274,7 +275,8 @@ export default function ShopProductsPage() {
         image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : (r.image || ''),
         images: Array.isArray(r.image_urls) ? r.image_urls : [],
         headImages: Array.isArray(r.head_images) ? r.head_images : (Array.isArray((r as any).headImages) ? (r as any).headImages : []),
-        published: !!r.published
+        published: !!r.published,
+        addonConfig: (r as any).addon_config || (r as any).addonConfig || null
       }))
       if (mapped.length === 0) setFallbackNotice('目前顯示預設商品（暫無上架商品）')
       setAllProducts(mapped)
@@ -299,7 +301,8 @@ export default function ShopProductsPage() {
       image: '',
       images: [],
       published: true,
-      showAcAdvisor: (selectedCategory || 'cleaning') === 'new'
+      showAcAdvisor: (selectedCategory || 'cleaning') === 'new',
+      addonConfig: null
     })
   }
 
@@ -385,7 +388,8 @@ export default function ShopProductsPage() {
         mode_code: edit.category,
         published: !!edit.published,
         show_ac_advisor: edit.category==='new' ? !!edit.showAcAdvisor : null,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        addon_config: (edit as any).addonConfig ?? null
       }
       if (rpcOk) { delete row.detail_html; delete row.content }
       // 避免將 null 寫入不可為空或不存在的欄位
@@ -424,9 +428,10 @@ export default function ShopProductsPage() {
             // 若為欄位不存在（42703），回退為不含 detail_html 的寫入
             const msg = (upErr as any)?.message || ''
             const code = (upErr as any)?.code || ''
-            if (code === '42703' || /detail_html/i.test(msg)) {
+            if (code === '42703' || /detail_html|addon_config/i.test(msg)) {
               const rowLegacy: any = { ...row }
               delete rowLegacy.detail_html
+              delete rowLegacy.addon_config
               const { data: upRows2, error: upErr2 } = await supabase
                 .from('products')
                 .update(rowLegacy)
@@ -460,9 +465,10 @@ export default function ShopProductsPage() {
           if (insErr) {
             const msg = (insErr as any)?.message || ''
             const code = (insErr as any)?.code || ''
-            if (code === '42703' || /detail_html/i.test(msg)) {
+            if (code === '42703' || /detail_html|addon_config/i.test(msg)) {
               const rowLegacy: any = { ...row }
               delete rowLegacy.detail_html
+              delete rowLegacy.addon_config
               const { error: insErr2 } = await supabase
                 .from('products')
                 .insert([{ ...rowLegacy }])
@@ -1106,6 +1112,21 @@ export default function ShopProductsPage() {
                 <span className="text-gray-600">內容（可貼圖/HTML，支援圖片URL與貼上Base64）</span>
                 <textarea rows={4} className="rounded border px-2 py-1 font-mono text-xs" placeholder="可貼入 <img src='...'> 或整段HTML" value={edit.content||''} onChange={e=> setEdit({...edit, content: e.target.value})} style={{ height: 'auto' }} onInput={(e)=>{ const el=e.currentTarget; el.style.height='auto'; el.style.height = Math.min(800, Math.max(100, el.scrollHeight))+'px' }} />
               </label>
+              {/* 加購設定 */}
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={!!(edit.addonConfig?.enabled)} onChange={e=> setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{}), enabled: e.target.checked } })} />
+                  <span className="text-gray-700">啟用加購</span>
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-gray-600">加購品項名稱</span>
+                  <input className="rounded border px-2 py-1" placeholder="例如：加購風鼓" value={edit.addonConfig?.name || ''} onChange={e=> setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{}), name: e.target.value } })} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-gray-600">加購單價</span>
+                  <input type="number" min={0} className="rounded border px-2 py-1" placeholder="例如：800" value={edit.addonConfig?.price ?? ''} onChange={e=> setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{}), price: e.target.value===''? undefined : Number(e.target.value) } })} />
+                </label>
+              </div>
               {/* 頭圖列（內容上方） */}
               <div className="md:col-span-2">
                 <div className="text-gray-600 mb-1">內容上方圖片（建議寬度≤1600px）</div>
