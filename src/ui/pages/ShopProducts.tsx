@@ -302,7 +302,7 @@ export default function ShopProductsPage() {
       images: [],
       published: true,
       showAcAdvisor: (selectedCategory || 'cleaning') === 'new',
-      addonConfig: null
+      addonConfig: { enabled: false, items: [] }
     })
   }
 
@@ -1112,20 +1112,39 @@ export default function ShopProductsPage() {
                 <span className="text-gray-600">內容（可貼圖/HTML，支援圖片URL與貼上Base64）</span>
                 <textarea rows={4} className="rounded border px-2 py-1 font-mono text-xs" placeholder="可貼入 <img src='...'> 或整段HTML" value={edit.content||''} onChange={e=> setEdit({...edit, content: e.target.value})} style={{ height: 'auto' }} onInput={(e)=>{ const el=e.currentTarget; el.style.height='auto'; el.style.height = Math.min(800, Math.max(100, el.scrollHeight))+'px' }} />
               </label>
-              {/* 加購設定 */}
-              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-2">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={!!(edit.addonConfig?.enabled)} onChange={e=> setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{}), enabled: e.target.checked } })} />
+              {/* 加購設定（最多 3 個項目） */}
+              <div className="md:col-span-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <input type="checkbox" checked={!!(edit.addonConfig?.enabled)} onChange={e=> setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{ items: [] }), enabled: e.target.checked } })} />
                   <span className="text-gray-700">啟用加購</span>
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className="text-gray-600">加購品項名稱</span>
-                  <input className="rounded border px-2 py-1" placeholder="例如：加購風鼓" value={edit.addonConfig?.name || ''} onChange={e=> setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{}), name: e.target.value } })} />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className="text-gray-600">加購單價</span>
-                  <input type="number" min={0} className="rounded border px-2 py-1" placeholder="例如：800" value={edit.addonConfig?.price ?? ''} onChange={e=> setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{}), price: e.target.value===''? undefined : Number(e.target.value) } })} />
-                </label>
+                </div>
+                {Array.isArray(edit.addonConfig?.items) && edit.addonConfig?.items.map((it:any, idx:number)=> (
+                  <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-gray-600">加購品項名稱 #{idx+1}</span>
+                      <input className="rounded border px-2 py-1" placeholder="例如：加購風鼓" value={it?.name || ''} onChange={e=> {
+                        const items = [...(edit.addonConfig?.items||[])]
+                        items[idx] = { ...(items[idx]||{}), name: e.target.value }
+                        setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{ enabled: false }), items } })
+                      }} />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-gray-600">加購單價 #{idx+1}</span>
+                      <input type="number" min={0} className="rounded border px-2 py-1" placeholder="例如：800" value={it?.price ?? ''} onChange={e=> {
+                        const items = [...(edit.addonConfig?.items||[])]
+                        items[idx] = { ...(items[idx]||{}), price: e.target.value===''? undefined : Number(e.target.value) }
+                        setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{ enabled: false }), items } })
+                      }} />
+                    </label>
+                    <div className="flex items-end">
+                      <button className="rounded bg-red-50 text-red-600 px-3 py-1 text-xs" onClick={(e)=> { e.preventDefault(); const items = (edit.addonConfig?.items||[]).filter((_:any, i:number)=> i!==idx); setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{ enabled:false }), items } }) }}>刪除</button>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <button className="rounded bg-gray-800 text-white px-3 py-1 text-xs disabled:opacity-40" disabled={!(edit.addonConfig?.enabled) || (edit.addonConfig?.items?.length||0) >= 3} onClick={(e)=> { e.preventDefault(); const items = [...(edit.addonConfig?.items||[])]; items.push({ name: '', price: 0 }); setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{ enabled: true }), items } }) }}>新增加購項目</button>
+                  <span className="text-xs text-gray-500">最多 3 項</span>
+                </div>
               </div>
               {/* 頭圖列（內容上方） */}
               <div className="md:col-span-2">
