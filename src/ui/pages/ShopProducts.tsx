@@ -866,8 +866,8 @@ export default function ShopProductsPage() {
                   onClick={()=> { addToHistory(product); navigate(`/store/products/${product.id}`) }}
                 >
                   {/* 產品圖片 */}
-                  <div className="h-40 md:h-48 bg-gray-100 relative cursor-pointer" onClick={()=> { addToHistory(product); navigate(`/store/products/${product.id}`) }}>
-                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                  <div className="h-40 md:h-48 bg-white relative cursor-pointer" onClick={()=> { addToHistory(product); navigate(`/store/products/${product.id}`) }}>
+                    <img src={product.image} alt={product.name} className="w-full h-full object-contain" />
                     {isEditor && editMode && (
                       <div className="absolute right-2 top-2 z-10 flex gap-1">
                         <button onClick={(e)=> { e.stopPropagation(); beginEdit(product) }} className="rounded bg-white/90 px-2 py-0.5 text-xs text-gray-800 hover:bg-white">編輯</button>

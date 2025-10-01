@@ -181,6 +181,16 @@ export default function ShopProductDetailPage() {
         next = [{ ...product, quantity: 1 }, ...next]
       }
       const config = (product as any).addonConfig
+      // 兼容舊版單一加購（name/price）
+      if (addonOn && Number((config||{}).price)>0 && (addonQty||0)>0) {
+        const addonIdSingle = `addon:${product.id}`
+        const k = next.findIndex(x => x.id === addonIdSingle)
+        if (k >= 0) {
+          next[k] = { ...next[k], quantity: (next[k].quantity || 0) + (addonQty||0) }
+        } else {
+          next.unshift({ id: addonIdSingle, name: `加購 - ${config.name||'項目'}`, price: Number(config.price), category: 'addon', quantity: (addonQty||0) })
+        }
+      }
       if (config && Array.isArray(config.items)) {
         config.items.forEach((it:any, i:number) => {
           const q = addonQuantities[i]||0
@@ -245,7 +255,7 @@ export default function ShopProductDetailPage() {
                 const main = combined[activeIdx] || combined[0]
                 return (
                   <>
-                    <div className="aspect-[4/3] bg-black rounded-2xl overflow-hidden shadow cursor-zoom-in" onClick={()=>{ setLightboxIdx(activeIdx); setLightboxOpen(true) }}>
+                    <div className="aspect-[4/3] bg-white rounded-2xl overflow-hidden shadow cursor-zoom-in" onClick={()=>{ setLightboxIdx(activeIdx); setLightboxOpen(true) }}>
                       {main ? (
                         <img src={main} alt={product.name} className="w-full h-full object-contain" />
                       ) : (
