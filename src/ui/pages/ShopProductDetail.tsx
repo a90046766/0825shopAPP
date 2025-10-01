@@ -287,7 +287,7 @@ export default function ShopProductDetailPage() {
               )}
 
             {/* 加購區塊 */}
-            {!!(product as any)?.addonConfig?.enabled && Number((product as any).addonConfig?.price) > 0 && (
+            {!!(product as any)?.addonConfig?.enabled && Number((product as any).addonConfig?.price) > 0 && !/四方吹/.test(product?.name||'') && (
               <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50/50 p-3">
                 <label className="flex items-center gap-2 text-sm text-gray-800">
                   <input type="checkbox" checked={addonOn} onChange={(e)=> { const on = e.target.checked; setAddonOn(on); if (on && addonQty===0) setAddonQty(1); if (!on) setAddonQty(0) }} />

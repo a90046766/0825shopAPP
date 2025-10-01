@@ -688,6 +688,7 @@ export default function ShopCartPage() {
                     {cart.map((item) => {
                       const product = allProducts.find(p => p.id === item.id)
                       const isGroupBuy = isGroupBuyEligible(item.id)
+                      const unitPrice = (typeof item.price === 'number' && !Number.isNaN(item.price)) ? item.price : (product?.price || 0)
                       return (
                         <div key={item.id} className="flex items-center gap-3 md:gap-4 p-3 md:p-4 bg-gray-50 rounded-lg">
                           <div className="flex-1">
@@ -698,7 +699,7 @@ export default function ShopCartPage() {
                                   團購價：NT$ {product?.groupPrice?.toLocaleString()} × {item.quantity}
                                 </span>
                               ) : (
-                                <span>NT$ {product?.price?.toLocaleString()} × {item.quantity}</span>
+                                <span>NT$ {unitPrice.toLocaleString()} × {item.quantity}</span>
                               )}
                             </div>
                             {!isGroupBuy && product?.groupMinQty ? (
