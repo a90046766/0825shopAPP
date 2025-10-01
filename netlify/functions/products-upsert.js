@@ -32,12 +32,13 @@ exports.handler = async (event) => {
     if (error) {
       const msg = String(error.message||'').toLowerCase()
       const code = String(error.code||'')
-      const schemaIssue = code === '42703' || msg.includes('column') || msg.includes('head_images') || msg.includes('addon_config') || msg.includes('detail_html')
+      const schemaIssue = code === '42703' || msg.includes('column') || msg.includes('head_images') || msg.includes('addon_config') || msg.includes('detail_html') || msg.includes('image_urls')
       if (schemaIssue) {
         const fallback = { ...row }
         delete fallback.head_images
         delete fallback.addon_config
         delete fallback.detail_html
+        delete fallback.image_urls
         const r2 = await supabase.from('products').upsert(fallback, { onConflict: 'id' }).select('id').single()
         if (r2.error) throw r2.error
         data = r2.data

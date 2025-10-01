@@ -428,10 +428,12 @@ export default function ShopProductsPage() {
             // 若為欄位不存在（42703），回退為不含 detail_html 的寫入
             const msg = (upErr as any)?.message || ''
             const code = (upErr as any)?.code || ''
-            if (code === '42703' || /detail_html|addon_config/i.test(msg)) {
+            if (code === '42703' || /detail_html|addon_config|image_urls|head_images/i.test(msg)) {
               const rowLegacy: any = { ...row }
               delete rowLegacy.detail_html
               delete rowLegacy.addon_config
+              delete rowLegacy.image_urls
+              delete rowLegacy.head_images
               const { data: upRows2, error: upErr2 } = await supabase
                 .from('products')
                 .update(rowLegacy)
@@ -465,10 +467,12 @@ export default function ShopProductsPage() {
           if (insErr) {
             const msg = (insErr as any)?.message || ''
             const code = (insErr as any)?.code || ''
-            if (code === '42703' || /detail_html|addon_config/i.test(msg)) {
+            if (code === '42703' || /detail_html|addon_config|image_urls|head_images/i.test(msg)) {
               const rowLegacy: any = { ...row }
               delete rowLegacy.detail_html
               delete rowLegacy.addon_config
+              delete rowLegacy.image_urls
+              delete rowLegacy.head_images
               const { error: insErr2 } = await supabase
                 .from('products')
                 .insert([{ ...rowLegacy }])
