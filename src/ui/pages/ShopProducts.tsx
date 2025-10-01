@@ -382,7 +382,10 @@ export default function ShopProductsPage() {
         // 舊欄位仍同步寫入一次，確保相容（後續可移除）
         content: contentToSave,
         features: Array.isArray(edit.features) ? edit.features : String(edit.features||'').split(',').map((s:string)=>s.trim()).filter(Boolean),
-        image_urls: Array.isArray(edit.images) && edit.images.length>0 ? edit.images : (edit.image ? [edit.image] : []),
+        image_urls: (edit.image && String(edit.image).trim()!==''
+          ? [String(edit.image).trim()]
+          : (Array.isArray(edit.images) ? edit.images : [])
+        ),
         head_images: Array.isArray((edit as any).headImages) ? (edit as any).headImages : [],
         category: edit.category,
         mode_code: edit.category,
@@ -392,6 +395,20 @@ export default function ShopProductsPage() {
         addon_config: (edit as any).addonConfig ?? null
       }
       if (rpcOk) { delete row.detail_html; delete row.content }
+      // 嘗試以 RPC 更新媒體與加購欄位，避免 RLS 阻擋
+      let mediaRpcOk = false
+      if (edit.id) {
+        try {
+          const { data: ok2, error: rpcErr2 } = await supabase.rpc('update_product_media', {
+            p_id: edit.id,
+            p_image_urls: row.image_urls ?? null,
+            p_head_images: row.head_images ?? null,
+            p_addon: row.addon_config ?? null
+          })
+          if (!rpcErr2 && ok2 === true) mediaRpcOk = true
+        } catch {}
+      }
+      if (mediaRpcOk) { delete row.image_urls; delete row.head_images; delete row.addon_config }
       // 避免將 null 寫入不可為空或不存在的欄位
       if (row.show_ac_advisor === null) delete row.show_ac_advisor
       // 優先嘗試 Functions（Service Role），失敗則直接寫入 Supabase

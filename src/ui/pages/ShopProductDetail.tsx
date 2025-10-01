@@ -78,7 +78,7 @@ export default function ShopProductDetailPage() {
         // 直接查 DB
         let q = supabase
           .from('products')
-          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,category,mode_code,published,addon_config')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,addon_config')
           .eq('id', id)
         if (!isEditor) q = q.eq('published', true)
         let { data, error } = await q.maybeSingle()
@@ -105,8 +105,8 @@ export default function ShopProductDetailPage() {
           groupMinQty: data.group_min_qty ?? null,
           category: data.mode_code ?? data.category ?? 'cleaning',
           features: Array.isArray(data.features) ? data.features : [],
-          image: Array.isArray(data.image_urls) && data.image_urls[0] ? data.image_urls[0] : '',
-          images: Array.isArray(data.image_urls) ? data.image_urls : [],
+          image: Array.isArray(data.image_urls) && data.image_urls[0] ? data.image_urls[0] : (Array.isArray((data as any).image) ? (data as any).image[0] : ((data as any).image || '')),
+          images: Array.isArray(data.image_urls) ? data.image_urls : (Array.isArray((data as any).images) ? (data as any).images : []),
           headImages: Array.isArray((data as any).head_images) ? (data as any).head_images : (Array.isArray((data as any).headImages) ? (data as any).headImages : []),
           published: !!data.published,
           addonConfig: (data as any).addon_config || null
