@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
   ShoppingCart, 
@@ -311,7 +311,7 @@ export default function ShopCartPage() {
   }
 
   // 計算商品總價（套用跨品項清洗團購）
-  const getTotalPrice = () => {
+  const totalPriceMemo = useMemo(() => {
     const ctx = getCleaningGroupContext()
     return cart.reduce((sum, item) => {
       const fallback = allProducts.find(p => p.id === item.id) as any
@@ -323,21 +323,29 @@ export default function ShopCartPage() {
       }
       return sum + price * item.quantity
     }, 0)
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(cart)])
+
+  const getTotalPrice = () => totalPriceMemo
 
   // 計算團購前原價總計（不套用團購價）
-  const getGroupBuyPrice = () => {
+  const groupBuyPriceMemo = useMemo(() => {
     return cart.reduce((sum, item) => {
       const fallback = allProducts.find(p => p.id === item.id) as any
       const price = (typeof item.price === 'number' && !Number.isNaN(item.price)) ? item.price : (fallback?.price || 0)
       return sum + price * item.quantity
     }, 0)
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(cart)])
+
+  const getGroupBuyPrice = () => groupBuyPriceMemo
 
   // 計算團購優惠金額
-  const getGroupBuySavings = () => {
-    return getGroupBuyPrice() - getTotalPrice()
-  }
+  const groupBuySavingsMemo = useMemo(() => {
+    return groupBuyPriceMemo - totalPriceMemo
+  }, [groupBuyPriceMemo, totalPriceMemo])
+
+  const getGroupBuySavings = () => groupBuySavingsMemo
 
   // 檢查是否適用團購價（跨品項：清洗類別、開啟時所有清洗品項皆適用）
   const isGroupBuyEligible = (productId: string) => {

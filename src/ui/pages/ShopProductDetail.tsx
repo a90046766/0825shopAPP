@@ -285,7 +285,7 @@ export default function ShopProductDetailPage() {
               })()}
             </div>
 
-            {/* 資訊區 */}
+            {/* 資訊區 + 迷你購物車 */}
             <div className="lg:col-span-6">
               <div className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{product.name}</div>
               <div className="text-gray-600 mb-4 leading-relaxed">{product.description}</div>
@@ -332,6 +332,32 @@ export default function ShopProductDetailPage() {
                   <ShoppingCart className="h-4 w-4" /> 加入購物車
                 </button>
                 <Link to="/store/cart" className="rounded bg-gray-900 px-4 py-2 text-white">前往結帳</Link>
+              </div>
+
+              {/* 迷你購物車總覽（即時計價） */}
+              <div className="mt-6 rounded-2xl border bg-white p-4">
+                <div className="text-sm font-semibold text-gray-800 mb-2">購物車</div>
+                {cart.length === 0 ? (
+                  <div className="text-xs text-gray-500">目前購物車是空的</div>
+                ) : (
+                  <>
+                    <div className="max-h-40 overflow-auto space-y-2">
+                      {cart.map((it)=> (
+                        <div key={it.id} className="flex items-center justify-between text-xs text-gray-700">
+                          <div className="truncate pr-2">{it.name}</div>
+                          <div className="text-gray-600">NT$ {Number(it.price||0).toLocaleString()} × {it.quantity}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 border-t pt-2 text-sm flex items-center justify-between">
+                      <span className="text-gray-600">小計（未扣團購）</span>
+                      <span className="font-bold text-gray-900">NT$ {cart.reduce((s,it)=> s + Number(it.price||0)*(it.quantity||0), 0).toLocaleString()}</span>
+                    </div>
+                    <div className="text-right mt-2">
+                      <Link to="/store/cart" className="inline-block text-xs px-3 py-1 rounded bg-gray-900 text-white">前往結帳</Link>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
