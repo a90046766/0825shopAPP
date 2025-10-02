@@ -121,6 +121,16 @@ export default function OrderSuccessPage() {
             </div>
           </div>
 
+          {/* 回饋點數提示卡 */}
+          <div className="mt-6 rounded-xl border p-4 bg-indigo-50 border-indigo-200 text-indigo-900">
+            <div className="font-semibold mb-1">消費回饋點數說明</div>
+            <div className="text-sm leading-relaxed">
+              本筆訂單預估回饋點數：
+              <span className="font-bold"> {Math.floor(Number(order.finalPrice||0)/100).toLocaleString()} 點</span>。
+              點數會在本訂單「結案完成」後入點，將於下次服務時可折抵（$100=1點，1點折抵$1）。
+            </div>
+          </div>
+
           {isTransfer && (
             <div className="mt-8 rounded-xl border p-4 bg-amber-50 border-amber-200">
               <div className="flex items-center gap-2 text-amber-900 font-semibold mb-2">
