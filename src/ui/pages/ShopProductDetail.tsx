@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, ShoppingCart, Plus, Minus } from 'lucide-react'
+import { ArrowLeft, ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react'
 import { supabase } from '../../utils/supabase'
 
 function getLocalCart(): any[] {
@@ -209,6 +209,63 @@ export default function ShopProductDetailPage() {
     })
   }
 
+  // 迷你購物車內的數量調整/移除
+  const updateMiniCartQuantity = (productId: string, quantity: number) => {
+    setCart(prev => {
+      if (quantity <= 0) return prev.filter(i => i.id !== productId)
+      return prev.map(i => i.id === productId ? { ...i, quantity } : i)
+    })
+  }
+  const removeMiniCartItem = (productId: string) => {
+    setCart(prev => prev.filter(i => i.id !== productId))
+  }
+
+  // 加購僅加入（不加主商品）
+  const addAddonsOnly = () => {
+    if (!product) return
+    setCart(prev => {
+      let next = [...prev]
+      const config = (product as any).addonConfig
+      // 舊版單一加購
+      if (addonOn && Number((config||{}).price)>0 && (addonQty||0)>0) {
+        const addonIdSingle = `addon:${product.id}`
+        const k = next.findIndex(x => x.id === addonIdSingle)
+        if (k >= 0) next[k] = { ...next[k], quantity: (next[k].quantity||0) + (addonQty||0) }
+        else next.unshift({ id: addonIdSingle, name: `加購 - ${config.name||'項目'}`, price: Number(config.price), category: 'addon', quantity: (addonQty||0) })
+      }
+      // 新版多加購
+      if (config && Array.isArray(config.items)) {
+        config.items.forEach((it:any, i:number) => {
+          const q = addonQuantities[i]||0
+          if (q > 0 && Number(it?.price)>0) {
+            const addonId = `addon:${product.id}:${i}`
+            const j = next.findIndex(x => x.id === addonId)
+            if (j >= 0) next[j] = { ...next[j], quantity: (next[j].quantity||0) + q }
+            else next.unshift({ id: addonId, name: `加購 - ${it.name||('項目#'+(i+1))}`, price: Number(it.price), category: 'addon', quantity: q })
+          }
+        })
+      }
+      return next
+    })
+  }
+
+  // 本次已選加購預覽（尚未加入）
+  const selectedAddonPreview = useMemo(() => {
+    if (!product) return [] as Array<{ name: string; price: number; quantity: number }>
+    const res: Array<{ name: string; price: number; quantity: number }> = []
+    const config = (product as any).addonConfig
+    if (addonOn && Number((config||{}).price)>0 && (addonQty||0)>0) {
+      res.push({ name: config.name || '加購項目', price: Number(config.price||0), quantity: addonQty||0 })
+    }
+    if (config && Array.isArray(config.items)) {
+      config.items.forEach((it:any, i:number) => {
+        const q = addonQuantities[i]||0
+        if (q > 0 && Number(it?.price)>0) res.push({ name: it.name || `加購項目 #${i+1}`, price: Number(it.price||0), quantity: q })
+      })
+    }
+    return res
+  }, [product, addonOn, addonQty, addonQuantities])
+
   const decFromCart = () => {
     if (!product) return
     const exists = cart.find(i => i.id === product.id)
@@ -341,22 +398,48 @@ export default function ShopProductDetailPage() {
                   <div className="text-xs text-gray-500">目前購物車是空的</div>
                 ) : (
                   <>
-                    <div className="max-h-40 overflow-auto space-y-2">
-                      {cart.map((it)=> (
-                        <div key={it.id} className="flex items-center justify-between text-xs text-gray-700">
-                          <div className="truncate pr-2">{it.name}</div>
-                          <div className="text-gray-600">NT$ {Number(it.price||0).toLocaleString()} × {it.quantity}</div>
-                        </div>
-                      ))}
+                    <div className="max-h-44 overflow-auto space-y-2">
+                      {cart.map((it)=> {
+                        const canAdjust = true
+                        return (
+                          <div key={it.id} className="flex items-center justify-between gap-2 text-xs text-gray-700">
+                            <div className="truncate pr-2 flex-1">{it.name}</div>
+                            <div className="flex items-center gap-1">
+                              <button onClick={()=> updateMiniCartQuantity(it.id, (it.quantity||0)-1)} className="p-1 hover:bg-gray-100 rounded"><Minus className="h-3.5 w-3.5" /></button>
+                              <span className="w-8 text-center">{it.quantity}</span>
+                              <button onClick={()=> updateMiniCartQuantity(it.id, (it.quantity||0)+1)} className="p-1 hover:bg-gray-100 rounded"><Plus className="h-3.5 w-3.5" /></button>
+                              <button onClick={()=> removeMiniCartItem(it.id)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="h-3.5 w-3.5" /></button>
+                            </div>
+                            <div className="text-gray-600 min-w-[88px] text-right">NT$ {Number(it.price||0).toLocaleString()}</div>
+                          </div>
+                        )
+                      })}
                     </div>
-                    <div className="mt-3 border-t pt-2 text-sm flex items-center justify-between">
-                      <span className="text-gray-600">小計（未扣團購）</span>
-                      <span className="font-bold text-gray-900">NT$ {cart.reduce((s,it)=> s + Number(it.price||0)*(it.quantity||0), 0).toLocaleString()}</span>
+                    <div className="mt-3 border-t pt-2 text-sm space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">商品總計</span>
+                        <span className="font-bold text-gray-900">NT$ {cart.reduce((s,it)=> s + Number(it.price||0)*(it.quantity||0), 0).toLocaleString()}</span>
+                      </div>
                     </div>
                     <div className="text-right mt-2">
+                      <button onClick={addAddonsOnly} className="inline-block text-xs px-3 py-1 rounded bg-blue-600 text-white mr-2">加入加購</button>
                       <Link to="/store/cart" className="inline-block text-xs px-3 py-1 rounded bg-gray-900 text-white">前往結帳</Link>
                     </div>
                   </>
+                )}
+                {/* 即時預覽本次選擇的加購（尚未加入前） */}
+                {selectedAddonPreview.length>0 && (
+                  <div className="mt-3 rounded border border-blue-200 bg-blue-50 p-2">
+                    <div className="text-[11px] text-blue-800 mb-1">本次選擇的加購（尚未加入）</div>
+                    <div className="space-y-1">
+                      {selectedAddonPreview.map((a,i)=> (
+                        <div key={i} className="flex items-center justify-between text-[11px] text-blue-900">
+                          <span className="truncate pr-2">{a.name} × {a.quantity}</span>
+                          <span>NT$ {(Number(a.price||0)*Number(a.quantity||0)).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
