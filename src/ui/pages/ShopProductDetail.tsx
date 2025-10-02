@@ -420,6 +420,10 @@ export default function ShopProductDetailPage() {
                         <span className="text-gray-600">商品總計</span>
                         <span className="font-bold text-gray-900">NT$ {cart.reduce((s,it)=> s + Number(it.price||0)*(it.quantity||0), 0).toLocaleString()}</span>
                       </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600">預估回饋點數</span>
+                        <span className="text-gray-900">{Math.floor((cart.reduce((s,it)=> s + Number(it.price||0)*(it.quantity||0), 0))/100).toLocaleString()} 點（訂單結案後入點）</span>
+                      </div>
                     </div>
                     <div className="text-right mt-2">
                       <button onClick={addAddonsOnly} className="inline-block text-xs px-3 py-1 rounded bg-blue-600 text-white mr-2">加入加購</button>
