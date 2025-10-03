@@ -368,7 +368,23 @@ class SupabaseOrderRepo implements OrderRepo {
             p_payload: payload
           })
           if (rpcErr) throw rpcErr
-          if (rpcRow) return fromDbRow(rpcRow)
+          if (rpcRow) {
+            // RPC 可能未填完整欄位：補寫必要欄位並回讀
+            const created = fromDbRow(rpcRow)
+            const patch: Partial<Order> = {}
+            if ((!created.serviceItems || created.serviceItems.length===0) && Array.isArray(payload.serviceItems) && payload.serviceItems.length>0) {
+              (patch as any).serviceItems = payload.serviceItems
+            }
+            if ((!created.customerAddress || created.customerAddress.trim()==='') && payload.customerAddress) {
+              (patch as any).customerAddress = payload.customerAddress
+            }
+            if ((created.status as any) !== 'pending' && payload.status === 'pending') {
+              (patch as any).status = 'pending'
+            }
+            try { if (Object.keys(patch).length>0) await this.update(created.id, patch) } catch {}
+            try { const reread = await this.get(created.id); if (reread) return reread } catch {}
+            return created
+          }
         } catch (rpcError: any) {
           // RPC 不存在或失敗時，回退到舊流程（兩段式）
           console.warn('create_reservation_order RPC 不可用，回退兩段式建立：', rpcError?.message || rpcError)
@@ -381,13 +397,36 @@ class SupabaseOrderRepo implements OrderRepo {
       if ((draft as any).createdBy && !row['created_by']) row['created_by'] = (draft as any).createdBy
       row.id = generateUUID()
       
-      // 生成較簡潔的訂單編號：OD + YYMMDD + 隨機三碼
-      const now = new Date()
-      const yy = String(now.getFullYear()).slice(2)
-      const mm = String(now.getMonth() + 1).padStart(2, '0')
-      const dd = String(now.getDate()).padStart(2, '0')
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-      row.order_number = `OD${yy}${mm}${dd}${random}`
+      // 嘗試生成「OD + 連號」（取現有最大 OD 數字 + 1）。若失敗則退回時間隨機號。
+      async function generateNextSerial(): Promise<string> {
+        try {
+          const { data: latest } = await supabase
+            .from('orders')
+            .select('order_number, created_at')
+            .ilike('order_number', 'OD%')
+            .order('created_at', { ascending: false })
+            .limit(100)
+          let maxN = 11360
+          if (Array.isArray(latest)) {
+            for (const r of latest) {
+              const m = String(r.order_number||'').match(/^OD(\d+)$/)
+              if (m) {
+                const n = parseInt(m[1], 10)
+                if (!Number.isNaN(n)) maxN = Math.max(maxN, n)
+              }
+            }
+          }
+          return `OD${maxN + 1}`
+        } catch {
+          const now = new Date()
+          const yy = String(now.getFullYear()).slice(2)
+          const mm = String(now.getMonth() + 1).padStart(2, '0')
+          const dd = String(now.getDate()).padStart(2, '0')
+          const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+          return `OD${yy}${mm}${dd}${random}`
+        }
+      }
+      row.order_number = await generateNextSerial()
       
       // 檢查是否重複，如果重複則重新生成（maybeSingle 避免未命中即丟錯）
       let attempts = 0
@@ -398,12 +437,18 @@ class SupabaseOrderRepo implements OrderRepo {
           .eq('order_number', row.order_number)
           .maybeSingle()
         if (!existing) break
-        const _now = new Date()
-        const _yy = String(_now.getFullYear()).slice(2)
-        const _mm = String(_now.getMonth() + 1).padStart(2, '0')
-        const _dd = String(_now.getDate()).padStart(2, '0')
-        const newRandom = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-        row.order_number = `OD${_yy}${_mm}${_dd}${newRandom}`
+        // 若重複則再取下一個連號
+        const m = row.order_number.match(/^OD(\d+)$/)
+        if (m) {
+          row.order_number = `OD${(parseInt(m[1],10)||0)+1}`
+        } else {
+          const _now = new Date()
+          const _yy = String(_now.getFullYear()).slice(2)
+          const _mm = String(_now.getMonth() + 1).padStart(2, '0')
+          const _dd = String(_now.getDate()).padStart(2, '0')
+          const newRandom = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+          row.order_number = `OD${_yy}${_mm}${_dd}${newRandom}`
+        }
         attempts++
       }
 
