@@ -28,8 +28,8 @@ export default function OrderSuccessPage() {
         const o = await repos.orderRepo.get(orderId).catch(()=>null)
         if (!o) return
         // 正規化為成功頁顯示需要的欄位
-        const subTotal = Array.isArray(o.serviceItems) ? o.serviceItems.reduce((s:any,it:any)=> s + ((it.unitPrice||0)*(it.quantity||0)), 0) : 0
-        const finalPrice = Math.max(0, subTotal - (o.pointsDeductAmount||0))
+        const subTotal = Array.isArray(o.serviceItems) ? o.serviceItems.reduce((s:any,it:any)=> s + ((it.unitPrice||it.price||0)*(it.quantity||0)), 0) : 0
+        const finalPrice = Math.max(0, subTotal - (o.pointsDeductAmount||o.pointsUsed||0))
         const normalized = {
           id: o.id,
           paymentMethod: o.paymentMethod,

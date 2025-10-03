@@ -87,7 +87,7 @@ function fromDbRow(row: any): Order {
     try {
       const x = String(s||'').toLowerCase()
       if (!x) return 'draft'
-      if (['draft','pending'].includes(x)) return 'draft'
+      if (['draft','pending'].includes(x)) return 'pending'
       if (['confirm','confirmed'].includes(x)) return 'confirmed'
       if (['in_progress','inprogress','servicing','service'].includes(x)) return 'in_progress'
       if (['completed','complete','finished','finish','done'].includes(x)) return 'completed'
@@ -189,7 +189,7 @@ class SupabaseOrderRepo implements OrderRepo {
     }
     if (status && status!=='all') {
       if (status==='pending') {
-        query = query.eq('status','draft').not('customer_name','eq','').not('customer_phone','eq','')
+        query = query.in('status', ['pending','draft'] as any)
       } else if (status==='confirmed') {
         query = query.in('status', ['confirmed','in_progress'] as any)
       } else if (status==='completed') {
@@ -232,7 +232,7 @@ class SupabaseOrderRepo implements OrderRepo {
       return count || 0
     }
     const all = await get(x=>x)
-    const pending = await get(x=> x.eq('status','draft').not('customer_name','eq','').not('customer_phone','eq',''))
+    const pending = await get(x=> x.in('status', ['pending','draft'] as any))
     const confirmed = await get(x=> x.in('status', ['confirmed','in_progress'] as any))
     const completed = await get(x=> x.eq('status','completed'))
     const closed = await get(x=> x.eq('status','closed'))

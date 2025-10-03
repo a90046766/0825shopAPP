@@ -491,7 +491,7 @@ export default function ShopCartPage() {
           evening: { start: '18:00', end: '20:00' }
         }
         const tw = mapTime[customerInfo.preferredTime] || { start: undefined as any, end: undefined as any }
-        const serviceItems = cart.map((it:any)=> ({ name: it.name, quantity: it.quantity, unitPrice: it.price, category: it.category }))
+        const serviceItems = cart.map((it:any)=> ({ name: it.name, quantity: it.quantity, unitPrice: Number(it.price||0), category: it.category }))
         // 合法 UUID 的 memberId 才帶上，否則交由後端留空
         const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
         const memberId = (memberUser?.id && validUuid.test(memberUser.id)) ? memberUser.id : undefined
@@ -512,7 +512,7 @@ export default function ShopCartPage() {
           pointsUsed: pointsToUse,
           pointsDeductAmount: getPointsDiscount(),
           note: [noteCombined, `預估回饋點數：${getEstimatedPoints()}（訂單結案後入點）》`].filter(Boolean).join('\n') || undefined,
-          platform: '商城',
+          platform: '商',
           status: 'pending',
           serviceItems
         }
