@@ -306,10 +306,10 @@ class SupabaseOrderRepo implements OrderRepo {
         let query = supabase.from('orders').select(ORDER_COLUMNS_DETAIL)
         if (isValidUUID(id)) query = query.eq('id', id)
         else query = query.eq('order_number', id)
-        const { data, error } = await query.single()
-        if (!error) return fromDbRow(data)
-        if (error.code === 'PGRST116') return null
-        console.warn('Supabase order get error (detail), fallback to light:', error)
+        const { data, error } = await query.maybeSingle()
+        if (!error && data) return fromDbRow(data)
+        if (error && error.code === 'PGRST116') return null
+        if (error) console.warn('Supabase order get warn (detail maybeSingle), will try light:', error)
       }
 
       // 再嘗試輕量欄位（不含大欄位，降低 JSON 解析風險）
@@ -317,13 +317,18 @@ class SupabaseOrderRepo implements OrderRepo {
         let query = supabase.from('orders').select(ORDERS_COLUMNS)
         if (isValidUUID(id)) query = query.eq('id', id)
         else query = query.eq('order_number', id)
-        const { data, error } = await query.maybeSingle()
+        const { data, error, status } = await query.maybeSingle()
         if (!error && data) return fromDbRow(data)
-        if (error && error.code === 'PGRST116') return null
-        if (error) console.warn('Supabase order get error (light), fallback to minimal:', error)
+        if (status === 406) {
+          // 406 Not Acceptable（例如選取到複雜 JSON 型別導致）→ 改用最小欄位
+        } else if (error && error.code === 'PGRST116') {
+          return null
+        } else if (error) {
+          console.warn('Supabase order get light warn:', error)
+        }
       }
 
-      // 最後備援：最小欄位集合
+      // 最後備援：最小欄位集合（避免 406）
       {
         const MIN_COLS = 'id,order_number,customer_name,customer_phone,customer_email,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,status,created_at,updated_at,work_started_at,work_completed_at,service_finished_at'
         let query = supabase.from('orders').select(MIN_COLS)

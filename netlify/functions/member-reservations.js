@@ -135,7 +135,7 @@ exports.handler = async (event) => {
                 service_price: it.unitPrice,
                 customer_address: o.customer_address || '',
                 reservation_date: o.preferred_date || '',
-                reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
+                reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${String(o.preferred_time_start).slice(0,5)}-${String(o.preferred_time_end).slice(0,5)}` : (String(o.preferred_time_start||'').slice(0,5) || ''),
                 source: 'orders'
               })
             }
