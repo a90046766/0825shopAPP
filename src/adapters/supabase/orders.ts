@@ -397,36 +397,25 @@ class SupabaseOrderRepo implements OrderRepo {
       if ((draft as any).createdBy && !row['created_by']) row['created_by'] = (draft as any).createdBy
       row.id = generateUUID()
       
-      // 嘗試生成「OD + 連號」（取現有最大 OD 數字 + 1）。若失敗則退回時間隨機號。
-      async function generateNextSerial(): Promise<string> {
-        try {
-          const { data: latest } = await supabase
-            .from('orders')
-            .select('order_number, created_at')
-            .ilike('order_number', 'OD%')
-            .order('created_at', { ascending: false })
-            .limit(100)
-          let maxN = 11360
-          if (Array.isArray(latest)) {
-            for (const r of latest) {
-              const m = String(r.order_number||'').match(/^OD(\d+)$/)
-              if (m) {
-                const n = parseInt(m[1], 10)
-                if (!Number.isNaN(n)) maxN = Math.max(maxN, n)
-              }
-            }
+      // 不連號、不重覆：OD + 隨機5位數字；若碰撞多次自動切換前置英文（OD→OE→...→OZ）；最後退回時間碼
+      async function generateNonSequential(): Promise<string> {
+        const prefixes = ['OD','OE','OF','OG','OH','OI','OJ','OK','OL','OM','ON','OO','OP','OQ','OR','OS','OT','OU','OV','OW','OX','OY','OZ']
+        for (let p = 0; p < prefixes.length; p++) {
+          for (let attempt = 0; attempt < 10; attempt++) {
+            const code = Math.floor(10000 + Math.random() * 90000).toString()
+            const candidate = `${prefixes[p]}${code}`
+            const { data: existing } = await supabase
+              .from('orders')
+              .select('id')
+              .eq('order_number', candidate)
+              .maybeSingle()
+            if (!existing) return candidate
           }
-          return `OD${maxN + 1}`
-        } catch {
-          const now = new Date()
-          const yy = String(now.getFullYear()).slice(2)
-          const mm = String(now.getMonth() + 1).padStart(2, '0')
-          const dd = String(now.getDate()).padStart(2, '0')
-          const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-          return `OD${yy}${mm}${dd}${random}`
         }
+        const tail = Date.now().toString(36).toUpperCase().slice(-5)
+        return `OD${tail}`
       }
-      row.order_number = await generateNextSerial()
+      row.order_number = await generateNonSequential()
       
       // 檢查是否重複，如果重複則重新生成（maybeSingle 避免未命中即丟錯）
       let attempts = 0
@@ -437,18 +426,8 @@ class SupabaseOrderRepo implements OrderRepo {
           .eq('order_number', row.order_number)
           .maybeSingle()
         if (!existing) break
-        // 若重複則再取下一個連號
-        const m = row.order_number.match(/^OD(\d+)$/)
-        if (m) {
-          row.order_number = `OD${(parseInt(m[1],10)||0)+1}`
-        } else {
-          const _now = new Date()
-          const _yy = String(_now.getFullYear()).slice(2)
-          const _mm = String(_now.getMonth() + 1).padStart(2, '0')
-          const _dd = String(_now.getDate()).padStart(2, '0')
-          const newRandom = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-          row.order_number = `OD${_yy}${_mm}${_dd}${newRandom}`
-        }
+        // 重複則重新產生（不連號）
+        row.order_number = await generateNonSequential()
         attempts++
       }
 
