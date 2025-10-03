@@ -100,6 +100,12 @@ export default function OrderSuccessPage() {
           <div className="mt-6 grid grid-cols-1 gap-3">
             <Link to="/store/member/orders" className="w-full rounded-xl bg-gray-900 py-3 text-white hover:bg-gray-800 text-center">我的訂單</Link>
             <Link to="/store" className="w-full rounded-xl bg-gray-100 py-3 text-gray-800 hover:bg-gray-200 text-center">返回購物站</Link>
+            <a
+              href="https://line.me/R/ti/p/@942clean"
+              target="_blank"
+              rel="noreferrer"
+              className="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl bg-green-600 text-white hover:bg-green-700"
+            >加入官方 LINE</a>
           </div>
         </div>
       </div>
