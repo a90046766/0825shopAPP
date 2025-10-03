@@ -323,8 +323,8 @@ export default function PageOrderDetail() {
           <div>會員編號：<span className="text-gray-700">{memberCode||'—'}</span></div>
         </div>
       </div>
-      {/* 電子發票操作：僅管理員/客服、且訂單完成時顯示 */}
-      {isAdminOrSupport && order.status==='completed' && (
+      {/* 電子發票操作：僅管理員/客服、且訂單完成或結案時顯示 */}
+      {isAdminOrSupport && (order.status==='completed' || order.status==='closed') && (
         <div className="mt-3 flex items-center justify-between rounded-2xl bg-white p-4 shadow-card">
           <div className="text-sm text-gray-700">電子發票：{order.invoiceCode ? <span className="text-emerald-700">已開立（{order.invoiceCode}）</span> : <span className="text-rose-700">未開立</span>}</div>
           <div className="flex items-center gap-2">
@@ -424,7 +424,7 @@ export default function PageOrderDetail() {
               </div>
             </div>
           )}
-          {user?.role!=='technician' && <div className="mt-2 text-right"><button onClick={()=>setEditItems(e=>!e)} className="rounded bg-gray-100 px-2 py-1 text-xs">{editItems?'取消':'編輯項目'}</button></div>}
+          {user?.role!=='technician' && !isClosed && <div className="mt-2 text-right"><button onClick={()=>setEditItems(e=>!e)} className="rounded bg-gray-100 px-2 py-1 text-xs">{editItems?'取消':'編輯項目'}</button></div>}
 
           {/* 積分抵扣 */}
           <div className="space-y-2">
@@ -475,7 +475,7 @@ export default function PageOrderDetail() {
             <div className="mb-2 text-sm font-semibold">付款</div>
             <div className="grid grid-cols-2 gap-2">
               <div>付款方式：
-                <select className="rounded border px-2 py-1" value={payMethod} onChange={async e=>{ const v = e.target.value as any; setPayMethod(v); setTransferInputOpen(false); await repos.orderRepo.update(order.id, { paymentMethod: v }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
+                <select className="rounded border px-2 py-1" value={payMethod} disabled={isClosed || (payMethod==='cash' && payStatus==='paid')} onChange={async e=>{ const v = e.target.value as any; setPayMethod(v); setTransferInputOpen(false); await repos.orderRepo.update(order.id, { paymentMethod: v }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
                   <option value="">—</option>
                   <option value="cash">現金付款</option>
                   <option value="transfer">銀行轉帳</option>
@@ -484,7 +484,7 @@ export default function PageOrderDetail() {
                 </select>
               </div>
               <div>付款狀態：
-                <select className="rounded border px-2 py-1" value={payStatus} onChange={async e=>{ const v=e.target.value as any; setPayStatus(v); await repos.orderRepo.update(order.id, { paymentStatus: v }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
+                <select className="rounded border px-2 py-1" value={payStatus} disabled={isClosed || (payMethod==='cash' && payStatus==='paid')} onChange={async e=>{ const v=e.target.value as any; setPayStatus(v); await repos.orderRepo.update(order.id, { paymentStatus: v }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
                   <option value="">—</option>
                   <option value="unpaid">未收款</option>
                   <option value="pending">待確認</option>
@@ -589,6 +589,9 @@ export default function PageOrderDetail() {
                     if (v === 'closed' && !order.closedAt) {
                       patch.closedAt = new Date().toISOString()
                     }
+                    // 防呆：未開始不能直接完工/結案；未完工不能結案
+                    if (v==='completed' && order.status!=='in_progress') { alert('需先「開始服務」才可標記完工'); return }
+                    if (v==='closed' && order.status!=='completed') { alert('需先標記完工，並完成雙簽名、照片與付款，才可結案'); return }
                     await repos.orderRepo.update(order.id, patch)
                     const o = await repos.orderRepo.get(order.id)
                     setOrder(o)
@@ -606,9 +609,9 @@ export default function PageOrderDetail() {
           )}
           <div>服務日期：
             <div className="mt-1 grid grid-cols-3 gap-2">
-              <input type="date" className="rounded border px-2 py-1" value={dateEdit} disabled={isTechnician} onChange={e=>setDateEdit(e.target.value)} onBlur={async()=>{ if(isTechnician) return; await repos.orderRepo.update(order.id, { preferredDate: dateEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} />
-              <input type="time" className="rounded border px-2 py-1" value={startEdit} disabled={isTechnician} onChange={e=>setStartEdit(e.target.value)} onBlur={async()=>{ if(isTechnician) return; await repos.orderRepo.update(order.id, { preferredTimeStart: startEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} />
-              <input type="time" className="rounded border px-2 py-1" value={endEdit} disabled={isTechnician} onChange={e=>setEndEdit(e.target.value)} onBlur={async()=>{ if(isTechnician) return; await repos.orderRepo.update(order.id, { preferredTimeEnd: endEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} />
+              <input type="date" className="rounded border px-2 py-1" value={dateEdit} disabled={isTechnician || isClosed} onChange={e=>setDateEdit(e.target.value)} onBlur={async()=>{ if(isTechnician || isClosed) return; await repos.orderRepo.update(order.id, { preferredDate: dateEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} />
+              <input type="time" className="rounded border px-2 py-1" value={startEdit} disabled={isTechnician || isClosed} onChange={e=>setStartEdit(e.target.value)} onBlur={async()=>{ if(isTechnician || isClosed) return; await repos.orderRepo.update(order.id, { preferredTimeStart: startEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} />
+              <input type="time" className="rounded border px-2 py-1" value={endEdit} disabled={isTechnician || isClosed} onChange={e=>setEndEdit(e.target.value)} onBlur={async()=>{ if(isTechnician || isClosed) return; await repos.orderRepo.update(order.id, { preferredTimeEnd: endEdit }); const o=await repos.orderRepo.get(order.id); setOrder(o) }} />
             </div>
           </div>
           <div className="text-xs text-gray-700">
@@ -764,7 +767,7 @@ export default function PageOrderDetail() {
           <div className="rounded border p-2">
             <div className="text-xs text-gray-600">客戶簽名</div>
             <div className="mt-1 flex items-center gap-2">
-              <div className={`h-16 w-32 cursor-pointer rounded border ${hasCustomerSignature?'bg-white':'bg-gray-50'}`} onClick={()=>{ if(hasCustomerSignature) return; setSignAs('customer'); setPromiseOpen(true) }}>
+            <div className={`h-16 w-32 cursor-pointer rounded border ${hasCustomerSignature?'bg-white':'bg-gray-50'}`} onClick={()=>{ if(hasCustomerSignature) return; if(order.status!=='completed'){ alert('需於服務完成後由客戶簽名'); return } setSignAs('customer'); setPromiseOpen(true) }}>
                 {hasCustomerSignature && (order as any)?.signatures?.customer ? (
                   <img src={(order as any).signatures.customer} className="h-full w-full object-contain" />
                 ) : (
