@@ -69,6 +69,10 @@ export default function MemberOrderDetailPage() {
   const subTotal = Array.isArray(order.serviceItems) ? order.serviceItems.reduce((s:number,it:any)=> s + (it.unitPrice||0)*(it.quantity||0), 0) : (order.subTotal||0)
   const final = Math.max(0, subTotal - (order.pointsDeductAmount||0))
   const timeBand = (order.preferredTimeStart && order.preferredTimeEnd) ? `${order.preferredTimeStart}-${order.preferredTimeEnd}` : (order.preferredTimeStart||'')
+  const photos = {
+    before: Array.isArray(order.photosBefore) ? order.photosBefore : [],
+    after: Array.isArray(order.photosAfter) ? order.photosAfter : []
+  }
 
   const addToCartAgain = async () => {
     if (!order?.serviceItems || order.serviceItems.length===0) { alert('此訂單沒有可再次下單的品項'); return }
@@ -193,6 +197,38 @@ export default function MemberOrderDetailPage() {
           </div>
         )}
       </div>
+      {/* 技師上傳照片：客戶可查看 */}
+      {(photos.before.length>0 || photos.after.length>0) && (
+        <div className="mt-4">
+          <div className="font-medium text-gray-800 mb-1">服務照片</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {photos.before.length>0 && (
+              <div>
+                <div className="text-xs text-gray-500 mb-1">清洗前</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {photos.before.map((u:string,i:number)=> (
+                    <a key={i} href={u} target="_blank" rel="noreferrer" className="block rounded overflow-hidden border">
+                      <img src={u} alt="before" className="h-24 w-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+            {photos.after.length>0 && (
+              <div>
+                <div className="text-xs text-gray-500 mb-1">清洗後</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {photos.after.map((u:string,i:number)=> (
+                    <a key={i} href={u} target="_blank" rel="noreferrer" className="block rounded overflow-hidden border">
+                      <img src={u} alt="after" className="h-24 w-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 好評上傳視窗 */}
       {fbOpen==='good' && (
@@ -229,15 +265,11 @@ export default function MemberOrderDetailPage() {
                     const path = `${member.id}/${String(order.id)}/${Date.now()}.${ext}`
                     const { error: upErr } = await supabase.storage.from('review-uploads').upload(path, goodFile, { upsert: false, contentType: goodFile.type||'image/jpeg' })
                     if (upErr) throw upErr
-                    // 寫入回饋表
-                    const { error: insErr } = await supabase.from('member_feedback').insert({
-                      member_id: member.id,
-                      order_id: String(order.id),
-                      kind: 'good',
-                      comment: goodNote||null,
-                      asset_path: path,
-                    } as any)
-                    if (insErr) throw insErr
+                    // 改走後端 Function（Service Role 避免 RLS）
+                    await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ kind: 'good', comment: goodNote||null, asset_path: path })
+                    })
                     alert('已收到您的好評，謝謝！')
                     setFbOpen(''); setGoodFile(null); setGoodNote('')
                   } catch(e:any) {
@@ -276,15 +308,11 @@ export default function MemberOrderDetailPage() {
                       .eq('kind', 'suggest')
                       .limit(1)
                     if (Array.isArray(existed) && existed.length>0) { alert('已提交過建議，感謝您的回饋！'); setSubmitting(false); return }
-                    // 寫入回饋表
-                    const { error: insErr } = await supabase.from('member_feedback').insert({
-                      member_id: member.id,
-                      order_id: String(order.id),
-                      kind: 'suggest',
-                      comment: suggestText,
-                      asset_path: null,
-                    } as any)
-                    if (insErr) throw insErr
+                    // 改走後端 Function（Service Role 避免 RLS）
+                    await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ kind: 'suggest', comment: suggestText })
+                    })
                     alert('已收到您的建議，謝謝！')
                     setFbOpen(''); setSuggestText('')
                   } catch(e:any) {

@@ -24,24 +24,36 @@ exports.handler = async (event) => {
     const orderId = decodeURIComponent(parts[parts.length - 2] || '') // .../orders/:orderId/rating
     const customerId = decodeURIComponent(parts[parts.length - 4] || '') // .../member/:customerId/orders/...
 
-    const payload = {
-      member_id: customerId || body.memberId || null,
-      order_id: orderId || body.orderId || null,
-      stars: Number(body.stars || 5),
-      score: Number(body.score || 100),
-      comment: body.comment || '',
-      highlights: JSON.stringify(body.highlights || []),
-      issues: JSON.stringify(body.issues || []),
-      recommend: Boolean(body.recommend !== false),
-      photos: JSON.stringify(body.photos || body.images || []),
-      created_at: new Date().toISOString()
-    }
-
-    // 嘗試插入，失敗不丟出（回傳成功避免前端中斷），但帶錯誤訊息以便除錯
     let errorMsg = null
     try {
-      const { error } = await supabase.from('member_feedback').insert(payload)
-      if (error) errorMsg = error.message || String(error)
+      if (body && (body.kind === 'good' || body.kind === 'suggest')) {
+        // 好評/建議回饋：沿用現有表結構（避免 schema 變更）
+        const fb = {
+          member_id: customerId || body.memberId || null,
+          order_id: orderId || body.orderId || null,
+          kind: body.kind,
+          comment: body.comment || null,
+          asset_path: body.asset_path || null,
+          created_at: new Date().toISOString()
+        }
+        const { error } = await supabase.from('member_feedback').insert(fb)
+        if (error) errorMsg = error.message || String(error)
+      } else {
+        // 評分模式
+        const payload = {
+          member_id: customerId || body.memberId || null,
+          order_id: orderId || body.orderId || null,
+          stars: Number(body.stars || 5),
+          score: Number(body.score || 100),
+          comment: body.comment || '',
+          highlights: JSON.stringify(body.highlights || []),
+          issues: JSON.stringify(body.issues || []),
+          recommend: Boolean(body.recommend !== false),
+          created_at: new Date().toISOString()
+        }
+        const { error } = await supabase.from('member_feedback').insert(payload)
+        if (error) errorMsg = error.message || String(error)
+      }
     } catch (e) { errorMsg = String(e?.message || e) }
 
     return { statusCode: 200, body: JSON.stringify({ success: true, error: errorMsg }) }

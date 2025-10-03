@@ -323,6 +323,9 @@ export default function MemberOrdersPage() {
                 <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs md:text-sm text-blue-900/90">
                   <div>品項數量：<span className="font-semibold">{count}</span></div>
                   <div>預估金額：<span className="font-semibold">NT$ {amount.toLocaleString()}</span></div>
+                  {Array.isArray(o.assigned_technicians) && o.assigned_technicians.length>0 && (
+                    <div className="col-span-2 truncate">服務技師：<span className="font-semibold">{o.assigned_technicians.join('、')}</span></div>
+                  )}
                 </div>
                 <div className="mt-2 space-y-1 text-xs md:text-sm text-blue-900/80">
                   {(o.items||[]).slice(0,3).map((it:any,idx:number)=> (
