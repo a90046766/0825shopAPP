@@ -56,6 +56,20 @@ export default function MemberBell() {
           const map: Record<string, any> = {}
           for (const it of [...merged, ...mapped]) { map[it.id] = it }
           merged = Object.values(map)
+
+          // 讀取已讀紀錄，回填 is_read 狀態
+          try {
+            const ids = (merged||[]).map((it:any)=>it.id).filter(Boolean)
+            if (ids.length>0) {
+              const { data: reads } = await supabase
+                .from('notifications_read')
+                .select('notification_id')
+                .in('notification_id', ids)
+                .eq('user_email', emailLc)
+              const readSet = new Set((reads||[]).map((r:any)=>r.notification_id))
+              merged = (merged||[]).map((it:any)=> ({ ...it, is_read: readSet.has(it.id) || !!it.is_read }))
+            }
+          } catch {}
         }
       } catch {}
       setList(merged)
@@ -103,6 +117,11 @@ export default function MemberBell() {
   const readOne = async (id: string) => {
     if (!member) return
     try { await fetch(`/api/notifications/member/${member.id}/read/${id}`, { method: 'PUT' }) } catch {}
+    try {
+      const emailLc = (member.email||'').toLowerCase()
+      await supabase.from('notifications_read').upsert({ notification_id: id, user_email: emailLc, read_at: new Date().toISOString() })
+    } catch {}
+    try { setList(prev => prev.map(n => n.id===id ? { ...n, is_read: true } : n)) } catch {}
   }
 
   return (
@@ -113,12 +132,17 @@ export default function MemberBell() {
         {unread>0 && <span className="ml-2 rounded bg-red-600 text-white text-xs px-1.5">{unread}</span>}
       </button>
       {open && (
-        <div className="fixed right-2 top-14 w-[28rem] max-w-[90vw] max-h-[calc(100vh-120px)] overflow-auto rounded-xl border bg-white shadow-2xl z-[9999]">
-          <div className="flex items-center justify-between p-2 border-b">
-            <div className="text-sm font-medium">通知</div>
-            <button onClick={readAll} className="text-xs text-blue-600 flex items-center gap-1"><Check className="h-3 w-3"/> 全部已讀</button>
-          </div>
-          <div className="divide-y">
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={()=>setOpen(false)} />
+          <div className="fixed right-2 top-14 w-[28rem] max-w-[90vw] max-h-[calc(100vh-120px)] overflow-auto rounded-xl border bg-white shadow-2xl z-[9999]">
+            <div className="flex items-center justify-between p-2 border-b">
+              <div className="text-sm font-medium">通知</div>
+              <div className="flex items-center gap-2">
+                <button onClick={readAll} className="text-xs text-blue-600 flex items-center gap-1"><Check className="h-3 w-3"/> 全部已讀</button>
+                <button onClick={()=>setOpen(false)} className="text-xs text-gray-500 hover:text-gray-700">關閉</button>
+              </div>
+            </div>
+            <div className="divide-y">
             {loading && <div className="p-3 text-sm text-gray-500">載入中...</div>}
             {!loading && list.length===0 && <div className="p-3 text-sm text-gray-500">目前沒有通知</div>}
             {list.map(n => {
@@ -157,8 +181,9 @@ export default function MemberBell() {
                 <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString('zh-TW')}</div>
               </div>
             )})}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
