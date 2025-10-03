@@ -43,7 +43,7 @@ exports.handler = async (event) => {
     const { data, error } = await query
     if (error) throw error
 
-    const rows = []
+    let rows = []
     for (const o of (data || [])) {
       const items = Array.isArray(o.service_items) ? o.service_items : []
       for (const it of items) {
@@ -56,8 +56,41 @@ exports.handler = async (event) => {
           customer_address: o.customer_address || '',
           reservation_date: o.preferred_date || '',
           reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
+          source: 'orders'
         })
       }
+    }
+
+    // 備援：若 orders 無資料，改從 relay_reservations 撈近 7 天（以 email 比對）
+    if (rows.length === 0 && emailLc) {
+      try {
+        const seven = new Date(Date.now() - 7*24*60*60*1000).toISOString()
+        const { data: relays } = await supabase
+          .from('relay_reservations')
+          .select('customer_email, customer_address, preferred_date, preferred_time, items_json, created_at, id')
+          .gte('created_at', seven)
+          .order('created_at', { ascending: false })
+        if (Array.isArray(relays)) {
+          for (const r of relays) {
+            if (String(r.customer_email||'').toLowerCase() !== emailLc) continue
+            let items = []
+            try { items = JSON.parse(r.items_json||'[]') } catch {}
+            for (const it of (items||[])) {
+              rows.push({
+                reservation_number: String(r.id),
+                status: 'pending',
+                service_name: it.name,
+                quantity: it.quantity,
+                service_price: it.price || it.unitPrice,
+                customer_address: r.customer_address || '',
+                reservation_date: r.preferred_date || '',
+                reservation_time: r.preferred_time || '',
+                source: 'relay'
+              })
+            }
+          }
+        }
+      } catch {}
     }
 
     return { statusCode: 200, body: JSON.stringify({ success: true, data: rows }) }
