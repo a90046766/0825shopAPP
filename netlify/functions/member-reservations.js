@@ -23,11 +23,11 @@ exports.handler = async (event) => {
 
     const supabase = createClient(url, key)
 
-    // 讀取 pending 的預約訂單（對應會員）
+    // 讀取 pending/draft 的預約訂單（對應會員）
     let query = supabase
       .from('orders')
       .select('id, order_number, customer_id, customer_email, customer_address, preferred_date, preferred_time_start, preferred_time_end, status, service_items, created_at')
-      .eq('status', 'pending')
+      .in('status', ['pending','draft'])
       .order('created_at', { ascending: false })
 
     const emailLc = String(email || '').toLowerCase()
@@ -45,14 +45,35 @@ exports.handler = async (event) => {
 
     let rows = []
     for (const o of (data || [])) {
-      const items = Array.isArray(o.service_items) ? o.service_items : []
-      for (const it of items) {
+      let items = Array.isArray(o.service_items) ? o.service_items : []
+      // 若品項空，嘗試以 email 在時間窗內從 relay_reservations 回填（±2 小時）
+      if (!items || items.length===0) {
+        try {
+          const emailFromOrder = String(o.customer_email||'').toLowerCase()
+          const baseEmail = emailFromOrder || emailLc
+          if (baseEmail) {
+            const start = new Date(new Date(o.created_at).getTime() - 2*60*60*1000).toISOString()
+            const end = new Date(new Date(o.created_at).getTime() + 2*60*60*1000).toISOString()
+            const { data: rel } = await supabase
+              .from('relay_reservations')
+              .select('customer_email, customer_address, items_json, created_at')
+              .eq('customer_email', baseEmail)
+              .gte('created_at', start)
+              .lte('created_at', end)
+              .order('created_at', { ascending: false })
+            if (Array.isArray(rel) && rel.length>0) {
+              try { items = JSON.parse(rel[0].items_json||'[]') || [] } catch { items = [] }
+            }
+          }
+        } catch {}
+      }
+      for (const it of (items||[])) {
         rows.push({
           reservation_number: o.order_number || o.id,
           status: o.status || 'pending',
           service_name: it.name,
           quantity: it.quantity,
-          service_price: it.unitPrice,
+          service_price: it.unitPrice || it.price,
           customer_address: o.customer_address || '',
           reservation_date: o.preferred_date || '',
           reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),

@@ -23,7 +23,7 @@ exports.handler = async (event) => {
     // 取訂單
     const { data: o, error } = await supabase
       .from('orders')
-      .select('id, order_number, customer_email, customer_address, created_at, status, platform, service_items')
+      .select('id, order_number, customer_name, customer_phone, customer_email, customer_address, created_at, status, platform, service_items, preferred_date, preferred_time_start, preferred_time_end')
       .eq('order_number', orderNum)
       .maybeSingle()
     if (error) throw error
@@ -40,7 +40,7 @@ exports.handler = async (event) => {
           const end = new Date(new Date(o.created_at).getTime() + 2*60*60*1000).toISOString()
           const { data: relays } = await supabase
             .from('relay_reservations')
-            .select('customer_email, customer_address, items_json, created_at')
+            .select('customer_name, customer_phone, customer_email, customer_address, preferred_date, preferred_time, items_json, created_at')
             .eq('customer_email', emailLc)
             .gte('created_at', start)
             .lte('created_at', end)
@@ -54,6 +54,22 @@ exports.handler = async (event) => {
               }
               if ((!o.customer_address || o.customer_address.trim()==='') && relays[0].customer_address) {
                 patch = { ...patch, customer_address: relays[0].customer_address }
+              }
+              if ((!o.customer_name || o.customer_name.trim()==='') && relays[0].customer_name) {
+                patch = { ...patch, customer_name: relays[0].customer_name }
+              }
+              if ((!o.customer_phone || o.customer_phone.trim()==='') && relays[0].customer_phone) {
+                patch = { ...patch, customer_phone: relays[0].customer_phone }
+              }
+              if ((!o.preferred_date || String(o.preferred_date).trim()==='') && relays[0].preferred_date) {
+                patch = { ...patch, preferred_date: relays[0].preferred_date }
+              }
+              if ((!o.preferred_time_start || !o.preferred_time_end) && relays[0].preferred_time) {
+                const t = String(relays[0].preferred_time||'')
+                const m = t.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/)
+                if (m) {
+                  patch = { ...patch, preferred_time_start: m[1], preferred_time_end: m[2] }
+                }
               }
             } catch {}
           }
