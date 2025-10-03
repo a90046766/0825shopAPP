@@ -24,7 +24,7 @@ export default function OrderManagementPage() {
   const user = getCurrentUser()
   const [q, setQ] = useState('')
   const [yy, setYy] = useState<string>(String(new Date().getFullYear()))
-  const [mm, setMm] = useState('')
+  const [mm, setMm] = useState(String(new Date().getMonth()+1).padStart(2,'0'))
   const [statusTab, setStatusTab] = useState<'pending'|'confirmed'|'completed'|'closed'|'canceled'|'all'>('confirmed')
   const [pf, setPf] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
@@ -263,7 +263,7 @@ export default function OrderManagementPage() {
             <option value="">全部月份</option>
             {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m=> <option key={m} value={m}>{m}</option>)}
           </select>
-          <input type="month" className="rounded border px-2 py-1 text-sm" onChange={e=>{
+          <input type="month" className="rounded border px-2 py-1 text-sm" value={`${yy}-${mm}`} onChange={e=>{
             const ym = e.target.value
             if (!ym){ setYy(''); setMm(''); setPage(0); return }
             const [y,m] = ym.split('-')
