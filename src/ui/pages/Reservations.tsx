@@ -210,7 +210,7 @@ export default function ReservationsPage() {
                 </div>
                 
                 <div className="mt-2 text-xs text-gray-500">
-                  建立時間：{new Date(r.createdAt).toLocaleString('zh-TW')}
+                  建立時間：{new Date(r.createdAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}
                 </div>
               </div>
               

@@ -378,8 +378,27 @@ class SupabaseOrderRepo implements OrderRepo {
             if ((!created.customerAddress || created.customerAddress.trim()==='') && payload.customerAddress) {
               (patch as any).customerAddress = payload.customerAddress
             }
+            if ((!created.customerEmail || created.customerEmail.trim()==='') && (draft as any).customerEmail) {
+              (patch as any).customerEmail = (draft as any).customerEmail
+            }
+            if ((!created.customerName || created.customerName.trim()==='') && (draft as any).customerName) {
+              (patch as any).customerName = (draft as any).customerName
+            }
+            if ((!created.customerPhone || created.customerPhone.trim()==='') && (draft as any).customerPhone) {
+              (patch as any).customerPhone = (draft as any).customerPhone
+            }
+            if ((!created.preferredDate || String(created.preferredDate).trim()==='') && (draft as any).preferredDate) {
+              (patch as any).preferredDate = (draft as any).preferredDate
+            }
+            if ((!created.preferredTimeStart || !created.preferredTimeEnd) && ((draft as any).preferredTimeStart || (draft as any).preferredTimeEnd)) {
+              if ((draft as any).preferredTimeStart) (patch as any).preferredTimeStart = (draft as any).preferredTimeStart
+              if ((draft as any).preferredTimeEnd) (patch as any).preferredTimeEnd = (draft as any).preferredTimeEnd
+            }
             if ((created.status as any) !== 'pending' && payload.status === 'pending') {
               (patch as any).status = 'pending'
+            }
+            if (!created.platform || created.platform !== '商') {
+              (patch as any).platform = '商'
             }
             try { if (Object.keys(patch).length>0) await this.update(created.id, patch) } catch {}
             try { const reread = await this.get(created.id); if (reread) return reread } catch {}
