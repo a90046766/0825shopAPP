@@ -113,7 +113,7 @@ export default function MemberOrdersPage() {
           const { data: pendings, error: perr } = await supabase
             .from('orders')
             .select('id, order_number, customer_address, preferred_date, preferred_time_start, preferred_time_end, status, service_items, created_at, payment_method, points_used, points_deduct_amount')
-            .eq('status', 'pending')
+            .in('status', ['pending','draft'])
             .eq('customer_email', emailLc)
             .order('created_at', { ascending: false })
           if (!perr && Array.isArray(pendings)) {

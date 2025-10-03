@@ -19,7 +19,7 @@ exports.handler = async (event) => {
     const { data, error } = await supabase
       .from('orders')
       .select('id, order_number, customer_name, customer_phone, customer_email, customer_address, preferred_date, preferred_time_start, preferred_time_end, status, service_items, created_at')
-      .eq('status', 'pending')
+      .in('status', ['pending','draft'])
       .order('created_at', { ascending: false })
     if (error) throw error
 

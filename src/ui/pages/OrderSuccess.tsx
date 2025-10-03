@@ -41,6 +41,27 @@ export default function OrderSuccessPage() {
           }
         }
         setOrder(normalized)
+        // 若小計為 0（可能因 RPC 未帶入 service_items），嘗試自動回填一次
+        if (subTotal === 0) {
+          try {
+            await fetch(`/api/order-backfill?order=${encodeURIComponent(orderId)}`)
+            const reread = await repos.orderRepo.get(orderId).catch(()=>null)
+            if (reread) {
+              const st = Array.isArray(reread.serviceItems) ? reread.serviceItems.reduce((s:any,it:any)=> s + ((it.unitPrice||it.price||0)*(it.quantity||0)), 0) : 0
+              const fp = Math.max(0, st - (reread.pointsDeductAmount||reread.pointsUsed||0))
+              setOrder({
+                id: reread.id,
+                paymentMethod: reread.paymentMethod,
+                finalPrice: fp,
+                customerInfo: {
+                  address: reread.customerAddress,
+                  preferredDate: reread.preferredDate,
+                  preferredTime: (reread.preferredTimeStart && reread.preferredTimeEnd) ? `${reread.preferredTimeStart}-${reread.preferredTimeEnd}` : ''
+                }
+              })
+            }
+          } catch {}
+        }
       } catch {}
     })()
   }, [orderId])

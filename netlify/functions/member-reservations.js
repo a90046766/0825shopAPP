@@ -92,6 +92,36 @@ exports.handler = async (event) => {
         }
       } catch {}
     }
+    
+    // 新增：若使用 customerId 查不到，以 email 改查 orders 狀態 in (pending,draft)
+    if (rows.length === 0 && emailLc) {
+      try {
+        const { data: pendings } = await supabase
+          .from('orders')
+          .select('id, order_number, customer_address, preferred_date, preferred_time_start, preferred_time_end, status, service_items, created_at, payment_method, points_used, points_deduct_amount')
+          .in('status', ['pending','draft'])
+          .eq('customer_email', emailLc)
+          .order('created_at', { ascending: false })
+        if (Array.isArray(pendings) && pendings.length>0) {
+          for (const o of pendings) {
+            const items = Array.isArray(o.service_items) ? o.service_items : []
+            for (const it of items) {
+              rows.push({
+                reservation_number: o.order_number || o.id,
+                status: o.status || 'pending',
+                service_name: it.name,
+                quantity: it.quantity,
+                service_price: it.unitPrice,
+                customer_address: o.customer_address || '',
+                reservation_date: o.preferred_date || '',
+                reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
+                source: 'orders'
+              })
+            }
+          }
+        }
+      } catch {}
+    }
 
     return { statusCode: 200, body: JSON.stringify({ success: true, data: rows }) }
   } catch (e) {
