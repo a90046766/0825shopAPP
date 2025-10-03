@@ -47,6 +47,7 @@ export default function ShopCartPage() {
   const [usePoints, setUsePoints] = useState(false)
   const [pointsToUse, setPointsToUse] = useState(0)
   const [commitmentText, setCommitmentText] = useState('')
+  const [agreeCommitment, setAgreeCommitment] = useState(false)
 
   // 欄位 refs（用於捲動至第一個錯誤）
   const nameRef = useRef<HTMLInputElement>(null)
@@ -437,6 +438,7 @@ export default function ShopCartPage() {
     // 我們的承諾（官網）：提交前必須同意
     const ok = window.confirm((commitmentText||'').trim() + '\n\n請點選「確定」代表您已閱讀並同意我們的承諾')
     if (!ok) return
+    setAgreeCommitment(true)
 
     // 組合完整地址
     const fullAddress = `${(customerInfo.city||'').trim()}${(customerInfo.district||'').trim()}${(customerInfo.street||'').trim()}`.trim()
@@ -913,6 +915,17 @@ export default function ShopCartPage() {
                       <li>積分：每消費 NT$100 累積 1 點；1 點可折抵 NT$1（可全額折抵）</li>
                       <li>折扣碼：輸入折扣碼可享 97% 優惠</li>
                     </ul>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={()=> alert((commitmentText||'').trim() || '（目前無承諾內容）')}
+                    className="rounded bg-white border px-2 py-1 text-blue-700 hover:bg-blue-100"
+                  >查看我們的承諾</button>
+                  <label className="inline-flex items-center gap-2 text-blue-900">
+                    <input type="checkbox" checked={agreeCommitment} onChange={e=> setAgreeCommitment(e.target.checked)} />
+                    <span>我已閱讀並同意</span>
+                  </label>
+                </div>
                   </div>
 
                   {/* 價格明細 */}
@@ -1019,7 +1032,7 @@ export default function ShopCartPage() {
                   {/* 提交訂單按鈕（桌機） */}
                   <button
                     onClick={handleSubmitOrder}
-                    disabled={cart.length === 0}
+                    disabled={cart.length === 0 || !agreeCommitment}
                     className="hidden md:block w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 disabled:cursor-not-allowed"
                   >
                     提交訂單
@@ -1041,6 +1054,7 @@ export default function ShopCartPage() {
           <button
             onClick={handleSubmitOrder}
             className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+            disabled={!agreeCommitment}
           >
             提交訂單
           </button>
