@@ -113,7 +113,7 @@ export default function MemberBell() {
         {unread>0 && <span className="ml-2 rounded bg-red-600 text-white text-xs px-1.5">{unread}</span>}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-auto rounded-xl border bg-white shadow-xl z-50">
+        <div className="absolute right-0 mt-2 w-[28rem] max-h-[30rem] overflow-auto rounded-xl border bg-white shadow-xl z-50">
           <div className="flex items-center justify-between p-2 border-b">
             <div className="text-sm font-medium">通知</div>
             <button onClick={readAll} className="text-xs text-blue-600 flex items-center gap-1"><Check className="h-3 w-3"/> 全部已讀</button>

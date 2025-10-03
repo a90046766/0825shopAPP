@@ -18,7 +18,7 @@ export default function ReservationsPage() {
       // 走 Netlify Function：/api/reservations（避免階層式函式路徑 404）
       const res = await fetch('/api/reservations')
       const j = await res.json()
-      if (j?.success) setRows(j.data || [])
+      if (j?.success) setRows((j.data || []).map((x:any)=> ({ ...x, source: x.source||'orders' })))
       else setRows([])
     } catch (error) {
       console.error('載入預約訂單失敗:', error)
@@ -186,6 +186,9 @@ export default function ReservationsPage() {
                   <div className="text-sm text-gray-500">{r.customerPhone}</div>
                   {r.orderNumber && (
                     <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">單號：{r.orderNumber}</span>
+                  )}
+                  {r.source==='relay' && (
+                    <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] text-blue-800">備援</span>
                   )}
                   <span className={`rounded px-2 py-0.5 text-xs ${
                     r.status === 'pending' ? 'bg-amber-100 text-amber-700' :
