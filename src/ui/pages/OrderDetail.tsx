@@ -461,7 +461,7 @@ export default function PageOrderDetail() {
           {/* 技師現場增減：只能新增調整項，禁止刪除原始訂單項目；付款已收或客戶已簽名時鎖定 */}
           {user?.role==='technician' && (
             <div className="mt-3 rounded-lg border p-3">
-              <div className="mb-2 text-sm font-semibold">現場增減（僅新增調整，不可刪除原始項）</div>
+              <div className="mb-2 text-sm font-semibold">現場增減</div>
               <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
                 <select
                   className="rounded border px-2 py-1 md:col-span-2"
@@ -490,9 +490,8 @@ export default function PageOrderDetail() {
                 <div className="md:col-span-5 grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2">
                     <button disabled={isItemsLockedForTech} onClick={()=>setTechAdjQty(q=>Math.max(1,(Number(q)||1)-1))} className="rounded bg-gray-100 px-2 py-1">-</button>
-                    <input type="number" className="w-20 rounded border px-2 py-1 text-right" disabled={isItemsLockedForTech} value={techAdjQty} onChange={(e)=>setTechAdjQty(Math.max(1, Number(e.target.value)||1))} />
+                    <span className="inline-block w-10 text-center">{techAdjQty}</span>
                     <button disabled={isItemsLockedForTech} onClick={()=>setTechAdjQty(q=>(Number(q)||0)+1)} className="rounded bg-gray-100 px-2 py-1">+</button>
-                    <span className="text-xs text-gray-500">數量可為正（加）或改成負（減）</span>
                   </div>
                   <div className="text-right">
                     <button
@@ -510,15 +509,6 @@ export default function PageOrderDetail() {
               </div>
               {isItemsLockedForTech && (
                 <div className="mt-2 text-xs text-rose-600">因付款已收或客戶已簽名，本單品項不可再異動</div>
-              )}
-              {adjustmentItems.length>0 && (
-                <div className="mt-3 rounded border">
-                  <div className="grid grid-cols-4 bg-gray-50 px-2 py-1 text-xs text-gray-600"><div>調整項目</div><div>增減</div><div>單價</div><div className="text-right">影響金額</div></div>
-                  {adjustmentItems.map((it:any,i:number)=>{
-                    const sub = it.quantity*it.unitPrice
-                    return <div key={i} className="grid grid-cols-4 items-center px-2 py-1 text-sm"><div>{it.name}</div><div>{it.quantity}</div><div>{it.unitPrice}</div><div className="text-right">{sub}</div></div>
-                  })}
-                </div>
               )}
             </div>
           )}
