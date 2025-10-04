@@ -210,6 +210,14 @@ createRoot(document.getElementById('root')!).render(
 
 ;(async()=>{
   try {
+  // 解除舊版 PWA/Service Worker 快取，避免看到過期選單/頁面
+  try {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations()
+      for (const r of regs) { try { await r.unregister() } catch {} }
+      try { await caches?.keys?.().then((keys)=> Promise.all(keys.map((k)=> caches.delete(k)))) } catch {}
+    }
+  } catch {}
   // 背景初始化 adapters（供各頁按需使用），避免阻塞首屏
   loadAdapters().catch(()=>{})
 
