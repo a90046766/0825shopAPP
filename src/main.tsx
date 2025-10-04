@@ -20,7 +20,7 @@ const StaffApplyPage = React.lazy(() => import('./ui/pages/StaffApply'))
 const ApprovalsPage = React.lazy(() => import('./ui/pages/Approvals'))
 const AppShell = React.lazy(() => import('./ui/AppShell'))
 const PageDispatchHome = React.lazy(() => import('./ui/pages/DispatchHome'))
-const PageOrderDetail = React.lazy(() => import('./ui/pages/OrderDetail'))
+import PageOrderDetail from './ui/pages/OrderDetail'
 const PageProfile = React.lazy(() => import('./ui/pages/Profile'))
 const ResetPasswordPage = React.lazy(() => import('./ui/pages/ResetPassword'))
 // const NotificationsPage = React.lazy(() => import('./ui/pages/Notifications'))
