@@ -20,9 +20,10 @@ export default function OrderManagementPage() {
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
   const user = getCurrentUser()
   const [q, setQ] = useState('')
-  const [yy, setYy] = useState('')
-  const [mm, setMm] = useState('')
-  const [statusTab, setStatusTab] = useState<'all'|'pending'|'confirmed'|'completed'|'closed'|'invoice'>('all')
+  const now = new Date()
+  const [yy, setYy] = useState(String(now.getFullYear()))
+  const [mm, setMm] = useState(String(now.getMonth()+1).padStart(2,'0'))
+  const [statusTab, setStatusTab] = useState<'all'|'pending'|'confirmed'|'completed'|'closed'|'invoice'>('confirmed')
   const [pf, setPf] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<any>({ 
@@ -69,7 +70,7 @@ export default function OrderManagementPage() {
       if (statusTab==='pending') return o.status==='draft'
       if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
       if (statusTab==='completed') return o.status==='completed'
-      if (statusTab==='closed') return o.status==='closed' || o.status==='canceled' || (o as any).status==='unservice'
+      if (statusTab==='closed') return o.status==='closed' || (o as any).status==='unservice' || o.status==='canceled'
       if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
       return true
     })()
@@ -83,7 +84,7 @@ export default function OrderManagementPage() {
     pending: ownRows.filter(o=> o.status==='draft').length,
     confirmed: ownRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
     completed: ownRows.filter(o=> o.status==='completed').length,
-    closed: ownRows.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
+    closed: ownRows.filter(o=> o.status==='closed' || (o as any).status==='unservice' || o.status==='canceled').length,
     invoice: ownRows.filter(o=> o.status==='completed' && !o.invoiceCode).length,
   } as any
   const yearOptions = Array.from(new Set((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean))).sort()
@@ -93,12 +94,10 @@ export default function OrderManagementPage() {
         <div className="text-lg font-semibold">訂單管理</div>
       <div className="flex items-center gap-2 text-xs">
         {([
-          ['all','全部'],
-          ['pending','待確認'],
           ['confirmed','待服務'],
           ['completed','已完成'],
-          ['invoice','發票未寄送'],
           ['closed','已結案'],
+          ['all','全部'],
         ] as any[]).map(([key,label])=> (
           <button
             key={key}
@@ -180,12 +179,10 @@ export default function OrderManagementPage() {
       {isTech && (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {([ 
-            ['all','全部', counts.all],
-            ['pending','待確認', counts.pending],
             ['confirmed','待服務', counts.confirmed],
             ['completed','已完成', counts.completed],
-            ['invoice','發票未寄送', counts.invoice],
             ['closed','已結案', counts.closed],
+            ['all','全部', counts.all],
           ] as any[]).map(([key,label,num])=> (
             <button key={key} onClick={()=>setStatusTab(key)} className={`rounded-2xl border p-4 text-left shadow-card ${statusTab===key? 'ring-2 ring-brand-400' : ''}`}>
               <div className="text-xs text-gray-500">{label}</div>
@@ -279,7 +276,7 @@ export default function OrderManagementPage() {
                   o.status==='confirmed' ? 'bg-blue-100 text-blue-700' :
                   o.status==='in_progress' ? 'bg-purple-100 text-purple-700' :
                   o.status==='completed' ? 'bg-green-100 text-green-700' :
-                  o.status==='closed' ? 'bg-gray-100 text-gray-700' :
+                  (o.status==='closed' || (o as any).status==='unservice' || o.status==='canceled') ? 'bg-gray-100 text-gray-700' :
                   o.status==='canceled' ? 'bg-red-100 text-red-700' :
                   'bg-gray-100 text-gray-700'
                 }`}>
@@ -287,7 +284,7 @@ export default function OrderManagementPage() {
                    o.status==='confirmed' ? '已確認' :
                    o.status==='in_progress' ? '服務中' :
                    o.status==='completed' ? '已完工' :
-                   o.status==='closed' ? '已結案' :
+                   (o.status==='closed' || (o as any).status==='unservice' || o.status==='canceled') ? '已結案' :
                    o.status==='canceled' ? '已取消' : o.status}
                 </span>
               </div>
