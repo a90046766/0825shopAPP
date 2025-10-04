@@ -1,5 +1,4 @@
-// 電子發票服務（簡化版封裝：與 Giveme API 介接）
-// 注意：這裡僅提供前端代理請求的封裝，實際部署應改由 Netlify Functions 代為呼叫供應商 API。
+// 電子發票服務：直接呼叫 Netlify Functions（後端處理供應商 API）
 
 type B2CInput = {
   orderId: string
@@ -8,33 +7,36 @@ type B2CInput = {
   amount: number
 }
 
-const API_BASE = '/api/einvoice'
-
-async function post(path: string, body: any) {
-  const res = await fetch(`${API_BASE}${path}`, {
+async function postFull(url: string, body: any) {
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return await res.json().catch(()=>({}))
+  let payload: any = {}
+  try { payload = await res.json() } catch { try { payload = { raw: await res.text() } } catch { payload = {} } }
+  if (!res.ok) {
+    const msg = payload?.error || payload?.msg || `HTTP ${res.status}`
+    throw new Error(msg)
+  }
+  return payload
 }
 
 export const EInvoice = {
   async createB2C(input: B2CInput): Promise<any> {
-    return await post('/create-b2c', input)
+    return await postFull('/.netlify/functions/einvoice-create-b2c', input)
   },
   async createB2B(input: any): Promise<any> {
-    return await post('/create-b2b', input)
+    return await postFull('/.netlify/functions/einvoice-create-b2b', input)
   },
   async cancel(invoiceCode: string): Promise<any> {
-    return await post('/cancel', { invoiceCode })
+    return await postFull('/.netlify/functions/einvoice-cancel', { invoiceCode })
   },
   async query(invoiceCode: string): Promise<any> {
-    return await post('/query', { invoiceCode })
+    return await postFull('/.netlify/functions/einvoice-query', { invoiceCode })
   },
   async print(invoiceCode: string): Promise<any> {
-    return await post('/print', { invoiceCode })
+    return await postFull('/.netlify/functions/einvoice-print', { invoiceCode })
   }
 }
 
