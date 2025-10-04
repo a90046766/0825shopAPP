@@ -76,6 +76,11 @@ export default function PageOrderDetail() {
   },[order])
   const [products, setProducts] = useState<any[]>([])
   useEffect(()=>{ (async()=>{ if(!repos) return; setProducts(await repos.productRepo.list()) })() },[repos])
+  // 技師現場增減（僅新增「調整項」，不可刪除原始項）
+  const [techAdjProductId, setTechAdjProductId] = useState<string>('')
+  const [techAdjName, setTechAdjName] = useState<string>('')
+  const [techAdjQty, setTechAdjQty] = useState<number>(1)
+  const [techAdjUnitPrice, setTechAdjUnitPrice] = useState<number>(0)
   // 新增：客戶欄位本地編輯狀態
   const [customerNameEdit, setCustomerNameEdit] = useState('')
   const [customerPhoneEdit, setCustomerPhoneEdit] = useState('')
@@ -180,6 +185,23 @@ export default function PageOrderDetail() {
   const hasCustomerSignature = Boolean(order?.signatures && (order as any).signatures?.customer)
   const hasSignature = hasTechSignature && hasCustomerSignature
   const requirePhotosOk = (order.photosBefore?.length||0) > 0 || (order.photosAfter?.length||0) > 0
+  const isItemsLockedForTech = isClosed || payStatus==='paid' || hasCustomerSignature
+  const baseItems = (order.serviceItems||[]).filter((it:any)=>!it?.isAdjustment)
+  const adjustmentItems = (order.serviceItems||[]).filter((it:any)=>it?.isAdjustment)
+  const qtyByName = (name:string) => (order.serviceItems||[])
+    .filter((x:any)=> (x?.name||'') === name)
+    .reduce((s:number, x:any)=> s + (Number(x?.quantity)||0), 0)
+  const addAdjustment = async (name: string, unitPrice: number, deltaQty: number) => {
+    if (isItemsLockedForTech) { alert('已收款或客戶已簽名，不能再異動品項'); return }
+    if (!name) { alert('請選擇或輸入品項'); return }
+    if (!deltaQty || deltaQty===0) { alert('請輸入非 0 的增減數量'); return }
+    const current = qtyByName(name)
+    if (current + deltaQty < 0) { alert('扣減後數量不可為負值'); return }
+    const newItems = [ ...(order.serviceItems||[]), { name, quantity: deltaQty, unitPrice: Number(unitPrice)||0, isAdjustment: true } ]
+    await repos.orderRepo.update(order.id, { serviceItems: newItems })
+    const o = await repos.orderRepo.get(order.id); setOrder(o)
+    try { setTechAdjProductId(''); setTechAdjName(''); setTechAdjQty(1); setTechAdjUnitPrice(0) } catch {}
+  }
   // 簽名候選名單：優先用訂單內的 assignedTechnicians，否則回退使用從排程推導的 derivedAssigned
   const signCandidates: string[] = (Array.isArray(order.assignedTechnicians) && order.assignedTechnicians.length>0)
     ? order.assignedTechnicians
@@ -400,7 +422,7 @@ export default function PageOrderDetail() {
               <div className="grid grid-cols-4 bg-gray-50 px-2 py-1 text-xs text-gray-600"><div>項目</div><div>數量</div><div>單價</div><div className="text-right">小計</div></div>
               {(order.serviceItems||[]).map((it:any,i:number)=>{
                 const sub = it.quantity*it.unitPrice
-                return <div key={i} className="grid grid-cols-4 items-center px-2 py-1 text-sm"><div>{it.name}</div><div>{it.quantity}</div><div>{it.unitPrice}</div><div className="text-right">{sub}</div></div>
+                return <div key={i} className="grid grid-cols-4 items-center px-2 py-1 text-sm"><div>{it.name}{it.isAdjustment && <span className="ml-1 rounded bg-amber-50 px-1 text-[10px] text-amber-700">調整</span>}</div><div>{it.quantity}</div><div>{it.unitPrice}</div><div className="text-right">{sub}</div></div>
               })}
               <div className="border-t px-2 py-1 text-right text-gray-900">小計：<span className="text-base font-semibold">{fmt(subTotal)}</span></div>
             </div>
@@ -435,6 +457,71 @@ export default function PageOrderDetail() {
             </div>
           )}
           {user?.role!=='technician' && !isClosed && <div className="mt-2 text-right"><button onClick={()=>setEditItems(e=>!e)} className="rounded bg-gray-100 px-2 py-1 text-xs">{editItems?'取消':'編輯項目'}</button></div>}
+
+          {/* 技師現場增減：只能新增調整項，禁止刪除原始訂單項目；付款已收或客戶已簽名時鎖定 */}
+          {user?.role==='technician' && (
+            <div className="mt-3 rounded-lg border p-3">
+              <div className="mb-2 text-sm font-semibold">現場增減（僅新增調整，不可刪除原始項）</div>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
+                <select
+                  className="rounded border px-2 py-1 md:col-span-2"
+                  disabled={isItemsLockedForTech}
+                  value={techAdjProductId}
+                  onChange={(e)=>{ const val=e.target.value; setTechAdjProductId(val); const p=products.find((x:any)=>x.id===val); if(p){ setTechAdjName(p.name||''); setTechAdjUnitPrice(Number(p.unitPrice)||0) } }}
+                >
+                  <option value="">選擇現有品項（可輸入自訂）</option>
+                  {products.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
+                </select>
+                <input
+                  className="rounded border px-2 py-1 md:col-span-2"
+                  placeholder="或輸入自訂名稱"
+                  disabled={isItemsLockedForTech}
+                  value={techAdjName}
+                  onChange={(e)=>setTechAdjName(e.target.value)}
+                />
+                <input
+                  type="number"
+                  className="rounded border px-2 py-1"
+                  placeholder="單價"
+                  disabled={isItemsLockedForTech}
+                  value={techAdjUnitPrice}
+                  onChange={(e)=>setTechAdjUnitPrice(Number(e.target.value)||0)}
+                />
+                <div className="md:col-span-5 grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2">
+                    <button disabled={isItemsLockedForTech} onClick={()=>setTechAdjQty(q=>Math.max(1,(Number(q)||1)-1))} className="rounded bg-gray-100 px-2 py-1">-</button>
+                    <input type="number" className="w-20 rounded border px-2 py-1 text-right" disabled={isItemsLockedForTech} value={techAdjQty} onChange={(e)=>setTechAdjQty(Math.max(1, Number(e.target.value)||1))} />
+                    <button disabled={isItemsLockedForTech} onClick={()=>setTechAdjQty(q=>(Number(q)||0)+1)} className="rounded bg-gray-100 px-2 py-1">+</button>
+                    <span className="text-xs text-gray-500">數量可為正（加）或改成負（減）</span>
+                  </div>
+                  <div className="text-right">
+                    <button
+                      disabled={isItemsLockedForTech}
+                      onClick={async()=>{ await addAdjustment(techAdjName || (products.find((p:any)=>p.id===techAdjProductId)?.name||''), techAdjUnitPrice, techAdjQty) }}
+                      className={`rounded px-3 py-1 ${isItemsLockedForTech? 'bg-gray-300 text-gray-600 cursor-not-allowed':'bg-blue-600 text-white'}`}
+                    >新增（加）</button>
+                    <button
+                      disabled={isItemsLockedForTech}
+                      onClick={async()=>{ await addAdjustment(techAdjName || (products.find((p:any)=>p.id===techAdjProductId)?.name||''), techAdjUnitPrice, -Math.abs(techAdjQty)) }}
+                      className={`ml-2 rounded px-3 py-1 ${isItemsLockedForTech? 'bg-gray-300 text-gray-600 cursor-not-allowed':'bg-rose-600 text-white'}`}
+                    >新增（減）</button>
+                  </div>
+                </div>
+              </div>
+              {isItemsLockedForTech && (
+                <div className="mt-2 text-xs text-rose-600">因付款已收或客戶已簽名，本單品項不可再異動</div>
+              )}
+              {adjustmentItems.length>0 && (
+                <div className="mt-3 rounded border">
+                  <div className="grid grid-cols-4 bg-gray-50 px-2 py-1 text-xs text-gray-600"><div>調整項目</div><div>增減</div><div>單價</div><div className="text-right">影響金額</div></div>
+                  {adjustmentItems.map((it:any,i:number)=>{
+                    const sub = it.quantity*it.unitPrice
+                    return <div key={i} className="grid grid-cols-4 items-center px-2 py-1 text-sm"><div>{it.name}</div><div>{it.quantity}</div><div>{it.unitPrice}</div><div className="text-right">{sub}</div></div>
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 積分抵扣 */}
           <div className="space-y-2">
