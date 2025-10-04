@@ -973,6 +973,22 @@ export default function PageOrderDetail() {
                   workStartedAt: now
                 })
                 const o=await repos.orderRepo.get(order.id); setOrder(o)
+              // 觸發結案後兩階段通知（穩定：寫 notifications 表）
+              try {
+                const email = (o?.customerEmail||'').toLowerCase()
+                if (email) {
+                  await (await import('../../utils/supabase')).supabase.from('notifications').insert({
+                    title: '為本次服務評分',
+                    body: `訂單編號 ${o.id} 已結案，請為技師服務打分並留下建議，完成可領取 50 點。`,
+                    level: 'info', target: 'user', target_user_email: email, sent_at: new Date().toISOString()
+                  })
+                  await (await import('../../utils/supabase')).supabase.from('notifications').insert({
+                    title: '上傳好評截圖，再領 50 點',
+                    body: `感謝支持！上傳 Google/FB 好評截圖可再領 50 點。`,
+                    level: 'info', target: 'user', target_user_email: email, sent_at: new Date().toISOString()
+                  })
+                }
+              } catch {}
               }}
               className={`rounded px-3 py-1 text-white ${order.status==='confirmed' ? 'bg-brand-500' : 'bg-gray-300 cursor-not-allowed'}`}
             >

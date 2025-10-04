@@ -266,11 +266,14 @@ export default function MemberOrderDetailPage() {
                     const { error: upErr } = await supabase.storage.from('review-uploads').upload(path, goodFile, { upsert: false, contentType: goodFile.type||'image/jpeg' })
                     if (upErr) throw upErr
                     // 改走後端 Function（Service Role 避免 RLS）
-                    await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
+                    const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ kind: 'good', comment: goodNote||null, asset_path: path })
                     })
-                    alert('已收到您的好評，謝謝！')
+                    const jj = await resp.json().catch(()=>({ success:false }))
+                    if (jj && jj.success) alert('已收到您的好評，謝謝！')
+                    else if (jj && jj.error==='already_submitted') alert('已提交過好評，感謝您的支持！')
+                    else alert('提交失敗，請稍後再試')
                     setFbOpen(''); setGoodFile(null); setGoodNote('')
                   } catch(e:any) {
                     alert('提交失敗：' + (e?.message||'未知錯誤'))
@@ -309,11 +312,14 @@ export default function MemberOrderDetailPage() {
                       .limit(1)
                     if (Array.isArray(existed) && existed.length>0) { alert('已提交過建議，感謝您的回饋！'); setSubmitting(false); return }
                     // 改走後端 Function（Service Role 避免 RLS）
-                    await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
+                    const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ kind: 'suggest', comment: suggestText })
                     })
-                    alert('已收到您的建議，謝謝！')
+                    const jj = await resp.json().catch(()=>({ success:false }))
+                    if (jj && jj.success) alert('已收到您的建議，謝謝！')
+                    else if (jj && jj.error==='already_submitted') alert('此訂單已提交過建議，感謝您的回饋！')
+                    else alert('提交失敗，請稍後再試')
                     setFbOpen(''); setSuggestText('')
                   } catch(e:any) {
                     alert('提交失敗：' + (e?.message||'未知錯誤'))

@@ -36,6 +36,19 @@ exports.handler = async (event) => {
           asset_path: body.asset_path || null,
           created_at: new Date().toISOString()
         }
+        // 先檢查是否已提交過
+        try {
+          const { data: existed } = await supabase
+            .from('member_feedback')
+            .select('id')
+            .eq('member_id', fb.member_id)
+            .eq('order_id', fb.order_id)
+            .eq('kind', fb.kind)
+            .limit(1)
+          if (Array.isArray(existed) && existed.length>0) {
+            return { statusCode: 200, body: JSON.stringify({ success: false, error: 'already_submitted' }) }
+          }
+        } catch {}
         const { error } = await supabase.from('member_feedback').insert(fb)
         if (error) errorMsg = error.message || String(error)
       } else {
@@ -51,12 +64,24 @@ exports.handler = async (event) => {
           recommend: Boolean(body.recommend !== false),
           created_at: new Date().toISOString()
         }
+        try {
+          const { data: existed } = await supabase
+            .from('member_feedback')
+            .select('id')
+            .eq('member_id', payload.member_id)
+            .eq('order_id', payload.order_id)
+            .is('kind', null)
+            .limit(1)
+          if (Array.isArray(existed) && existed.length>0) {
+            return { statusCode: 200, body: JSON.stringify({ success: false, error: 'already_submitted' }) }
+          }
+        } catch {}
         const { error } = await supabase.from('member_feedback').insert(payload)
         if (error) errorMsg = error.message || String(error)
       }
     } catch (e) { errorMsg = String(e?.message || e) }
 
-    return { statusCode: 200, body: JSON.stringify({ success: true, error: errorMsg }) }
+    return { statusCode: 200, body: JSON.stringify({ success: !errorMsg, error: errorMsg }) }
   } catch (e) {
     return { statusCode: 200, body: JSON.stringify({ success: true, error: String(e?.message || e) }) }
   }
