@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { getMemberUser } from '../../utils/memberAuth'
+import { loadAdapters } from '../../adapters'
 import { Link } from 'react-router-dom'
 import MemberBell from '../components/MemberBell'
 import { Home, ShoppingBag, ClipboardList, CheckCircle2, Share2 } from 'lucide-react'
@@ -36,6 +37,7 @@ export default function MemberOrdersPage() {
   const [tab, setTab] = useState<'reservations'|'orders'>('orders')
   const [reservations, setReservations] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
+  const [techMap, setTechMap] = useState<Record<string,string>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [shareOpen, setShareOpen] = useState(false)
@@ -149,11 +151,23 @@ export default function MemberOrdersPage() {
       const supOrders = (data||[]).filter((o:any)=> (o.status||'')!=='pending').map((o:any)=> ({
         id: o.order_number || o.id,
         status: o.status,
-        items: Array.isArray(o.service_items) ? o.service_items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice })) : []
+        items: Array.isArray(o.service_items) ? o.service_items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice })) : [],
+        assigned_technicians: Array.isArray(o.assigned_technicians) ? o.assigned_technicians : []
       }))
 
       setReservations(resv)
       setOrders(supOrders)
+
+      // 讀取技師名單（用於顯示電話）
+      try {
+        const a = await loadAdapters()
+        if ((a as any).technicianRepo?.list) {
+          const list = await (a as any).technicianRepo.list()
+          const map: Record<string,string> = {}
+          ;(list||[]).forEach((t:any)=>{ if (t?.name) map[t.name] = t.phone || t.mobile || t.tel || '' })
+          setTechMap(map)
+        }
+      } catch {}
     } catch (e: any) {
       setError(e?.message || '載入失敗')
     } finally {
@@ -324,7 +338,11 @@ export default function MemberOrdersPage() {
                   <div>品項數量：<span className="font-semibold">{count}</span></div>
                   <div>預估金額：<span className="font-semibold">NT$ {amount.toLocaleString()}</span></div>
                   {Array.isArray(o.assigned_technicians) && o.assigned_technicians.length>0 && (
-                    <div className="col-span-2 truncate">服務技師：<span className="font-semibold">{o.assigned_technicians.join('、')}</span></div>
+                    <div className="col-span-2 truncate">服務技師：
+                      <span className="font-semibold">
+                        {o.assigned_technicians.map((n:string)=> techMap[n] ? `${n}（${techMap[n]}）` : n).join('、')}
+                      </span>
+                    </div>
                   )}
                 </div>
                 <div className="mt-2 space-y-1 text-xs md:text-sm text-blue-900/80">

@@ -8,6 +8,7 @@ export default function MemberOrderDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [order, setOrder] = useState<any>(null)
+  const [techMap, setTechMap] = useState<Record<string,string>>({})
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -26,7 +27,7 @@ export default function MemberOrderDetailPage() {
       setError('')
       try {
         // 優先雲端
-        try { const a = await loadAdapters(); const o = await a.orderRepo.get(id); if (o) { setOrder(o); setLoading(false); return } } catch {}
+        try { const a = await loadAdapters(); const o = await a.orderRepo.get(id); if (o) { setOrder(o); try { if ((a as any).technicianRepo?.list){ const list = await (a as any).technicianRepo.list(); const map:Record<string,string>={}; (list||[]).forEach((t:any)=>{ if(t?.name) map[t.name]=t.phone||t.mobile||t.tel||'' }); setTechMap(map) } } catch {}; setLoading(false); return } } catch {}
         // 回退 localStorage（reservationOrders）
         try {
           const all = JSON.parse(localStorage.getItem('reservationOrders') || '[]')
@@ -69,6 +70,7 @@ export default function MemberOrderDetailPage() {
   const subTotal = Array.isArray(order.serviceItems) ? order.serviceItems.reduce((s:number,it:any)=> s + (it.unitPrice||0)*(it.quantity||0), 0) : (order.subTotal||0)
   const final = Math.max(0, subTotal - (order.pointsDeductAmount||0))
   const timeBand = (order.preferredTimeStart && order.preferredTimeEnd) ? `${order.preferredTimeStart}-${order.preferredTimeEnd}` : (order.preferredTimeStart||'')
+  const techs = Array.isArray(order.assignedTechnicians) ? order.assignedTechnicians : []
   const photos = {
     before: Array.isArray(order.photosBefore) ? order.photosBefore : [],
     after: Array.isArray(order.photosAfter) ? order.photosAfter : []
@@ -164,6 +166,14 @@ export default function MemberOrderDetailPage() {
           <div>服務時段：<span className="font-medium">{timeBand||'-'}</span></div>
           <div>付款方式：<span className="font-medium">{order.paymentMethod||'-'}</span></div>
         </div>
+      {(techs.length>0) && (
+        <div className="mt-1 text-xs md:text-sm text-gray-700">
+          服務技師：
+          <span className="font-medium">
+            {techs.map((n:string)=> techMap[n] ? `${n}（${techMap[n]}）` : n).join('、')}
+          </span>
+        </div>
+      )}
         <div className="mt-3">
           <div className="font-medium text-gray-800 mb-1">品項明細</div>
           <div className="rounded border">
