@@ -3,6 +3,24 @@ import { can } from '../utils/permissions'
 // 通知改為透過 adapters 取得雲端 repository
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../adapters'
+import React from 'react'
+
+class RouteErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; message?: string }>{
+  constructor(props: any){ super(props); this.state = { hasError: false, message: '' } }
+  static getDerivedStateFromError(err: any){ return { hasError: true, message: (err?.message||'') } }
+  componentDidCatch(error: any, info: any){ try { console.error('Route render error:', error, info) } catch {} }
+  render(){ if (this.state.hasError) {
+    return (
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <div className="text-sm font-semibold text-rose-700">頁面載入失敗</div>
+        <div className="mt-1 text-xs text-gray-600 break-words">{this.state.message || '請返回列表稍後再試'}</div>
+        <div className="mt-3">
+          <a href="/orders" className="rounded bg-brand-500 px-3 py-1 text-white text-sm">返回訂單列表</a>
+        </div>
+      </div>
+    )
+  } return <>{this.props.children}</> }
+}
 
 function getCurrentUser(): any {
   try {
@@ -268,7 +286,9 @@ export default function AppShell() {
         <AppBar />
         <QuoteBar />
         <div className="px-3 pt-3 pb-6">
-          <Outlet />
+          <RouteErrorBoundary>
+            <Outlet />
+          </RouteErrorBoundary>
         </div>
       </div>
     )
@@ -293,7 +313,9 @@ export default function AppShell() {
         </div>
         <QuoteBar />
         <div className="px-4 py-4">
-          <Outlet />
+          <RouteErrorBoundary>
+            <Outlet />
+          </RouteErrorBoundary>
         </div>
       </main>
       {/* 球寶已移除 */}
