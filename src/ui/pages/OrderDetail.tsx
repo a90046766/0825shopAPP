@@ -75,26 +75,7 @@ export default function PageOrderDetail() {
     setPayStatus((order.paymentStatus as any) || '')
   },[order])
   const [products, setProducts] = useState<any[]>([])
-  const [productOptions, setProductOptions] = useState<any[]>([])
-  // 載入購物站商品：優先使用 repos.productRepo 並篩出已上架；若無則回傳空陣列
-  useEffect(()=>{ (async()=>{ 
-    try{ if(!repos) return; 
-      if ((repos as any).productRepo?.list) {
-        const list = await (repos as any).productRepo.list()
-        const rows = (list||[])
-          .filter((r:any)=> r?.published !== false)
-          .map((r:any)=>({ id: String(r.id||r.uuid||''), name: r.name, unitPrice: Number(r.unitPrice||r.price||0) }))
-        setProducts(rows)
-      } else {
-        setProducts([])
-      }
-    }catch{ setProducts([]) }
-  })() },[repos])
-  // 技師現場增減（僅新增「調整項」，不可刪除原始項）
-  const [techAdjProductId, setTechAdjProductId] = useState<string>('')
-  const [techAdjName, setTechAdjName] = useState<string>('')
-  const [techAdjQty, setTechAdjQty] = useState<number>(1)
-  const [techAdjUnitPrice, setTechAdjUnitPrice] = useState<number>(0)
+  useEffect(()=>{ (async()=>{ if(!repos) return; setProducts(await repos.productRepo.list()) })() },[repos])
   // 新增：客戶欄位本地編輯狀態
   const [customerNameEdit, setCustomerNameEdit] = useState('')
   const [customerPhoneEdit, setCustomerPhoneEdit] = useState('')
@@ -199,44 +180,6 @@ export default function PageOrderDetail() {
   const hasCustomerSignature = Boolean(order?.signatures && (order as any).signatures?.customer)
   const hasSignature = hasTechSignature && hasCustomerSignature
   const requirePhotosOk = (order.photosBefore?.length||0) > 0 || (order.photosAfter?.length||0) > 0
-  const isItemsLockedForTech = isClosed || payStatus==='paid' || hasCustomerSignature
-  const baseItems = (order.serviceItems||[]).filter((it:any)=>!it?.isAdjustment)
-  const adjustmentItems = (order.serviceItems||[]).filter((it:any)=>it?.isAdjustment)
-  // 技師選單：原單品項（扣減用）+ 購物站已上架商品（新增用）
-  useEffect(()=>{
-    try{
-      const baseNames: string[] = Array.from(new Set<string>(baseItems.map((it:any)=> String(it.name||'').trim()).filter(Boolean)))
-      const baseOpts = baseNames.map((name: string, idx:number)=>({ id: `base:${idx}`, name, unitPrice: Number(baseItems.find((x:any)=> String(x.name||'').trim()===name)?.unitPrice)||0, source:'base' }))
-      const publishedOpts = (products||[]).map((p:any)=>({ id: p.id, name: p.name, unitPrice: Number(p.unitPrice)||0, source:'shop' }))
-      // 去重：若 published 與 base 重名，以 base 放前面
-      const dedupNames = new Set<string>()
-      const merged: any[] = []
-      for (const o of [...baseOpts, ...publishedOpts]) { if (!o.name || dedupNames.has(o.name)) continue; dedupNames.add(o.name); merged.push(o) }
-      setProductOptions(merged)
-    }catch{}
-  }, [order?.serviceItems, products])
-  const qtyByName = (name:string) => (order.serviceItems||[])
-    .filter((x:any)=> (x?.name||'') === name)
-    .reduce((s:number, x:any)=> s + (Number(x?.quantity)||0), 0)
-  const addAdjustment = async (name: string, unitPrice: number, deltaQty: number) => {
-    if (isItemsLockedForTech) { alert('已收款或客戶已簽名，不能再異動品項'); return }
-    const n = String(name||'').trim()
-    if (!n) { alert('請選擇或輸入品項'); return }
-    if (!deltaQty || deltaQty===0) { alert('請輸入非 0 的增減數量'); return }
-    // 扣減必須是原單品項
-    if (deltaQty < 0 && !baseItems.some((it:any)=> String(it.name||'').trim() === n)) {
-      alert('請選擇原始訂單的品項才能扣減')
-      return
-    }
-    const current = qtyByName(n)
-    if (current + deltaQty < 0) { alert('扣減後數量不可為負值'); return }
-    const finalUnit = Number(unitPrice) || Number(baseItems.find((it:any)=> String(it.name||'').trim()===n)?.unitPrice) || Number((products||[]).find((p:any)=> p.name===n)?.unitPrice) || 0
-    const newItems = [ ...(order.serviceItems||[]), { name: n, quantity: deltaQty, unitPrice: finalUnit, isAdjustment: true } ]
-    // 樂觀更新，提升體感速度
-    try { setOrder((prev:any)=> prev ? ({ ...prev, serviceItems: newItems }) : prev) } catch {}
-    try { await repos.orderRepo.update(order.id, { serviceItems: newItems }) } catch { /* 後端失敗時仍保留前端顯示，避免阻塞；下一次重新整理會回正 */ }
-    try { setTechAdjProductId(''); setTechAdjName(''); setTechAdjQty(1); setTechAdjUnitPrice(0) } catch {}
-  }
   // 簽名候選名單：優先用訂單內的 assignedTechnicians，否則回退使用從排程推導的 derivedAssigned
   const signCandidates: string[] = (Array.isArray(order.assignedTechnicians) && order.assignedTechnicians.length>0)
     ? order.assignedTechnicians
@@ -249,16 +192,6 @@ export default function PageOrderDetail() {
     (payStatus==='paid' || payStatus==='nopay') &&
     requirePhotosOk
   )
-  const startAllowed = order.status==='confirmed'
-  const startDisabledReason = (()=>{
-    const s = order.status
-    if (s==='draft' || s==='pending') return '需由客服/管理員將訂單狀態改為「已確認」'
-    if (s==='in_progress') return '已在服務中'
-    if (s==='completed') return '已完成，請進行簽名與結案'
-    if (s==='closed') return '已結案'
-    if (s==='canceled') return '已取消'
-    return '尚未達成開始條件'
-  })()
   const closeDisabledReason = (()=>{
     if (!(order.status==='in_progress' || order.status==='unservice' || order.status==='completed')) return (order.status==='confirmed' ? '尚未開始服務' : '尚未開始/或已標記無法服務')
     if (timeLeftSec>0) return `剩餘 ${String(Math.floor(timeLeftSec/60)).padStart(2,'0')}:${String(timeLeftSec%60).padStart(2,'0')}`
@@ -457,7 +390,7 @@ export default function PageOrderDetail() {
               <div className="grid grid-cols-4 bg-gray-50 px-2 py-1 text-xs text-gray-600"><div>項目</div><div>數量</div><div>單價</div><div className="text-right">小計</div></div>
               {(order.serviceItems||[]).map((it:any,i:number)=>{
                 const sub = it.quantity*it.unitPrice
-                return <div key={i} className="grid grid-cols-4 items-center px-2 py-1 text-sm"><div>{it.name}{it.isAdjustment && <span className="ml-1 rounded bg-amber-50 px-1 text-[10px] text-amber-700">調整</span>}</div><div>{it.quantity}</div><div>{it.unitPrice}</div><div className="text-right">{sub}</div></div>
+                return <div key={i} className="grid grid-cols-4 items-center px-2 py-1 text-sm"><div>{it.name}</div><div>{it.quantity}</div><div>{it.unitPrice}</div><div className="text-right">{sub}</div></div>
               })}
               <div className="border-t px-2 py-1 text-right text-gray-900">小計：<span className="text-base font-semibold">{fmt(subTotal)}</span></div>
             </div>
@@ -492,61 +425,6 @@ export default function PageOrderDetail() {
             </div>
           )}
           {user?.role!=='technician' && !isClosed && <div className="mt-2 text-right"><button onClick={()=>setEditItems(e=>!e)} className="rounded bg-gray-100 px-2 py-1 text-xs">{editItems?'取消':'編輯項目'}</button></div>}
-
-          {/* 技師現場增減：只能新增調整項，禁止刪除原始訂單項目；付款已收或客戶已簽名時鎖定 */}
-          {user?.role==='technician' && (
-            <div className="mt-3 rounded-lg border p-3">
-              <div className="mb-2 text-sm font-semibold">現場增減</div>
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
-                <select
-                  className="rounded border px-2 py-1 md:col-span-2"
-                  disabled={isItemsLockedForTech}
-                  value={techAdjProductId}
-                  onChange={(e)=>{ const val=e.target.value; setTechAdjProductId(val); const p=productOptions.find((x:any)=>x.id===val || x.name===val); if(p){ setTechAdjName(p.name||''); setTechAdjUnitPrice(Number(p.unitPrice)||0) } }}
-                >
-                  <option value="">選擇現有品項（可輸入自訂）</option>
-                  {productOptions.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
-                </select>
-                <input
-                  className="rounded border px-2 py-1 md:col-span-2"
-                  placeholder="或輸入自訂名稱"
-                  disabled={isItemsLockedForTech}
-                  value={techAdjName}
-                  onChange={(e)=>setTechAdjName(e.target.value)}
-                />
-                <input
-                  type="number"
-                  className="rounded border px-2 py-1"
-                  placeholder="單價"
-                  disabled={isItemsLockedForTech}
-                  value={techAdjUnitPrice}
-                  onChange={(e)=>setTechAdjUnitPrice(Number(e.target.value)||0)}
-                />
-                <div className="md:col-span-5 grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2">
-                    <button disabled={isItemsLockedForTech} onClick={()=>setTechAdjQty(q=>Math.max(1,(Number(q)||1)-1))} className="rounded bg-gray-100 px-2 py-1">-</button>
-                    <span className="inline-block w-10 text-center">{techAdjQty}</span>
-                    <button disabled={isItemsLockedForTech} onClick={()=>setTechAdjQty(q=>(Number(q)||0)+1)} className="rounded bg-gray-100 px-2 py-1">+</button>
-                  </div>
-                  <div className="text-right">
-                    <button
-                      disabled={isItemsLockedForTech}
-                      onClick={async()=>{ await addAdjustment(techAdjName || (products.find((p:any)=>p.id===techAdjProductId)?.name||''), techAdjUnitPrice, techAdjQty) }}
-                      className={`rounded px-3 py-1 ${isItemsLockedForTech? 'bg-gray-300 text-gray-600 cursor-not-allowed':'bg-blue-600 text-white'}`}
-                    >新增（加）</button>
-                    <button
-                      disabled={isItemsLockedForTech}
-                      onClick={async()=>{ await addAdjustment(techAdjName || (products.find((p:any)=>p.id===techAdjProductId)?.name||''), techAdjUnitPrice, -Math.abs(techAdjQty)) }}
-                      className={`ml-2 rounded px-3 py-1 ${isItemsLockedForTech? 'bg-gray-300 text-gray-600 cursor-not-allowed':'bg-rose-600 text-white'}`}
-                    >新增（減）</button>
-                  </div>
-                </div>
-              </div>
-              {isItemsLockedForTech && (
-                <div className="mt-2 text-xs text-rose-600">因付款已收或客戶已簽名，本單品項不可再異動</div>
-              )}
-            </div>
-          )}
 
           {/* 積分抵扣 */}
           <div className="space-y-2">
@@ -1085,8 +963,7 @@ export default function PageOrderDetail() {
           )}
           <div className="flex flex-wrap items-center gap-2 justify-end">
             <button 
-              disabled={!startAllowed}
-              title={!startAllowed ? startDisabledReason : ''}
+              disabled={order.status!=='confirmed'}
               onClick={async()=>{
                 if (order.status!=='confirmed') return
                 if (!confirm('是否確認開始服務？')) return
@@ -1096,22 +973,6 @@ export default function PageOrderDetail() {
                   workStartedAt: now
                 })
                 const o=await repos.orderRepo.get(order.id); setOrder(o)
-              // 觸發結案後兩階段通知（穩定：寫 notifications 表）
-              try {
-                const email = (o?.customerEmail||'').toLowerCase()
-                if (email) {
-                  await (await import('../../utils/supabase')).supabase.from('notifications').insert({
-                    title: '為本次服務評分',
-                    body: `訂單編號 ${o.id} 已結案，請為技師服務打分並留下建議，完成可領取 50 點。`,
-                    level: 'info', target: 'user', target_user_email: email, sent_at: new Date().toISOString()
-                  })
-                  await (await import('../../utils/supabase')).supabase.from('notifications').insert({
-                    title: '上傳好評截圖，再領 50 點',
-                    body: `感謝支持！上傳 Google/FB 好評截圖可再領 50 點。`,
-                    level: 'info', target: 'user', target_user_email: email, sent_at: new Date().toISOString()
-                  })
-                }
-              } catch {}
               }}
               className={`rounded px-3 py-1 text-white ${order.status==='confirmed' ? 'bg-brand-500' : 'bg-gray-300 cursor-not-allowed'}`}
             >
@@ -1122,9 +983,6 @@ export default function PageOrderDetail() {
                 </span>
               )}
             </button>
-            {!startAllowed && (
-              <div className="w-full text-right text-xs text-rose-600">無法開始原因：{startDisabledReason}</div>
-            )}
             <button
               disabled={order.status!=='in_progress' || timeLeftSec>0}
               title={order.status!=='in_progress' ? '尚未開始服務' : (timeLeftSec>0 ? `冷卻中，剩餘 ${String(Math.floor(timeLeftSec/60)).padStart(2,'0')}:${String(timeLeftSec%60).padStart(2,'0')}` : '')}
