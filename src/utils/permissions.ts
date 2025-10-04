@@ -1,3 +1,35 @@
+export function can(user: any, action: string): boolean {
+  try {
+    const role = String(user?.role || '').toLowerCase()
+    if (!action) return false
+    // 管理員/客服：允許全部
+    if (role === 'admin' || role === 'support') return true
+
+    // 技師：僅限查看、簽名、照片上傳、服務流程操作
+    if (role === 'technician') {
+      const allowPrefixes = [
+        'orders.view',
+        'orders.sign',
+        'orders.photos',
+        'orders.progress',
+      ]
+      return allowPrefixes.some(p => action.startsWith(p))
+    }
+
+    // 會員：僅限查看自己的訂單
+    if (role === 'member') {
+      const allowPrefixes = [
+        'orders.view.self'
+      ]
+      return allowPrefixes.some(p => action.startsWith(p))
+    }
+
+    return false
+  } catch {
+    return false
+  }
+}
+
 import type { User } from '../core/repository'
 
 // 權限定義（單一真相）
