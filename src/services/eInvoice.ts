@@ -8,7 +8,7 @@ type B2CInput = {
   amount: number
 }
 
-const API_BASE = '/api/einvoice'
+const API_BASE = '/.netlify/functions' as const
 
 async function post(path: string, body: any) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -22,19 +22,30 @@ async function post(path: string, body: any) {
 
 export const EInvoice = {
   async createB2C(input: B2CInput): Promise<any> {
-    return await post('/create-b2c', input)
+    // 走 Netlify Functions 正式端點
+    const res = await fetch(`${API_BASE}/einvoice-create-b2c`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(input) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await res.json().catch(()=>({}))
   },
   async createB2B(input: any): Promise<any> {
-    return await post('/create-b2b', input)
+    const res = await fetch(`${API_BASE}/einvoice-create-b2b`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(input) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await res.json().catch(()=>({}))
   },
   async cancel(invoiceCode: string): Promise<any> {
-    return await post('/cancel', { invoiceCode })
+    const res = await fetch(`${API_BASE}/einvoice-cancel`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ invoiceCode }) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await res.json().catch(()=>({}))
   },
   async query(invoiceCode: string): Promise<any> {
-    return await post('/query', { invoiceCode })
+    const res = await fetch(`${API_BASE}/einvoice-query`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ invoiceCode }) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await res.json().catch(()=>({}))
   },
   async print(invoiceCode: string): Promise<any> {
-    return await post('/print', { invoiceCode })
+    const res = await fetch(`${API_BASE}/einvoice-print`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ invoiceCode }) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await res.json().catch(()=>({}))
   }
 }
 
