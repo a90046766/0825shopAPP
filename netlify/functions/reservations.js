@@ -19,7 +19,7 @@ exports.handler = async (event) => {
     const { data, error } = await supabase
       .from('orders')
       .select('id, order_number, customer_name, customer_phone, customer_email, customer_address, preferred_date, preferred_time_start, preferred_time_end, status, service_items, created_at')
-      .eq('status', 'pending')
+      .in('status', ['pending','draft'])
       .order('created_at', { ascending: false })
     if (error) throw error
 
@@ -33,7 +33,7 @@ exports.handler = async (event) => {
         customerEmail: o.customer_email || '',
         customerAddress: o.customer_address || '',
         reservationDate: o.preferred_date || '',
-        reservationTime: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
+        reservationTime: (o.preferred_time_start && o.preferred_time_end) ? `${String(o.preferred_time_start).slice(0,5)}-${String(o.preferred_time_end).slice(0,5)}` : (String(o.preferred_time_start||'').slice(0,5) || ''),
         status: o.status || 'pending',
         items: items.map((it) => ({ name: it.name, quantity: it.quantity, unitPrice: it.unitPrice }))
       }

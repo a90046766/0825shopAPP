@@ -23,11 +23,11 @@ exports.handler = async (event) => {
 
     const supabase = createClient(url, key)
 
-    // 讀取 pending 的預約訂單（對應會員）
+    // 讀取 pending/draft 的預約訂單（對應會員）
     let query = supabase
       .from('orders')
       .select('id, order_number, customer_id, customer_email, customer_address, preferred_date, preferred_time_start, preferred_time_end, status, service_items, created_at')
-      .eq('status', 'pending')
+      .in('status', ['pending','draft'])
       .order('created_at', { ascending: false })
 
     const emailLc = String(email || '').toLowerCase()
@@ -55,7 +55,7 @@ exports.handler = async (event) => {
           service_price: it.unitPrice,
           customer_address: o.customer_address || '',
           reservation_date: o.preferred_date || '',
-          reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
+          reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${String(o.preferred_time_start).slice(0,5)}-${String(o.preferred_time_end).slice(0,5)}` : (String(o.preferred_time_start||'').slice(0,5) || ''),
         })
       }
     }

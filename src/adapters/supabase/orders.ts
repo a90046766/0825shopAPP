@@ -90,7 +90,7 @@ function fromDbRow(row: any): Order {
     assignedTechnicians: pick('assignedTechnicians', 'assigned_technicians') || [],
     signatureTechnician: r.signatureTechnician || r.signature_technician,
     status: r.status || 'draft',
-    platform: r.platform || '日',
+    platform: r.platform || '商',
     photos: r.photos || [],
     photosBefore: pick('photosBefore', 'photos_before') || [],
     photosAfter: pick('photosAfter', 'photos_after') || [],
@@ -174,7 +174,7 @@ class SupabaseOrderRepo implements OrderRepo {
         pointsUsed: (draft as any).pointsUsed,
         pointsDeductAmount: (draft as any).pointsDeductAmount,
         note: (draft as any).note,
-        platform: (draft as any).platform || '商城',
+        platform: (draft as any).platform || '商',
         status: (draft as any).status || 'pending',
         serviceItems: (draft as any).serviceItems || []
       }
