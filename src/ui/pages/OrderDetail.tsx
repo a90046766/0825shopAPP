@@ -2,6 +2,7 @@ import { SectionTitle, StatusChip, PhotoGrid } from '../kit'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { authRepo } from '../../adapters/local/auth'
 import { can } from '../../utils/permissions'
+import { supabase } from '../../utils/supabase'
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../../adapters'
 import { compressImageToDataUrl } from '../../utils/image'
@@ -75,7 +76,28 @@ export default function PageOrderDetail() {
     setPayStatus((order.paymentStatus as any) || '')
   },[order])
   const [products, setProducts] = useState<any[]>([])
-  useEffect(()=>{ (async()=>{ if(!repos) return; setProducts(await repos.productRepo.list()) })() },[repos])
+  const [productOptions, setProductOptions] = useState<any[]>([])
+  // 僅載入購物站「已上架」商品，確保技師選單與商城一致；失敗時回退 repos.productRepo
+  useEffect(()=>{ (async()=>{ 
+    try{ if(!repos) return; 
+      let rows: any[] = []
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('id,name,unit_price,published,mode_code,category')
+          .eq('published', true)
+          .order('updated_at', { ascending: false })
+        if (error) throw error
+        rows = (data||[]).map((r:any)=>({ id: String(r.id), name: r.name, unitPrice: Number(r.unit_price)||0 }))
+      } catch {
+        if ((repos as any).productRepo?.list) {
+          const list = await (repos as any).productRepo.list()
+          rows = (list||[]).map((r:any)=>({ id: String(r.id||r.uuid||''), name: r.name, unitPrice: Number(r.unitPrice||r.price||0) }))
+        }
+      }
+      setProducts(rows)
+    }catch{}
+  })() },[repos])
   // 技師現場增減（僅新增「調整項」，不可刪除原始項）
   const [techAdjProductId, setTechAdjProductId] = useState<string>('')
   const [techAdjName, setTechAdjName] = useState<string>('')
@@ -188,18 +210,39 @@ export default function PageOrderDetail() {
   const isItemsLockedForTech = isClosed || payStatus==='paid' || hasCustomerSignature
   const baseItems = (order.serviceItems||[]).filter((it:any)=>!it?.isAdjustment)
   const adjustmentItems = (order.serviceItems||[]).filter((it:any)=>it?.isAdjustment)
+  // 技師選單：原單品項（扣減用）+ 購物站已上架商品（新增用）
+  useEffect(()=>{
+    try{
+      const baseNames: string[] = Array.from(new Set<string>(baseItems.map((it:any)=> String(it.name||'').trim()).filter(Boolean)))
+      const baseOpts = baseNames.map((name: string, idx:number)=>({ id: `base:${idx}`, name, unitPrice: Number(baseItems.find((x:any)=> String(x.name||'').trim()===name)?.unitPrice)||0, source:'base' }))
+      const publishedOpts = (products||[]).map((p:any)=>({ id: p.id, name: p.name, unitPrice: Number(p.unitPrice)||0, source:'shop' }))
+      // 去重：若 published 與 base 重名，以 base 放前面
+      const dedupNames = new Set<string>()
+      const merged: any[] = []
+      for (const o of [...baseOpts, ...publishedOpts]) { if (!o.name || dedupNames.has(o.name)) continue; dedupNames.add(o.name); merged.push(o) }
+      setProductOptions(merged)
+    }catch{}
+  }, [order?.serviceItems, products])
   const qtyByName = (name:string) => (order.serviceItems||[])
     .filter((x:any)=> (x?.name||'') === name)
     .reduce((s:number, x:any)=> s + (Number(x?.quantity)||0), 0)
   const addAdjustment = async (name: string, unitPrice: number, deltaQty: number) => {
     if (isItemsLockedForTech) { alert('已收款或客戶已簽名，不能再異動品項'); return }
-    if (!name) { alert('請選擇或輸入品項'); return }
+    const n = String(name||'').trim()
+    if (!n) { alert('請選擇或輸入品項'); return }
     if (!deltaQty || deltaQty===0) { alert('請輸入非 0 的增減數量'); return }
-    const current = qtyByName(name)
+    // 扣減必須是原單品項
+    if (deltaQty < 0 && !baseItems.some((it:any)=> String(it.name||'').trim() === n)) {
+      alert('請選擇原始訂單的品項才能扣減')
+      return
+    }
+    const current = qtyByName(n)
     if (current + deltaQty < 0) { alert('扣減後數量不可為負值'); return }
-    const newItems = [ ...(order.serviceItems||[]), { name, quantity: deltaQty, unitPrice: Number(unitPrice)||0, isAdjustment: true } ]
-    await repos.orderRepo.update(order.id, { serviceItems: newItems })
-    const o = await repos.orderRepo.get(order.id); setOrder(o)
+    const finalUnit = Number(unitPrice) || Number(baseItems.find((it:any)=> String(it.name||'').trim()===n)?.unitPrice) || Number((products||[]).find((p:any)=> p.name===n)?.unitPrice) || 0
+    const newItems = [ ...(order.serviceItems||[]), { name: n, quantity: deltaQty, unitPrice: finalUnit, isAdjustment: true } ]
+    // 樂觀更新，提升體感速度
+    try { setOrder((prev:any)=> prev ? ({ ...prev, serviceItems: newItems }) : prev) } catch {}
+    try { await repos.orderRepo.update(order.id, { serviceItems: newItems }) } catch { /* 後端失敗時仍保留前端顯示，避免阻塞；下一次重新整理會回正 */ }
     try { setTechAdjProductId(''); setTechAdjName(''); setTechAdjQty(1); setTechAdjUnitPrice(0) } catch {}
   }
   // 簽名候選名單：優先用訂單內的 assignedTechnicians，否則回退使用從排程推導的 derivedAssigned
@@ -467,10 +510,10 @@ export default function PageOrderDetail() {
                   className="rounded border px-2 py-1 md:col-span-2"
                   disabled={isItemsLockedForTech}
                   value={techAdjProductId}
-                  onChange={(e)=>{ const val=e.target.value; setTechAdjProductId(val); const p=products.find((x:any)=>x.id===val); if(p){ setTechAdjName(p.name||''); setTechAdjUnitPrice(Number(p.unitPrice)||0) } }}
+                  onChange={(e)=>{ const val=e.target.value; setTechAdjProductId(val); const p=productOptions.find((x:any)=>x.id===val || x.name===val); if(p){ setTechAdjName(p.name||''); setTechAdjUnitPrice(Number(p.unitPrice)||0) } }}
                 >
                   <option value="">選擇現有品項（可輸入自訂）</option>
-                  {products.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
+                  {productOptions.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
                 </select>
                 <input
                   className="rounded border px-2 py-1 md:col-span-2"
