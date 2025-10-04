@@ -2,7 +2,6 @@ import { SectionTitle, StatusChip, PhotoGrid } from '../kit'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { authRepo } from '../../adapters/local/auth'
 import { can } from '../../utils/permissions'
-import { supabase } from '../../utils/supabase'
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../../adapters'
 import { compressImageToDataUrl } from '../../utils/image'
@@ -77,26 +76,19 @@ export default function PageOrderDetail() {
   },[order])
   const [products, setProducts] = useState<any[]>([])
   const [productOptions, setProductOptions] = useState<any[]>([])
-  // 僅載入購物站「已上架」商品，確保技師選單與商城一致；失敗時回退 repos.productRepo
+  // 載入購物站商品：優先使用 repos.productRepo 並篩出已上架；若無則回傳空陣列
   useEffect(()=>{ (async()=>{ 
     try{ if(!repos) return; 
-      let rows: any[] = []
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('id,name,unit_price,published,mode_code,category')
-          .eq('published', true)
-          .order('updated_at', { ascending: false })
-        if (error) throw error
-        rows = (data||[]).map((r:any)=>({ id: String(r.id), name: r.name, unitPrice: Number(r.unit_price)||0 }))
-      } catch {
-        if ((repos as any).productRepo?.list) {
-          const list = await (repos as any).productRepo.list()
-          rows = (list||[]).map((r:any)=>({ id: String(r.id||r.uuid||''), name: r.name, unitPrice: Number(r.unitPrice||r.price||0) }))
-        }
+      if ((repos as any).productRepo?.list) {
+        const list = await (repos as any).productRepo.list()
+        const rows = (list||[])
+          .filter((r:any)=> r?.published !== false)
+          .map((r:any)=>({ id: String(r.id||r.uuid||''), name: r.name, unitPrice: Number(r.unitPrice||r.price||0) }))
+        setProducts(rows)
+      } else {
+        setProducts([])
       }
-      setProducts(rows)
-    }catch{}
+    }catch{ setProducts([]) }
   })() },[repos])
   // 技師現場增減（僅新增「調整項」，不可刪除原始項）
   const [techAdjProductId, setTechAdjProductId] = useState<string>('')
