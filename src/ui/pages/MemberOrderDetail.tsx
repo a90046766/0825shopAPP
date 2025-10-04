@@ -271,7 +271,7 @@ export default function MemberOrderDetailPage() {
                     const jj = await resp.json().catch(()=>({ success:false }))
                     if (jj && jj.success) alert('已收到您的好評，謝謝！')
                     else if (jj && jj.error==='already_submitted') alert('已提交過好評，感謝您的支持！')
-                    else alert('提交失敗，請稍後再試')
+                    else alert(`提交失敗：${jj?.error||'請稍後再試'}`)
                     setFbOpen(''); setGoodFile(null); setGoodNote('')
                   } catch(e:any) {
                     alert('提交失敗：' + (e?.message||'未知錯誤'))
@@ -308,7 +308,7 @@ export default function MemberOrderDetailPage() {
                     const jj = await resp.json().catch(()=>({ success:false }))
                     if (jj && jj.success) alert('已收到您的建議，謝謝！')
                     else if (jj && jj.error==='already_submitted') alert('此訂單已提交過建議，感謝您的回饋！')
-                    else alert('提交失敗，請稍後再試')
+                    else alert(`提交失敗：${jj?.error||'請稍後再試'}`)
                     setFbOpen(''); setSuggestText('')
                   } catch(e:any) {
                     alert('提交失敗：' + (e?.message||'未知錯誤'))

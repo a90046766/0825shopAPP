@@ -20,7 +20,7 @@ export default function MemberBell() {
         const j = await res.json()
         if (j?.success && Array.isArray(j.data)) merged = j.data
       } catch {}
-      // 回退：讀取 Supabase notifications（target=all 或 user=email）
+      // 回退：讀取 Supabase notifications（target=all 或 user=email），並同步已讀紀錄
       try {
         const emailLc = (member.email||'').toLowerCase()
         const { data, error } = await supabase.from('notifications').select('*').order('created_at', { ascending: false })
@@ -44,6 +44,15 @@ export default function MemberBell() {
           const map: Record<string, any> = {}
           for (const it of [...merged, ...mapped]) { map[it.id] = it }
           merged = Object.values(map)
+          // 補已讀紀錄
+          try {
+            const { data: readRows } = await supabase
+              .from('notifications_read')
+              .select('notification_id, read_at, user_email')
+              .eq('user_email', emailLc)
+            const readSet = new Set((readRows||[]).map((r:any)=> String(r.notification_id)))
+            merged = merged.map(it => ({ ...it, is_read: it.is_read || readSet.has(String(it.id)) }))
+          } catch {}
         }
       } catch {}
       setList(merged)
@@ -91,7 +100,14 @@ export default function MemberBell() {
   const readOne = async (id: string) => {
     if (!member) return
     try { await fetch(`/api/notifications/member/${member.id}/read/${id}`, { method: 'PUT' }) } catch {}
+    try {
+      // 即時更新本地列表狀態
+      setList(prev => prev.map(it => it.id===id ? ({ ...it, is_read: true }) : it))
+    } catch {}
   }
+
+  // 面板打開時直接清空未讀（體驗：看過即清）
+  useEffect(()=>{ (async()=>{ if (open) { await readAll(); try { setList(prev => prev.map(it => ({ ...it, is_read: true }))) } catch {} } })() }, [open])
 
   return (
     <div className="relative">

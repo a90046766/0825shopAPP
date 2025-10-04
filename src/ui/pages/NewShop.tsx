@@ -617,31 +617,37 @@ export default function NewShop() {
 	}
 
 	function renderWelcome() {
-		if (!displayName) return null;
 		return (
 			<div className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg">
 				<div className="max-w-6xl mx-auto px-4 py-3 text-sm flex items-center justify-between">
 					<div className="flex items-center space-x-4">
 						<span className="text-lg mr-2">👋</span>
-						<span className="font-medium">歡迎回來，{displayName}</span>
-						{memberId && (
-							<span className="bg-white/20 px-2 py-1 rounded-full text-xs font-mono">
-								{memberId}
-                  </span>
+						{displayName ? (
+							<>
+								<span className="font-medium">歡迎回來，{displayName}</span>
+								{memberId && (
+									<span className="bg-white/20 px-2 py-1 rounded-full text-xs font-mono">{memberId}</span>
+								)}
+							</>
+						) : (
+							<span className="font-medium">歡迎光臨 日式洗濯購物站</span>
 						)}
-                  </div>
+					</div>
 					<div className="flex items-center space-x-3">
-							<Link to="/store/member/orders" className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">
-							前往會員中心
-						</Link>
+						{displayName ? (
+							<Link to="/store/member/orders" className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">前往會員中心</Link>
+						) : (
+							<>
+								<Link to="/login/member" className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">登入</Link>
+								<Link to="/register/member" className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">註冊</Link>
+							</>
+						)}
 						{isAdminSupport && (
-							<Link to="/dispatch" className="bg-orange-500/80 hover:bg-orange-600 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">
-								返回派工系統
-							</Link>
-                )}
-              </div>
-          </div>
-        </div>
+							<Link to="/dispatch" className="bg-orange-500/80 hover:bg-orange-600 px-3 py-1 rounded-lg transition-colors duration-300 font-medium">返回派工系統</Link>
+						)}
+					</div>
+				</div>
+			</div>
 		);
 	}
           
