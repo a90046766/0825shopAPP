@@ -8,36 +8,33 @@ type B2CInput = {
   amount: number
 }
 
-async function postFull(url: string, body: any) {
-  const res = await fetch(url, {
+const API_BASE = '/api/einvoice'
+
+async function post(path: string, body: any) {
+  const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   })
-  let payload: any = {}
-  try { payload = await res.json() } catch { try { payload = { raw: await res.text() } } catch { payload = {} } }
-  if (!res.ok) {
-    const msg = payload?.error || payload?.msg || `HTTP ${res.status}`
-    throw new Error(msg)
-  }
-  return payload
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return await res.json().catch(()=>({}))
 }
 
 export const EInvoice = {
   async createB2C(input: B2CInput): Promise<any> {
-    return await postFull('/.netlify/functions/einvoice-create-b2c', input)
+    return await post('/create-b2c', input)
   },
   async createB2B(input: any): Promise<any> {
-    return await postFull('/.netlify/functions/einvoice-create-b2b', input)
+    return await post('/create-b2b', input)
   },
   async cancel(invoiceCode: string): Promise<any> {
-    return await postFull('/.netlify/functions/einvoice-cancel', { invoiceCode })
+    return await post('/cancel', { invoiceCode })
   },
   async query(invoiceCode: string): Promise<any> {
-    return await postFull('/.netlify/functions/einvoice-query', { invoiceCode })
+    return await post('/query', { invoiceCode })
   },
   async print(invoiceCode: string): Promise<any> {
-    return await postFull('/.netlify/functions/einvoice-print', { invoiceCode })
+    return await post('/print', { invoiceCode })
   }
 }
 

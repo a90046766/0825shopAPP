@@ -20,7 +20,7 @@ export default function MemberBell() {
         const j = await res.json()
         if (j?.success && Array.isArray(j.data)) merged = j.data
       } catch {}
-      // 回退：讀取 Supabase notifications（target=all 或 user=email），並同步已讀紀錄
+      // 回退：讀取 Supabase notifications（target=all 或 user=email）
       try {
         const emailLc = (member.email||'').toLowerCase()
         const { data, error } = await supabase.from('notifications').select('*').order('created_at', { ascending: false })
@@ -44,15 +44,6 @@ export default function MemberBell() {
           const map: Record<string, any> = {}
           for (const it of [...merged, ...mapped]) { map[it.id] = it }
           merged = Object.values(map)
-          // 補已讀紀錄
-          try {
-            const { data: readRows } = await supabase
-              .from('notifications_read')
-              .select('notification_id, read_at, user_email')
-              .eq('user_email', emailLc)
-            const readSet = new Set((readRows||[]).map((r:any)=> String(r.notification_id)))
-            merged = merged.map(it => ({ ...it, is_read: it.is_read || readSet.has(String(it.id)) }))
-          } catch {}
         }
       } catch {}
       setList(merged)
@@ -100,14 +91,7 @@ export default function MemberBell() {
   const readOne = async (id: string) => {
     if (!member) return
     try { await fetch(`/api/notifications/member/${member.id}/read/${id}`, { method: 'PUT' }) } catch {}
-    try {
-      // 即時更新本地列表狀態
-      setList(prev => prev.map(it => it.id===id ? ({ ...it, is_read: true }) : it))
-    } catch {}
   }
-
-  // 面板打開時直接清空未讀（體驗：看過即清）
-  useEffect(()=>{ (async()=>{ if (open) { await readAll(); try { setList(prev => prev.map(it => ({ ...it, is_read: true }))) } catch {} } })() }, [open])
 
   return (
     <div className="relative">
@@ -117,9 +101,7 @@ export default function MemberBell() {
         {unread>0 && <span className="ml-2 rounded bg-red-600 text-white text-xs px-1.5">{unread}</span>}
       </button>
       {open && (
-        <>
-        <div className="fixed inset-0 z-[9998]" onClick={()=>setOpen(false)} />
-        <div className="fixed right-4 top-16 z-[9999] w-[28rem] max-w-[90vw] max-h-[calc(100vh-120px)] overflow-auto rounded-2xl border bg-white shadow-2xl">
+        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-auto rounded-xl border bg-white shadow-xl z-50">
           <div className="flex items-center justify-between p-2 border-b">
             <div className="text-sm font-medium">通知</div>
             <button onClick={readAll} className="text-xs text-blue-600 flex items-center gap-1"><Check className="h-3 w-3"/> 全部已讀</button>
@@ -154,7 +136,6 @@ export default function MemberBell() {
             )})}
           </div>
         </div>
-        </>
       )}
     </div>
   )

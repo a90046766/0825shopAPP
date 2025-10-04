@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
   ShoppingCart, 
@@ -23,7 +23,6 @@ import {
 import toast from 'react-hot-toast'
 import { checkMemberAuth } from '../../utils/memberAuth'
 import { loadAdapters } from '../../adapters'
-import ShopTopBar from '../components/ShopTopBar'
 
 export default function ShopCartPage() {
   const navigate = useNavigate()
@@ -48,7 +47,6 @@ export default function ShopCartPage() {
   const [usePoints, setUsePoints] = useState(false)
   const [pointsToUse, setPointsToUse] = useState(0)
   const [commitmentText, setCommitmentText] = useState('')
-  const [agreeCommitment, setAgreeCommitment] = useState(false)
 
   // 欄位 refs（用於捲動至第一個錯誤）
   const nameRef = useRef<HTMLInputElement>(null)
@@ -293,70 +291,52 @@ export default function ShopCartPage() {
     toast.success('購物車已清空')
   }
 
-  // 清洗類別團購：跨品項累計數量（以購物車項目本身欄位為主，缺值時退回 allProducts）
+  // 清洗類別團購：跨品項累計數量（只要是有 groupPrice 的 cleaning 類別）
   const getCleaningGroupContext = () => {
     const cleaningItems = cart.filter(it => {
-      const fallback = allProducts.find(x => x.id === it.id) as any
-      const category = it.category ?? fallback?.category
-      const groupPrice = it.groupPrice ?? fallback?.groupPrice
-      return category === 'cleaning' && !!groupPrice
+      const p = allProducts.find(x => x.id === it.id)
+      return p?.category === 'cleaning' && (p as any)?.groupPrice
     })
     const totalQty = cleaningItems.reduce((acc, it) => acc + (it.quantity || 0), 0)
     const thresholds = cleaningItems
-      .map(it => {
-        const fallback = allProducts.find(x => x.id === it.id) as any
-        return (it as any).groupMinQty ?? fallback?.groupMinQty ?? 3
-      })
+      .map(it => (allProducts.find(x => x.id === it.id) as any)?.groupMinQty || 3)
     const minThreshold = thresholds.length ? Math.min(...thresholds) : 3
     const active = totalQty >= minThreshold
     return { totalQty, minThreshold, active }
   }
 
   // 計算商品總價（套用跨品項清洗團購）
-  const totalPriceMemo = useMemo(() => {
+  const getTotalPrice = () => {
     const ctx = getCleaningGroupContext()
     return cart.reduce((sum, item) => {
-      const fallback = allProducts.find(p => p.id === item.id) as any
-      const category = item.category ?? fallback?.category
-      const price = (typeof item.price === 'number' && !Number.isNaN(item.price)) ? item.price : (fallback?.price || 0)
-      const groupPrice = (typeof (item as any).groupPrice === 'number' && !Number.isNaN((item as any).groupPrice)) ? (item as any).groupPrice : fallback?.groupPrice
-      if (category === 'cleaning' && groupPrice && ctx.active) {
-        return sum + (groupPrice * item.quantity)
+      const product = allProducts.find(p => p.id === item.id) as any
+      if (!product) return sum
+      if (product.category === 'cleaning' && product.groupPrice && ctx.active) {
+        return sum + (product.groupPrice * item.quantity)
       }
-      return sum + price * item.quantity
+      return sum + (product.price || 0) * item.quantity
     }, 0)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(cart)])
+  }
 
-  const getTotalPrice = () => totalPriceMemo
-
-  // 計算團購前原價總計（不套用團購價）
-  const groupBuyPriceMemo = useMemo(() => {
+  // 計算團購前原價總計
+  const getGroupBuyPrice = () => {
     return cart.reduce((sum, item) => {
-      const fallback = allProducts.find(p => p.id === item.id) as any
-      const price = (typeof item.price === 'number' && !Number.isNaN(item.price)) ? item.price : (fallback?.price || 0)
-      return sum + price * item.quantity
+      const product = allProducts.find(p => p.id === item.id) as any
+      if (!product) return sum
+      return sum + (product.price || 0) * item.quantity
     }, 0)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(cart)])
-
-  const getGroupBuyPrice = () => groupBuyPriceMemo
+  }
 
   // 計算團購優惠金額
-  const groupBuySavingsMemo = useMemo(() => {
-    return groupBuyPriceMemo - totalPriceMemo
-  }, [groupBuyPriceMemo, totalPriceMemo])
-
-  const getGroupBuySavings = () => groupBuySavingsMemo
+  const getGroupBuySavings = () => {
+    return getGroupBuyPrice() - getTotalPrice()
+  }
 
   // 檢查是否適用團購價（跨品項：清洗類別、開啟時所有清洗品項皆適用）
   const isGroupBuyEligible = (productId: string) => {
-    const item = cart.find(i => i.id === productId)
-    const fallback = allProducts.find(p => p.id === productId) as any
-    const category = item?.category ?? fallback?.category
-    const groupPrice = (item as any)?.groupPrice ?? fallback?.groupPrice
+    const product = allProducts.find(p => p.id === productId) as any
     const ctx = getCleaningGroupContext()
-    return !!(category === 'cleaning' && groupPrice && ctx.active)
+    return !!(product && product.category === 'cleaning' && product.groupPrice && ctx.active)
   }
 
   // 取得適用團購價的商品
@@ -366,10 +346,8 @@ export default function ShopCartPage() {
 
   // 針對清洗類：距離團購門檻還差幾件（跨品項累計）
   const getRemainingForGroup = (productId: string) => {
-    const item = cart.find(i => i.id === productId)
-    const fallback = allProducts.find(p => p.id === productId) as any
-    const category = item?.category ?? fallback?.category
-    if (category !== 'cleaning') return 0
+    const product = allProducts.find(p => p.id === productId) as any
+    if (!product || product.category !== 'cleaning') return 0
     const ctx = getCleaningGroupContext()
     return Math.max(0, ctx.minThreshold - ctx.totalQty)
   }
@@ -392,11 +370,12 @@ export default function ShopCartPage() {
 
   // 計算最終價格
   const getFinalPrice = () => {
-    // 注意：getTotalPrice() 已經套用團購價，不可再次扣除 groupBuySavings
-    const totalAfterGroup = getTotalPrice()
+    const total = getTotalPrice()
+    const groupBuySavings = getGroupBuySavings()
     const discountAmount = getDiscountAmount()
     const pointsDiscount = getPointsDiscount()
-    return Math.max(0, totalAfterGroup - discountAmount - pointsDiscount)
+    
+    return Math.max(0, total - groupBuySavings - discountAmount - pointsDiscount)
   }
 
   // 尚差幾件達團購（跨品項清洗）
@@ -439,7 +418,6 @@ export default function ShopCartPage() {
     // 我們的承諾（官網）：提交前必須同意
     const ok = window.confirm((commitmentText||'').trim() + '\n\n請點選「確定」代表您已閱讀並同意我們的承諾')
     if (!ok) return
-    setAgreeCommitment(true)
 
     // 組合完整地址
     const fullAddress = `${(customerInfo.city||'').trim()}${(customerInfo.district||'').trim()}${(customerInfo.street||'').trim()}`.trim()
@@ -494,7 +472,7 @@ export default function ShopCartPage() {
           evening: { start: '18:00', end: '20:00' }
         }
         const tw = mapTime[customerInfo.preferredTime] || { start: undefined as any, end: undefined as any }
-        const serviceItems = cart.map((it:any)=> ({ name: it.name, quantity: it.quantity, unitPrice: Number(it.price||0), category: it.category }))
+        const serviceItems = cart.map((it:any)=> ({ name: it.name, quantity: it.quantity, unitPrice: it.price, category: it.category }))
         // 合法 UUID 的 memberId 才帶上，否則交由後端留空
         const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
         const memberId = (memberUser?.id && validUuid.test(memberUser.id)) ? memberUser.id : undefined
@@ -514,8 +492,8 @@ export default function ShopCartPage() {
           paymentMethod,
           pointsUsed: pointsToUse,
           pointsDeductAmount: getPointsDiscount(),
-          note: [noteCombined, `預估回饋點數：${getEstimatedPoints()}（訂單結案後入點）》`].filter(Boolean).join('\n') || undefined,
-          platform: '商',
+          note: noteCombined || undefined,
+          platform: '商城',
           status: 'pending',
           serviceItems
         }
@@ -640,7 +618,6 @@ export default function ShopCartPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <ShopTopBar />
       <div className="max-w-6xl mx-auto px-4 md:px-6">
         {/* 頁面標題 */}
         <div className="mb-6 md:mb-8">
@@ -700,7 +677,6 @@ export default function ShopCartPage() {
                     {cart.map((item) => {
                       const product = allProducts.find(p => p.id === item.id)
                       const isGroupBuy = isGroupBuyEligible(item.id)
-                      const unitPrice = (typeof item.price === 'number' && !Number.isNaN(item.price)) ? item.price : (product?.price || 0)
                       return (
                         <div key={item.id} className="flex items-center gap-3 md:gap-4 p-3 md:p-4 bg-gray-50 rounded-lg">
                           <div className="flex-1">
@@ -711,7 +687,7 @@ export default function ShopCartPage() {
                                   團購價：NT$ {product?.groupPrice?.toLocaleString()} × {item.quantity}
                                 </span>
                               ) : (
-                                <span>NT$ {unitPrice.toLocaleString()} × {item.quantity}</span>
+                                <span>NT$ {product?.price?.toLocaleString()} × {item.quantity}</span>
                               )}
                             </div>
                             {!isGroupBuy && product?.groupMinQty ? (
@@ -917,17 +893,6 @@ export default function ShopCartPage() {
                       <li>積分：每消費 NT$100 累積 1 點；1 點可折抵 NT$1（可全額折抵）</li>
                       <li>折扣碼：輸入折扣碼可享 97% 優惠</li>
                     </ul>
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={()=> alert((commitmentText||'').trim() || '（目前無承諾內容）')}
-                    className="rounded bg-white border px-2 py-1 text-blue-700 hover:bg-blue-100"
-                  >查看我們的承諾</button>
-                  <label className="inline-flex items-center gap-2 text-blue-900">
-                    <input type="checkbox" checked={agreeCommitment} onChange={e=> setAgreeCommitment(e.target.checked)} />
-                    <span>我已閱讀並同意</span>
-                  </label>
-                </div>
                   </div>
 
                   {/* 價格明細 */}
@@ -1022,9 +987,6 @@ export default function ShopCartPage() {
                       <span>應付金額</span>
                       <span>NT$ {getFinalPrice().toLocaleString()}</span>
                     </div>
-                    <div className="text-[11px] md:text-xs text-gray-700">
-                      預估回饋點數：{getEstimatedPoints().toLocaleString()} 點（訂單結案後入點，下次服務可折抵）
-                    </div>
                     {getGroupBuySavings() > 0 && (
                       <div className="text-[11px] md:text-xs text-green-600">已為您節省：NT$ {getGroupBuySavings().toLocaleString()}</div>
                     )}
@@ -1034,7 +996,7 @@ export default function ShopCartPage() {
                   {/* 提交訂單按鈕（桌機） */}
                   <button
                     onClick={handleSubmitOrder}
-                    disabled={cart.length === 0 || !agreeCommitment}
+                    disabled={cart.length === 0}
                     className="hidden md:block w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 disabled:cursor-not-allowed"
                   >
                     提交訂單
@@ -1056,7 +1018,6 @@ export default function ShopCartPage() {
           <button
             onClick={handleSubmitOrder}
             className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold"
-            disabled={!agreeCommitment}
           >
             提交訂單
           </button>

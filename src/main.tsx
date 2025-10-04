@@ -102,11 +102,6 @@ function PrivateRoute({ children, permission }: { children: React.ReactNode; per
     return <Navigate to="/login" replace />
   }
 
-  // 嚴禁會員身分進後台（僅允許 admin/support/technician）
-  if ((user as any)?.role === 'member') {
-    return <Navigate to="/store" replace />
-  }
-
   if (permission && !can(user, permission as any)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F5F7FB] p-4">
@@ -187,7 +182,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/technicians" element={<PrivateRoute permission="technicians.manage"><TechnicianManagementPage /></PrivateRoute>} />
         <Route path="/promotions" element={<PrivateRoute permission="promotions.manage"><PromotionsPage /></PrivateRoute>} />
         <Route path="/documents" element={<PrivateRoute permission="documents.manage"><DocumentsPage /></PrivateRoute>} />
-        <Route path="/models" element={<PrivateRoute><ModelsPage /></PrivateRoute>} />
+        <Route path="/models" element={<Navigate to="/cms" replace />} />
         <Route path="/members" element={<PrivateRoute permission="customers.manage"><MembersPage /></PrivateRoute>} />
         <Route path="/customers" element={<PrivateRoute permission="customers.manage"><CustomersPage /></PrivateRoute>} />
         {/* Approvals 僅限 admin 可見，權限已在選單側控制 */}

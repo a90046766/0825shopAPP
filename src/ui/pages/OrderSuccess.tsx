@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle, CreditCard, Landmark, ArrowRight } from 'lucide-react'
 import { loadAdapters } from '../../adapters'
-import ShopTopBar from '../components/ShopTopBar'
 
 export default function OrderSuccessPage() {
   const navigate = useNavigate()
@@ -29,8 +28,8 @@ export default function OrderSuccessPage() {
         const o = await repos.orderRepo.get(orderId).catch(()=>null)
         if (!o) return
         // 正規化為成功頁顯示需要的欄位
-        const subTotal = Array.isArray(o.serviceItems) ? o.serviceItems.reduce((s:any,it:any)=> s + ((it.unitPrice||it.price||0)*(it.quantity||0)), 0) : 0
-        const finalPrice = Math.max(0, subTotal - (o.pointsDeductAmount||o.pointsUsed||0))
+        const subTotal = Array.isArray(o.serviceItems) ? o.serviceItems.reduce((s:any,it:any)=> s + ((it.unitPrice||0)*(it.quantity||0)), 0) : 0
+        const finalPrice = Math.max(0, subTotal - (o.pointsDeductAmount||0))
         const normalized = {
           id: o.id,
           paymentMethod: o.paymentMethod,
@@ -42,27 +41,6 @@ export default function OrderSuccessPage() {
           }
         }
         setOrder(normalized)
-        // 若小計為 0（可能因 RPC 未帶入 service_items），嘗試自動回填一次
-        if (subTotal === 0) {
-          try {
-            await fetch(`/api/order-backfill?order=${encodeURIComponent(orderId)}`)
-            const reread = await repos.orderRepo.get(orderId).catch(()=>null)
-            if (reread) {
-              const st = Array.isArray(reread.serviceItems) ? reread.serviceItems.reduce((s:any,it:any)=> s + ((it.unitPrice||it.price||0)*(it.quantity||0)), 0) : 0
-              const fp = Math.max(0, st - (reread.pointsDeductAmount||reread.pointsUsed||0))
-              setOrder({
-                id: reread.id,
-                paymentMethod: reread.paymentMethod,
-                finalPrice: fp,
-                customerInfo: {
-                  address: reread.customerAddress,
-                  preferredDate: reread.preferredDate,
-                  preferredTime: (reread.preferredTimeStart && reread.preferredTimeEnd) ? `${reread.preferredTimeStart}-${reread.preferredTimeEnd}` : ''
-                }
-              })
-            }
-          } catch {}
-        }
       } catch {}
     })()
   }, [orderId])
@@ -101,12 +79,6 @@ export default function OrderSuccessPage() {
           <div className="mt-6 grid grid-cols-1 gap-3">
             <Link to="/store/member/orders" className="w-full rounded-xl bg-gray-900 py-3 text-white hover:bg-gray-800 text-center">我的訂單</Link>
             <Link to="/store" className="w-full rounded-xl bg-gray-100 py-3 text-gray-800 hover:bg-gray-200 text-center">返回購物站</Link>
-            <a
-              href="https://line.me/R/ti/p/@942clean"
-              target="_blank"
-              rel="noreferrer"
-              className="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl bg-green-600 text-white hover:bg-green-700"
-            >加入官方 LINE</a>
           </div>
         </div>
       </div>
@@ -119,7 +91,6 @@ export default function OrderSuccessPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-6">
-      <ShopTopBar />
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="flex items-center gap-3">
@@ -147,16 +118,6 @@ export default function OrderSuccessPage() {
             <div className="md:col-span-2">
               <div className="text-sm text-gray-500">服務地址</div>
               <div className="font-semibold break-words">{order.customerInfo?.address}</div>
-            </div>
-          </div>
-
-          {/* 回饋點數提示卡 */}
-          <div className="mt-6 rounded-xl border p-4 bg-indigo-50 border-indigo-200 text-indigo-900">
-            <div className="font-semibold mb-1">消費回饋點數說明</div>
-            <div className="text-sm leading-relaxed">
-              本筆訂單預估回饋點數：
-              <span className="font-bold"> {Math.floor(Number(order.finalPrice||0)/100).toLocaleString()} 點</span>。
-              點數會在本訂單「結案完成」後入點，將於下次服務時可折抵（$100=1點，1點折抵$1）。
             </div>
           </div>
 

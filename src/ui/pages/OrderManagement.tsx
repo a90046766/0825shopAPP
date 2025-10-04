@@ -20,11 +20,10 @@ export default function OrderManagementPage() {
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
   const user = getCurrentUser()
   const [q, setQ] = useState('')
-  const now = new Date()
-  const [yy, setYy] = useState(String(now.getFullYear()))
-  const [mm, setMm] = useState(String(now.getMonth()+1).padStart(2,'0'))
-  const [statusTab, setStatusTab] = useState<'all'|'pending'|'confirmed'|'completed'|'closed'|'invoice'>('confirmed')
-  // 平台篩選移除，依使用者角色僅以狀態與年月分類
+  const [yy, setYy] = useState('')
+  const [mm, setMm] = useState('')
+  const [statusTab, setStatusTab] = useState<'all'|'pending'|'confirmed'|'completed'|'closed'|'invoice'>('all')
+  const [pf, setPf] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<any>({ 
     customerName:'', 
@@ -59,7 +58,8 @@ export default function OrderManagementPage() {
 
   const filtered = rows.filter(o => {
     const hit = !q || o.id.includes(q) || (o.customerName||'').includes(q)
-    const byPf = true
+    const pfKeys = Object.keys(pf).filter(k=>pf[k])
+    const byPf = pfKeys.length===0 || pfKeys.includes(o.platform)
     const dateKey = (o.workCompletedAt || o.createdAt || '').slice(0,7)
     const y = dateKey.slice(0,4)
     const m = dateKey.slice(5,7)
@@ -69,7 +69,7 @@ export default function OrderManagementPage() {
       if (statusTab==='pending') return o.status==='draft'
       if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
       if (statusTab==='completed') return o.status==='completed'
-      if (statusTab==='closed') return o.status==='closed' || (o as any).status==='unservice' || o.status==='canceled'
+      if (statusTab==='closed') return o.status==='closed' || o.status==='canceled' || (o as any).status==='unservice'
       if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
       return true
     })()
@@ -83,7 +83,8 @@ export default function OrderManagementPage() {
     pending: ownRows.filter(o=> o.status==='draft').length,
     confirmed: ownRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
     completed: ownRows.filter(o=> o.status==='completed').length,
-    closed: ownRows.filter(o=> o.status==='closed' || (o as any).status==='unservice' || o.status==='canceled').length,
+    closed: ownRows.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
+    invoice: ownRows.filter(o=> o.status==='completed' && !o.invoiceCode).length,
   } as any
   const yearOptions = Array.from(new Set((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean))).sort()
   return (
@@ -91,10 +92,14 @@ export default function OrderManagementPage() {
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">訂單管理</div>
       <div className="flex items-center gap-2 text-xs">
-        {(isTech
-          ? ([['confirmed','待服務'],['completed','已完成'],['closed','已結案'],['all','全部']] as any[])
-          : ([['pending','待確認'],['confirmed','待服務'],['completed','已完成'],['closed','已結案'],['all','全部']] as any[])
-        ).map(([key,label])=> (
+        {([
+          ['all','全部'],
+          ['pending','待確認'],
+          ['confirmed','待服務'],
+          ['completed','已完成'],
+          ['invoice','發票未寄送'],
+          ['closed','已結案'],
+        ] as any[]).map(([key,label])=> (
           <button
             key={key}
             onClick={()=>setStatusTab(key)}
@@ -172,36 +177,28 @@ export default function OrderManagementPage() {
       </div>
 
       {/* 技師卡牌式入口：顯示各分類數量，可點擊切換 */}
-      {/* 入口卡牌：加大＋著色，技師四張；管理員/客服含待確認 */}
-      <div className={`grid grid-cols-2 gap-3 md:grid-cols-5`}>
-        {(
-          isTech
-            ? ([['confirmed','待服務', counts.confirmed,'bg-blue-50 text-blue-800 border-blue-200'],
-                ['completed','已完成', counts.completed,'bg-green-50 text-green-800 border-green-200'],
-                ['closed','已結案', counts.closed,'bg-gray-50 text-gray-800 border-gray-200'],
-                ['all','全部', counts.all,'bg-purple-50 text-purple-800 border-purple-200']] as any[])
-            : ([['pending','待確認', counts.pending,'bg-amber-50 text-amber-800 border-amber-200'],
-                ['confirmed','待服務', counts.confirmed,'bg-blue-50 text-blue-800 border-blue-200'],
-                ['completed','已完成', counts.completed,'bg-green-50 text-green-800 border-green-200'],
-                ['closed','已結案', counts.closed,'bg-gray-50 text-gray-800 border-gray-200'],
-                ['all','全部', counts.all,'bg-purple-50 text-purple-800 border-purple-200']] as any[])
-        ).map(([key,label,num,color])=> (
-          <button key={key}
-            onClick={()=>setStatusTab(key as any)}
-            className={`rounded-2xl border p-5 md:p-6 text-left shadow-sm hover:shadow-md transition ${color} ${statusTab===key? 'ring-2 ring-current' : ''}`}>
-            <div className="text-sm font-semibold">{label}</div>
-            <div className="mt-1 text-3xl font-extrabold tabular-nums">{num}</div>
-            <div className="mt-1 text-[11px] opacity-80">
-              {key==='pending' && '尚未確認之預約單'}
-              {key==='confirmed' && '已確認、未完工/結案'}
-              {key==='completed' && '已完工、待結案或後續處理'}
-              {key==='closed' && '已結案（含無法服務/取消）'}
-              {key==='all' && (isTech? '當年技師承接單量' : '全部訂單')}
-            </div>
-          </button>
-        ))}
-      </div>
+      {isTech && (
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          {([ 
+            ['all','全部', counts.all],
+            ['pending','待確認', counts.pending],
+            ['confirmed','待服務', counts.confirmed],
+            ['completed','已完成', counts.completed],
+            ['invoice','發票未寄送', counts.invoice],
+            ['closed','已結案', counts.closed],
+          ] as any[]).map(([key,label,num])=> (
+            <button key={key} onClick={()=>setStatusTab(key)} className={`rounded-2xl border p-4 text-left shadow-card ${statusTab===key? 'ring-2 ring-brand-400' : ''}`}>
+              <div className="text-xs text-gray-500">{label}</div>
+              <div className="mt-1 text-2xl font-extrabold tabular-nums">{num}</div>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 text-xs">
+        {['日','同','黃','今'].map(p=> (
+          <button key={p} onClick={()=>setPf(s=>({ ...s, [p]: !s[p] }))} className={`rounded-full px-2.5 py-1 ${pf[p]? 'bg-brand-100 text-brand-700 ring-1 ring-brand-300' : 'bg-gray-100 text-gray-700'}`}>{p}</button>
+        ))}
+        <button onClick={()=>setPf({})} className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100">清除</button>
         {filtered.length>0 && (
           <>
             <button onClick={()=>{
@@ -282,7 +279,7 @@ export default function OrderManagementPage() {
                   o.status==='confirmed' ? 'bg-blue-100 text-blue-700' :
                   o.status==='in_progress' ? 'bg-purple-100 text-purple-700' :
                   o.status==='completed' ? 'bg-green-100 text-green-700' :
-                  (o.status==='closed' || (o as any).status==='unservice' || o.status==='canceled') ? 'bg-gray-100 text-gray-700' :
+                  o.status==='closed' ? 'bg-gray-100 text-gray-700' :
                   o.status==='canceled' ? 'bg-red-100 text-red-700' :
                   'bg-gray-100 text-gray-700'
                 }`}>
@@ -290,7 +287,7 @@ export default function OrderManagementPage() {
                    o.status==='confirmed' ? '已確認' :
                    o.status==='in_progress' ? '服務中' :
                    o.status==='completed' ? '已完工' :
-                   (o.status==='closed' || (o as any).status==='unservice' || o.status==='canceled') ? '已結案' :
+                   o.status==='closed' ? '已結案' :
                    o.status==='canceled' ? '已取消' : o.status}
                 </span>
               </div>

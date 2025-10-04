@@ -288,10 +288,10 @@ export default function PageOrderDetail() {
           <div>會員編號：<span className="text-gray-700">{memberCode||'—'}</span></div>
         </div>
       </div>
-      {/* 電子發票操作：僅管理員/客服、且訂單完成或結案時顯示 */}
-      {isAdminOrSupport && (order.status==='completed' || order.status==='closed') && (
+      {/* 電子發票操作：僅管理員/客服、且訂單完成時顯示 */}
+      {isAdminOrSupport && order.status==='completed' && (
         <div className="mt-3 flex items-center justify-between rounded-2xl bg-white p-4 shadow-card">
-          <div className="text-sm text-gray-700">電子發票：{(order.invoiceCode||'') ? <span className="text-emerald-700">已開立（{order.invoiceCode}）</span> : (order.invoiceSent ? <span className="text-emerald-700">已開立</span> : <span className="text-rose-700">未開立</span>)}</div>
+          <div className="text-sm text-gray-700">電子發票：{order.invoiceCode ? <span className="text-emerald-700">已開立（{order.invoiceCode}）</span> : <span className="text-rose-700">未開立</span>}</div>
           <div className="flex items-center gap-2">
             {!order.invoiceCode && (
               <button
@@ -390,11 +390,6 @@ export default function PageOrderDetail() {
             </div>
           )}
           {user?.role!=='technician' && <div className="mt-2 text-right"><button onClick={()=>setEditItems(e=>!e)} className="rounded bg-gray-100 px-2 py-1 text-xs">{editItems?'取消':'編輯項目'}</button></div>}
-
-          {/* 技師簡易增減（可輸入負數），僅在未付款且未有客戶簽名時啟用 */}
-          {user?.role==='technician' && (
-            <TechAdjustForm order={order} setOrder={setOrder} repo={repos.orderRepo} />
-          )}
 
           {/* 積分抵扣 */}
           <div className="space-y-2">
@@ -829,7 +824,7 @@ export default function PageOrderDetail() {
                       res = await (svc as any).EInvoice.createB2C(payload)
                     }
                     const code = res?.invoiceNumber || res?.code || 'INV-' + String(Math.random()).slice(2,8)
-                    await repos.orderRepo.update(order.id, { invoiceCode: code, invoiceStatus: 'issued' as any, invoiceSent: true as any })
+                    await repos.orderRepo.update(order.id, { invoiceCode: code, invoiceStatus: 'issued' as any })
                     const o = await repos.orderRepo.get(order.id); setOrder(o)
                     setInvoiceOpen(false)
                     alert('已開立電子發票：' + code)
@@ -1119,47 +1114,6 @@ export default function PageOrderDetail() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function TechAdjustForm({ order, setOrder, repo }: { order: any; setOrder: any; repo: any }){
-  const [name, setName] = useState('')
-  const [qty, setQty] = useState<string>('0')
-  const locked = (order?.paymentStatus==='paid') || Boolean(order?.signatures?.customer)
-  const names = Array.from(new Set(((order?.serviceItems||[]) as any[]).map(it=> String(it?.name||'').trim()).filter(Boolean)))
-  const totalQty = (n:string) => (order?.serviceItems||[]).filter((x:any)=> String(x?.name||'').trim()===n).reduce((s:number,x:any)=> s + (Number(x?.quantity)||0),0)
-  const unitOf = (n:string) => { const found = (order?.serviceItems||[]).find((x:any)=> String(x?.name||'').trim()===n); return Number(found?.unitPrice)||0 }
-  return (
-    <div className="mt-3 rounded-lg border p-3 text-xs">
-      <div className="mb-2 font-medium text-gray-700">現場增減（可為負數）</div>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
-        <select className="rounded border px-2 py-1" disabled={locked} value={name} onChange={e=>setName(e.target.value)}>
-          <option value="">選擇品項</option>
-          {names.map((n:string,i:number)=>(<option key={i} value={n}>{n}</option>))}
-        </select>
-        <input className="rounded border px-2 py-1" disabled={locked} type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="數量，可負數" />
-        <div className="text-gray-600 flex items-center">當前合計：{name? totalQty(name): 0}</div>
-        <div className="text-right">
-          <button
-            disabled={locked}
-            onClick={async()=>{
-              const n = String(name||'').trim(); const q = Number(qty||'0')
-              if (!n) { alert('請選擇品項'); return }
-              if (!q || isNaN(q)) { alert('請輸入數量（可為負）'); return }
-              const after = totalQty(n) + q
-              if (after < 0) { alert('扣減後數量不可為負值'); return }
-              const unit = unitOf(n)
-              const next = [ ...(order?.serviceItems||[]), { name: n, quantity: q, unitPrice: unit, isAdjustment: true } ]
-              try { setOrder((prev:any)=> prev ? { ...prev, serviceItems: next } : prev) } catch {}
-              try { await repo.update(order.id, { serviceItems: next }) } catch {}
-              setQty('0')
-            }}
-            className={`rounded px-3 py-1 ${locked? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white'}`}
-          >套用</button>
-        </div>
-      </div>
-      {locked && <div className="mt-1 text-rose-600">已收款或客戶已簽名，無法異動</div>}
     </div>
   )
 }
