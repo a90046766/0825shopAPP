@@ -14,6 +14,20 @@ import {
   Heart,
   Shield
 } from 'lucide-react'
+import { supabase } from '../../utils/supabase'
+
+function getCurrentUser(): any | null {
+  try {
+    const s = localStorage.getItem('supabase-auth-user')
+    if (s) return JSON.parse(s)
+  } catch {}
+  try {
+    const l = localStorage.getItem('local-auth-user')
+    if (l) return JSON.parse(l)
+  } catch {}
+  return null
+}
+// 重複 import 會造成編譯錯誤，移除第二個重複 import
 
 export default function ShopProductsPage() {
   const location = useLocation()
@@ -29,6 +43,72 @@ export default function ShopProductsPage() {
   const [sortKey, setSortKey] = useState<'relevance' | 'priceAsc' | 'priceDesc'>('relevance')
   const [favorites, setFavorites] = useState<string[]>([])
   const [history, setHistory] = useState<any[]>([])
+  const [allProducts, setAllProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null)
+  const [useServerApi, setUseServerApi] = useState(true)
+  const [editMode, setEditMode] = useState(false)
+  const [edit, setEdit] = useState<any | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [headUrlInput, setHeadUrlInput] = useState('')
+
+  const user = getCurrentUser()
+  const isEditor = user?.role === 'admin' || user?.role === 'support'
+
+  // 確保具備 Supabase 員工登入（避免以匿名/會員身分被 RLS 擋下）
+  const ensureStaffAuth = async (): Promise<boolean> => {
+    try {
+      const { data } = await supabase.auth.getSession()
+      const sess = data?.session
+      const userType = (sess?.user?.user_metadata as any)?.user_type
+      if (!sess || userType === 'member') {
+        const ret = encodeURIComponent(location.pathname + location.search)
+        alert('請先以員工身分登入後台再儲存（admin/support）。將帶您前往登入。')
+        try { window.location.assign(`/login?returnTo=${ret}`) } catch {}
+        return false
+      }
+      return true
+    } catch {
+      const ret = encodeURIComponent(location.pathname + location.search)
+      alert('請先以員工身分登入後台再儲存（admin/support）。將帶您前往登入。')
+      try { window.location.assign(`/login?returnTo=${ret}`) } catch {}
+      return false
+    }
+  }
+
+  // 以 id 批次補齊缺漏欄位（特別是 content）
+  const hydrateMissingContent = async (rows: any[]) => {
+    try {
+      const missing = rows.filter(r => !r.content && r.id).map(r => r.id)
+      if (missing.length === 0) return rows
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, detail_html, content, features, image_urls, unit_price, group_price, group_min_qty, mode_code')
+        .in('id', missing)
+      if (error) return rows
+      const map = new Map<string, any>((data||[]).map((r:any)=>[String(r.id), r]))
+      return rows.map(r => {
+        const m = map.get(String(r.id))
+        if (!m) return r
+        return {
+          ...r,
+          content: (m.detail_html ?? m.content) ?? r.content,
+          features: Array.isArray(r.features) ? r.features : (Array.isArray(m.features) ? m.features : []),
+          image: r.image,
+          images: Array.isArray(r.images) && r.images.length>0 ? r.images : (Array.isArray(m.image_urls)? m.image_urls : []),
+          headImages: Array.isArray(r.headImages) ? r.headImages : [],
+          price: r.price ?? Number(m.unit_price||0),
+          groupPrice: r.groupPrice ?? m.group_price ?? null,
+          groupMinQty: r.groupMinQty ?? m.group_min_qty ?? null,
+          category: r.category ?? m.mode_code ?? 'cleaning'
+        }
+      })
+    } catch {
+      return rows
+    }
+  }
 
   // 當網址列的 category 變化時同步
   useEffect(() => {
@@ -53,6 +133,473 @@ export default function ShopProductsPage() {
       if (Array.isArray(saved)) setCart(saved)
     } catch {}
   }, [])
+
+  // 從 Supabase 讀取產品（含容錯與離線預設）
+  useEffect(() => {
+    const seedProducts: any[] = [
+      { id: 'seed-ac-split', name: '分離式冷氣清洗', description: '專業拆洗殺菌', price: 1800, groupPrice: 1600, groupMinQty: 3, category: 'cleaning', features: ['深度清洗','除菌除臭','保固說明'], image: 'https://images.unsplash.com/photo-1528323273322-d81458248d40?q=80&w=1200&auto=format&fit=crop', images: [], published: true },
+      { id: 'seed-washer', name: '洗衣機清洗（滾筒）', description: '內槽還原常新', price: 1999, groupPrice: 1799, groupMinQty: 3, category: 'cleaning', features: ['內槽拆洗','去汙抗菌','快速完工'], image: 'https://images.unsplash.com/photo-1565718815432-d975f22f1b19?q=80&w=1200&auto=format&fit=crop', images: [], published: true },
+      { id: 'seed-hood', name: '抽油煙機清洗', description: '重油汙徹底處理', price: 2200, groupPrice: 2000, groupMinQty: 3, category: 'cleaning', features: ['渦輪清洗','強力去油','安全環保'], image: 'https://images.unsplash.com/photo-1599597435093-6ab35cda2f5c?q=80&w=1200&auto=format&fit=crop', images: [], published: true },
+      { id: 'seed-fridge', name: '冰箱清洗除臭', description: '乾淨無異味', price: 1600, groupPrice: 1440, groupMinQty: 3, category: 'cleaning', features: ['食安無虞','抑菌處理','保鮮加分'], image: 'https://images.unsplash.com/photo-1586201375761-83865001e31b?q=80&w=1200&auto=format&fit=crop', images: [], published: true },
+    ]
+
+    const safeMap = (rows: any[]): any[] => {
+      return (rows || []).map((r: any) => ({
+        id: String(r.id ?? r.uuid ?? Math.random().toString(36).slice(2)),
+        name: r.name ?? '',
+        description: r.description ?? '',
+        content: (r.detail_html ?? r.content) ?? '',
+        price: Number(r.unit_price ?? r.price ?? 0),
+        groupPrice: (r.group_price ?? r.groupPrice) ?? null,
+        groupMinQty: (r.group_min_qty ?? r.groupMinQty) ?? null,
+        category: r.mode_code ?? r.category ?? 'cleaning',
+        features: Array.isArray(r.features) ? r.features : [],
+        image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : (r.image || ''),
+        images: Array.isArray(r.image_urls) ? r.image_urls : (Array.isArray(r.images) ? r.images : []),
+      headImages: Array.isArray((r as any).head_images) ? (r as any).head_images : (Array.isArray((r as any).headImages) ? (r as any).headImages : []),
+        published: r.published !== undefined ? !!r.published : true,
+        showAcAdvisor: (typeof r.show_ac_advisor === 'boolean') ? r.show_ac_advisor : true,
+        addonConfig: (r as any).addon_config || (r as any).addonConfig || null
+      }))
+    }
+
+    const load = async () => {
+      setLoading(true)
+      setError(null)
+      setFallbackNotice(null)
+      try {
+        // 方案 S：優先走 Netlify Functions（更穩定）
+        if (useServerApi) {
+          try {
+            const res = await fetch('/api/products-list?publishedOnly=' + (isEditor && editMode ? '0' : '1'), { method: 'GET' })
+            const j = await res.json()
+            if (j?.ok && Array.isArray(j.data)) {
+              let mapped = safeMap(j.data)
+              mapped = await hydrateMissingContent(mapped)
+              setAllProducts(mapped)
+              if (j.data.length === 0) setFallbackNotice('目前尚無上架商品，請於管理模式新增')
+              setLoading(false)
+              return
+            }
+          } catch {}
+        }
+
+        // 方案 A：直接查 Supabase（完整欄位 + 排序，若資料表完整）
+        let q = supabase
+          .from('products')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,store_sort,updated_at,show_ac_advisor,addon_config')
+          .order('store_sort', { ascending: true })
+          .order('updated_at', { ascending: false })
+        if (!(isEditor && editMode)) {
+          q = q.eq('published', true)
+        }
+        let { data, error } = await q
+        if (error) {
+          // 方案 B：移除可能不存在欄位（如 store_sort）
+          let q2 = supabase
+            .from('products')
+            .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor,addon_config')
+            .order('updated_at', { ascending: false })
+          if (!(isEditor && editMode)) q2 = q2.eq('published', true)
+          const r2 = await q2
+          data = r2.data as any
+          error = r2.error as any
+        }
+        if (error) {
+          // 方案 C：最小化查詢（select *），避免欄位不相容帶來 400
+          let q3 = supabase.from('products').select('*')
+          if (!(isEditor && editMode)) q3 = q3.eq('published', true)
+          const r3 = await q3
+          if (r3.error) throw r3.error
+          const mappedC = safeMap(r3.data || [])
+          setAllProducts(mappedC)
+          if (mappedC.length === 0) {
+            setAllProducts(seedProducts)
+            setFallbackNotice('目前顯示預設商品（資料庫無資料或未上架）')
+          }
+          return
+        }
+
+        const mapped = safeMap(data || [])
+        if (mapped.length === 0) {
+          setAllProducts(seedProducts)
+          setFallbackNotice('目前顯示預設商品（暫無上架商品）')
+        } else {
+          setAllProducts(mapped)
+        }
+      } catch (e: any) {
+        // 完全失敗：離線/連線錯誤 → 顯示預設商品，並給管理員看到錯誤
+        setError(e?.message || String(e))
+        setAllProducts(seedProducts)
+        setFallbackNotice('連線異常，暫時顯示預設商品')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [editMode, isEditor, useServerApi])
+
+  const reloadProducts = async () => {
+    setLoading(true)
+    setError(null)
+    setFallbackNotice(null)
+    try {
+        let q = supabase
+        .from('products')
+          .select('id,name,unit_price,group_price,group_min_qty,description,detail_html,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor,addon_config')
+        .order('updated_at', { ascending: false })
+      if (!(isEditor && editMode)) q = q.eq('published', true)
+      let { data, error } = await q
+      if (error) {
+        // 欄位不存在（42703）或其他欄位不相容 → 回退查詢，移除 detail_html / addon_config
+        let q2 = supabase
+          .from('products')
+          .select('id,name,unit_price,group_price,group_min_qty,description,content,features,image_urls,head_images,category,mode_code,published,updated_at,show_ac_advisor')
+          .order('updated_at', { ascending: false })
+        if (!(isEditor && editMode)) q2 = q2.eq('published', true)
+        const r2 = await q2
+        data = r2.data as any
+        error = r2.error as any
+        if (error) throw error
+      }
+      const mapped = (data || []).map((r: any) => ({
+        id: String(r.id ?? Math.random().toString(36).slice(2)),
+        name: r.name ?? '',
+        description: r.description ?? '',
+        content: (r.detail_html ?? r.content) ?? '',
+        price: Number(r.unit_price ?? r.price ?? 0),
+        groupPrice: r.group_price ?? null,
+        groupMinQty: r.group_min_qty ?? null,
+        category: r.mode_code ?? r.category ?? 'cleaning',
+        features: Array.isArray(r.features) ? r.features : [],
+        image: Array.isArray(r.image_urls) && r.image_urls[0] ? r.image_urls[0] : (r.image || ''),
+        images: Array.isArray(r.image_urls) ? r.image_urls : [],
+        headImages: Array.isArray(r.head_images) ? r.head_images : (Array.isArray((r as any).headImages) ? (r as any).headImages : []),
+        published: !!r.published,
+        addonConfig: (r as any).addon_config || (r as any).addonConfig || null
+      }))
+      if (mapped.length === 0) setFallbackNotice('目前顯示預設商品（暫無上架商品）')
+      setAllProducts(mapped)
+    } catch (e: any) {
+      setError(e?.message || String(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const beginCreate = () => {
+    setEdit({
+      id: null,
+      name: '',
+      description: '',
+      content: '',
+      price: 0,
+      groupPrice: null,
+      groupMinQty: null,
+      category: selectedCategory || 'cleaning',
+      features: [],
+      image: '',
+      images: [],
+      published: true,
+      showAcAdvisor: (selectedCategory || 'cleaning') === 'new',
+      addonConfig: { enabled: false, items: [] }
+    })
+  }
+
+  const beginEdit = async (p: any) => {
+    const base = { ...p, features: Array.isArray(p.features) ? p.features : [] }
+    setEdit(base)
+    // 若 content 缺失則即時讀回 DB，避免空白覆蓋
+    try {
+      if (p?.id && (!p.content || p.content==='')) {
+        // 加 5 秒超時避免卡住
+        const controller = new AbortController()
+        const t = setTimeout(() => controller.abort(), 5000)
+        const { data, error } = await supabase
+          .from('products')
+          .select('detail_html, content, features, image_urls')
+          .eq('id', p.id)
+          .maybeSingle({ head: false, count: 'exact' }) as any
+        clearTimeout(t)
+        if (!error && data) {
+          setEdit(prev => prev ? {
+            ...prev,
+            content: (data.detail_html ?? data.content) ?? prev.content,
+            features: Array.isArray(prev.features) ? prev.features : (Array.isArray(data.features)? data.features : []),
+            images: Array.isArray(prev.images) && prev.images.length>0 ? prev.images : (Array.isArray(data.image_urls)? data.image_urls : [])
+          } : prev)
+        }
+      }
+    } catch {}
+  }
+
+  const saveEdit = async () => {
+    if (!edit) return
+    setSaving(true)
+    // 20 秒看門狗，避免長時間網路阻塞導致 UI 卡在「儲存中」
+    const watchdog = setTimeout(() => {
+      try { setSaving(false) } catch {}
+      try { alert('儲存逾時，請稍後重試') } catch {}
+    }, 20000)
+    try {
+      // 無員工登入時直接導向登入，避免匿名被 RLS 擋下導致資料消失
+      const ok = await ensureStaffAuth()
+      if (!ok) { setSaving(false); return }
+      // 避免 content 被空字串覆蓋：若為空則讀回 DB 既有值
+      let contentToSave: string = (edit as any).content ?? ''
+      if (edit.id && (!contentToSave || contentToSave.trim()==='')) {
+        try {
+          const { data } = await supabase
+            .from('products')
+            .select('detail_html, content')
+            .eq('id', edit.id)
+            .maybeSingle()
+          const existingDetail = (data as any)?.detail_html
+          const existingContent = (data as any)?.content
+          if (typeof existingDetail === 'string' && existingDetail.trim() !== '') {
+            contentToSave = existingDetail
+          } else if (typeof existingContent === 'string' && existingContent.trim() !== '') {
+            contentToSave = existingContent
+          }
+        } catch {}
+      }
+      // 先嘗試以 RPC 更新 HTML 欄位（RLS 下較穩定）
+      let rpcOk = false
+      if (edit.id) {
+        try {
+          const { data: ok, error: rpcErr } = await supabase.rpc('update_product_html', { p_id: edit.id, p_html: contentToSave })
+          if (!rpcErr && ok === true) rpcOk = true
+        } catch {}
+      }
+      const row: any = {
+        name: edit.name || '',
+        unit_price: Number(edit.price || 0),
+        group_price: edit.groupPrice ?? null,
+        group_min_qty: edit.groupMinQty ?? null,
+        description: edit.description || '',
+        // 新欄位：商品詳述（HTML）
+        detail_html: contentToSave,
+        // 舊欄位仍同步寫入一次，確保相容（後續可移除）
+        content: contentToSave,
+        features: Array.isArray(edit.features) ? edit.features : String(edit.features||'').split(',').map((s:string)=>s.trim()).filter(Boolean),
+        image_urls: (edit.image && String(edit.image).trim()!==''
+          ? [String(edit.image).trim()]
+          : (Array.isArray(edit.images) ? edit.images : [])
+        ),
+        head_images: Array.isArray((edit as any).headImages) ? (edit as any).headImages : [],
+        category: edit.category,
+        mode_code: edit.category,
+        published: !!edit.published,
+        show_ac_advisor: edit.category==='new' ? !!edit.showAcAdvisor : null,
+        updated_at: new Date().toISOString(),
+        addon_config: (edit as any).addonConfig ?? null
+      }
+      if (rpcOk) { delete row.detail_html; delete row.content }
+      // 嘗試以 RPC 更新媒體與加購欄位，避免 RLS 阻擋
+      let mediaRpcOk = false
+      if (edit.id) {
+        try {
+          const { data: ok2, error: rpcErr2 } = await supabase.rpc('update_product_media', {
+            p_id: edit.id,
+            p_image_urls: row.image_urls ?? null,
+            p_head_images: row.head_images ?? null,
+            p_addon: row.addon_config ?? null
+          })
+          if (!rpcErr2 && ok2 === true) mediaRpcOk = true
+        } catch {}
+      }
+      if (mediaRpcOk) { delete row.image_urls; delete row.head_images; delete row.addon_config }
+      // 避免將 null 寫入不可為空或不存在的欄位
+      if (row.show_ac_advisor === null) delete row.show_ac_advisor
+      // 優先嘗試 Functions（Service Role），失敗則直接寫入 Supabase
+      let saved = false
+      // 對雲端函式加入 8 秒超時，避免長時間卡住
+      async function fetchJsonWithTimeout(url: string, options: any, timeoutMs: number): Promise<any> {
+        const controller = new AbortController()
+        const id = setTimeout(() => controller.abort(), timeoutMs)
+        try {
+          const res = await fetch(url, { ...options, signal: controller.signal })
+          try { return await res.json() } catch { return { ok: false } }
+        } finally {
+          clearTimeout(id)
+        }
+      }
+      try {
+        const j = await fetchJsonWithTimeout('/api/products-upsert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: edit.id, ...row })
+        }, 8000)
+        if (j?.ok) saved = true
+      } catch {}
+
+      if (!saved) {
+        // 直接寫入資料庫（可能受 RLS 影響；更新優先，其次插入）
+        if (edit.id) {
+          const { data: upRows, error: upErr } = await supabase
+            .from('products')
+            .update(row)
+            .eq('id', edit.id)
+            .select('id, content, detail_html')
+          if (upErr) {
+            // 若為欄位不存在（42703），回退為不含 detail_html 的寫入
+            const msg = (upErr as any)?.message || ''
+            const code = (upErr as any)?.code || ''
+            if (code === '42703' || /detail_html|addon_config|image_urls|head_images/i.test(msg)) {
+              const rowLegacy: any = { ...row }
+              delete rowLegacy.detail_html
+              delete rowLegacy.addon_config
+              delete rowLegacy.image_urls
+              delete rowLegacy.head_images
+              const { data: upRows2, error: upErr2 } = await supabase
+                .from('products')
+                .update(rowLegacy)
+                .eq('id', edit.id)
+                .select('id, content')
+              if (upErr2) throw upErr2
+              if (!upRows2 || upRows2.length === 0) {
+                const { error: upsertErrLegacy } = await supabase
+                  .from('products')
+                  .upsert({ id: edit.id, ...rowLegacy } as any, { onConflict: 'id' } as any)
+                if (upsertErrLegacy) throw upsertErrLegacy
+              }
+            } else {
+              // 其他錯誤 → 嘗試 upsert
+              const { error: upsertErr } = await supabase
+                .from('products')
+                .upsert({ id: edit.id, ...row }, { onConflict: 'id' } as any)
+              if (upsertErr) throw upsertErr
+            }
+          } else if (!upRows || upRows.length === 0) {
+            // 無錯但未更新任何列 → 回退採用 upsert 以確保寫入
+            const { error: upsertErr } = await supabase
+              .from('products')
+              .upsert({ id: edit.id, ...row }, { onConflict: 'id' } as any)
+            if (upsertErr) throw upsertErr
+          }
+        } else {
+          let { error: insErr } = await supabase
+            .from('products')
+            .insert([{ ...row }])
+          if (insErr) {
+            const msg = (insErr as any)?.message || ''
+            const code = (insErr as any)?.code || ''
+            if (code === '42703' || /detail_html|addon_config|image_urls|head_images/i.test(msg)) {
+              const rowLegacy: any = { ...row }
+              delete rowLegacy.detail_html
+              delete rowLegacy.addon_config
+              delete rowLegacy.image_urls
+              delete rowLegacy.head_images
+              const { error: insErr2 } = await supabase
+                .from('products')
+                .insert([{ ...rowLegacy }])
+              if (insErr2) throw insErr2
+            } else {
+              throw insErr
+            }
+          }
+        }
+      }
+
+      setEdit(null)
+      await reloadProducts()
+    } catch (e: any) {
+      alert(`儲存失敗：${e?.message || e}`)
+    } finally {
+      try { clearTimeout(watchdog) } catch {}
+      setSaving(false)
+    }
+  }
+
+  const deleteEdit = async () => {
+    if (!edit?.id) { setEdit(null); return }
+    if (!confirm('確定刪除此商品？')) return
+    setDeleting(true)
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', edit.id)
+      if (error) throw error
+      setEdit(null)
+      await reloadProducts()
+    } catch (e: any) {
+      alert(`刪除失敗：${e?.message || e}`)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // 工具：壓縮圖片（最大邊 1600，JPEG 0.85）
+  async function compressImage(file: File): Promise<{ base64: string, contentType: string, filename: string }> {
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const fr = new FileReader()
+      fr.onload = () => resolve(String(fr.result))
+      fr.onerror = reject
+      fr.readAsDataURL(file)
+    })
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image()
+      i.onload = () => resolve(i)
+      i.onerror = reject
+      i.src = dataUrl
+    })
+    const maxSize = 1600
+    let { width, height } = img
+    const scale = Math.min(1, maxSize / Math.max(width, height))
+    const w = Math.round(width * scale)
+    const h = Math.round(height * scale)
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(img, 0, 0, w, h)
+    const out = canvas.toDataURL('image/jpeg', 0.85)
+    const base64 = out.split(',')[1]
+    return { base64, contentType: 'image/jpeg', filename: file.name || 'image.jpg' }
+  }
+
+  const [uploadingHead, setUploadingHead] = useState(false)
+  async function handleHeadUpload(files: FileList | null) {
+    if (!files || files.length === 0 || !edit) return
+    setUploadingHead(true)
+    try {
+      const list = Array.from(files)
+      for (const f of list) {
+        const { base64, contentType, filename } = await compressImage(f)
+        const res = await fetch('/api/upload-head-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId: edit.id || 'new', filename, contentType, dataBase64: base64 })
+        })
+        const j = await res.json().catch(()=>({ ok:false }))
+        if (j?.ok && j.url) {
+          setEdit(prev => prev ? { ...prev, headImages: [...(prev.headImages||[]), j.url] } : prev)
+        }
+      }
+    } catch (e:any) {
+      alert(`上傳失敗：${e?.message || e}`)
+    } finally {
+      setUploadingHead(false)
+    }
+  }
+
+  function addHeadUrl() {
+    if (!edit) return
+    const u = (headUrlInput || '').trim()
+    if (!u) return
+    setEdit({ ...edit, headImages: [...(edit.headImages || []), u] })
+    setHeadUrlInput('')
+  }
+  function moveHead(idx: number, dir: -1 | 1) {
+    if (!edit?.headImages) return
+    const arr = [...edit.headImages]
+    const j = idx + dir
+    if (j < 0 || j >= arr.length) return
+    const tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp
+    setEdit({ ...edit, headImages: arr })
+  }
+  function removeHead(idx: number) {
+    if (!edit?.headImages) return
+    const arr = edit.headImages.filter((_:string, i:number) => i !== idx)
+    setEdit({ ...edit, headImages: arr })
+  }
 
   useEffect(() => {
     try { localStorage.setItem('shopFavorites', JSON.stringify(favorites)) } catch {}
@@ -79,193 +626,7 @@ export default function ShopProductsPage() {
     })
   }
 
-  // 專業清洗服務產品（參考 942clean.com.tw）
-  const cleaningProducts = [
-    {
-      id: 'ac-split',
-      name: '分離式冷氣清洗',
-      description: '室內外機標準清洗，包含濾網、蒸發器、冷凝器清潔，延長冷氣壽命',
-      price: 1800,
-      groupPrice: 1600,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['專業技師', '環保清潔劑', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'ac-window',
-      name: '窗型冷氣清洗',
-      description: '窗型冷氣深度清洗，除塵、除菌、除異味，恢復冷房效果',
-      price: 1500,
-      groupPrice: 1350,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['深度清洗', '除菌除臭', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'washer-drum',
-      name: '洗衣機清洗（滾筒）',
-      description: '滾筒式洗衣機拆洗保養，包含內筒、外筒、管路清潔，去除黴菌',
-      price: 1999,
-      groupPrice: 1799,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['拆洗保養', '除黴除菌', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'washer-vertical',
-      name: '洗衣機清洗（直立）',
-      description: '直立式洗衣機深度清洗，去除洗衣槽污垢，恢復清潔效果',
-      price: 1799,
-      groupPrice: 1619,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['深度清洗', '除垢除菌', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'hood-inverted',
-      name: '倒T型抽油煙機清洗',
-      description: '不鏽鋼倒T型抽油煙機，包含內部機械清洗，去除油垢',
-      price: 2200,
-      groupPrice: 2000,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['機械清洗', '除油除垢', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'hood-traditional',
-      name: '傳統雙渦輪抽油煙機清洗',
-      description: '傳統型雙渦輪抽油煙機清洗保養，恢復吸油煙效果',
-      price: 1800,
-      groupPrice: 1600,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['渦輪清洗', '除油除垢', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'fridge-clean',
-      name: '冰箱清洗除臭',
-      description: '冰箱內部深度清洗，去除異味，除菌消毒，延長使用壽命',
-      price: 1600,
-      groupPrice: 1440,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['深度清洗', '除臭除菌', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'water-heater',
-      name: '熱水器除垢清洗',
-      description: '電熱水器除垢清洗，延長使用壽命，提高加熱效率',
-      price: 1400,
-      groupPrice: 1260,
-      groupMinQty: 3,
-      category: 'cleaning',
-      features: ['除垢清洗', '延長壽命', '30天保固', '免費檢測'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    }
-  ]
-
-  // 新家電銷售產品
-  const newAppliances = [
-    {
-      id: 'ac-new-split',
-      name: '日立分離式冷氣',
-      description: '變頻分離式冷氣，節能省電，靜音設計',
-      price: 25000,
-      category: 'new',
-      features: ['變頻節能', '靜音設計', '原廠保固', '免費安裝'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'washer-new',
-      name: 'LG滾筒洗衣機',
-      description: '大容量滾筒洗衣機，蒸汽除菌，智能控制',
-      price: 32000,
-      category: 'new',
-      features: ['大容量', '蒸汽除菌', '原廠保固', '免費安裝'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'hood-new',
-      name: '櫻花抽油煙機',
-      description: '強力抽油煙機，靜音設計，易清潔',
-      price: 15000,
-      category: 'new',
-      features: ['強力抽風', '靜音設計', '原廠保固', '免費安裝'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    }
-  ]
-
-  // 二手家電產品
-  const usedAppliances = [
-    {
-      id: 'ac-used-split',
-      name: '二手分離式冷氣',
-      description: '品質檢驗二手冷氣，功能正常，價格實惠',
-      price: 8000,
-      category: 'used',
-      features: ['品質檢驗', '功能正常', '90天保固', '環保選擇'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'washer-used',
-      name: '二手洗衣機',
-      description: '檢驗合格二手洗衣機，節省預算，環保選擇',
-      price: 5000,
-      category: 'used',
-      features: ['檢驗合格', '節省預算', '90天保固', '環保選擇'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'fridge-used',
-      name: '二手冰箱',
-      description: '功能正常二手冰箱，大容量，適合小家庭',
-      price: 6000,
-      category: 'used',
-      features: ['功能正常', '大容量', '90天保固', '環保選擇'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    }
-  ]
-
-  // 居家清潔服務
-  const homeCleaning = [
-    {
-      id: 'cleaning-regular',
-      name: '定期居家清潔',
-      description: '每週/每月定期清潔服務，保持居家環境整潔',
-      price: 2500,
-      category: 'home',
-      features: ['定期服務', '專業清潔', '滿意保證', '環保清潔劑'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'cleaning-deep',
-      name: '深度居家清潔',
-      description: '年度深度清潔，包含死角、高處、特殊區域',
-      price: 3500,
-      category: 'home',
-      features: ['深度清潔', '死角處理', '滿意保證', '環保清潔劑'],
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'cleaning-move',
-      name: '搬家清潔服務',
-      description: '搬家前後清潔服務，讓新家煥然一新',
-      price: 4000,
-      category: 'home',
-      features: ['搬家清潔', '全面清潔', '滿意保證', '環保清潔劑'],
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-    }
-  ]
-
-  // 合併所有產品
-  const allProducts = [...cleaningProducts, ...newAppliances, ...usedAppliances, ...homeCleaning]
+  // 所有產品由資料庫取得（上方 useEffect）
 
   // 根據分類/關鍵字/團購/價格區間篩選 + 排序
   const filteredProducts = (() => {
@@ -414,6 +775,20 @@ export default function ShopProductsPage() {
             </div>
 
             <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+              {isEditor && (
+                <>
+                  <button
+                    onClick={()=> setEditMode(v=>!v)}
+                    className="rounded bg-gray-100 px-3 py-1 text-xs md:text-sm text-gray-700"
+                  >{editMode ? '關閉管理' : '管理模式'}</button>
+                  {editMode && (
+                    <button
+                      onClick={beginCreate}
+                      className="rounded bg-blue-600 px-3 py-1 text-xs md:text-sm text-white"
+                    >新增商品</button>
+                  )}
+                </>
+              )}
               <div className="relative">
                 <input
                   type="text"
@@ -424,6 +799,11 @@ export default function ShopProductsPage() {
                 />
                 <span className="pointer-events-none absolute right-2 md:right-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
               </div>
+              {selectedCategory==='new' && allProducts.some(p=> (p.category==='new') && !!p.showAcAdvisor) && (
+                <Link to="/store/ac-advisor" className="rounded bg-emerald-600 px-3 py-1 text-xs md:text-sm text-white">
+                  冷氣建議計算
+                </Link>
+              )}
               <label className="inline-flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-700">
                 <input type="checkbox" checked={groupOnly} onChange={(e)=> setGroupOnly(e.target.checked)} />
                 只看可團購
@@ -465,15 +845,37 @@ export default function ShopProductsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-8">
           {/* 產品列表 */}
           <div className="lg:col-span-3">
+            {loading && (
+              <div className="mb-3 rounded border p-3 text-sm text-gray-600">載入中…</div>
+            )}
+            {error && (
+              <div className="mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                {isEditor ? `載入商品失敗：${error}` : '商品載入異常，請稍後再試'}
+              </div>
+            )}
+            {fallbackNotice && (
+              <div className="mb-3 rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                {fallbackNotice}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
               {filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden"
+                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden cursor-pointer"
+                  onClick={()=> { addToHistory(product); navigate(`/store/products/${product.id}`) }}
                 >
                   {/* 產品圖片 */}
-                  <div className="h-40 md:h-48 bg-gray-100 relative" onClick={()=> addToHistory(product)}>
-                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                  <div className="h-40 md:h-48 bg-white relative cursor-pointer" onClick={()=> { addToHistory(product); navigate(`/store/products/${product.id}`) }}>
+                    <img src={product.image} alt={product.name} className="w-full h-full object-contain" />
+                    {isEditor && editMode && (
+                      <div className="absolute right-2 top-2 z-10 flex gap-1">
+                        <button onClick={(e)=> { e.stopPropagation(); beginEdit(product) }} className="rounded bg-white/90 px-2 py-0.5 text-xs text-gray-800 hover:bg-white">編輯</button>
+                      </div>
+                    )}
+                    {(!product.published) && (
+                      <div className="absolute left-2 top-2 z-10 rounded bg-gray-700/90 px-2 py-0.5 text-[10px] text-white">草稿</div>
+                    )}
                     <button
                       type="button"
                       onClick={(e)=> { e.stopPropagation(); toggleFavorite(product.id) }}
@@ -515,6 +917,26 @@ export default function ShopProductsPage() {
                       {product.description}
                     </p>
 
+                    {/* 詳情連結 */}
+                    <div className="mb-3 md:mb-4 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={(e)=> { e.stopPropagation(); navigate(`/store/products/${product.id}`) }}
+                        className="text-blue-600 hover:text-blue-700 text-sm md:text-base inline-flex items-center gap-1"
+                      >
+                        <ArrowRight className="h-4 w-4" /> 查看詳情
+                      </button>
+                      <a
+                        href={`/store/products/${product.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-600 hover:text-gray-800 text-xs underline"
+                        onClick={(e)=> e.stopPropagation()}
+                      >
+                        新分頁開啟
+                      </a>
+                    </div>
+
                     {/* 價格資訊 */}
                     <div className="mb-3 md:mb-4">
                       <div className="flex items-center gap-2 mb-1.5 md:mb-2">
@@ -534,6 +956,8 @@ export default function ShopProductsPage() {
                       )}
                     </div>
 
+                    {/* 隱藏內容：內容僅在詳情頁顯示 */}
+
                     {/* 特色功能 */}
                     <div className="mb-3 md:mb-4">
                       <div className="flex flex-wrap gap-1">
@@ -550,7 +974,7 @@ export default function ShopProductsPage() {
 
                     {/* 加入購物車按鈕 */}
                     <button
-                      onClick={() => addToCart(product)}
+                      onClick={(e) => { e.stopPropagation(); addToCart(product) }}
                       className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 md:py-3 px-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 text-sm md:text-base"
                     >
                       <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
@@ -664,6 +1088,144 @@ export default function ShopProductsPage() {
           </div>
         </div>
       </div>
+
+      {/* 編輯面板 */}
+      {isEditor && editMode && edit && (
+        <div className="fixed inset-0 z-40 flex items-end md:items-center justify-center bg-black/30 p-3">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-base font-bold">{edit.id ? '編輯商品' : '新增商品'}</div>
+              <button onClick={()=> setEdit(null)} className="rounded bg-gray-100 px-3 py-1 text-xs text-gray-700">關閉</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-600">名稱</span>
+                <input className="rounded border px-2 py-1" value={edit.name} onChange={e=> setEdit({...edit, name: e.target.value})} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-600">分類</span>
+                <select className="rounded border px-2 py-1" value={edit.category} onChange={e=> setEdit({...edit, category: e.target.value})}>
+                  <option value="cleaning">專業清洗</option>
+                  <option value="home">居家清潔</option>
+                  <option value="new">家電購買</option>
+                  <option value="used">二手家電</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-600">單價</span>
+                <input type="number" min={0} className="rounded border px-2 py-1" value={edit.price} onChange={e=> setEdit({...edit, price: Number(e.target.value||0)})} />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex flex-col gap-1">
+                  <span className="text-gray-600">團購價</span>
+                  <input type="number" min={0} className="rounded border px-2 py-1" value={edit.groupPrice ?? ''} onChange={e=> setEdit({...edit, groupPrice: e.target.value===''? null : Number(e.target.value) })} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-gray-600">團購門檻</span>
+                  <input type="number" min={0} className="rounded border px-2 py-1" value={edit.groupMinQty ?? ''} onChange={e=> setEdit({...edit, groupMinQty: e.target.value===''? null : Number(e.target.value) })} />
+                </label>
+              </div>
+              <label className="md:col-span-2 flex flex-col gap-1">
+                <span className="text-gray-600">描述</span>
+                <textarea rows={3} className="rounded border px-2 py-1" value={edit.description} onChange={e=> setEdit({...edit, description: e.target.value})} style={{ height: 'auto' }} onInput={(e)=>{ const el=e.currentTarget; el.style.height='auto'; el.style.height = Math.min(400, Math.max(80, el.scrollHeight))+'px' }} />
+              </label>
+              <label className="md:col-span-2 flex flex-col gap-1">
+                <span className="text-gray-600">內容（可貼圖/HTML，支援圖片URL與貼上Base64）</span>
+                <textarea rows={4} className="rounded border px-2 py-1 font-mono text-xs" placeholder="可貼入 <img src='...'> 或整段HTML" value={edit.content||''} onChange={e=> setEdit({...edit, content: e.target.value})} style={{ height: 'auto' }} onInput={(e)=>{ const el=e.currentTarget; el.style.height='auto'; el.style.height = Math.min(800, Math.max(100, el.scrollHeight))+'px' }} />
+              </label>
+              {/* 加購設定（最多 3 個項目） */}
+              <div className="md:col-span-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <input type="checkbox" checked={!!(edit.addonConfig?.enabled)} onChange={e=> setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{ items: [] }), enabled: e.target.checked } })} />
+                  <span className="text-gray-700">啟用加購</span>
+                </div>
+                {Array.isArray(edit.addonConfig?.items) && edit.addonConfig?.items.map((it:any, idx:number)=> (
+                  <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-gray-600">加購品項名稱 #{idx+1}</span>
+                      <input className="rounded border px-2 py-1" placeholder="例如：加購風鼓" value={it?.name || ''} onChange={e=> {
+                        const items = [...(edit.addonConfig?.items||[])]
+                        items[idx] = { ...(items[idx]||{}), name: e.target.value }
+                        setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{ enabled: false }), items } })
+                      }} />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-gray-600">加購單價 #{idx+1}</span>
+                      <input type="number" min={0} className="rounded border px-2 py-1" placeholder="例如：800" value={it?.price ?? ''} onChange={e=> {
+                        const items = [...(edit.addonConfig?.items||[])]
+                        items[idx] = { ...(items[idx]||{}), price: e.target.value===''? undefined : Number(e.target.value) }
+                        setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{ enabled: false }), items } })
+                      }} />
+                    </label>
+                    <div className="flex items-end">
+                      <button className="rounded bg-red-50 text-red-600 px-3 py-1 text-xs" onClick={(e)=> { e.preventDefault(); const items = (edit.addonConfig?.items||[]).filter((_:any, i:number)=> i!==idx); setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{ enabled:false }), items } }) }}>刪除</button>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <button className="rounded bg-gray-800 text-white px-3 py-1 text-xs disabled:opacity-40" disabled={!(edit.addonConfig?.enabled) || (edit.addonConfig?.items?.length||0) >= 3} onClick={(e)=> { e.preventDefault(); const items = [...(edit.addonConfig?.items||[])]; items.push({ name: '', price: 0 }); setEdit({ ...edit, addonConfig: { ...(edit.addonConfig||{ enabled: true }), items } }) }}>新增加購項目</button>
+                  <span className="text-xs text-gray-500">最多 3 項</span>
+                </div>
+              </div>
+              {/* 頭圖列（內容上方） */}
+              <div className="md:col-span-2">
+                <div className="text-gray-600 mb-1">內容上方圖片（建議寬度≤1600px）</div>
+                {Array.isArray(edit.headImages) && edit.headImages.length>0 && (
+                  <div className="mb-2 flex gap-2 overflow-x-auto">
+                    {edit.headImages.map((u:string, idx:number)=> (
+                      <div key={idx} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border relative">
+                        <img src={u} alt="head" className="w-full h-full object-cover" loading="lazy" />
+                        <div className="absolute inset-x-0 bottom-0 flex justify-between text-[10px]">
+                          <button className="bg-white/80 px-1" onClick={()=> moveHead(idx, -1)}>上移</button>
+                          <button className="bg-white/80 px-1" onClick={()=> moveHead(idx, 1)}>下移</button>
+                          <button className="bg-white/80 px-1 text-red-600" onClick={()=> removeHead(idx)}>刪除</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-col md:flex-row gap-2 items-start">
+                  <div className="flex items-center gap-2">
+                    <input className="rounded border px-2 py-1 w-64" placeholder="貼上圖片 URL" value={headUrlInput} onChange={e=> setHeadUrlInput(e.target.value)} />
+                    <button className="rounded bg-gray-800 px-3 py-1 text-xs text-white" onClick={addHeadUrl}>新增 URL</button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="rounded bg-blue-600 px-3 py-1 text-xs text-white cursor-pointer">
+                      上傳圖片
+                      <input type="file" accept="image/*" className="hidden" onChange={(e)=> handleHeadUpload(e.target.files)} multiple />
+                    </label>
+                    {uploadingHead && <span className="text-xs text-gray-500">上傳中…</span>}
+                  </div>
+                </div>
+              </div>
+              <label className="md:col-span-2 flex flex-col gap-1">
+                <span className="text-gray-600">特色（以逗號分隔）</span>
+                <input className="rounded border px-2 py-1" value={Array.isArray(edit.features)? edit.features.join(',') : ''} onChange={e=> setEdit({...edit, features: e.target.value.split(',').map((s:string)=>s.trim()).filter(Boolean)})} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-600">封面圖片URL</span>
+                <input className="rounded border px-2 py-1" value={edit.image || ''} onChange={e=> setEdit({...edit, image: e.target.value})} />
+              </label>
+              {edit.category==='new' && (
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={!!edit.showAcAdvisor} onChange={e=> setEdit({...edit, showAcAdvisor: e.target.checked})} />
+                  <span className="text-gray-700">顯示冷氣工具入口（建議計算／非標準費用）</span>
+                </label>
+              )}
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={!!edit.published} onChange={e=> setEdit({...edit, published: e.target.checked})} />
+                <span className="text-gray-700">上架</span>
+              </label>
+            </div>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              {edit?.id && (
+                <button disabled={deleting||saving} onClick={deleteEdit} className="rounded bg-red-50 px-3 py-1 text-xs text-red-600 disabled:opacity-60">{deleting? '刪除中…':'刪除'}</button>
+              )}
+              <button disabled={saving} onClick={saveEdit} className="rounded bg-blue-600 px-3 py-1 text-xs text-white disabled:opacity-60">{saving? '儲存中…':'儲存'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 行動版底部快速結帳列 */}
       {cart.length > 0 && (
