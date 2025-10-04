@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle, CreditCard, Landmark, ArrowRight } from 'lucide-react'
 import { loadAdapters } from '../../adapters'
+import ShopTopBar from '../components/ShopTopBar'
 
 export default function OrderSuccessPage() {
   const navigate = useNavigate()
@@ -118,6 +119,7 @@ export default function OrderSuccessPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-6">
+      <ShopTopBar />
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="flex items-center gap-3">

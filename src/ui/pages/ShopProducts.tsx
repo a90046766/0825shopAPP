@@ -15,6 +15,7 @@ import {
   Shield
 } from 'lucide-react'
 import { supabase } from '../../utils/supabase'
+import ShopTopBar from '../components/ShopTopBar'
 
 function getCurrentUser(): any | null {
   try {
@@ -713,6 +714,7 @@ export default function ShopProductsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ShopTopBar />
       {/* 頁面標題 */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-10 md:py-16">
         <div className="max-w-7xl mx-auto px-4 md:px-6 text-center">

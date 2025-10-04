@@ -23,6 +23,7 @@ import {
 import toast from 'react-hot-toast'
 import { checkMemberAuth } from '../../utils/memberAuth'
 import { loadAdapters } from '../../adapters'
+import ShopTopBar from '../components/ShopTopBar'
 
 export default function ShopCartPage() {
   const navigate = useNavigate()
@@ -639,6 +640,7 @@ export default function ShopCartPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      <ShopTopBar />
       <div className="max-w-6xl mx-auto px-4 md:px-6">
         {/* 頁面標題 */}
         <div className="mb-6 md:mb-8">

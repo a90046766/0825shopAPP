@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react'
 import { supabase } from '../../utils/supabase'
+import ShopTopBar from '../components/ShopTopBar'
 
 function getLocalCart(): any[] {
   try { return JSON.parse(localStorage.getItem('shopCart') || '[]') } catch { return [] }
@@ -279,6 +280,7 @@ export default function ShopProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ShopTopBar />
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center gap-3">
           <button onClick={()=> window.history.back()} className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm">

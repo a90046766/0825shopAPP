@@ -6,6 +6,7 @@ import MemberBell from '../components/MemberBell'
 import { Home, ShoppingBag, ClipboardList, CheckCircle2, Share2 } from 'lucide-react'
 import ShareReferral from '../components/ShareReferral'
 import { supabase } from '../../utils/supabase'
+import ShopTopBar from '../components/ShopTopBar'
 
 function normalizeTimeSlot(raw: string): string {
   if (!raw) return ''
@@ -220,7 +221,9 @@ export default function MemberOrdersPage() {
   }
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-0 md:p-0">
+      <ShopTopBar />
+      <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-base md:text-lg font-bold">我的訂單</div>
         <div className="flex gap-2 items-center">
@@ -378,6 +381,7 @@ export default function MemberOrdersPage() {
       {shareOpen && (
         <ShareReferral code={(member?.code)||''} onClose={()=>setShareOpen(false)} />
       )}
+      </div>
     </div>
   )
 }

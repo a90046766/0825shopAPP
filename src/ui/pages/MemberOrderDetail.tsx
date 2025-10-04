@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { loadAdapters } from '../../adapters'
 import { supabase } from '../../utils/supabase'
+import ShopTopBar from '../components/ShopTopBar'
 import { getMemberUser } from '../../utils/memberAuth'
 
 export default function MemberOrderDetailPage() {
@@ -150,7 +151,9 @@ export default function MemberOrderDetailPage() {
   }
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-0 md:p-0">
+      <ShopTopBar />
+      <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-base md:text-lg font-bold">訂單詳情</div>
         <Link to="/store/member/orders" className="text-sm text-blue-600">返回我的訂單</Link>
@@ -319,6 +322,7 @@ export default function MemberOrderDetailPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
