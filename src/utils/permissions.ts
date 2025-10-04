@@ -7,13 +7,16 @@ export function can(user: any, action: string): boolean {
 
     // 技師：僅限查看、簽名、照片上傳、服務流程操作
     if (role === 'technician') {
-      const allowPrefixes = [
-        'orders.view',
-        'orders.sign',
-        'orders.photos',
-        'orders.progress',
+      const allowList = [
+        'orders.read',          // 單筆詳情
+        'orders.view',          // 檢視別名
+        'orders.sign',          // 簽名
+        'orders.photos',        // 照片上傳/刪除
+        'orders.progress',      // 服務流程（開始/完成）
+        'orders.start', 'orders.finish', 'orders.adjust', // 補充別名
+        'technicians.schedule.view' // 檢視班表
       ]
-      return allowPrefixes.some(p => action.startsWith(p))
+      return allowList.some(p => action === p || action.startsWith(p))
     }
 
     // 會員：僅限查看自己的訂單
