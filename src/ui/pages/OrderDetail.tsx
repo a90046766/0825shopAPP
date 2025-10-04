@@ -192,6 +192,16 @@ export default function PageOrderDetail() {
     (payStatus==='paid' || payStatus==='nopay') &&
     requirePhotosOk
   )
+  const startAllowed = order.status==='confirmed'
+  const startDisabledReason = (()=>{
+    const s = order.status
+    if (s==='draft' || s==='pending') return '需由客服/管理員將訂單狀態改為「已確認」'
+    if (s==='in_progress') return '已在服務中'
+    if (s==='completed') return '已完成，請進行簽名與結案'
+    if (s==='closed') return '已結案'
+    if (s==='canceled') return '已取消'
+    return '尚未達成開始條件'
+  })()
   const closeDisabledReason = (()=>{
     if (!(order.status==='in_progress' || order.status==='unservice' || order.status==='completed')) return (order.status==='confirmed' ? '尚未開始服務' : '尚未開始/或已標記無法服務')
     if (timeLeftSec>0) return `剩餘 ${String(Math.floor(timeLeftSec/60)).padStart(2,'0')}:${String(timeLeftSec%60).padStart(2,'0')}`
@@ -963,7 +973,8 @@ export default function PageOrderDetail() {
           )}
           <div className="flex flex-wrap items-center gap-2 justify-end">
             <button 
-              disabled={order.status!=='confirmed'}
+              disabled={!startAllowed}
+              title={!startAllowed ? startDisabledReason : ''}
               onClick={async()=>{
                 if (order.status!=='confirmed') return
                 if (!confirm('是否確認開始服務？')) return
@@ -999,6 +1010,9 @@ export default function PageOrderDetail() {
                 </span>
               )}
             </button>
+            {!startAllowed && (
+              <div className="w-full text-right text-xs text-rose-600">無法開始原因：{startDisabledReason}</div>
+            )}
             <button
               disabled={order.status!=='in_progress' || timeLeftSec>0}
               title={order.status!=='in_progress' ? '尚未開始服務' : (timeLeftSec>0 ? `冷卻中，剩餘 ${String(Math.floor(timeLeftSec/60)).padStart(2,'0')}:${String(timeLeftSec%60).padStart(2,'0')}` : '')}
