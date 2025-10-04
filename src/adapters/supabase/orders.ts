@@ -41,6 +41,7 @@ function toDbRow(input: Partial<Order>): any {
     paymentStatus: 'payment_status',
     pointsUsed: 'points_used',
     pointsDeductAmount: 'points_deduct_amount',
+    // 注意：若資料庫尚未新增欄位（invoice_code / invoice_status），更新時會回退
     invoiceCode: 'invoice_code',
     invoiceStatus: 'invoice_status',
     invoiceSent: 'invoice_sent',
@@ -110,15 +111,21 @@ function fromDbRow(row: any): Order {
 }
 
 const ORDERS_COLUMNS =
-  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,photos,photos_before,photos_after,payment_method,payment_status,points_used,points_deduct_amount,invoice_code,invoice_status,invoice_sent,note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_at,updated_at,closed_at'
+  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,photos,photos_before,photos_after,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_at,updated_at'
 
 class SupabaseOrderRepo implements OrderRepo {
   async list(): Promise<Order[]> {
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(ORDERS_COLUMNS)
-        .order('created_at', { ascending: false })
+      // 第一招：完整欄位（若 DB 無 invoice_code 等欄位會 400）
+      let q = supabase.from('orders').select(ORDERS_COLUMNS).order('created_at', { ascending: false })
+      let { data, error } = await q
+      if (error && (error as any).code === '42703') {
+        // 第二招：移除可能不存在欄位（invoice_code/status/closed_at）
+        const MIN_COLUMNS = 'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,photos,photos_before,photos_after,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,status,created_at,updated_at'
+        const r2 = await supabase.from('orders').select(MIN_COLUMNS).order('created_at', { ascending: false })
+        data = r2.data as any
+        error = r2.error as any
+      }
       
       if (error) {
         console.error('Supabase orders list error:', error)
@@ -134,9 +141,7 @@ class SupabaseOrderRepo implements OrderRepo {
 
   async get(id: string): Promise<Order | null> {
     try {
-      let query = supabase
-        .from('orders')
-        .select(ORDERS_COLUMNS)
+      let query = supabase.from('orders').select(ORDERS_COLUMNS)
       
       // 以 UUID 為主，否則以 order_number 查詢（不再限定必須 OD 開頭）
       if (isValidUUID(id)) {
@@ -145,7 +150,16 @@ class SupabaseOrderRepo implements OrderRepo {
         query = query.eq('order_number', id)
       }
       
-      const { data, error } = await query.single()
+      let { data, error } = await query.single()
+      if (error && (error as any).code === '42703') {
+        const MIN_COLUMNS = 'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,photos,photos_before,photos_after,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,status,created_at,updated_at'
+        let q2 = supabase.from('orders').select(MIN_COLUMNS)
+        if (isValidUUID(id)) q2 = q2.eq('id', id)
+        else q2 = q2.eq('order_number', id)
+        const r2 = await q2.maybeSingle()
+        data = r2.data as any
+        error = r2.error as any
+      }
       
       if (error) {
         if (error.code === 'PGRST116') {

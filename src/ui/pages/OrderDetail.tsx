@@ -291,7 +291,7 @@ export default function PageOrderDetail() {
       {/* 電子發票操作：僅管理員/客服、且訂單完成或結案時顯示 */}
       {isAdminOrSupport && (order.status==='completed' || order.status==='closed') && (
         <div className="mt-3 flex items-center justify-between rounded-2xl bg-white p-4 shadow-card">
-          <div className="text-sm text-gray-700">電子發票：{order.invoiceCode ? <span className="text-emerald-700">已開立（{order.invoiceCode}）</span> : <span className="text-rose-700">未開立</span>}</div>
+          <div className="text-sm text-gray-700">電子發票：{(order.invoiceCode||'') ? <span className="text-emerald-700">已開立（{order.invoiceCode}）</span> : (order.invoiceSent ? <span className="text-emerald-700">已開立</span> : <span className="text-rose-700">未開立</span>)}</div>
           <div className="flex items-center gap-2">
             {!order.invoiceCode && (
               <button
@@ -829,7 +829,7 @@ export default function PageOrderDetail() {
                       res = await (svc as any).EInvoice.createB2C(payload)
                     }
                     const code = res?.invoiceNumber || res?.code || 'INV-' + String(Math.random()).slice(2,8)
-                    await repos.orderRepo.update(order.id, { invoiceCode: code, invoiceStatus: 'issued' as any })
+                    await repos.orderRepo.update(order.id, { invoiceCode: code, invoiceStatus: 'issued' as any, invoiceSent: true as any })
                     const o = await repos.orderRepo.get(order.id); setOrder(o)
                     setInvoiceOpen(false)
                     alert('已開立電子發票：' + code)
