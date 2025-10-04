@@ -261,24 +261,12 @@ export default function MemberOrderDetailPage() {
                   if (!goodFile) { alert('請選擇截圖檔案'); return }
                   setSubmitting(true)
                   try {
-                    // 去重：同會員+同訂單+kind=good 只能提交一次
-                    const { data: existed } = await supabase
-                      .from('member_feedback')
-                      .select('id')
-                      .eq('member_id', member.id)
-                      .eq('order_id', String(order.id))
-                      .eq('kind', 'good')
-                      .limit(1)
-                    if (Array.isArray(existed) && existed.length>0) { alert('已提交過好評，感謝您的支持！'); setSubmitting(false); return }
-                    // 上傳檔案到 Storage
-                    const ext = (goodFile.name.split('.').pop()||'jpg').toLowerCase()
-                    const path = `${member.id}/${String(order.id)}/${Date.now()}.${ext}`
-                    const { error: upErr } = await supabase.storage.from('review-uploads').upload(path, goodFile, { upsert: false, contentType: goodFile.type||'image/jpeg' })
-                    if (upErr) throw upErr
-                    // 改走後端 Function（Service Role 避免 RLS）
+                    // 嘗試將檔案轉 base64，由後端Service Role上傳，避免前端RLS
+                    const toBase64 = (file: File) => new Promise<string>((resolve,reject)=>{ const fr = new FileReader(); fr.onload=()=>resolve(String(fr.result)); fr.onerror=reject; fr.readAsDataURL(file) })
+                    const dataUrl = await toBase64(goodFile)
                     const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ kind: 'good', comment: goodNote||null, asset_path: path })
+                      body: JSON.stringify({ kind: 'good', comment: goodNote||null, asset_base64: dataUrl })
                     })
                     const jj = await resp.json().catch(()=>({ success:false }))
                     if (jj && jj.success) alert('已收到您的好評，謝謝！')
@@ -312,15 +300,6 @@ export default function MemberOrderDetailPage() {
                   if (!suggestText.trim()) { alert('請輸入建議內容'); return }
                   setSubmitting(true)
                   try {
-                    // 去重：同會員+同訂單+kind=suggest 只能提交一次
-                    const { data: existed } = await supabase
-                      .from('member_feedback')
-                      .select('id')
-                      .eq('member_id', member.id)
-                      .eq('order_id', String(order.id))
-                      .eq('kind', 'suggest')
-                      .limit(1)
-                    if (Array.isArray(existed) && existed.length>0) { alert('已提交過建議，感謝您的回饋！'); setSubmitting(false); return }
                     // 改走後端 Function（Service Role 避免 RLS）
                     const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
