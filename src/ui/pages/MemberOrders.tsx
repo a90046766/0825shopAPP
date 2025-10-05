@@ -154,7 +154,8 @@ export default function MemberOrdersPage() {
       const supOrders = (data||[]).filter((o:any)=> (o.status||'')!=='pending').map((o:any)=> ({
         id: o.order_number || o.id,
         status: o.status,
-        items: Array.isArray(o.service_items) ? o.service_items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice })) : []
+        items: Array.isArray(o.service_items) ? o.service_items.map((it:any)=> ({ service_name: it.name, quantity: it.quantity, price: it.unitPrice })) : [],
+        assigned_technicians: Array.isArray(o.assigned_technicians) ? o.assigned_technicians : []
       }))
 
       setReservations(resv)

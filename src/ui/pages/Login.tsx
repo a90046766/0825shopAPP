@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loadAdapters } from '../../adapters'
+import { supabase } from '../../utils/supabase'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -19,6 +20,18 @@ export default function LoginPage() {
         setRemember(true)
       }
     } catch {}
+    // 清除可能造成假登入的殘留狀態（一般模式較易遇到）
+    ;(async()=>{
+      try {
+        const { data } = await supabase.auth.getSession()
+        const has = !!data?.session?.user
+        if (!has) {
+          try { localStorage.removeItem('supabase-auth-user') } catch {}
+          try { localStorage.removeItem('sb-0825shopapp-auth') } catch {}
+          try { localStorage.removeItem('sb-last-valid-ts') } catch {}
+        }
+      } catch {}
+    })()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,23 +42,36 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // 嚴格雲端：透過 adapters 取得當前 authRepo（Supabase）
-      const a = await loadAdapters()
       const norm = normalizeEmail(email)
       const pass = (password || '').trim() || 'a123123'
-      const u = await Promise.race([
-        a.authRepo.login(norm, pass),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('登入逾時，請稍後重試')), 15000))
-      ])
-      
-      // 處理記住帳號
-      if (remember) localStorage.setItem('remember-login-email', norm)
-      else localStorage.removeItem('remember-login-email')
-
-      if (!u.passwordSet) navigate('/reset-password')
-      else navigate('/dispatch')
-    } catch (err: any) {
-      setError(err.message || '登入失敗')
+      try {
+        // 方案 A：Adapeters 正常路徑
+        const a = await loadAdapters()
+        const u = await Promise.race([
+          a.authRepo.login(norm, pass),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('登入逾時，請稍後重試')), 15000))
+        ])
+        if (remember) localStorage.setItem('remember-login-email', norm)
+        else localStorage.removeItem('remember-login-email')
+        if (!(u as any).passwordSet) navigate('/reset-password')
+        else navigate('/dispatch')
+        return
+      } catch (e) {
+        // 方案 B：直接呼叫 Supabase Auth 後備（避免 adapters 初始化失敗）
+        try {
+          const ctrl = new AbortController()
+          const id = setTimeout(()=> ctrl.abort(), 12000)
+          const { data, error } = await supabase.auth.signInWithPassword({ email: norm, password: pass }, { signal: ctrl.signal } as any)
+          clearTimeout(id)
+          if (error || !data?.user) throw new Error(error?.message || '登入失敗')
+          if (remember) localStorage.setItem('remember-login-email', norm)
+          else localStorage.removeItem('remember-login-email')
+          navigate('/dispatch')
+          return
+        } catch (e2:any) {
+          setError(e2?.message || '登入失敗')
+        }
+      }
     } finally {
       setLoading(false)
     }
