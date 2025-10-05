@@ -3,7 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 const url = import.meta.env.VITE_SUPABASE_URL as string
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 // 允許以本地開關快速改走 Functions：localStorage.useFunctionsOnly = '1'
-const forceFunctionsOnly = (typeof window !== 'undefined') && (localStorage.getItem('useFunctionsOnly') === '1')
+// 正式網域一律忽略此開關，避免指向 invalid 主機造成白屏
+const isProdHost = (() => { try { if (typeof window === 'undefined') return false; const h = window.location.hostname; return h === 'store.942clean.com.tw' || h.endsWith('.942clean.com.tw') || h === 'app.942clean.com.tw'; } catch { return false } })()
+const forceFunctionsOnly = (typeof window !== 'undefined') && (localStorage.getItem('useFunctionsOnly') === '1') && !isProdHost
 // 對 supabase 請求強制短逾時，避免全站卡住
 const SUP_TIMEOUT_MS = 3000
 const timeoutFetch: typeof fetch = (input: RequestInfo | URL, init?: RequestInit) => {
@@ -33,7 +35,7 @@ export const supabase = createClient((forceFunctionsOnly ? 'https://invalid.supa
     // 僅強制 apikey，授權權杖交由 supabase-js 以登入 session 自動帶入
     headers: key ? { apikey: key, Accept: 'application/json' } : { Accept: 'application/json' },
     // 明確使用瀏覽器 fetch + 逾時，避免長時間卡住
-    fetch: (...args: any[]) => timeoutFetch?.(...(args as any))
+    fetch: (input: any, init?: any) => timeoutFetch(input as any, init as any)
   }
 })
 

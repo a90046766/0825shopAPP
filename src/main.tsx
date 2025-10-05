@@ -332,6 +332,7 @@ createRoot(document.getElementById('root')!).render(
   // 實時驗證：偵測互動/聚焦時驗證 session（修正假登入殘影）
   let __verifying = false
   let __lastVerifyAt = 0
+  let __lastPathVerifyAt: Record<string, number> = {}
   const verifySession = async () => {
     // 可用 localStorage 設定 panic switch：disable-session-verify = '1'
     const disabled = (()=>{ try{ return localStorage.getItem('disable-session-verify')==='1' }catch{ return false } })()
@@ -341,10 +342,18 @@ createRoot(document.getElementById('root')!).render(
     if (now - __lastVerifyAt < 5000) return // 至少 5 秒一次
     __verifying = true
     try {
+      // 保險 1：頁面不在前景或離線時直接略過
+      const isDocumentVisible = (()=>{ try { return document.visibilityState === 'visible' } catch { return true } })()
+      const isOnline = (()=>{ try { return navigator.onLine !== false } catch { return true } })()
+      if (!isDocumentVisible || !isOnline) { return }
       // 僅在後台相關路徑才驗證，避免干擾前台/會員
       const p = location.pathname
       const isBackendPath = [/^\/dispatch/,/^\/orders/,/^\/inventory/,/^\/technicians/,/^\/staff/,/^\/customers/,/^\/members$/, /^\/payroll/,/^\/reports/,/^\/report-center/,/^\/cms/,/^\/admin\//,/^\/leave-management/,/^\/me$/, /^\/salary$/].some(rx=> rx.test(p))
       if (!isBackendPath) { return }
+      // 保險 2：相同路徑 60 秒內僅驗一次
+      const lastAtForPath = __lastPathVerifyAt[p] || 0
+      if (now - lastAtForPath < 60_000) { return }
+      __lastPathVerifyAt[p] = now
       const { data } = await supabase.auth.getSession()
       const hasSession = !!data?.session?.user
       const local = localStorage.getItem('supabase-auth-user')
