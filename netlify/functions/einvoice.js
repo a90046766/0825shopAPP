@@ -5,7 +5,10 @@
 
 exports.handler = async (event) => {
   try {
-    const path = (event.path || '').replace(/^.*\/api\/einvoice/, '')
+    // 同時支援 /api/einvoice/* 與 /.netlify/functions/einvoice/*
+    let path = (event.path || '')
+      .replace(/^.*\/(api\/einvoice|\.netlify\/functions\/einvoice)/, '')
+    if (path === '') path = '/'
     const isJson = (event.headers?.['content-type'] || '').includes('application/json')
     const body = isJson ? JSON.parse(event.body || '{}') : {}
 
