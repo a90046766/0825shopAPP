@@ -1,6 +1,7 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  functions = "netlify/functions"
 
 [functions]
   directory = "netlify/functions"
@@ -43,6 +44,31 @@
 [[redirects]]
   from = "/api/einvoice/print"
   to = "/.netlify/functions/einvoice-print"
+  status = 200
+
+[[redirects]]
+  from = "/api/products-list"
+  to = "/.netlify/functions/products-list"
+  status = 200
+
+[[redirects]]
+  from = "/api/orders/reservations"
+  to = "/.netlify/functions/orders-reservations"
+  status = 200
+
+[[redirects]]
+  from = "/api/reservations"
+  to = "/.netlify/functions/reservations"
+  status = 200
+
+[[redirects]]
+  from = "/api/member-reservations/:customerId"
+  to = "/.netlify/functions/member-reservations"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/*"
+  to = "/.netlify/functions/:splat"
   status = 200
 
 
