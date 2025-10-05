@@ -223,7 +223,8 @@ createRoot(document.getElementById('root')!).render(
     if ('serviceWorker' in navigator) {
       const swUrl = '/sw.js'
       const isSecure = location.protocol === 'https:' || location.hostname === 'localhost'
-      if (isSecure) {
+      const enableSw = (()=>{ try{ return localStorage.getItem('enable-sw')==='1' }catch{ return false } })()
+      if (isSecure && enableSw) {
         navigator.serviceWorker.register(swUrl, { scope: '/' }).catch(()=>{})
       }
     }
