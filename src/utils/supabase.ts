@@ -19,26 +19,41 @@ try {
   }
 } catch {}
 const forceFunctionsOnly = (typeof window !== 'undefined') && isLocalDev && (localStorage.getItem('useFunctionsOnly') === '1')
-// 對 supabase 請求設置逾時：Auth 放寬到 10s，其餘 8s，避免登入逾時
-const BASE_TIMEOUT_MS = 8000
-const AUTH_TIMEOUT_MS = 10000
-const timeoutFetch: typeof fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-  try {
-    const controller = new AbortController()
-    let urlStr = ''
+// 對 supabase 請求設置逾時：Auth 15s，REST 20s；遇到 AbortError 自動重試一次
+const BASE_TIMEOUT_MS = 20000
+const AUTH_TIMEOUT_MS = 15000
+const timeoutFetch: typeof fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const makeUrlString = () => {
     try {
-      urlStr = typeof input === 'string'
+      return typeof input === 'string'
         ? input
-        : (input instanceof URL
-          ? input.href
-          : (input as any)?.url || '')
-    } catch {}
-    const timeoutMs = /\/auth\//.test(urlStr) ? AUTH_TIMEOUT_MS : BASE_TIMEOUT_MS
-    const t = setTimeout(() => controller.abort(), timeoutMs)
-    const nextInit = { ...(init||{}), signal: controller.signal }
-    return (window as any).fetch(input as any, nextInit).finally(() => clearTimeout(t))
-  } catch (e) {
-    return (window as any).fetch(input as any, init as any)
+        : (input instanceof URL ? input.href : (input as any)?.url || '')
+    } catch { return '' }
+  }
+  const urlStr = makeUrlString()
+  const isAuth = /\/auth\//.test(urlStr)
+  const timeoutMs = isAuth ? AUTH_TIMEOUT_MS : BASE_TIMEOUT_MS
+  const controller = new AbortController()
+  const t = setTimeout(() => controller.abort(), timeoutMs)
+  const nextInit = { ...(init||{}), signal: controller.signal }
+  try {
+    return await (window as any).fetch(input as any, nextInit)
+  } catch (err: any) {
+    // 若為逾時中止，進行一次後備重試（放寬 10s 並不帶 signal）
+    if (err && (err.name === 'AbortError' || String(err).includes('AbortError'))) {
+      try {
+        const ctrl2 = new AbortController()
+        const t2 = setTimeout(() => ctrl2.abort(), Math.max(10000, timeoutMs))
+        try {
+          return await (window as any).fetch(input as any, { ...(init||{}), signal: ctrl2.signal })
+        } finally {
+          clearTimeout(t2)
+        }
+      } catch {}
+    }
+    throw err
+  } finally {
+    clearTimeout(t)
   }
 }
 
