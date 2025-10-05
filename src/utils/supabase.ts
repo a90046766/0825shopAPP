@@ -2,6 +2,20 @@ import { createClient } from '@supabase/supabase-js'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+// 允許以本地開關快速改走 Functions：localStorage.useFunctionsOnly = '1'
+const forceFunctionsOnly = (typeof window !== 'undefined') && (localStorage.getItem('useFunctionsOnly') === '1')
+// 對 supabase 請求強制短逾時，避免全站卡住
+const SUP_TIMEOUT_MS = 3000
+const timeoutFetch: typeof fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  try {
+    const controller = new AbortController()
+    const t = setTimeout(() => controller.abort(), SUP_TIMEOUT_MS)
+    const nextInit = { ...(init||{}), signal: controller.signal }
+    return (window as any).fetch(input as any, nextInit).finally(() => clearTimeout(t))
+  } catch (e) {
+    return (window as any).fetch(input as any, init as any)
+  }
+}
 
 // 檢查環境變數是否存在
 if (!url || !key) {
@@ -9,7 +23,7 @@ if (!url || !key) {
 }
 
 // 強制帶上 apikey 與 Authorization，避免偶發遺失標頭導致 401/500
-export const supabase = createClient(url || 'https://dummy.supabase.co', key || 'dummy-key', {
+export const supabase = createClient((forceFunctionsOnly ? 'https://invalid.supabase.local' : (url || 'https://dummy.supabase.co')), key || 'dummy-key', {
   auth: {
     storageKey: 'sb-0825shopapp-auth',
     autoRefreshToken: true,
@@ -18,15 +32,15 @@ export const supabase = createClient(url || 'https://dummy.supabase.co', key || 
   global: {
     // 僅強制 apikey，授權權杖交由 supabase-js 以登入 session 自動帶入
     headers: key ? { apikey: key, Accept: 'application/json' } : { Accept: 'application/json' },
-    // 明確使用瀏覽器 fetch，避免打包後的 typeof 檢測誤判
-    fetch: (...args: any[]) => (window as any).fetch?.(...args)
+    // 明確使用瀏覽器 fetch + 逾時，避免長時間卡住
+    fetch: (...args: any[]) => timeoutFetch?.(...(args as any))
   }
 })
 
 // 健康檢查函數
 export const checkSupabaseConnection = async () => {
   try {
-    if (!url || !key) return false
+    if (!url || !key || forceFunctionsOnly) return false
     // 1) 直接呼叫 Auth 健康檢查端點（加上 3s 超時，避免卡住）
     try {
       const controller = new AbortController()
