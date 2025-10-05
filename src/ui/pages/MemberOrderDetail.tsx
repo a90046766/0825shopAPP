@@ -226,7 +226,7 @@ export default function MemberOrderDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {photos.before.length>0 && (
               <div>
-                <div className="text-xs text-gray-500 mb-1">清洗前</div>
+                <div className="text-xs text-gray-500 mb-1">清洗前（{photos.before.length}/24）</div>
                 <div className="grid grid-cols-3 gap-2">
                   {photos.before.map((u:string,i:number)=> (
                     <a key={i} href={u} target="_blank" rel="noreferrer" className="block rounded overflow-hidden border">
@@ -238,7 +238,7 @@ export default function MemberOrderDetailPage() {
             )}
             {photos.after.length>0 && (
               <div>
-                <div className="text-xs text-gray-500 mb-1">清洗後</div>
+                <div className="text-xs text-gray-500 mb-1">清洗後（{photos.after.length}/24）</div>
                 <div className="grid grid-cols-3 gap-2">
                   {photos.after.map((u:string,i:number)=> (
                     <a key={i} href={u} target="_blank" rel="noreferrer" className="block rounded overflow-hidden border">

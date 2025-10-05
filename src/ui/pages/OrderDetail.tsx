@@ -435,7 +435,7 @@ export default function PageOrderDetail() {
           )}
           {user?.role!=='technician' && !isClosed && <div className="mt-2 text-right"><button onClick={()=>setEditItems(e=>!e)} className="rounded bg-gray-100 px-2 py-1 text-xs">{editItems?'取消':'編輯項目'}</button></div>}
 
-          {isTechnician && !isClosed && (
+          {isTechnician && !isClosed && !isPaid && (
             <div className="mt-3 rounded border p-2">
               <div className="mb-2 flex items-center justify-between">
                 <div className="text-sm font-medium text-gray-700">品項增減（僅新增調整，原始不變）</div>
@@ -1121,7 +1121,7 @@ export default function PageOrderDetail() {
         <SectionTitle>服務照片</SectionTitle>
         <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <div className="mb-1 font-semibold">清洗前 <span className="text-xs text-gray-500">({(order.photosBefore||[]).length}/8)</span></div>
+            <div className="mb-1 font-semibold">清洗前 <span className="text-xs text-gray-500">({(order.photosBefore||[]).length}/24)</span></div>
             <PhotoGrid
               urls={order.photosBefore || []}
               deletable={!isClosed && (user?.role==='admin' || user?.role==='support' || user?.role==='technician')}
@@ -1141,8 +1141,8 @@ export default function PageOrderDetail() {
               <input type="file" accept="image/*" multiple disabled={uploadingBefore} onChange={async (e)=>{
                 const files = Array.from(e.target.files || [])
                 const exist = order.photosBefore?.length || 0
-                const room = Math.max(0, 8 - exist)
-                if (files.length > room) { alert(`清洗前照片上限 8 張，尚可新增 ${room} 張。`); return }
+                const room = Math.max(0, 24 - exist)
+                if (files.length > room) { alert(`清洗前照片上限 24 張，尚可新增 ${room} 張。`); return }
                 const imgs: string[] = []
                 try{
                   setUploadingBefore(true)
@@ -1151,11 +1151,11 @@ export default function PageOrderDetail() {
                   const o = await repos.orderRepo.get(order.id); setOrder(o)
                 } finally { setUploadingBefore(false) }
               }} />
-              <div className="mt-1 text-xs text-gray-500">{uploadingBefore?'上傳中… ':''}最多 8 張，單張壓縮後 ≦ 200KB</div>
+              <div className="mt-1 text-xs text-gray-500">{uploadingBefore?'上傳中… ':''}最多 24 張，單張壓縮後 ≦ 200KB</div>
             </div>
           </div>
           <div>
-            <div className="mb-1 font-semibold">清洗後 <span className="text-xs text-gray-500">({(order.photosAfter||[]).length}/8)</span></div>
+            <div className="mb-1 font-semibold">清洗後 <span className="text-xs text-gray-500">({(order.photosAfter||[]).length}/24)</span></div>
             <PhotoGrid
               urls={order.photosAfter || []}
               deletable={!isClosed && (user?.role==='admin' || user?.role==='support' || user?.role==='technician')}
@@ -1175,8 +1175,8 @@ export default function PageOrderDetail() {
               <input type="file" accept="image/*" multiple disabled={uploadingAfter} onChange={async (e)=>{
                 const files = Array.from(e.target.files || [])
                 const exist = order.photosAfter?.length || 0
-                const room = Math.max(0, 8 - exist)
-                if (files.length > room) { alert(`清洗後照片上限 8 張，尚可新增 ${room} 張。`); return }
+                const room = Math.max(0, 24 - exist)
+                if (files.length > room) { alert(`清洗後照片上限 24 張，尚可新增 ${room} 張。`); return }
                 const imgs: string[] = []
                 try{
                   setUploadingAfter(true)
@@ -1185,7 +1185,7 @@ export default function PageOrderDetail() {
                   const o = await repos.orderRepo.get(order.id); setOrder(o)
                 } finally { setUploadingAfter(false) }
               }} />
-              <div className="mt-1 text-xs text-gray-500">{uploadingAfter?'上傳中… ':''}最多 8 張，單張壓縮後 ≦ 200KB</div>
+              <div className="mt-1 text-xs text-gray-500">{uploadingAfter?'上傳中… ':''}最多 24 張，單張壓縮後 ≦ 200KB</div>
             </div>
           </div>
         </div>
