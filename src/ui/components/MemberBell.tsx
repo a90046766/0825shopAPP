@@ -20,11 +20,12 @@ export default function MemberBell() {
         const j = await res.json()
         if (j?.success && Array.isArray(j.data)) merged = j.data
       } catch {}
-      // 回退：讀取 Supabase notifications（target=all 或 user=email）
+      // 回退：讀取 Supabase notifications（target=all 或 user=email），並套用到期/排程過濾
       try {
         const emailLc = (member.email||'').toLowerCase()
         const { data, error } = await supabase.from('notifications').select('*').order('created_at', { ascending: false })
         if (!error && Array.isArray(data)) {
+          const now = new Date()
           const mapped = (data||[])
             .filter((n:any)=>{
               const t = n.target
@@ -33,17 +34,42 @@ export default function MemberBell() {
               if (t==='member') return true
               return false
             })
-            .map((n:any)=>({
-              id: n.id,
-              title: n.title,
-              message: n.body || n.message,
-              is_read: false,
-              created_at: n.created_at
-            }))
+            .filter((n:any)=>{
+              // 到期過濾與排程觸發過濾
+              const notExpired = !n.expires_at || new Date(n.expires_at) > now
+              const delivered = (n.sent_at && new Date(n.sent_at) <= now) || (n.scheduled_at && new Date(n.scheduled_at) <= now)
+              return notExpired && delivered
+            })
+            .map((n:any)=>{
+              let dataObj:any = null
+              try { if (n.body && typeof n.body==='string' && n.body.trim().startsWith('{')) dataObj = JSON.parse(n.body) } catch {}
+              return {
+                id: n.id,
+                title: n.title,
+                message: dataObj ? '' : (n.body || n.message),
+                data: dataObj,
+                is_read: false,
+                created_at: n.created_at
+              }
+            })
           // 合併去重（以 id 為準）
           const map: Record<string, any> = {}
           for (const it of [...merged, ...mapped]) { map[it.id] = it }
           merged = Object.values(map)
+
+          // 讀取已讀紀錄，回填 is_read 狀態
+          try {
+            const ids = (merged||[]).map((it:any)=>it.id).filter(Boolean)
+            if (ids.length>0) {
+              const { data: reads } = await supabase
+                .from('notifications_read')
+                .select('notification_id')
+                .in('notification_id', ids)
+                .eq('user_email', emailLc)
+              const readSet = new Set((reads||[]).map((r:any)=>r.notification_id))
+              merged = (merged||[]).map((it:any)=> ({ ...it, is_read: readSet.has(it.id) || !!it.is_read }))
+            }
+          } catch {}
         }
       } catch {}
       setList(merged)
@@ -91,6 +117,11 @@ export default function MemberBell() {
   const readOne = async (id: string) => {
     if (!member) return
     try { await fetch(`/api/notifications/member/${member.id}/read/${id}`, { method: 'PUT' }) } catch {}
+    try {
+      const emailLc = (member.email||'').toLowerCase()
+      await supabase.from('notifications_read').upsert({ notification_id: id, user_email: emailLc, read_at: new Date().toISOString() })
+    } catch {}
+    try { setList(prev => prev.map(n => n.id===id ? { ...n, is_read: true } : n)) } catch {}
   }
 
   return (
@@ -101,12 +132,17 @@ export default function MemberBell() {
         {unread>0 && <span className="ml-2 rounded bg-red-600 text-white text-xs px-1.5">{unread}</span>}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-auto rounded-xl border bg-white shadow-xl z-50">
-          <div className="flex items-center justify-between p-2 border-b">
-            <div className="text-sm font-medium">通知</div>
-            <button onClick={readAll} className="text-xs text-blue-600 flex items-center gap-1"><Check className="h-3 w-3"/> 全部已讀</button>
-          </div>
-          <div className="divide-y">
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={()=>setOpen(false)} />
+          <div className="fixed right-2 top-14 w-[28rem] max-w-[90vw] max-h-[calc(100vh-120px)] overflow-auto rounded-xl border bg-white shadow-2xl z-[9999]">
+            <div className="flex items-center justify-between p-2 border-b">
+              <div className="text-sm font-medium">通知</div>
+              <div className="flex items-center gap-2">
+                <button onClick={readAll} className="text-xs text-blue-600 flex items-center gap-1"><Check className="h-3 w-3"/> 全部已讀</button>
+                <button onClick={()=>setOpen(false)} className="text-xs text-gray-500 hover:text-gray-700">關閉</button>
+              </div>
+            </div>
+            <div className="divide-y">
             {loading && <div className="p-3 text-sm text-gray-500">載入中...</div>}
             {!loading && list.length===0 && <div className="p-3 text-sm text-gray-500">目前沒有通知</div>}
             {list.map(n => {
@@ -114,7 +150,18 @@ export default function MemberBell() {
               return (
               <div key={n.id} className={`p-3 ${n.is_read? 'bg-white':'bg-blue-50'}`}>
                 <div className="text-sm font-medium">{n.title}</div>
-                <div className="text-sm text-gray-600 mt-1">{n.message}</div>
+                {n.data && n.data.kind==='review_prompt' ? (
+                  <div className="mt-2 text-sm">
+                    <div className="text-gray-700">感謝您的評價！請選擇以下其一完成並領取 {Number(n.data.bonus||0)} 點：</div>
+                    <div className="mt-2 flex gap-2">
+                      {(Array.isArray(n.data.options)? n.data.options:[]).slice(0,2).map((opt:any,idx:number)=> (
+                        <a key={idx} href={opt.url} target="_blank" rel="noreferrer" className="inline-block rounded bg-rose-600 px-2 py-1 text-xs text-white hover:bg-rose-700">{opt.label}</a>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-600 mt-1">{n.message}</div>
+                )}
                 {/* 加入 LINE CTA */}
                 <div className="mt-2">
                   <a
@@ -134,8 +181,9 @@ export default function MemberBell() {
                 <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString('zh-TW')}</div>
               </div>
             )})}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )

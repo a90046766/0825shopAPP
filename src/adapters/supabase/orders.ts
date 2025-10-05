@@ -1,6 +1,21 @@
 import type { OrderRepo, Order } from '../../core/repository'
 import { supabase } from '../../utils/supabase'
 
+// 輕量重試工具：處理偶發網路/瞬時錯誤
+async function withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
+  let lastError: any
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err: any) {
+      lastError = err
+      const waitMs = 300 + attempt * 400
+      await new Promise(res => setTimeout(res, waitMs))
+    }
+  }
+  throw lastError
+}
+
 // UUID 驗�??�數
 function isValidUUID(str: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -47,6 +62,8 @@ function toDbRow(input: Partial<Order>): any {
     workCompletedAt: 'work_completed_at',
     serviceFinishedAt: 'service_finished_at',
     canceledReason: 'canceled_reason',
+    createdBy: 'created_by',
+    supportNote: 'support_note',
   }
   const row: any = {}
   for (const [camel, snake] of Object.entries(map)) {
@@ -66,6 +83,20 @@ function toDbRow(input: Partial<Order>): any {
 function fromDbRow(row: any): Order {
   const r = row || {}
   const pick = (a: string, b: string) => (r[a] ?? r[b])
+  const normalizeStatus = (s: any): any => {
+    try {
+      const x = String(s||'').toLowerCase()
+      if (!x) return 'draft'
+      if (['draft','pending'].includes(x)) return 'pending'
+      if (['confirm','confirmed'].includes(x)) return 'confirmed'
+      if (['in_progress','inprogress','servicing','service'].includes(x)) return 'in_progress'
+      if (['completed','complete','finished','finish','done'].includes(x)) return 'completed'
+      if (['closed','close'].includes(x)) return 'closed'
+      if (['canceled','cancelled','cancel'].includes(x)) return 'canceled'
+      if (['unservice','no_service','cannot_service','unable'].includes(x)) return 'unservice' as any
+      return s
+    } catch { return s }
+  }
   return {
     // 使用 order_number 作為顯示 ID，�??��??��?使用 UUID
     id: r.order_number || r.id,
@@ -89,8 +120,8 @@ function fromDbRow(row: any): Order {
     serviceItems: pick('serviceItems', 'service_items') || [],
     assignedTechnicians: pick('assignedTechnicians', 'assigned_technicians') || [],
     signatureTechnician: r.signatureTechnician || r.signature_technician,
-    status: r.status || 'draft',
-    platform: r.platform || '日',
+    status: normalizeStatus(r.status || 'draft'),
+    platform: r.platform || '商',
     photos: r.photos || [],
     photosBefore: pick('photosBefore', 'photos_before') || [],
     photosAfter: pick('photosAfter', 'photos_after') || [],
@@ -100,67 +131,223 @@ function fromDbRow(row: any): Order {
     serviceFinishedAt: pick('serviceFinishedAt', 'service_finished_at'),
     canceledReason: pick('canceledReason', 'canceled_reason'),
     closedAt: pick('closedAt', 'closed_at'),
+    createdBy: pick('createdBy', 'created_by'),
+    supportNote: pick('supportNote','support_note'),
     createdAt: pick('createdAt', 'created_at') || new Date().toISOString(),
     updatedAt: pick('updatedAt', 'updated_at') || new Date().toISOString(),
   }
 }
 
+// 輕量欄位（避免巨大 JSON，例如 photos_* 造成解析失敗或資源不足）
 const ORDERS_COLUMNS =
-  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,photos,photos_before,photos_after,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_at,updated_at'
+  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,support_note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_by,created_at,updated_at'
+
+// 詳細頁欄位（單筆讀取可接受較大欄位，需包含照片供結案檢核）
+const ORDER_COLUMNS_DETAIL =
+  ORDERS_COLUMNS + ',photos,photos_before,photos_after'
 
 class SupabaseOrderRepo implements OrderRepo {
+  private buildYearMonthRange(year?: string, month?: string): { start?: string; end?: string } {
+    try {
+      const now = new Date()
+      const y = year && year.length===4 ? Number(year) : now.getFullYear()
+      if (!month) {
+        const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0)).toISOString()
+        const end = new Date(Date.UTC(y + 1, 0, 1, 0, 0, 0)).toISOString()
+        return { start, end }
+      }
+      const m = Math.max(1, Math.min(12, Number(month))) - 1
+      const start = new Date(Date.UTC(y, m, 1, 0, 0, 0)).toISOString()
+      const end = new Date(Date.UTC(y, m + 1, 1, 0, 0, 0)).toISOString()
+      return { start, end }
+    } catch { return {} }
+  }
+
+  async listByFilter(opts?: {
+    year?: string,
+    month?: string,
+    status?: 'all'|'pending'|'confirmed'|'completed'|'closed'|'canceled',
+    q?: string,
+    platforms?: string[],
+    limit?: number,
+    offset?: number,
+  }): Promise<{ rows: Order[]; total?: number }> {
+    const { year, month, status = 'all', q, platforms, limit, offset } = opts || {}
+    const RANGE = this.buildYearMonthRange(year, month)
+    const LIST_COLS = 'id,order_number,customer_name,customer_phone,customer_email,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,status,created_by,created_at,updated_at,work_started_at,work_completed_at,service_finished_at'
+    let query = supabase.from('orders').select(LIST_COLS, { count: 'exact' })
+    if (RANGE.start && RANGE.end) {
+      // 月/年範圍：以 created_at 或 work_completed_at 任一落在範圍內
+      query = query.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end})`)
+    }
+    if (Array.isArray(platforms) && platforms.length>0) {
+      query = query.in('platform', platforms as any)
+    }
+    if (q && q.trim()) {
+      const kw = q.trim()
+      query = query.or(`order_number.ilike.%${kw}%,customer_name.ilike.%${kw}%`)
+    }
+    if (status && status!=='all') {
+      if (status==='pending') {
+        query = query.in('status', ['pending','draft'] as any)
+      } else if (status==='confirmed') {
+        query = query.in('status', ['confirmed','in_progress'] as any)
+      } else if (status==='completed') {
+        query = query.eq('status','completed')
+      } else if (status==='closed') {
+        query = query.eq('status','closed')
+      } else if (status==='canceled') {
+        query = query.or('status.eq.canceled,status.eq.unservice')
+      }
+    }
+    query = query.order('created_at', { ascending: false })
+    if (typeof limit === 'number') {
+      const from = Math.max(0, Number(offset||0))
+      const to = from + Math.max(0, limit) - 1
+      if (to >= from) query = query.range(from, to)
+    }
+    const { data, error, count } = await query
+    if (error) throw new Error(`訂單清單讀取失敗: ${error.message}`)
+    return { rows: (data||[]).map(fromDbRow), total: count||undefined }
+  }
+
+  async countByStatus(opts?: {
+    year?: string,
+    month?: string,
+    q?: string,
+    platforms?: string[],
+  }): Promise<{ all: number; pending: number; confirmed: number; completed: number; closed: number; canceled: number }> {
+    const { year, month, q, platforms } = opts || {}
+    const RANGE = this.buildYearMonthRange(year, month)
+    const base = () => {
+      let qy = supabase.from('orders').select('id', { count: 'exact', head: true })
+      if (RANGE.start && RANGE.end) qy = qy.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end})`)
+      if (Array.isArray(platforms) && platforms.length>0) qy = qy.in('platform', platforms as any)
+      if (q && q.trim()) qy = qy.or(`order_number.ilike.%${q.trim()}%,customer_name.ilike.%${q.trim()}%`)
+      return qy
+    }
+    const get = async (mod: (x: any)=>any) => {
+      const { count, error } = await mod(base())
+      if (error) return 0
+      return count || 0
+    }
+    const all = await get(x=>x)
+    const pending = await get(x=> x.in('status', ['pending','draft'] as any))
+    const confirmed = await get(x=> x.in('status', ['confirmed','in_progress'] as any))
+    const completed = await get(x=> x.eq('status','completed'))
+    const closed = await get(x=> x.eq('status','closed'))
+    const canceled = await get(x=> x.or('status.eq.canceled,status.eq.unservice'))
+    return { all, pending, confirmed, completed, closed, canceled }
+  }
   async list(): Promise<Order[]> {
     try {
       const { data, error } = await supabase
         .from('orders')
         .select(ORDERS_COLUMNS)
         .order('created_at', { ascending: false })
-      
       if (error) {
         console.error('Supabase orders list error:', error)
-        throw new Error(`訂單?�表載入失�?: ${error.message}`)
+        throw new Error(`訂單清單載入失敗: ${error.message}`)
       }
-      
-      return (data || []).map(fromDbRow) as any
-    } catch (error) {
+      const rows = (data || []).map(fromDbRow) as any
+      try { sessionStorage.setItem('cache-orders', JSON.stringify({ t: Date.now(), rows })) } catch {}
+      return rows
+    } catch (error: any) {
       console.error('Supabase orders list exception:', error)
-      throw new Error('訂單?�表載入失�?')
+      // 備援：若因巨大 JSON 解析失敗，改以更精簡欄位再嘗試一次
+      try {
+        const MIN_COLS = 'id,order_number,customer_name,customer_phone,customer_email,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,status,created_at,updated_at,work_started_at,work_completed_at,service_finished_at'
+        const { data } = await supabase
+          .from('orders')
+          .select(MIN_COLS)
+          .order('created_at', { ascending: false })
+        const rows = (data || []).map(fromDbRow) as any
+        try { sessionStorage.setItem('cache-orders', JSON.stringify({ t: Date.now(), rows })) } catch {}
+        return rows
+      } catch (e2) {
+        // NEW: 萃取有效草稿與正式單分開緩存，避免一次載入過多
+        try {
+          const { data: d1 } = await supabase
+            .from('orders')
+            .select('id,order_number,customer_name,customer_phone,preferred_date,preferred_time_start,preferred_time_end,assigned_technicians,signature_technician,status,created_at,updated_at')
+            .in('status', ['confirmed','in_progress','completed','closed'])
+            .order('created_at', { ascending: false })
+          const rows1 = (d1 || []).map(fromDbRow) as any
+          try { sessionStorage.setItem('cache-orders-hot', JSON.stringify({ t: Date.now(), rows: rows1 })) } catch {}
+          // 草稿用更小欄位，且只取近14天
+          const fourteen = new Date(Date.now() - 14*24*60*60*1000).toISOString()
+          const { data: d2 } = await supabase
+            .from('orders')
+            .select('id,order_number,customer_name,customer_phone,status,created_at,updated_at')
+            .eq('status','draft')
+            .gte('created_at', fourteen)
+            .order('created_at', { ascending: false })
+          const rows2 = (d2 || []).map(fromDbRow) as any
+          return [...rows2, ...rows1]
+        } catch {}
+        // 最後備援：讀 15 秒內緩存，避免白屏
+        try {
+          const raw = sessionStorage.getItem('cache-orders')
+          if (raw) {
+            const { t, rows } = JSON.parse(raw)
+            if (Date.now() - t < 15_000) return rows
+          }
+        } catch {}
+        console.error('Supabase orders list fallback failed:', e2)
+        throw new Error('訂單清單載入失敗')
+      }
     }
   }
 
   async get(id: string): Promise<Order | null> {
     try {
-      let query = supabase
-        .from('orders')
-        .select(ORDERS_COLUMNS)
-      
-      // 以 UUID 為主，否則以 order_number 查詢（不再限定必須 OD 開頭）
-      if (isValidUUID(id)) {
-        query = query.eq('id', id)
-      } else {
-        query = query.eq('order_number', id)
+      // 先嘗試詳細欄位（含照片）
+      {
+        let query = supabase.from('orders').select(ORDER_COLUMNS_DETAIL)
+        if (isValidUUID(id)) query = query.eq('id', id)
+        else query = query.eq('order_number', id)
+        const { data, error } = await query.maybeSingle()
+        if (!error && data) return fromDbRow(data)
+        if (error && error.code === 'PGRST116') return null
+        if (error) console.warn('Supabase order get warn (detail maybeSingle), will try light:', error)
       }
-      
-      const { data, error } = await query.single()
-      
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // ?��??��??��?返�? null
+
+      // 再嘗試輕量欄位（不含大欄位，降低 JSON 解析風險）
+      {
+        let query = supabase.from('orders').select(ORDERS_COLUMNS)
+        if (isValidUUID(id)) query = query.eq('id', id)
+        else query = query.eq('order_number', id)
+        const { data, error, status } = await query.maybeSingle()
+        if (!error && data) return fromDbRow(data)
+        if (status === 406) {
+          // 406 Not Acceptable（例如選取到複雜 JSON 型別導致）→ 改用最小欄位
+        } else if (error && error.code === 'PGRST116') {
           return null
+        } else if (error) {
+          console.warn('Supabase order get light warn:', error)
         }
-        console.error('Supabase order get error:', error)
-        throw new Error(`訂單載入失�?: ${error.message}`)
       }
-      
-      return fromDbRow(data)
+
+      // 最後備援：最小欄位集合（避免 406）
+      {
+        const MIN_COLS = 'id,order_number,customer_name,customer_phone,customer_email,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,status,created_at,updated_at,work_started_at,work_completed_at,service_finished_at'
+        let query = supabase.from('orders').select(MIN_COLS)
+        if (isValidUUID(id)) query = query.eq('id', id)
+        else query = query.eq('order_number', id)
+        const { data } = await query.maybeSingle()
+        return data ? fromDbRow(data) : null
+      }
     } catch (error) {
       console.error('Supabase order get exception:', error)
-      throw new Error('訂單載入失�?')
+      throw new Error('訂單載入失敗')
     }
   }
 
   async create(draft: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
     try {
+      // 若是後台要建立的草稿單，直接走回退流程（避免 RPC 延遲或限制）
+      const isDraftFlow = (draft as any)?.status === 'draft'
+
       // 優先使用 RPC 將「產生單號 + 寫入 header/items」包成交易
       const payload: any = {
         customerName: (draft as any).customerName,
@@ -174,51 +361,101 @@ class SupabaseOrderRepo implements OrderRepo {
         pointsUsed: (draft as any).pointsUsed,
         pointsDeductAmount: (draft as any).pointsDeductAmount,
         note: (draft as any).note,
-        platform: (draft as any).platform || '商城',
+        platform: (draft as any).platform || '商',
         status: (draft as any).status || 'pending',
         serviceItems: (draft as any).serviceItems || []
       }
 
-      try {
-        const { data: rpcRow, error: rpcErr } = await supabase.rpc('create_reservation_order', {
-          p_member_id: (draft as any).memberId || null,
-          p_payload: payload
-        })
-        if (rpcErr) throw rpcErr
-        if (rpcRow) return fromDbRow(rpcRow)
-      } catch (rpcError: any) {
-        // RPC 不存在或失敗時，回退到舊流程（兩段式）
-        console.warn('create_reservation_order RPC 不可用，回退兩段式建立：', rpcError?.message || rpcError)
+      if (!isDraftFlow) {
+        try {
+          const { data: rpcRow, error: rpcErr } = await supabase.rpc('create_reservation_order', {
+            p_member_id: (draft as any).memberId || null,
+            p_payload: payload
+          })
+          if (rpcErr) throw rpcErr
+          if (rpcRow) {
+            // RPC 可能未填完整欄位：補寫必要欄位並回讀
+            const created = fromDbRow(rpcRow)
+            const patch: Partial<Order> = {}
+            if ((!created.serviceItems || created.serviceItems.length===0) && Array.isArray(payload.serviceItems) && payload.serviceItems.length>0) {
+              (patch as any).serviceItems = payload.serviceItems
+            }
+            if ((!created.customerAddress || created.customerAddress.trim()==='') && payload.customerAddress) {
+              (patch as any).customerAddress = payload.customerAddress
+            }
+            if ((!created.customerEmail || created.customerEmail.trim()==='') && (draft as any).customerEmail) {
+              (patch as any).customerEmail = (draft as any).customerEmail
+            }
+            if ((!created.customerName || created.customerName.trim()==='') && (draft as any).customerName) {
+              (patch as any).customerName = (draft as any).customerName
+            }
+            if ((!created.customerPhone || created.customerPhone.trim()==='') && (draft as any).customerPhone) {
+              (patch as any).customerPhone = (draft as any).customerPhone
+            }
+            if ((!created.preferredDate || String(created.preferredDate).trim()==='') && (draft as any).preferredDate) {
+              (patch as any).preferredDate = (draft as any).preferredDate
+            }
+            if ((!created.preferredTimeStart || !created.preferredTimeEnd) && ((draft as any).preferredTimeStart || (draft as any).preferredTimeEnd)) {
+              if ((draft as any).preferredTimeStart) (patch as any).preferredTimeStart = (draft as any).preferredTimeStart
+              if ((draft as any).preferredTimeEnd) (patch as any).preferredTimeEnd = (draft as any).preferredTimeEnd
+            }
+            if ((created.status as any) !== 'pending' && payload.status === 'pending') {
+              (patch as any).status = 'pending'
+            }
+            if (!created.platform || created.platform !== '商') {
+              (patch as any).platform = '商'
+            }
+            try { if (Object.keys(patch).length>0) await this.update(created.id, patch) } catch {}
+            try { const reread = await this.get(created.id); if (reread) return reread } catch {}
+            return created
+          }
+        } catch (rpcError: any) {
+          // RPC 不存在或失敗時，回退到舊流程（兩段式）
+          console.warn('create_reservation_order RPC 不可用，回退兩段式建立：', rpcError?.message || rpcError)
+        }
       }
 
       // 回退流程（兩段式）：先產生單號再插入
       const row = toDbRow(draft)
+      // 若有 createdBy，轉到 snake case 欄位
+      if ((draft as any).createdBy && !row['created_by']) row['created_by'] = (draft as any).createdBy
       row.id = generateUUID()
       
-      // 生成唯一的訂單編號
-      const timestamp = Date.now()
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-      row.order_number = `OD${timestamp}${random}`
+      // 不連號、不重覆：OD + 隨機5位數字；若碰撞多次自動切換前置英文（OD→OE→...→OZ）；最後退回時間碼
+      async function generateNonSequential(): Promise<string> {
+        const prefixes = ['OD','OE','OF','OG','OH','OI','OJ','OK','OL','OM','ON','OO','OP','OQ','OR','OS','OT','OU','OV','OW','OX','OY','OZ']
+        for (let p = 0; p < prefixes.length; p++) {
+          for (let attempt = 0; attempt < 10; attempt++) {
+            const code = Math.floor(10000 + Math.random() * 90000).toString()
+            const candidate = `${prefixes[p]}${code}`
+            const { data: existing } = await supabase
+              .from('orders')
+              .select('id')
+              .eq('order_number', candidate)
+              .maybeSingle()
+            if (!existing) return candidate
+          }
+        }
+        const tail = Date.now().toString(36).toUpperCase().slice(-5)
+        return `OD${tail}`
+      }
+      row.order_number = await generateNonSequential()
       
-      // 檢查是否重複，如果重複則重新生成
+      // 檢查是否重複，如果重複則重新生成（maybeSingle 避免未命中即丟錯）
       let attempts = 0
       while (attempts < 5) {
         const { data: existing } = await supabase
           .from('orders')
           .select('id')
           .eq('order_number', row.order_number)
-          .single()
-        
-        if (!existing) break // 沒有重複，可以使用
-        
-        // 重複了，重新生成
-        const newTimestamp = Date.now()
-        const newRandom = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-        row.order_number = `OD${newTimestamp}${newRandom}`
+          .maybeSingle()
+        if (!existing) break
+        // 重複則重新產生（不連號）
+        row.order_number = await generateNonSequential()
         attempts++
       }
 
-      const { data, error } = await supabase.from('orders').insert(row).select(ORDERS_COLUMNS).single()
+      const { data, error } = await withRetry(() => supabase.from('orders').insert(row).select(ORDERS_COLUMNS).single())
       if (error) {
         console.error('Supabase order create error:', error)
         throw new Error(`訂單建立失敗: ${error.message}`)
@@ -226,32 +463,36 @@ class SupabaseOrderRepo implements OrderRepo {
       return fromDbRow(data)
     } catch (error) {
       console.error('Supabase order create exception:', error)
-      throw new Error('訂單建�?失�?')
+      throw new Error('訂單建立失敗')
     }
   }
 
   async update(id: string, patch: Partial<Order>): Promise<void> {
     try {
+      const payload = toDbRow(patch)
+      // 防止將地址覆蓋為空字串
+      if (Object.prototype.hasOwnProperty.call(payload, 'customer_address')) {
+        const val = payload['customer_address']
+        if (val === '' || val === null || val === undefined) {
+          delete payload['customer_address']
+        }
+      }
       let query = supabase
         .from('orders')
-        .update(toDbRow(patch))
-      
-      // 以 UUID 為主，否則用 order_number 更新
+        .update(payload)
       if (isValidUUID(id)) {
         query = query.eq('id', id)
       } else {
         query = query.eq('order_number', id)
       }
-      
-      const { error } = await query
-      
+      const { error } = await withRetry(() => query)
       if (error) {
         console.error('Supabase order update error:', error)
-        throw new Error(`訂單?�新失�?: ${error.message}`)
+        throw new Error(`訂單更新失敗: ${error.message}`)
       }
     } catch (error) {
       console.error('Supabase order update exception:', error)
-      throw new Error('訂單?�新失�?')
+      throw new Error('訂單更新失敗')
     }
   }
 

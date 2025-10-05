@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { getMemberUser } from '../../utils/memberAuth'
 import { Link } from 'react-router-dom'
+import MemberBell from '../components/MemberBell'
 import { Home, ShoppingBag, ClipboardList, CheckCircle2, Share2 } from 'lucide-react'
 import ShareReferral from '../components/ShareReferral'
 import { supabase } from '../../utils/supabase'
@@ -38,6 +39,32 @@ export default function MemberOrdersPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [shareOpen, setShareOpen] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState<any>(null)
+  const [isIOS, setIsIOS] = useState(false)
+  const [isSafari, setIsSafari] = useState(false)
+
+  // PWA 安裝提示（Android/桌面 Chrome/Edge）與 iOS Safari 判斷
+  useEffect(() => {
+    const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e) }
+    window.addEventListener('beforeinstallprompt', handler as any)
+    try {
+      const ua = navigator.userAgent || ''
+      const iOS = /iPad|iPhone|iPod/.test(ua)
+      const safari = /^((?!chrome|android).)*safari/i.test(ua)
+      setIsIOS(iOS)
+      setIsSafari(safari)
+    } catch {}
+    return () => window.removeEventListener('beforeinstallprompt', handler as any)
+  }, [])
+
+  async function installApp() {
+    try {
+      if (!installPrompt) { alert('若未出現按鈕，請用 Chrome/Edge（Android/桌面）或 Safari（iPhone）開啟。'); return }
+      installPrompt.prompt()
+      await installPrompt.userChoice
+      setInstallPrompt(null)
+    } catch {}
+  }
 
   const load = async () => {
     if (!member) return
@@ -86,7 +113,7 @@ export default function MemberOrdersPage() {
           const { data: pendings, error: perr } = await supabase
             .from('orders')
             .select('id, order_number, customer_address, preferred_date, preferred_time_start, preferred_time_end, status, service_items, created_at, payment_method, points_used, points_deduct_amount')
-            .eq('status', 'pending')
+            .in('status', ['pending','draft'])
             .eq('customer_email', emailLc)
             .order('created_at', { ascending: false })
           if (!perr && Array.isArray(pendings)) {
@@ -101,8 +128,8 @@ export default function MemberOrdersPage() {
                 item_count: count,
                 total_price: amount,
                 reservation_date: o.preferred_date || '',
-                reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
-                reservation_time_display: normalizeTimeSlot((o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || '')),
+                reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${String(o.preferred_time_start).slice(0,5)}-${String(o.preferred_time_end).slice(0,5)}` : (String(o.preferred_time_start||'').slice(0,5) || ''),
+                reservation_time_display: normalizeTimeSlot((o.preferred_time_start && o.preferred_time_end) ? `${String(o.preferred_time_start).slice(0,5)}-${String(o.preferred_time_end).slice(0,5)}` : (String(o.preferred_time_start||'').slice(0,5) || '')),
                 payment_method: o.payment_method || '',
                 points_used: o.points_used || 0,
                 points_deduct_amount: o.points_deduct_amount || 0,
@@ -134,19 +161,29 @@ export default function MemberOrdersPage() {
     }
   }
 
-  const submitRating = async (orderId: number, stars: number, score: number, comment: string) => {
+  const submitRating = async (orderId: number, stars: number, score: number, comment: string, highlights: string[] = [], issues: string[] = [], recommend: boolean = false) => {
     if (!member) return
     try {
       const cid = (member as any)?.customerId || member?.id
       const res = await fetch(`/api/orders/member/${cid}/orders/${orderId}/rating`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stars, score, comment })
+        body: JSON.stringify({ stars, score, comment, highlights, issues, recommend })
       })
       const j = await res.json()
       if (!j.success) throw new Error(j.error || '提交評價失敗')
       await load()
-      alert('感謝您的評價！')
+      // 讀取設定，若有 reviewBonusPoints，提示上傳截圖領點數
+      try {
+        const { settingsRepo } = await import('../../adapters/supabase/settings')
+        const s = await (settingsRepo as any).get()
+        const bonus = Number(s?.reviewBonusPoints || 0)
+        if (bonus > 0) {
+          alert(`感謝您的評價！上傳 Google/FB 好評截圖可獲得 ${bonus} 點，請到「會員中心 > 通知」查看領取入口。`)
+        } else {
+          alert('感謝您的評價！')
+        }
+      } catch { alert('感謝您的評價！') }
     } catch (e: any) {
       alert(e?.message || '提交評價失敗')
     }
@@ -172,11 +209,25 @@ export default function MemberOrdersPage() {
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-base md:text-lg font-bold">我的訂單</div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <MemberBell />
+          {/* 安裝 App（Android/桌面） */}
+          <button
+            onClick={installApp}
+            disabled={!installPrompt}
+            title={!installPrompt ? '請用 Chrome/Edge 或等待安裝提示出現' : ''}
+            className={`rounded px-3 py-1 text-sm ${installPrompt? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'}`}
+          >安裝 App</button>
           <button onClick={()=>setTab('orders')} className={`rounded px-3 py-1 text-sm ${tab==='orders'?'bg-blue-600 text-white':'border border-blue-200 text-blue-600'}`}>正式訂單</button>
           <button onClick={()=>setTab('reservations')} className={`rounded px-3 py-1 text-sm ${tab==='reservations'?'bg-amber-600 text-white':'border border-amber-200 text-amber-700'}`}>預約訂單</button>
         </div>
       </div>
+      {/* iPhone 安裝引導（Safari） */}
+      {isIOS && isSafari && (
+        <div className="mb-3 rounded-lg border bg-amber-50 p-2 text-xs text-amber-800">
+          iPhone 安裝：使用 Safari，點分享（上箭頭）→ 加到主畫面。
+        </div>
+      )}
       {/* 快速入口卡牌 */}
       <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
         <Link to="/store" className="rounded-xl border border-blue-200 bg-blue-50 p-3 hover:bg-blue-100/70 transition-colors">
@@ -272,6 +323,9 @@ export default function MemberOrdersPage() {
                 <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs md:text-sm text-blue-900/90">
                   <div>品項數量：<span className="font-semibold">{count}</span></div>
                   <div>預估金額：<span className="font-semibold">NT$ {amount.toLocaleString()}</span></div>
+                  {Array.isArray(o.assigned_technicians) && o.assigned_technicians.length>0 && (
+                    <div className="col-span-2 truncate">服務技師：<span className="font-semibold">{o.assigned_technicians.join('、')}</span></div>
+                  )}
                 </div>
                 <div className="mt-2 space-y-1 text-xs md:text-sm text-blue-900/80">
                   {(o.items||[]).slice(0,3).map((it:any,idx:number)=> (
@@ -310,15 +364,47 @@ export default function MemberOrdersPage() {
   )
 }
 
-function RatingForm({ orderId, onSubmit }:{ orderId: number; onSubmit: (orderId:number, stars:number, score:number, comment:string)=>void }){
+function RatingForm({ orderId, onSubmit }:{ orderId: number; onSubmit: (orderId:number, stars:number, score:number, comment:string, highlights?:string[], issues?:string[], recommend?:boolean)=>void }){
   const [stars, setStars] = useState(5)
   const [score, setScore] = useState(100)
   const [comment, setComment] = useState('')
   const [sending, setSending] = useState(false)
+  const [highlights, setHighlights] = useState<Record<string, boolean>>({
+    '溝通清楚': false,
+    '準時到場': false,
+    '專業技能': false,
+    '環境整潔': false,
+    '服務態度': false,
+    '價格透明': false,
+  })
+  const [issues, setIssues] = useState<Record<string, boolean>>({
+    '未準時': false,
+    '溝通不良': false,
+    '施工瑕疵': false,
+    '清潔不佳': false,
+    '加價爭議': false,
+    '其他': false,
+  })
+  const [recommend, setRecommend] = useState(true)
+
+  // 自動計分：基礎=星等×20 + 亮點*2 - 問題*5，裁切 0..100
+  useEffect(() => {
+    const base = stars * 20
+    const plus = Object.values(highlights).filter(Boolean).length * 2
+    const minus = Object.values(issues).filter(Boolean).length * 5
+    const s = Math.max(0, Math.min(100, base + plus - minus))
+    setScore(s)
+  }, [stars, highlights, issues])
 
   const handle = async () => {
     setSending(true)
-    try{ await onSubmit(orderId, stars, score, comment) } finally { setSending(false) }
+    try{
+      const hi = Object.keys(highlights).filter(k=> highlights[k])
+      const is = Object.keys(issues).filter(k=> issues[k])
+      if (stars <= 3 && is.length === 0) { alert('星等≦3 時請至少選一項需要改善'); setSending(false); return }
+      if (stars <= 3 && !comment.trim()) { alert('星等≦3 時請填寫意見'); setSending(false); return }
+      await onSubmit(orderId, stars, score, comment, hi, is, recommend)
+    } finally { setSending(false) }
   }
 
   return (
@@ -330,6 +416,31 @@ function RatingForm({ orderId, onSubmit }:{ orderId: number; onSubmit: (orderId:
         </select>
         <label className="ml-3">總分</label>
         <input type="number" min={0} max={100} value={score} onChange={e=>setScore(Number(e.target.value))} className="w-20 rounded border px-2 py-1" />
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded border p-2">
+          <div className="mb-1 font-medium">亮點（可複選）</div>
+          {Object.keys(highlights).map(k=> (
+            <label key={k} className="flex items-center gap-2">
+              <input type="checkbox" checked={highlights[k]} onChange={e=> setHighlights(h=> ({ ...h, [k]: e.target.checked }))} />
+              <span>{k}</span>
+            </label>
+          ))}
+        </div>
+        <div className="rounded border p-2">
+          <div className="mb-1 font-medium">需改善（可複選）</div>
+          {Object.keys(issues).map(k=> (
+            <label key={k} className="flex items-center gap-2">
+              <input type="checkbox" checked={issues[k]} onChange={e=> setIssues(h=> ({ ...h, [k]: e.target.checked }))} />
+              <span>{k}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 text-sm">
+        <label>願意推薦我們嗎？</label>
+        <label className="flex items-center gap-1"><input type="radio" checked={recommend===true} onChange={()=>setRecommend(true)} />願意</label>
+        <label className="flex items-center gap-1"><input type="radio" checked={recommend===false} onChange={()=>setRecommend(false)} />不願意</label>
       </div>
       <textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="服務感受、改進建議..." className="rounded border p-2 text-sm" rows={3} />
       <div>

@@ -81,6 +81,24 @@ export default function MemberLoginPage() {
           customerId
         }
         try { localStorage.setItem('member-auth-user', JSON.stringify(memberInfo)) } catch {}
+
+        // 首次登入觸發推薦 +100（非阻斷，防重複由 RPC 保證）
+        try {
+          const emailLower = (resolved?.email || data.user.email || '').toLowerCase()
+          // 取 members 的 referrerCode 與 phone
+          try {
+            const { data: m2 } = await supabase
+              .from('members')
+              .select('referrerCode, phone')
+              .eq('email', emailLower)
+              .maybeSingle()
+            const ref = (m2 as any)?.referrerCode || ''
+            const digits2 = String((m2 as any)?.phone || '').replace(/\D/g,'')
+            if (ref) {
+              await supabase.rpc('award_referrer_points', { p_ref_code: String(ref), p_referred_email: emailLower, p_referred_phone: digits2, p_points: 100, p_note: '會員首次登入' })
+            }
+          } catch {}
+        } catch {}
         navigate('/store')
       }
     } catch (err: any) {
@@ -93,6 +111,7 @@ export default function MemberLoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <div className="text-center text-2xl font-extrabold text-gray-900 mb-1">日式洗濯家電服務</div>
         <h1 className="text-2xl font-bold text-center mb-4">會員登入</h1>
         <div className="mb-4 grid grid-cols-2 gap-2">
           <button type="button" onClick={()=>setMode('email')} className={`rounded-lg px-3 py-2 text-sm ${mode==='email'?'bg-blue-600 text-white':'bg-gray-100'}`}>Email 登入</button>
@@ -151,7 +170,10 @@ export default function MemberLoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-600">
+        <div className="mt-4 text-right text-sm">
+          <Link to="/login/member/reset" className="text-blue-600 hover:text-blue-700">忘記密碼？</Link>
+        </div>
+        <div className="mt-4 text-center text-sm text-gray-600">
           還沒有會員帳號？
           <Link to="/register/member" className="text-blue-600 hover:text-blue-700 ml-1">立即註冊</Link>
         </div>

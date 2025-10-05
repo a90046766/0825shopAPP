@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { loadAdapters } from '../../adapters'
 
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(false)
@@ -7,19 +8,16 @@ export default function AdminSettingsPage() {
   const [minStars, setMinStars] = useState(4)
   const [saved, setSaved] = useState(false)
 
-  const api = (path: string, opts: RequestInit = {}) => fetch(`/api${path}`, { headers: { 'Content-Type': 'application/json' }, ...opts }).then(r => r.json())
-
   const load = async () => {
     setLoading(true)
     setError('')
     try {
-      const [res, resStars] = await Promise.all([
-        api('/settings/auto-dispatch'),
-        api('/settings/auto-dispatch/min-stars')
-      ])
-      if (res.success) setAutoDispatchEnabled(!!res.enabled)
-      if (resStars.success && typeof resStars.stars === 'number') setMinStars(resStars.stars)
-      else setError(res.error || '載入失敗')
+      const a: any = await loadAdapters()
+      const s = await a.settingsRepo.get()
+      setAutoDispatchEnabled(!!s.autoDispatchEnabled)
+      const score = typeof s.autoDispatchMinScore === 'number' ? s.autoDispatchMinScore : 80
+      const stars = Math.min(5, Math.max(1, Math.round(score / 20)))
+      setMinStars(stars)
     } catch (e: any) {
       setError(e?.message || '載入失敗')
     } finally {
@@ -32,12 +30,8 @@ export default function AdminSettingsPage() {
     setError('')
     setSaved(false)
     try {
-      const [s1, s2] = await Promise.all([
-        api('/settings/auto-dispatch', { method: 'PUT', body: JSON.stringify({ enabled: autoDispatchEnabled }) }),
-        api('/settings/auto-dispatch/min-stars', { method: 'PUT', body: JSON.stringify({ stars: minStars }) })
-      ])
-      if (!s1.success) throw new Error(s1.error || '更新失敗')
-      if (!s2.success) throw new Error(s2.error || '更新失敗')
+      const a: any = await loadAdapters()
+      await a.settingsRepo.update({ autoDispatchEnabled, autoDispatchMinScore: minStars * 20 })
       setSaved(true)
       setTimeout(() => setSaved(false), 1500)
     } catch (e: any) {

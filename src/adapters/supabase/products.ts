@@ -18,8 +18,14 @@ function toDbRow(input: Partial<Product>): any {
     storeSort: 'store_sort',
   }
   for (const [camel, snake] of Object.entries(map)) {
-    if (camel in r) r[snake] = (r as any)[camel]
+    if (camel in r) {
+      r[snake] = (r as any)[camel]
+      delete r[camel]
+    }
   }
+  // 清除不存在於資料庫的駝峰欄位，避免 PGRST204
+  delete (r as any).updatedAt
+  delete (r as any).createdAt
   return r
 }
 
@@ -56,13 +62,39 @@ function fromDbRow(row: any): Product {
 
 class SupabaseProductRepo implements ProductRepo {
   async list(): Promise<Product[]> {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('store_sort', { ascending: true, nullsFirst: false })
-      .order('updated_at', { ascending: false })
-    if (error) throw error
-    return (data || []).map(fromDbRow)
+    // 兼容不同資料表欄位：若某些欄位不存在（例如 store_sort / updated_at），自動回退排序
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('store_sort', { ascending: true, nullsFirst: false })
+        .order('updated_at', { ascending: false })
+      if (error) throw error
+      return (data || []).map(fromDbRow)
+    } catch (e: any) {
+      const msg = (e?.message || '').toLowerCase()
+      const code = (e?.code || '').toString()
+      const isSchemaIssue = code === 'PGRST204' || code === '42703' || msg.includes('column') || msg.includes('schema')
+      if (!isSchemaIssue) throw e
+      // 回退：僅用 updated_at 排序
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('updated_at', { ascending: false })
+        if (error) throw error
+        return (data || []).map(fromDbRow)
+      } catch (e2: any) {
+        const msg2 = (e2?.message || '').toLowerCase()
+        const code2 = (e2?.code || '').toString()
+        const isSchemaIssue2 = code2 === 'PGRST204' || code2 === '42703' || msg2.includes('column') || msg2.includes('schema')
+        if (!isSchemaIssue2) throw e2
+        // 最後回退：不排序
+        const { data, error } = await supabase.from('products').select('*')
+        if (error) throw error
+        return (data || []).map(fromDbRow)
+      }
+    }
   }
 
   async upsert(product: Omit<Product, 'updatedAt'>): Promise<Product> {

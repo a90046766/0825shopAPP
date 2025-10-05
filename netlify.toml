@@ -19,6 +19,10 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+[[redirects]]
+  from = "/api/products-upsert"
+  to = "/.netlify/functions/products-upsert"
+  status = 200
 
 [[redirects]]
   from = "/api/einvoice/create-b2c"

@@ -14,6 +14,9 @@ function fromDb(row: any): Technician {
     status: r.status,
     points: r.points ?? 0,
     revenueShareScheme: r.revenue_share_scheme || r.revenueShareScheme,
+    customCommission: typeof r.custom_commission === 'number' ? r.custom_commission : undefined,
+    customCalcNote: r.custom_calc_note || undefined,
+    rating_override: typeof r.rating_override === 'number' ? r.rating_override : undefined,
     skills: r.skills || {},
     // @ts-ignore
     tempContact: r.temp_contact || undefined,
@@ -25,7 +28,9 @@ function toDb(patch: Partial<Technician>): any {
   const r: any = { ...patch }
   if ('shortName' in r) { r.short_name = (r as any).shortName; delete (r as any).shortName }
   if ('revenueShareScheme' in r) { r.revenue_share_scheme = (r as any).revenueShareScheme; delete (r as any).revenueShareScheme }
-  if ('tempContact' in r) { r.temp_contact = (r as any).tempContact }
+  if ('customCommission' in r) { r.custom_commission = (r as any).customCommission; delete (r as any).customCommission }
+  if ('customCalcNote' in r) { r.custom_calc_note = (r as any).customCalcNote; delete (r as any).customCalcNote }
+  if ('tempContact' in r) { r.temp_contact = (r as any).tempContact; delete (r as any).tempContact }
   if ('updatedAt' in r) delete (r as any).updatedAt
   return r
 }
@@ -47,16 +52,30 @@ async function generateNextCode(): Promise<string> {
   return `SR${next}`
 }
 
-const TECH_COLUMNS = 'id,code,name,short_name,email,phone,region,status,points,revenue_share_scheme,skills,temp_contact,updated_at'
+const TECH_COLUMNS = 'id,code,name,short_name,email,phone,region,status,points,revenue_share_scheme,custom_commission,custom_calc_note,rating_override,skills,temp_contact,updated_at'
 
 class SupabaseTechnicianRepo implements TechnicianRepo {
   async list(): Promise<Technician[]> {
-    const { data, error } = await supabase
-      .from('technicians')
-      .select(TECH_COLUMNS)
-      .order('updated_at', { ascending: false })
-    if (error) throw error
-    return (data || []).map(fromDb)
+    try {
+      const { data, error } = await supabase
+        .from('technicians')
+        .select(TECH_COLUMNS)
+        .order('updated_at', { ascending: false })
+      if (error) throw error
+      const rows = (data || []).map(fromDb)
+      try { sessionStorage.setItem('cache-techs', JSON.stringify({ t: Date.now(), rows })) } catch {}
+      return rows
+    } catch (e) {
+      // 快取備援（1 分鐘）
+      try {
+        const raw = sessionStorage.getItem('cache-techs')
+        if (raw) {
+          const { t, rows } = JSON.parse(raw)
+          if (Date.now() - t < 60_000) return rows
+        }
+      } catch {}
+      throw e
+    }
   }
 
   async upsert(tech: Omit<Technician, 'id' | 'updatedAt'> & { id?: string }): Promise<Technician> {

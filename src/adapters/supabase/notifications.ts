@@ -21,15 +21,24 @@ class SupabaseNotificationRepo implements NotificationRepo {
     const emailLc = (user.email||'').toLowerCase()
     const { data, error } = await supabase.from('notifications').select('*').order('created_at', { ascending: false })
     if (error) throw error
-    const items = (data || []).map(fromRow).filter(n => {
-      if (n.target === 'all') return true
-      if (n.target === 'user') return (n.targetUserEmail||'').toLowerCase() === emailLc
-      if (n.target === 'tech') return user.role === 'technician'
-      if (n.target === 'support') return user.role === 'support'
-      if (n.target === 'sales') return user.role === 'sales'
-      if (n.target === 'member') return user.role === 'member'
-      return false
-    })
+    const now = new Date()
+    const items = (data || [])
+      .map(fromRow)
+      .filter(n => {
+        if (n.target === 'all') return true
+        if (n.target === 'user') return (n.targetUserEmail||'').toLowerCase() === emailLc
+        if (n.target === 'tech') return user.role === 'technician'
+        if (n.target === 'support') return user.role === 'support'
+        if (n.target === 'sales') return user.role === 'sales'
+        if (n.target === 'member') return user.role === 'member'
+        return false
+      })
+      .filter(n => {
+        // 僅顯示：未過期 且 已送達（sentAt）或已到達排程時間（scheduledAt <= now）
+        const notExpired = !n.expiresAt || new Date(n.expiresAt) > now
+        const delivered = (n.sentAt && new Date(n.sentAt) <= now) || (!!n.scheduledAt && new Date(n.scheduledAt) <= now)
+        return notExpired && delivered
+      })
     const unreadIds: Record<string, boolean> = {}
     for (const it of items) unreadIds[it.id] = true
     return { items, unreadIds }

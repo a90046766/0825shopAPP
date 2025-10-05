@@ -1,0 +1,24 @@
+{
+  "name": "日式洗濯",
+  "short_name": "日式洗濯",
+  "start_url": "/store",
+  "id": "/store-app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "lang": "zh-Hant",
+  "icons": [
+    { "src": "https://cdn.statically.io/gh/stevenjoezhang/emoji-assets/main/png/512/1F305.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "https://cdn.statically.io/gh/stevenjoezhang/emoji-assets/main/png/512/1F305.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "首頁", "short_name": "首頁", "url": "/store" },
+    { "name": "商品清單", "short_name": "商品", "url": "/store/products" },
+    { "name": "購物車", "short_name": "購物車", "url": "/store/cart" },
+    { "name": "會員中心", "short_name": "會員", "url": "/store/member/orders" }
+  ]
+}
+
+

@@ -104,11 +104,17 @@ export default function QuoteDisplay({
       </div>
       
       <div className="bg-white rounded-lg p-6 shadow-sm border-l-4 border-brand-500">
-        <p className="text-gray-700 leading-relaxed text-lg">"{currentQuote}"</p>
+        <p className="text-gray-700 leading-relaxed text-2xl md:text-3xl">"{currentQuote}"</p>
         <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-sm text-gray-500">
-            {mode === 'daily' ? '今日語錄' : '隨機語錄'}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              {mode === 'daily' ? '今日語錄' : '隨機語錄'}
+            </p>
+            {/* 自動輪播：每8秒切換一句（僅在隨機模式） */}
+            {mode !== 'search' && (
+              <AutoRotate onTick={refreshQuote} intervalMs={8000} />
+            )}
+          </div>
         </div>
       </div>
       
@@ -154,4 +160,13 @@ export function QuoteCard({ className = '' }: { className?: string }) {
       <p className="text-gray-600 text-sm leading-relaxed">"{quote}"</p>
     </div>
   )
+}
+
+// 內嵌小元件：自動輪播計時器（不渲染任何內容）
+function AutoRotate({ onTick, intervalMs = 8000 }: { onTick: () => void; intervalMs?: number }) {
+  useEffect(() => {
+    const t = setInterval(() => onTick(), intervalMs)
+    return () => clearInterval(t)
+  }, [onTick, intervalMs])
+  return null
 }

@@ -5,8 +5,14 @@ import { Navigate } from 'react-router-dom'
 import { can } from '../../utils/permissions'
 
 export default function InventoryPage() {
-  const u = authRepo.getCurrentUser()
-  if (u && u.role==='technician') return <Navigate to="/dispatch" replace />
+  const getCurrentUser = () => {
+    try { const s = localStorage.getItem('supabase-auth-user'); if (s) return JSON.parse(s) } catch {}
+    try { const l = localStorage.getItem('local-auth-user'); if (l) return JSON.parse(l) } catch {}
+    return authRepo.getCurrentUser()
+  }
+  const u = getCurrentUser()
+  const isAdminOrSupport = u?.role === 'admin' || u?.role === 'support'
+  // 技師允許進入此頁（可申請購買），不再導回派工
   
   const [rows, setRows] = useState<any[]>([])
   const [repos, setRepos] = useState<any>(null)
@@ -14,10 +20,28 @@ export default function InventoryPage() {
   const [creating, setCreating] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all'|'available'|'low_stock'|'out_of_stock'>('all')
+  const [savingCreate, setSavingCreate] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
   
   const load = async () => { if(!repos) return; setRows(await repos.inventoryRepo.list()) }
   useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a) })() }, [])
   useEffect(() => { if(repos) load() }, [repos])
+
+  // 儲存重試機制（處理 schema cache LAG / 連線暫失）
+  const wait = (ms: number) => new Promise(res => setTimeout(res, ms))
+  const shouldRetry = (err: any) => {
+    const s = ((err?.message||'') + ' ' + (err?.code||'')).toLowerCase()
+    return s.includes('pgrst204') || s.includes('42703') || s.includes('schema cache') || s.includes('failed to fetch')
+  }
+  const upsertWithRetry = async (data: any) => {
+    if (!repos) throw new Error('系統尚未就緒，請稍候')
+    let lastErr: any
+    for (let i=0;i<3;i++) {
+      try { return await repos.inventoryRepo.upsert(data) }
+      catch(e:any){ lastErr = e; if (!shouldRetry(e)) break; await wait(3000) }
+    }
+    throw lastErr
+  }
 
   // 過濾庫存項目
   const filteredRows = rows.filter(item => {
@@ -52,6 +76,7 @@ export default function InventoryPage() {
     try {
       const quantity = prompt(`請輸入要購買的 ${item.name} 數量：`)
       if (!quantity || isNaN(Number(quantity))) return
+      if (Number(quantity) <= 0) { alert('數量需大於 0'); return }
       
       const purchaseRequest = {
         id: `PUR-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
@@ -63,8 +88,6 @@ export default function InventoryPage() {
         requesterRole: u.role,
         status: 'pending', // pending, approved, rejected, completed
         requestDate: new Date().toISOString(),
-        approvedBy: null,
-        approvedDate: null,
         notes: '',
         priority: 'normal', // low, normal, high, urgent
       }
@@ -72,27 +95,25 @@ export default function InventoryPage() {
       // 保存購買申請
       await repos.inventoryRepo.createPurchaseRequest(purchaseRequest)
       
-      // 發送通知給管理員和客服
-      const notification = {
-        id: `NOT-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
-        title: '工具設備購買申請',
-        message: `${u.name} 申請購買 ${item.name} x${quantity} 件`,
-        type: 'purchase_request',
-        priority: 'normal',
-        targetRoles: ['admin', 'support'],
-        senderId: u.id,
-        senderName: u.name,
-        createdAt: new Date().toISOString(),
-        readBy: [],
-        data: {
-          purchaseRequestId: purchaseRequest.id,
-          itemId: item.id,
-          itemName: item.name,
-          quantity: Number(quantity),
-        }
+      // 建立回報中心貼文，通知管理員與客服
+      try {
+        const report = {
+          subject: '庫存購買申請',
+          body: `${u.name} 申請購買 ${item.name} x${quantity} 件。請協助出貨或後續處理。`,
+          category: 'reminder',
+          level: 'normal',
+          target: 'support',
+          targetEmails: null,
+          orderId: '',
+          attachments: [],
+          createdBy: String(u?.email||'').toLowerCase(),
+          messages: [ { authorEmail: String(u?.email||'').toLowerCase(), body: `申請單號：${purchaseRequest.id}` } ]
+        } as any
+        await repos.reportsRepo.create(report)
+      } catch (e: any) {
+        try { console.error('報告建立失敗:', e) } catch {}
+        alert('回報建立失敗：' + (e?.message || e?.details || e?.hint || JSON.stringify(e)))
       }
-      
-      await repos.notificationRepo.create(notification)
       
       alert('購買申請已送出，等待管理員審核')
       load()
@@ -123,6 +144,25 @@ export default function InventoryPage() {
       }
       
       await repos.inventoryRepo.updatePurchaseRequest(requestId, updateData)
+      
+      // A：審核通過才扣庫存（最小改動，避免超賣）
+      if (approved) {
+        try {
+          const item = (rows || []).find(x => x.id === request.itemId) || await repos.inventoryRepo.get?.(request.itemId)
+          if (item) {
+            const nextQty = Math.max(0, Number(item.quantity || 0) - Number(request.requestedQuantity || 0))
+            await repos.inventoryRepo.upsert({ ...item, quantity: nextQty })
+          }
+        } catch {}
+        
+        // 審核通過時，補一則回報中心留言通知申請者
+        try {
+          await repos.reportsRepo.appendMessage?.(request.reportThreadId || '', {
+            authorEmail: String(u?.email||'').toLowerCase(),
+            body: `已核准並扣減庫存：${request.itemName} x${request.requestedQuantity}`
+          })
+        } catch {}
+      }
       
       // 發送通知給申請者
       const notification = {
@@ -160,23 +200,25 @@ export default function InventoryPage() {
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">工具設備管理（內部用）</div>
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => {
-              setCreating(true)
-              setEdit({
-                name: '',
-                description: '',
-                category: '',
-                quantity: 0,
-                safeStock: 0,
-                unitPrice: 0,
-                imageUrls: []
-              })
-            }} 
-            className="rounded-lg bg-brand-500 px-3 py-1 text-white hover:bg-brand-600"
-          >
-            新增工具設備
-          </button>
+          {(isAdminOrSupport || can(u, 'inventory.create')) && (
+            <button 
+              onClick={() => {
+                setCreating(true)
+                setEdit({
+                  name: '',
+                  description: '',
+                  category: '',
+                  quantity: 0,
+                  safeStock: 0,
+                  unitPrice: 0,
+                  imageUrls: []
+                })
+              }} 
+              className="rounded-lg bg-brand-500 px-3 py-1 text-white hover:bg-brand-600"
+            >
+              新增工具設備
+            </button>
+          )}
         </div>
       </div>
 
@@ -230,11 +272,11 @@ export default function InventoryPage() {
       {/* 工具設備列表 */}
       <div className="space-y-3">
         {filteredRows.map(item => (
-          <div key={item.id} className={`rounded-xl border p-4 shadow-card hover:shadow-lg transition-shadow ${
+          <div key={item.id} onClick={(isAdminOrSupport || can(u, 'inventory.edit')) ? ()=> setEdit(item) : undefined} className={`rounded-xl border p-4 shadow-card hover:shadow-lg transition-shadow ${
             (item.quantity || 0) <= 0 ? 'border-red-400 bg-red-50' :
             (item.quantity || 0) <= (item.safeStock || 0) ? 'border-amber-400 bg-amber-50' :
             'border-gray-200 bg-white'
-          }`}>
+          } ${(isAdminOrSupport || can(u, 'inventory.edit')) ? 'cursor-pointer' : ''}`}>
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
@@ -274,27 +316,28 @@ export default function InventoryPage() {
               </div>
               
               <div className="flex flex-col gap-2 ml-4">
-                {can(u, 'inventory.purchase') && (item.quantity || 0) > 0 && (
+                {can(u, 'inventory.purchase') && (
                   <button 
-                    onClick={() => requestPurchase(item)}
+                    onClick={(e)=>{ e.stopPropagation(); requestPurchase(item) }}
                     className="rounded-lg bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600"
                   >
                     申請購買
                   </button>
                 )}
                 
-                {(u?.role === 'admin' || u?.role === 'support') && (
+                {(isAdminOrSupport || can(u, 'inventory.edit')) && (
                   <button 
-                    onClick={() => setEdit(item)} 
+                    onClick={(e) => { e.stopPropagation(); setEdit(item) }} 
                     className="rounded-lg bg-gray-900 px-3 py-1 text-white text-sm hover:bg-gray-800"
                   >
                     編輯
                   </button>
                 )}
                 
-                {(u?.role === 'admin' || u?.role === 'support') && (
+                {(isAdminOrSupport || can(u, 'inventory.delete')) && (
                   <button 
-                    onClick={async()=>{ 
+                    onClick={async(e)=>{ 
+                      e.stopPropagation();
                       const { confirmTwice } = await import('../kit'); 
                       if(await confirmTwice('確認刪除該工具設備？','刪除後無法復原，仍要刪除？')){ 
                         if(!repos) return; 
@@ -320,7 +363,7 @@ export default function InventoryPage() {
       )}
 
       {/* 新增工具設備模態框 */}
-      {creating && (
+      {creating && (isAdminOrSupport || can(u, 'inventory.create')) && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-card max-h-[90vh] overflow-y-auto">
             <div className="mb-4 text-lg font-semibold">新增工具設備</div>
@@ -413,16 +456,24 @@ export default function InventoryPage() {
                 取消
               </button>
               <button 
+                disabled={savingCreate}
                 onClick={async()=>{ 
                   if(!repos) return; 
-                  await repos.inventoryRepo.upsert(edit); 
-                  setCreating(false)
-                  setEdit(null)
-                  load() 
+                  try{
+                    setSavingCreate(true)
+                    await upsertWithRetry(edit)
+                    setCreating(false)
+                    setEdit(null)
+                    load()
+                  }catch(e:any){
+                    alert('儲存失敗：' + (e?.message||'未知錯誤'))
+                  }finally{
+                    setSavingCreate(false)
+                  }
                 }} 
-                className="rounded-lg bg-brand-500 px-4 py-2 text-white hover:bg-brand-600"
+                className={`rounded-lg px-4 py-2 text-white ${savingCreate?'bg-gray-400':'bg-brand-500 hover:bg-brand-600'}`}
               >
-                儲存
+                {savingCreate ? '儲存中…' : '儲存'}
               </button>
             </div>
           </div>
@@ -430,7 +481,7 @@ export default function InventoryPage() {
       )}
 
       {/* 編輯工具設備模態框 */}
-      {edit && !creating && (
+      {edit && !creating && (isAdminOrSupport || can(u, 'inventory.edit')) && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-card max-h-[90vh] overflow-y-auto">
             <div className="mb-4 text-lg font-semibold">編輯工具設備</div>
@@ -520,15 +571,23 @@ export default function InventoryPage() {
                 取消
               </button>
               <button 
+                disabled={savingEdit}
                 onClick={async()=>{ 
                   if(!repos) return; 
-                  await repos.inventoryRepo.upsert(edit); 
-                  setEdit(null)
-                  load() 
+                  try{
+                    setSavingEdit(true)
+                    await upsertWithRetry(edit)
+                    setEdit(null)
+                    load()
+                  }catch(e:any){
+                    alert('儲存失敗：' + (e?.message||'未知錯誤'))
+                  }finally{
+                    setSavingEdit(false)
+                  }
                 }} 
-                className="rounded-lg bg-brand-500 px-4 py-2 text-white hover:bg-brand-600"
+                className={`rounded-lg px-4 py-2 text-white ${savingEdit?'bg-gray-400':'bg-brand-500 hover:bg-brand-600'}`}
               >
-                儲存
+                {savingEdit ? '儲存中…' : '儲存'}
               </button>
             </div>
           </div>

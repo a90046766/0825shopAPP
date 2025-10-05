@@ -1,116 +1,125 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
-import { siteCMS } from '../../adapters/supabase/site_cms'
-import { loadAdapters } from '../../adapters'
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { supabase } from '../../utils/supabase';
 
-type UserLite = { role?: 'admin'|'support'|'technician'|'sales'|'member'; email?: string; name?: string }
+type UserLite = { role?: 'admin'|'support'|'technician'|'sales'|'member'; email?: string; name?: string; code?: string; phone?: string };
 
 function useCurrentUser(): UserLite | null {
-  try {
-    const member = localStorage.getItem('member-auth-user')
-    if (member) return JSON.parse(member)
-  } catch {}
-  try {
-    const staff = localStorage.getItem('supabase-auth-user')
-    if (staff) return JSON.parse(staff)
-  } catch {}
-  try {
-    const local = localStorage.getItem('local-auth-user')
-    if (local) return JSON.parse(local)
-  } catch {}
-  return null
+  try { const m = localStorage.getItem('member-auth-user'); if (m) return JSON.parse(m) } catch {}
+  try { const s = localStorage.getItem('supabase-auth-user'); if (s) return JSON.parse(s) } catch {}
+  try { const l = localStorage.getItem('local-auth-user'); if (l) return JSON.parse(l) } catch {}
+  return null;
+}
+
+function extractPhoneFromMemberLocal(email?: string | null): string | null {
+  if (!email) return null;
+  const m = /^m-(\d{8,15})@member\.local$/i.exec(email);
+  return m ? m[1] : null;
 }
 
 export default function PublicHeader() {
-  const loc = useLocation()
-  const navigate = useNavigate()
-  const user = useCurrentUser()
-  const isEditor = user?.role === 'admin' || user?.role === 'support'
-  const active = (p: string) => loc.pathname === p ? 'text-brand-600 font-semibold' : 'text-gray-700 hover:text-brand-600'
-  const [items, setItems] = useState<Array<{id:string;label:string;path:string;sortOrder:number;active:boolean}>>([])
-  const [editMode, setEditMode] = useState(false)
-  const [editing, setEditing] = useState<any | null>(null)
+  const location = useLocation();
+  const navigate = useNavigate();
+  const user = useCurrentUser();
+  const [memberInfo, setMemberInfo] = useState<any>(null);
 
-  useEffect(() => { (async()=>{ try { const nav = await siteCMS.listNav(); setItems(nav) } catch {} })() }, [])
+  useEffect(() => {
+    const run = async () => {
+      // 只要 localStorage 有 member-auth-user 就進行補配與讀取（即使 role 尚未標記為 member）
+      const memberRaw = localStorage.getItem('member-auth-user');
+      if (!memberRaw && user?.role !== 'member') { setMemberInfo(null); return; }
 
-  const sorted = useMemo(() => (items||[]).slice().sort((a,b)=> (a.sortOrder-b.sortOrder) || a.label.localeCompare(b.label,'zh-Hant')), [items])
+      let email: string | null = user?.email || null;
+      let phone: string | null = user?.phone || extractPhoneFromMemberLocal(user?.email) || null;
+      try {
+        if (!email && !phone && memberRaw) {
+          const m = JSON.parse(memberRaw);
+          email = m?.email || null;
+          phone = m?.phone || extractPhoneFromMemberLocal(m?.email) || null;
+        }
+      } catch {}
+
+      // 確保會員存在並補配編號
+      try {
+        await supabase.rpc('ensure_member_exists_and_code', {
+          p_email: email,
+          p_phone: phone,
+          p_name: user.name ?? phone ?? email ?? '會員'
+        });
+      } catch {}
+
+      // 讀取會員資料
+      try {
+        const conds: string[] = [];
+        if (email) conds.push(`email.eq.${email}`);
+        if (phone) conds.push(`phone.eq.${phone}`);
+        if (conds.length === 0) return;
+
+        const { data, error } = await supabase
+          .from('members')
+          .select('id,name,code,email,phone')
+          .or(conds.join(','))
+          .limit(1)
+          .maybeSingle();
+        if (!error && data) {
+          setMemberInfo(data);
+          try {
+            const old = JSON.parse(localStorage.getItem('member-auth-user') || '{}');
+            localStorage.setItem('member-auth-user', JSON.stringify({
+              ...old,
+              role: 'member',
+              name: data.name ?? old.name,
+              email: data.email ?? old.email,
+              phone: data.phone ?? old.phone,
+              code: data.code
+            }));
+          } catch {}
+        }
+      } catch {}
+    };
+    run();
+  }, [user]);
+
+  const navItems = useMemo(() => [
+    { id: 'home', path: '/', label: '首頁' },
+    { id: 'store', path: '/store', label: '購物站' },
+    { id: 'products', path: '/store/products', label: '產品' },
+  ], []);
+
+  const active = (path: string) => location.pathname.startsWith(path) ? 'text-brand-600 font-semibold' : 'text-gray-600 hover:text-gray-900';
+  const isEditor = user?.role === 'admin' || user?.role === 'support';
 
   return (
     <header className="sticky top-0 z-30 mb-3 rounded-2xl bg-white/90 px-4 py-3 shadow-card backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between">
         <Link to="/" className="text-base font-extrabold tracking-wide text-gray-900">日式洗濯購物站</Link>
         <nav className="hidden gap-4 text-sm md:flex">
-          {sorted.map(it => (
-            <Link key={it.id} to={it.path} className={active(it.path)}>{it.label}</Link>
-          ))}
+          {navItems.map(it => <Link key={it.id} to={it.path} className={active(it.path)}>{it.label}</Link>)}
         </nav>
         <div className="flex items-center gap-2">
-          {/* 會員入口（未登入：登入/註冊；已登入：顯示名稱/登出） */}
-          {!user || user.role==='admin' || user.role==='support' || user.role==='technician' || user.role==='sales' ? (
-            <>
-              <Link to="/login/member" className="hidden rounded bg-gray-100 px-3 py-1 text-xs text-gray-700 md:inline-block">會員登入</Link>
-              <Link to="/register/member" className="hidden rounded bg-brand-500 px-3 py-1 text-xs text-white md:inline-block">註冊</Link>
-            </>
-          ) : (
+          {user && user.role === 'member' ? (
             <div className="hidden items-center gap-2 md:flex">
-              <span className="text-xs text-gray-700">{user.name || user.email}</span>
+              <span className="text-xl font-extrabold text-brand-600">歡迎回來</span>
+              <span className="text-lg font-bold text-gray-900">{memberInfo?.name || user.name || user.phone || '訪客'}</span>
+              {memberInfo?.code && <span className="text-sm text-gray-500">會員編號: {memberInfo.code}</span>}
               <button
-                onClick={async()=>{ 
-                  try{ const a = await loadAdapters(); await a.authRepo.logout(); }catch{}
-                  try{ const mod = await import('../../utils/supabase'); await mod.supabase.auth.signOut().catch(()=>{}) }catch{}
-                  try{ localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('member-auth-user'); localStorage.removeItem('local-auth-user') }catch{}
-                  try{ navigate('/'); }catch{} finally{ window.location.href = '/' }
+                onClick={async () => {
+                  try { await supabase.auth.signOut(); } catch {}
+                  try { localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('member-auth-user'); localStorage.removeItem('local-auth-user'); } catch {}
+                  try { navigate('/'); } catch {} finally { window.location.href = '/'; }
                 }}
                 className="rounded bg-gray-100 px-3 py-1 text-xs text-gray-700"
               >登出</button>
             </div>
+          ) : (
+            <>
+              <Link to="/login/member" className="hidden rounded bg-gray-100 px-3 py-1 text-xs text-gray-700 md:inline-block">會員登入</Link>
+              <Link to="/register/member" className="hidden rounded bg-brand-500 px-3 py-1 text-xs text-white md:inline-block">註冊</Link>
+            </>
           )}
-          <Link to="/store" className="rounded bg-brand-500 px-3 py-1 text-sm text-white md:hidden">預約</Link>
-          {isEditor && (
-            <button onClick={()=>setEditMode(v=>!v)} className="hidden rounded bg-gray-100 px-3 py-1 text-xs text-gray-700 md:inline-block">{editMode? '關閉管理':'管理模式'}</button>
-          )}
+          {isEditor && <Link to="/admin" className="hidden rounded bg-gray-100 px-3 py-1 text-xs text-gray-700 md:inline-block">管理</Link>}
         </div>
       </div>
-
-      {isEditor && editMode && (
-        <div className="mx-auto mt-2 max-w-5xl rounded-2xl border bg-white p-3 text-sm shadow-card">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="font-semibold text-gray-800">導覽管理</div>
-            <button onClick={()=> setEditing({ id:'', label:'', path:'/', sortOrder: (items?.length||0)+1, active:true })} className="rounded bg-brand-500 px-2 py-1 text-xs text-white">新增</button>
-          </div>
-          <div className="space-y-1">
-            {sorted.map(it => (
-              <div key={it.id} className="flex items-center justify-between rounded border px-2 py-1">
-                <div className="truncate"><span className="font-medium">{it.label}</span> <span className="text-gray-500">{it.path}</span></div>
-                <div className="flex items-center gap-2">
-                  <button onClick={()=>setEditing(it)} className="rounded bg-gray-100 px-2 py-0.5 text-xs">編輯</button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {editing && (
-            <div className="mt-3 rounded-lg border p-3">
-              <div className="mb-2 font-medium">{editing.id? '編輯':'新增'}導覽</div>
-              <div className="grid grid-cols-2 gap-2">
-                <input className="rounded border px-2 py-1" placeholder="標題" value={editing.label||''} onChange={e=>setEditing({...editing,label:e.target.value})} />
-                <input className="rounded border px-2 py-1" placeholder="/path" value={editing.path||''} onChange={e=>setEditing({...editing,path:e.target.value})} />
-                <input className="rounded border px-2 py-1" type="number" placeholder="排序" value={editing.sortOrder??0} onChange={e=>setEditing({...editing,sortOrder:Number(e.target.value)||0})} />
-                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!editing.active} onChange={e=>setEditing({...editing,active:e.target.checked})} />啟用</label>
-              </div>
-              <div className="mt-2 flex items-center justify-end gap-2">
-                {editing.id && (
-                  <button onClick={async()=>{ if(!confirm('確定刪除此導覽？')) return; try{ await siteCMS.removeNav(editing.id); const nav=await siteCMS.listNav(); setItems(nav); setEditing(null) } catch(e:any){ alert(e?.message||'刪除失敗') } }} className="rounded bg-rose-500 px-3 py-1 text-xs text-white">刪除</button>
-                )}
-                <button onClick={()=>setEditing(null)} className="rounded bg-gray-100 px-3 py-1 text-xs">取消</button>
-                <button onClick={async()=>{ try{ const saved = await siteCMS.upsertNav(editing); const nav=await siteCMS.listNav(); setItems(nav); setEditing(null) } catch(e:any){ alert(e?.message||'儲存失敗') } }} className="rounded bg-brand-500 px-3 py-1 text-xs text-white">儲存</button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </header>
-  )
+  );
 }
-
-

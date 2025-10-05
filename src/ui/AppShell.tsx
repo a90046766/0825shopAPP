@@ -13,22 +13,10 @@ function getCurrentUser(): any {
 }
 
 function AppBar() {
-  const title = { 
-    '/dispatch': '派工', 
-    '/me': '個人', 
-    '/notifications': '通知', 
-    '/schedule': '排班', 
-    '/customers': '客戶', 
-    '/payroll': '薪資', 
-    '/salary': '我的薪資',
-    '/reports': '回報', 
-    '/report-center': '回報',
-    '/leave-management': '請假管理',
-    '/cms': 'CMS 編輯'
-  } as Record<string,string>
+  const title = { '/dispatch': '日式洗濯家電服務', '/me': '個人', '/schedule': '排班', '/customers': '客戶', '/payroll': '薪資', '/reports': '回報', '/report-center': '回報' } as Record<string,string>
   const loc = useLocation()
   const navigate = useNavigate()
-  const t = title[loc.pathname] || '系統'
+  const t = title[loc.pathname] || '訂單內容'
   const u = getCurrentUser()
   const isTechnician = u?.role === 'technician'
   
@@ -38,19 +26,17 @@ function AppBar() {
       <div className="text-lg font-semibold">{t}</div>
       <div className="absolute right-3 flex items-center gap-2 text-xs opacity-90">
         <span>{u?.name || ''}</span>
-        {isTechnician && (
-          <button 
-            onClick={async () => {
-              try { const a = await loadAdapters(); await a.authRepo.logout() } catch {}
-              try { const mod = await import('../utils/supabase'); await mod.supabase.auth.signOut().catch(()=>{}) } catch {}
-              try { localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('member-auth-user'); localStorage.removeItem('local-auth-user') } catch {}
-              try { navigate('/login') } catch {} finally { window.location.href = '/login' }
-            }}
-            className="rounded bg-white/20 px-2 py-1 text-white hover:bg-white/30"
-          >
-            登出
-          </button>
-        )}
+        <button 
+          onClick={async () => {
+            try { const a = await loadAdapters(); await a.authRepo.logout() } catch {}
+            try { const mod = await import('../utils/supabase'); await mod.supabase.auth.signOut().catch(()=>{}) } catch {}
+            try { localStorage.removeItem('supabase-auth-user'); localStorage.removeItem('member-auth-user'); localStorage.removeItem('local-auth-user'); localStorage.removeItem('sb-0825shopapp-auth') } catch {}
+            try { navigate('/login') } catch {} finally { window.location.href = '/login' }
+          }}
+          className="rounded bg-white/20 px-2 py-1 text-white hover:bg-white/30"
+        >
+          登出
+        </button>
       </div>
     </div>
   )
@@ -79,8 +65,9 @@ function TabBar() {
     return null
   }
   return (
-    <div className="sticky bottom-0 z-20 grid grid-cols-3 border-t bg-white py-2 text-center text-sm">
+    <div className="sticky bottom-0 z-20 grid grid-cols-4 border-t bg-white py-2 text-center text-sm">
       <Link to="/dispatch" className={`${active('/dispatch')}`}>派工</Link>
+      <Link to="/orders" className={`${active('/orders')}`}>訂單</Link>
       <Link to="/schedule" className={`${active('/schedule')}`}>排班</Link>
       <Link to="/me" className={`${active('/me')}`}>個人</Link>
     </div>
@@ -120,24 +107,25 @@ function DesktopNav() {
   { to: '/orders', label: '訂單管理', perm: 'orders.list' },
   { to: '/schedule', label: '排班/派工', perm: 'technicians.schedule.view' },
   { to: '/report-center', label: '回報中心', perm: 'reports.view' },
-  { to: '/admin/broadcast', label: '站內廣播', perm: 'bulletin.manage' },
-  { to: '/leave-management', label: '請假管理', perm: 'leave.manage' },
+  { to: '/admin/broadcast', label: '站內廣播 📢', perm: 'bulletin.manage' },
+  { to: '/admin/settings', label: '自動派工設定', perm: 'promotions.manage' },
   { to: '/inventory', label: '庫存管理', perm: 'inventory.manage' },
   { to: '/documents', label: '文件管理', perm: 'documents.manage' },
-  { to: '/salary', label: '我的薪資', perm: 'dashboard.view' },
+  { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
+  { to: '/models', label: '機型管理', perm: 'models.manage' },
   { to: '/quotes', label: '職人語錄', perm: 'dashboard.view' },
   { to: '/store', label: '購物站', perm: 'dashboard.view' },
   { to: '/cms', label: 'CMS 編輯', perm: 'promotions.manage' },
-  { to: '/products', label: '商品管理', perm: 'products.manage' },
+  { to: '/approvals', label: '待審核', perm: 'approvals.manage' },
+  { to: '/feedback', label: '回饋檢視', perm: 'reports.view' },
   { to: '/me', label: '個人設定', perm: 'dashboard.view' }
 ]
   const menuBottom = [
     { to: '/technicians', label: '技師管理', perm: 'technicians.manage' },
     { to: '/staff', label: '員工管理', perm: 'staff.manage' },
-    { to: '/customers', label: '客戶管理', perm: 'customers.manage' },
-    { to: '/approvals', label: '待審核', perm: 'approvals.manage' },
-    { to: '/payroll', label: '薪資/分潤', perm: 'payroll.view' },
-    { to: '/reports', label: '報表管理', perm: 'reports.manage' }
+    { to: '/reports', label: '報表', perm: 'reports.manage' },
+    // 僅管理員可見：薪資管理（最下方）
+    ...(user?.role === 'admin' ? [{ to: '/payroll', label: '薪資管理', perm: 'payroll.view' }] : [])
   ]
 
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -150,13 +138,15 @@ function DesktopNav() {
         // - 訂單：orders confirmed & 未開工
         // - 回報中心：僅未結案且對當前使用者可見
         const a = await loadAdapters()
-        const [ordersAll, threads] = await Promise.all([
+        const [ordersAll, threads, resR, techApps] = await Promise.all([
           a.orderRepo?.list?.() ?? [],
-          (a as any)?.reportsRepo?.list?.() ?? []
+          (a as any)?.reportsRepo?.list?.() ?? [],
+          fetch('/api/reservations').then(r=>r.json()).catch(()=>({success:true,data:[]})),
+          (a as any)?.technicianApplicationRepo?.listPending?.().catch(()=>[]) ?? []
         ])
-        const ordersNew = (ordersAll||[]).filter((o:any)=> o.status==='draft').length
-        // 排班/派工：顯示已確認但未指派技師的訂單數量
+        const ordersNew = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && !o.workStartedAt).length
         const needAssign = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && (!Array.isArray(o.assignedTechnicians) || o.assignedTechnicians.length===0)).length
+        const rsvPending = Array.isArray(resR?.data) ? resR.data.filter((r:any)=> r.status==='pending').length : 0
         const emailLc = (user?.email||'').toLowerCase()
         const visible = (threads||[]).filter((t:any)=>{
           if (t.status !== 'open') return false
@@ -169,18 +159,26 @@ function DesktopNav() {
           }
           return false
         }).length
-        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reports: visible }))
+        const approvals = (techApps?.length||0)
+        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: visible, approvals }))
       } catch {}
     })()
   }, [loc.pathname])
 
   const renderItem = (to: string, label: string, perm: any) => {
     let allowed = can(user, perm as any)
-    // 待審核：僅 admin 顯示
-    if (to === '/approvals') allowed = allowed && (user?.role === 'admin')
+    // 特例：非管理員看到「我的薪資」而非薪資管理
+    if (to === '/payroll') {
+      if (user?.role !== 'admin') {
+        to = '/salary'
+        label = '我的薪資'
+        allowed = true
+      }
+    }
     const rawBadge = to==='/approvals' ? (counts.approvals||0)
       : to==='/orders' ? (counts.orders||0)
       : to==='/schedule' ? (counts.schedule||0)
+      : to==='/reservations' ? (counts.reservations||0)
       : to==='/report-center' ? (counts.reports||0)
       : undefined
     const badge = rawBadge && rawBadge > 0 ? rawBadge : undefined
@@ -194,6 +192,10 @@ function DesktopNav() {
         {menuTop.map(m => renderItem(m.to, m.label, m.perm))}
         <div className="my-2 border-t" />
         {menuBottom.map(m => renderItem(m.to, m.label, m.perm))}
+        {/* 非管理員：補上一個核心功能區「我的薪資」 */}
+        {user?.role !== 'admin' && (
+          <Item to={'/salary'} label={'我的薪資'} />
+        )}
       </nav>
     </aside>
   )
@@ -235,7 +237,8 @@ export default function AppShell() {
                  // 視口寬度（桌面小窗）
          const isSmallViewport = window.innerWidth < 500
         const isMobileLike = isMobileUA || isUaChMobile || isCoarsePointer
-        const shouldBlock = !!user && user.role === 'support' && (isMobileLike || (!isMobileLike && isSmallViewport))
+        // 解除行動裝置/小視窗封鎖（保持其餘行為不變）
+        const shouldBlock = false
         setBlocked(shouldBlock)
       } catch {}
     }
@@ -276,7 +279,7 @@ export default function AppShell() {
       <DesktopNav />
       <main className="flex-1">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/80 px-4 py-3 backdrop-blur">
-          <div className="text-base font-semibold text-gray-800">日式洗濯家電服務 <span className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[10px]">v1.1.3</span></div>
+          <div className="text-base font-semibold text-gray-800">日式洗濯家電服務</div>
           <div className="flex items-center gap-3">
             <div className="text-sm text-gray-700">{getCurrentUser()?.name || ''}</div>
             <button onClick={async ()=>{ 

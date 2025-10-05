@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles.css'
+import CmsEditor from './ui/pages/CmsEditor';
 // 最早期可視占位，避免任何情況出現白屏
 try {
   const rootEl = document.getElementById('root')
@@ -40,21 +41,26 @@ const CustomersPage = React.lazy(() => import('./ui/pages/Customers'))
 const PayrollPage = React.lazy(() => import('./ui/pages/Payroll'))
 const ReportsPage = React.lazy(() => import('./ui/pages/Reports'))
 const ReportCenterPage = React.lazy(() => import('./ui/pages/ReportCenter'))
+const ShareReferralPage = React.lazy(() => import('./ui/pages/ShareReferralPage'))
 const UsedItemsPage = React.lazy(() => import('./ui/pages/UsedItems'))
 const QuotesPage = React.lazy(() => import('./ui/pages/Quotes'))
 import NewShopPage from './ui/pages/NewShop'
 import EntryPage from './ui/pages/Entry'
 const ShopProductsPage = React.lazy(() => import('./ui/pages/ShopProducts'))
+const ShopProductDetailPage = React.lazy(() => import('./ui/pages/ShopProductDetail'))
+const ACAdvisorPage = React.lazy(() => import('./ui/pages/ACAdvisor'))
 const ShopCartPage = React.lazy(() => import('./ui/pages/ShopCart'))
 const OrderSuccessPage = React.lazy(() => import('./ui/pages/OrderSuccess'))
 const SalaryPage = React.lazy(() => import('./ui/pages/Salary'))
 const LeaveManagementPage = React.lazy(() => import('./ui/pages/LeaveManagement'))
 const DatabaseTestPage = React.lazy(() => import('./ui/pages/DatabaseTest'))
 const AdminContentPage = React.lazy(() => import('./ui/pages/AdminContent'))
+const FeedbackPage = React.lazy(() => import('./ui/pages/Feedback'))
 const AdminSettingsPage = React.lazy(() => import('./ui/pages/AdminSettings'))
 const AdminBroadcastPage = React.lazy(() => import('./ui/pages/AdminBroadcast'))
 const MemberOrdersPage = React.lazy(() => import('./ui/pages/MemberOrders'))
 const MemberOrderDetailPage = React.lazy(() => import('./ui/pages/MemberOrderDetail'))
+const MemberProfilePage = React.lazy(() => import('./ui/pages/MemberProfile'))
 import { supabase } from './utils/supabase'
 
 // 權限保護
@@ -69,15 +75,7 @@ function getCurrentUserFromStorage(): any {
   try {
     const supa = localStorage.getItem('supabase-auth-user')
     if (supa) {
-      // 防止「假登入」：若沒有 Supabase 的 session 存檔，視為未登入
-      try {
-        const sb = localStorage.getItem('sb-0825shopapp-auth')
-        if (!sb) {
-          localStorage.removeItem('supabase-auth-user')
-          return null
-        }
-      } catch {}
-      return JSON.parse(supa)
+       return JSON.parse(supa)
     }
   } catch {}
   try {
@@ -89,14 +87,6 @@ function getCurrentUserFromStorage(): any {
 
 function PrivateRoute({ children, permission }: { children: React.ReactNode; permission?: string }) {
   const user = getCurrentUserFromStorage()
-  // 追加：若無 Supabase session，視為未登入，避免假登入
-  try {
-    const sb = localStorage.getItem('sb-0825shopapp-auth')
-    if (!sb) {
-      try { localStorage.removeItem('supabase-auth-user') } catch {}
-      return <Navigate to="/login" replace />
-    }
-  } catch {}
   
   if (!user) {
     return <Navigate to="/login" replace />
@@ -145,8 +135,8 @@ createRoot(document.getElementById('root')!).render(
         element={(() => {
           try {
             const host = typeof window !== 'undefined' ? window.location.hostname : ''
-            const envStoreHost = (() => { try { return new URL((import.meta as any).env?.VITE_STORE_BASE_URL || '').hostname } catch { return '' } })()
-            const isStoreHost = !!host && (host === 'store.942clean.com.tw' || host.startsWith('store.') || (envStoreHost && host === envStoreHost))
+            // 僅識別 store 子網域為購物站，其餘一律導向後台登入
+            const isStoreHost = !!host && (host === 'store.942clean.com.tw' || host.startsWith('store.'))
             return <Navigate to={isStoreHost ? '/store' : '/login'} replace />
           } catch {
             return <Navigate to="/login" replace />
@@ -155,10 +145,13 @@ createRoot(document.getElementById('root')!).render(
       />
       <Route path="/store" element={<NewShopPage />} />
       <Route path="/store/products" element={<ShopProductsPage />} />
+      <Route path="/store/products/:id" element={<ShopProductDetailPage />} />
+      <Route path="/store/ac-advisor" element={<ACAdvisorPage />} />
       <Route path="/store/cart" element={<ShopCartPage />} />
       <Route path="/store/order-success" element={<OrderSuccessPage />} />
       {/* 會員中心 */}
       <Route path="/store/member/orders" element={<MemberOrdersPage />} />
+      <Route path="/store/member/profile" element={<MemberProfilePage />} />
       <Route path="/store/member/orders/:id" element={<MemberOrderDetailPage />} />
       {/* 舊路徑相容 */}
       <Route path="/shop/*" element={<Navigate to="/store" replace />} />
@@ -175,30 +168,34 @@ createRoot(document.getElementById('root')!).render(
         {/* 通知中心頁面已移除（保留站內廣播） */}
         <Route path="/schedule" element={<PrivateRoute permission="technicians.schedule.view"><TechnicianSchedulePage /></PrivateRoute>} />
         <Route path="/products" element={<PrivateRoute permission="products.manage"><ProductsPage /></PrivateRoute>} />
-        <Route path="/inventory" element={<PrivateRoute permission="inventory.manage"><InventoryPage /></PrivateRoute>} />
+        <Route path="/inventory" element={<PrivateRoute permission="inventory.purchase"><InventoryPage /></PrivateRoute>} />
         <Route path="/orders" element={<PrivateRoute permission="orders.list"><OrderManagementPage /></PrivateRoute>} />
         <Route path="/reservations" element={<Navigate to="/orders" replace />} />
         <Route path="/staff" element={<PrivateRoute permission="staff.manage"><StaffManagementPage /></PrivateRoute>} />
         <Route path="/technicians" element={<PrivateRoute permission="technicians.manage"><TechnicianManagementPage /></PrivateRoute>} />
         <Route path="/promotions" element={<PrivateRoute permission="promotions.manage"><PromotionsPage /></PrivateRoute>} />
-        <Route path="/documents" element={<PrivateRoute permission="documents.manage"><DocumentsPage /></PrivateRoute>} />
-        <Route path="/models" element={<Navigate to="/cms" replace />} />
+        <Route path="/documents" element={<PrivateRoute permission="dashboard.view"><DocumentsPage /></PrivateRoute>} />
+        <Route path="/models" element={<PrivateRoute permission="models.manage"><ModelsPage /></PrivateRoute>} />
         <Route path="/members" element={<PrivateRoute permission="customers.manage"><MembersPage /></PrivateRoute>} />
         <Route path="/customers" element={<PrivateRoute permission="customers.manage"><CustomersPage /></PrivateRoute>} />
         {/* Approvals 僅限 admin 可見，權限已在選單側控制 */}
         <Route path="/approvals" element={<PrivateRoute permission="approvals.manage"><ApprovalsPage /></PrivateRoute>} />
-        <Route path="/payroll" element={<PrivateRoute permission="payroll.view"><PayrollPage /></PrivateRoute>} />
+        <Route path="/payroll" element={<Navigate to="/payroll/support" replace />} />
+        <Route path="/payroll/:role" element={<PrivateRoute permission="payroll.view"><PayrollPage /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute permission="reports.view"><ReportsPage /></PrivateRoute>} />
         <Route path="/report-center" element={<PrivateRoute permission="reports.view"><ReportCenterPage /></PrivateRoute>} />
         <Route path="/admin/settings" element={<PrivateRoute permission="promotions.manage"><AdminSettingsPage /></PrivateRoute>} />
         <Route path="/admin/broadcast" element={<PrivateRoute permission="bulletin.manage"><AdminBroadcastPage /></PrivateRoute>} />
+        <Route path="/feedback" element={<PrivateRoute permission="reports.view"><FeedbackPage /></PrivateRoute>} />
         <Route path="/used-items" element={<PrivateRoute permission="inventory.manage"><UsedItemsPage /></PrivateRoute>} />
         <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
         <Route path="/me" element={<PrivateRoute><PageProfile /></PrivateRoute>} />
+        <Route path="/share-referral" element={<PrivateRoute permission="dashboard.view"><ShareReferralPage /></PrivateRoute>} />
         <Route path="/salary" element={<PrivateRoute><SalaryPage /></PrivateRoute>} />
         <Route path="/leave-management" element={<PrivateRoute><LeaveManagementPage /></PrivateRoute>} />
         <Route path="/admin/content" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
-        <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><AdminContentPage /></PrivateRoute>} />
+        {/* CMS 編輯入口（恢復啟用） */}
+        <Route path="/cms" element={<PrivateRoute permission="promotions.manage"><CmsEditor /></PrivateRoute>} />
       </Route>
         {/* 萬用路由：任何未知路徑導回購物站 */}
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -220,6 +217,17 @@ createRoot(document.getElementById('root')!).render(
   } catch {}
   // 背景初始化 adapters（供各頁按需使用），避免阻塞首屏
   loadAdapters().catch(()=>{})
+
+  // 註冊不快取版 Service Worker（內部與購物站皆可在安全環境註冊）
+  try {
+    if ('serviceWorker' in navigator) {
+      const swUrl = '/sw.js'
+      const isSecure = location.protocol === 'https:' || location.hostname === 'localhost'
+      if (isSecure) {
+        navigator.serviceWorker.register(swUrl, { scope: '/' }).catch(()=>{})
+      }
+    }
+  } catch {}
 
   async function mapSessionToLocalUser(session: any) {
     if (!session?.user) return
@@ -271,6 +279,7 @@ createRoot(document.getElementById('root')!).render(
 
       const user = { id: session.user.id, email: session.user.email, name: displayName, role: inferredRole, phone: (staff as any)?.phone || (tech as any)?.phone, passwordSet: true }
       try { localStorage.setItem('supabase-auth-user', JSON.stringify(user)) } catch {}
+      try { localStorage.setItem('sb-last-valid-ts', String(Date.now())) } catch {}
 
       try {
         const path = location.pathname
@@ -300,11 +309,7 @@ createRoot(document.getElementById('root')!).render(
     const { data } = await supabase.auth.getSession()
     if (data?.session) await mapSessionToLocalUser(data.session)
     // 若 local 有 supabase-auth-user 但無 session，視為假登入，清除
-    try {
-      const local = localStorage.getItem('supabase-auth-user')
-      const sb = localStorage.getItem('sb-0825shopapp-auth')
-      if (local && !sb) localStorage.removeItem('supabase-auth-user')
-    } catch {}
+    try { if (data?.session) localStorage.setItem('sb-last-valid-ts', String(Date.now())) } catch {}
   } catch {}
 
   // 監聽後續的簽入/刷新事件
@@ -312,12 +317,69 @@ createRoot(document.getElementById('root')!).render(
     supabase.auth.onAuthStateChange(async (event, session) => {
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
         await mapSessionToLocalUser(session)
+        try { localStorage.setItem('sb-last-valid-ts', String(Date.now())) } catch {}
       }
       if (event === 'SIGNED_OUT') {
         try { localStorage.removeItem('supabase-auth-user') } catch {}
+        try { localStorage.removeItem('local-auth-user') } catch {}
+        try { localStorage.removeItem('member-auth-user') } catch {}
+        try { localStorage.removeItem('sb-0825shopapp-auth') } catch {}
+        try { localStorage.removeItem('sb-last-valid-ts') } catch {}
       }
     })
   } catch {}
+
+  // 實時驗證：偵測互動/聚焦時驗證 session（修正假登入殘影）
+  let __verifying = false
+  let __lastVerifyAt = 0
+  const verifySession = async () => {
+    // 可用 localStorage 設定 panic switch：disable-session-verify = '1'
+    const disabled = (()=>{ try{ return localStorage.getItem('disable-session-verify')==='1' }catch{ return false } })()
+    if (disabled) return
+    if (__verifying) return
+    const now = Date.now()
+    if (now - __lastVerifyAt < 5000) return // 至少 5 秒一次
+    __verifying = true
+    try {
+      // 僅在後台相關路徑才驗證，避免干擾前台/會員
+      const p = location.pathname
+      const isBackendPath = [/^\/dispatch/,/^\/orders/,/^\/inventory/,/^\/technicians/,/^\/staff/,/^\/customers/,/^\/members$/, /^\/payroll/,/^\/reports/,/^\/report-center/,/^\/cms/,/^\/admin\//,/^\/leave-management/,/^\/me$/, /^\/salary$/].some(rx=> rx.test(p))
+      if (!isBackendPath) { return }
+      const { data } = await supabase.auth.getSession()
+      const hasSession = !!data?.session?.user
+      const local = localStorage.getItem('supabase-auth-user')
+      // 增加寬限：若曾經有有效 session，於 12 小時內不強制清除，避免短暫取不到造成鎖死
+      const lastValid = Number(localStorage.getItem('sb-last-valid-ts') || '0')
+      const withinGrace = (now - lastValid) < 12 * 60 * 60 * 1000 // 12h
+      if (!hasSession && local) {
+        if (!withinGrace) {
+          try { localStorage.removeItem('supabase-auth-user') } catch {}
+          try { location.replace('/login') } catch {}
+        }
+        // 若在寬限內，略過清除，等待使用者手動重新登入或稍後再驗
+      }
+    } catch {}
+    finally {
+      __verifying = false
+      __lastVerifyAt = now
+    }
+  }
+  let verifyTimer: any = null
+  const scheduleVerify = () => {
+    const disabled = (()=>{ try{ return localStorage.getItem('disable-session-verify')==='1' }catch{ return false } })()
+    if (disabled) return
+    if (verifyTimer) clearTimeout(verifyTimer)
+    verifyTimer = setTimeout(verifySession, 2000) // 放寬到 2 秒避免抖動
+  }
+  ;(() => {
+    const w = window as any
+    if (!w.__sbVerifyBound) {
+      ;['visibilitychange','focus','online'].forEach(evt => {
+        window.addEventListener(evt as any, scheduleVerify, { passive: true })
+      })
+      w.__sbVerifyBound = true
+    }
+  })()
   // 直接 Render Router
   } catch (err: any) {
     const msg = (err && (err.message || String(err))) || '初始化失敗'

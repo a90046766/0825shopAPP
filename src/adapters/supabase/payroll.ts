@@ -17,6 +17,8 @@ function fromRow(r: any): PayrollRecord {
     pointsMode: r.points_mode ?? 'accumulate',
     allowances: r.allowances ?? undefined,
     deductions: r.deductions ?? undefined,
+    extraAllowances: r.extra_allowances ?? undefined,
+    extraDeductions: r.extra_deductions ?? undefined,
     bonusRate: r.bonus_rate ?? undefined,
     platform: r.platform ?? '同',
     issuanceDate: r.issuance_date ?? undefined,
@@ -35,6 +37,8 @@ function toRow(p: Partial<PayrollRecord>): any {
   if ('pointsMode' in r) r.points_mode = (r as any).pointsMode
   if ('bonusRate' in r) r.bonus_rate = (r as any).bonusRate
   if ('issuanceDate' in r) r.issuance_date = (r as any).issuanceDate
+  if ('extraAllowances' in r) r.extra_allowances = (r as any).extraAllowances
+  if ('extraDeductions' in r) r.extra_deductions = (r as any).extraDeductions
   if ('updatedAt' in r) delete (r as any).updatedAt
   return r
 }

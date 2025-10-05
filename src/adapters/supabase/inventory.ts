@@ -5,12 +5,19 @@ function toDbRow(item: Partial<InventoryItem>): any {
   const r: any = { ...item }
   const map: Record<string, string> = {
     productId: 'product_id',
+    unitPrice: 'unit_price',
     imageUrls: 'image_urls',
     safeStock: 'safe_stock',
   }
   for (const [camel, snake] of Object.entries(map)) {
-    if (camel in r) r[snake] = (r as any)[camel]
+    if (camel in r) {
+      r[snake] = (r as any)[camel]
+      delete r[camel] // 移除原始欄位
+    }
   }
+  // 清除不存在於資料庫的駝峰欄位，避免 PGRST204（schema cache 找不到欄位）
+  delete (r as any).updatedAt
+  delete (r as any).createdAt
   return r
 }
 
@@ -22,6 +29,7 @@ function fromDbRow(row: any): InventoryItem {
     productId: r.product_id ?? r.productId,
     quantity: r.quantity ?? 0,
     description: r.description || '',
+    unitPrice: r.unit_price ?? r.unitPrice ?? 0,
     imageUrls: r.image_urls ?? r.imageUrls ?? [],
     safeStock: r.safe_stock ?? r.safeStock,
     updatedAt: r.updated_at ?? new Date().toISOString(),
@@ -42,7 +50,18 @@ function toPurchaseRequestDbRow(request: Partial<PurchaseRequest>): any {
     requestDate: 'request_date',
   }
   for (const [camel, snake] of Object.entries(map)) {
-    if (camel in r) r[snake] = (r as any)[camel]
+    if (camel in r) {
+      r[snake] = (r as any)[camel]
+      delete (r as any)[camel]
+    }
+  }
+  // 僅保留資料庫存在的欄位，其餘移除
+  // 允許的直傳欄位（與資料表同名）
+  const allowed = new Set(['status', 'notes', 'priority'])
+  for (const key of Object.keys(r)) {
+    if (!(key in Object.values(map).reduce((acc:any,k)=>{acc[k]=true;return acc}, {} as any)) && !allowed.has(key)) {
+      delete (r as any)[key]
+    }
   }
   return r
 }
@@ -102,12 +121,14 @@ class SupabaseInventoryRepo implements InventoryRepo {
       if (row.unit_price === undefined) row.unit_price = 0
       if (!row.image_urls) row.image_urls = []
       
-      const { data, error } = await supabase.from('inventory').upsert(row).select().single()
+      const { data, error } = await supabase.from('inventory').upsert(row).select()
       if (error) {
         console.error('Inventory upsert error:', error)
         throw new Error(`儲存失敗: ${error.message}`)
       }
-      return fromDbRow(data)
+      // upsert 可能返回陣列，取第一筆
+      const result = Array.isArray(data) ? data[0] : data
+      return fromDbRow(result)
     } catch (error) {
       console.error('Failed to upsert inventory:', error)
       throw error

@@ -13,6 +13,10 @@ export default function ProductsPage() {
   const [img, setImg] = useState<string | null>(null)
   const [cats, setCats] = useState<Array<{id:string;name:string}>>([])
   const [catMngOpen, setCatMngOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  // 服務地區群組（可複選）
+  const REGION_GROUPS = ['北北基','桃竹苗','中彰投','南高','南高屏','雲嘉南','新竹以北','台中以北']
+  const [customRegion, setCustomRegion] = useState('')
   const PRESET_CATEGORIES = [
     '專業清洗服務',
     '家電購買服務',
@@ -22,6 +26,22 @@ export default function ProductsPage() {
   const load = async () => { if(!repos) return; setRows(await repos.productRepo.list()) }
   useEffect(() => { (async()=>{ const a = await loadAdapters(); setRepos(a) })() }, [])
   useEffect(() => { if(repos){ load(); (async()=>{ try{ const meta = await import('../../adapters/supabase/product_meta'); const list = await meta.productMeta.listCategories(true); setCats(list.map(c=>({id:c.id,name:c.name}))) } catch {} })() } }, [repos])
+  
+  // 儲存重試機制（處理 PostgREST schema cache LAG / 短暫連線）
+  const wait = (ms:number)=> new Promise(res=>setTimeout(res, ms))
+  const shouldRetry = (err:any) => {
+    const s = ((err?.message||'') + ' ' + (err?.code||'')).toLowerCase()
+    return s.includes('pgrst204') || s.includes('42703') || s.includes('schema cache') || s.includes('failed to fetch')
+  }
+  const upsertWithRetry = async (payload:any) => {
+    if (!repos) throw new Error('系統尚未就緒，請稍候')
+    let last:any
+    for (let i=0;i<3;i++) {
+      try { return await repos.productRepo.upsert(payload) } 
+      catch(e:any){ last=e; if(!shouldRetry(e)) break; await wait(3000) }
+    }
+    throw last
+  }
   
   // 檢查安全庫存提醒
   const lowStockProducts = rows.filter(p => p.safeStock && p.safeStock > 0 && (p.quantity || 0) < p.safeStock)
@@ -196,7 +216,53 @@ export default function ProductsPage() {
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!edit.published} onChange={e=>setEdit({...edit,published:e.target.checked})} />上架（顯示於購物車）</label>
               <div>排序：<input type="number" className="w-full rounded border px-2 py-1" value={edit.storeSort||0} onChange={e=>setEdit({...edit,storeSort:Number(e.target.value)||0})} /></div>
               <div>內容：<textarea className="w-full rounded border px-2 py-1" rows={3} value={edit.content || ''} onChange={e=>setEdit({...edit,content:e.target.value})} placeholder="產品詳細內容描述..." /></div>
-              <div>地區：<input className="w-full rounded border px-2 py-1" value={edit.region || ''} onChange={e=>setEdit({...edit,region:e.target.value})} placeholder="服務地區..." /></div>
+              <div>
+                服務地區（可複選，可留空）：
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {REGION_GROUPS.map(g => {
+                    const picked = (edit.region||'').split(/[\s,、]+/).filter(Boolean)
+                    const on = picked.includes(g)
+                    return (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => {
+                          const set = new Set(picked)
+                          if (on) set.delete(g); else set.add(g)
+                          setEdit({ ...edit, region: Array.from(set).join(' ') })
+                        }}
+                        className={`rounded px-3 py-1 text-sm ${on? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                      >{g}</button>
+                    )
+                  })}
+                  <button
+                    type="button"
+                    onClick={()=> setEdit({ ...edit, region: '' })}
+                    className="rounded px-3 py-1 text-sm bg-gray-100 text-gray-600"
+                  >清空</button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    value={customRegion}
+                    onChange={e=>setCustomRegion(e.target.value)}
+                    placeholder="自定義地區（可留空）"
+                    className="w-48 rounded border px-2 py-1 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const token = (customRegion||'').trim()
+                      if (!token) return
+                      const picked = (edit.region||'').split(/[\s,、]+/).filter(Boolean)
+                      const set = new Set(picked)
+                      set.add(token)
+                      setEdit({ ...edit, region: Array.from(set).join(' ') })
+                      setCustomRegion('')
+                    }}
+                    className="rounded bg-gray-900 px-3 py-1 text-sm text-white"
+                  >加入</button>
+                </div>
+              </div>
               <div>預設數量：<input type="number" className="w-full rounded border px-2 py-1" value={edit.defaultQuantity||1} onChange={e=>setEdit({...edit,defaultQuantity:Math.max(1, Number(e.target.value)||1)})} /></div>
               <div>安全庫存：<input type="number" className="w-full rounded border px-2 py-1" value={edit.safeStock||0} onChange={e=>setEdit({...edit,safeStock:Number(e.target.value)})} /></div>
               <div className="text-xs text-gray-500">保存後可於訂單項目引用此產品（帶入單價）。</div>
@@ -213,16 +279,30 @@ export default function ProductsPage() {
             </div>
             <div className="mt-3 flex justify-end gap-2">
               <button onClick={()=>setEdit(null)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
-              {edit.id && (
-              <button onClick={async()=>{
-                if(!repos) return
-                const { confirmTwice } = await import('../kit')
-                if (!(await confirmTwice('建立對應庫存？','將建立數量為 0、並綁定此產品。是否繼續？'))) return
-                await repos.inventoryRepo.upsert({ id: '', name: edit.name, productId: edit.id, quantity: 0, imageUrls: [], safeStock: edit.safeStock||0 })
-                alert('已建立對應庫存並綁定')
-              }} className="rounded-lg bg-gray-200 px-3 py-1 text-sm">建立對應庫存</button>
-              )}
-              <button onClick={async()=>{ if(!repos) return; const payload = { ...edit, imageUrls: img? [img] : (edit.imageUrls||[]) }; await repos.productRepo.upsert(payload); setEdit(null); setImg(null); load() }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">儲存</button>
+              <button 
+                disabled={saving}
+                onClick={async()=>{ 
+                  if(!repos) return; 
+                  try{
+                    setSaving(true)
+                    // 構建 payload；服務/居家/新品均不扣庫，忽略 safeStock 限制
+                    const base = { ...edit, imageUrls: img? [img] : (edit.imageUrls||[]) }
+                    const mode = (base as any).modeCode || 'svc'
+                    if (mode !== 'used') {
+                      delete (base as any).safeStock
+                    }
+                    await upsertWithRetry(base)
+                    setEdit(null)
+                    setImg(null)
+                    load()
+                  }catch(e:any){
+                    alert('儲存失敗：' + (e?.message||'未知錯誤'))
+                  }finally{
+                    setSaving(false)
+                  }
+                }} 
+                className={`rounded-lg px-3 py-1 text-white ${saving?'bg-gray-400':'bg-brand-500 hover:bg-brand-600'}`}
+              >{saving ? '儲存中…' : '儲存'}</button>
             </div>
           </div>
         </div>

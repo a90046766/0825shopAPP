@@ -17,7 +17,7 @@ export const supabase = createClient(url || 'https://dummy.supabase.co', key || 
   },
   global: {
     // 僅強制 apikey，授權權杖交由 supabase-js 以登入 session 自動帶入
-    headers: key ? { apikey: key } : {},
+    headers: key ? { apikey: key, Accept: 'application/json' } : { Accept: 'application/json' },
     // 明確使用瀏覽器 fetch，避免打包後的 typeof 檢測誤判
     fetch: (...args: any[]) => (window as any).fetch?.(...args)
   }
@@ -55,5 +55,25 @@ export const checkSupabaseConnection = async () => {
     return false
   }
 }
+
+// 背景 30 秒心跳：低風險刷新 session 與偵測連線；失敗不打擾使用者
+(() => {
+  try {
+    let timer: any = null
+    const beat = async () => {
+      try {
+        await supabase.auth.getSession()
+      } catch {}
+      finally {
+        timer = setTimeout(beat, 30_000)
+      }
+    }
+    // 僅在瀏覽器啟動
+    if (typeof window !== 'undefined') {
+      timer = setTimeout(beat, 30_000)
+      window.addEventListener('beforeunload', () => { try { clearTimeout(timer) } catch {} })
+    }
+  } catch {}
+})()
 
 

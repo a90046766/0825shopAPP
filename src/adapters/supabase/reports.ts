@@ -1,6 +1,13 @@
 import type { ReportsRepo, ReportThread, ReportMessage } from '../../core/repository'
 import { supabase } from '../../utils/supabase'
 
+function isValidUUID(str: string): boolean {
+  if (!str) return false
+  const s = String(str).trim()
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  return uuidRegex.test(s)
+}
+
 function fromThreadRow(r: any): ReportThread {
   return {
     id: r.id,
@@ -14,6 +21,7 @@ function fromThreadRow(r: any): ReportThread {
     orderId: r.order_id || undefined,
     attachments: r.attachments || [],
     readByEmails: r.read_by_emails || [],
+    createdBy: (r.created_by || undefined),
     messages: [],
     createdAt: r.created_at || new Date().toISOString(),
     closedAt: r.closed_at || undefined,
@@ -22,11 +30,24 @@ function fromThreadRow(r: any): ReportThread {
 
 function toThreadRow(p: Partial<ReportThread>): any {
   const r: any = { ...p }
-  if ('targetEmails' in r) r.target_emails = (r as any).targetEmails
-  if ('orderId' in r) r.order_id = (r as any).orderId
-  if ('readByEmails' in r) r.read_by_emails = (r as any).readByEmails
-  if ('createdAt' in r) delete (r as any).createdAt
-  if ('closedAt' in r) r.closed_at = (r as any).closedAt
+  if ('targetEmails' in r) { r.target_emails = (r as any).targetEmails; delete (r as any).targetEmails }
+  if ('orderId' in r) { r.order_id = (r as any).orderId; delete (r as any).orderId }
+  if ('readByEmails' in r) { r.read_by_emails = (r as any).readByEmails; delete (r as any).readByEmails }
+  if ('createdBy' in r) { r.created_by = String((r as any).createdBy||'').toLowerCase(); delete (r as any).createdBy }
+  if ('createdAt' in r) { delete (r as any).createdAt }
+  if ('closedAt' in r) { r.closed_at = (r as any).closedAt; delete (r as any).closedAt }
+  // 維持 target_emails NOT NULL 的資料庫時，避免傳 null
+  if (r.target_emails === null || r.target_emails === undefined) r.target_emails = []
+  // 清理 order_id：空字串或非 UUID 一律不送，避免 22P02
+  if ('order_id' in r) {
+    const raw = (r as any).order_id
+    const s = (raw === null || raw === undefined) ? '' : String(raw).trim()
+    if (!s || !isValidUUID(s)) {
+      delete (r as any).order_id
+    } else {
+      r.order_id = s
+    }
+  }
   return r
 }
 
@@ -41,31 +62,14 @@ function fromMsgRow(r: any): ReportMessage {
 
 class SupabaseReportsRepo implements ReportsRepo {
   async list(): Promise<ReportThread[]> {
-    const { data: threads, error } = await supabase
+    // 輕量清單：僅抓必要欄位與上限，避免一次性載入大量留言導致資源不足
+    const { data, error } = await supabase
       .from('report_threads')
-      .select('*')
+      .select('id, subject, body, category, level, target, target_emails, status, order_id, attachments, read_by_emails, created_by, created_at, closed_at')
       .order('created_at', { ascending: false })
+      .limit(100)
     if (error) throw error
-    const ids = (threads || []).map((t: any) => t.id)
-    if (ids.length === 0) return []
-    const { data: msgs, error: e2 } = await supabase
-      .from('report_messages')
-      .select('*')
-      .in('thread_id', ids)
-      .order('created_at', { ascending: true })
-    if (e2) throw e2
-    const map: Record<string, ReportMessage[]> = {}
-    for (const m of msgs || []) {
-      const one = fromMsgRow(m)
-      const tid = m.thread_id
-      if (!map[tid]) map[tid] = []
-      map[tid].push(one)
-    }
-    return (threads || []).map((t: any) => {
-      const base = fromThreadRow(t)
-      base.messages = map[t.id] || []
-      return base
-    })
+    return (data || []).map(fromThreadRow)
   }
 
   async get(id: string): Promise<ReportThread | null> {
@@ -91,13 +95,55 @@ class SupabaseReportsRepo implements ReportsRepo {
 
   async create(thread: Omit<ReportThread, 'id' | 'createdAt' | 'messages' | 'status'> & { messages?: ReportMessage[] }): Promise<ReportThread> {
     const now = new Date().toISOString()
-    const payload = { ...toThreadRow(thread), status: 'open', created_at: now }
-    const { data, error } = await supabase
-      .from('report_threads')
-      .insert(payload)
-      .select()
-      .single()
-    if (error) throw error
+    // 僅以最小必要欄位插入（避免 schema 差異 400）
+    const base = toThreadRow(thread)
+    const minimalRaw: any = {
+      body: (base as any).body ?? '',
+      category: (base as any).category ?? 'other',
+      level: (base as any).level ?? 'normal',
+      target: (base as any).target ?? null,
+      target_emails: (base as any).target_emails ?? null,
+      order_id: (base as any).order_id ?? undefined,
+      created_by: (base as any).created_by ?? undefined,
+    }
+    // 若 subject 存在就帶，否則忽略
+    if ((base as any).subject != null) minimalRaw.subject = (base as any).subject
+
+    // 過濾 undefined，避免 400
+    const minimal: any = {}
+    Object.keys(minimalRaw).forEach(k => { const v = (minimalRaw as any)[k]; if (v !== undefined) (minimal as any)[k] = v })
+
+    // 多輪容錯：移除回報不支援欄位再試
+    const tryInsert = async (): Promise<any> => {
+      const attempt: any = { ...minimal }
+      const dropList = ['subject', 'category', 'level', 'target', 'target_emails', 'order_id', 'created_by']
+      for (let i = 0; i < dropList.length + 2; i++) {
+        const { data, error } = await supabase.from('report_threads').insert(attempt).select().single()
+        if (!error) return data
+        const msg = String((error as any)?.message || '')
+        const m = msg.match(/Could not find the '([^']+)' column/i)
+        if (m && m[1]) {
+          delete attempt[m[1]]
+          continue
+        }
+        // 若為 RLS 擋下，拋出讓上層處理（政策需補 INSERT）
+        if (/row-level security|RLS|violates/i.test(msg)) throw error
+        // UUID 型別錯誤時，移除 order_id 再試
+        if (/22P02|invalid input syntax for type uuid/i.test(msg)) {
+          delete attempt.order_id
+          continue
+        }
+        // 其他未知錯誤時，最後再嘗試移除非關鍵欄位
+        if (i < dropList.length && attempt[dropList[i]] !== undefined) {
+          delete attempt[dropList[i]]
+          continue
+        }
+        throw error
+      }
+      throw new Error('report_threads insert failed')
+    }
+
+    const data = await tryInsert()
     const created = fromThreadRow(data)
     const messages = thread.messages || []
     if (messages.length > 0) {

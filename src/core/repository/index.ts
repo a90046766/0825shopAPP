@@ -72,7 +72,12 @@ export interface Technician {
   region: 'north' | 'central' | 'south' | 'all'
   status: 'active' | 'suspended'
   points?: number
-  revenueShareScheme?: 'pure70' | 'pure72' | 'pure73' | 'pure75' | 'pure80' | 'base1' | 'base2' | 'base3'
+  revenueShareScheme?: 'pure70' | 'pure72' | 'pure73' | 'pure75' | 'pure80' | 'base1' | 'base2' | 'base3' | 'afterTax80' | 'custom'
+  // 自訂方案（預設帶入薪資頁）
+  customCommission?: number
+  customCalcNote?: string
+  // 管理員覆蓋評分（0~100）
+  rating_override?: number
   skills?: Record<string, boolean>
   updatedAt: string
 }
@@ -110,6 +115,7 @@ export interface Order {
   serviceFinishedAt?: string
   canceledReason?: string
   closedAt?: string
+  createdBy?: string
   // 電子發票（前端狀態欄位）
   invoiceCode?: string
   invoiceStatus?: 'pending' | 'issued' | 'cancelled'
@@ -364,6 +370,9 @@ export interface PayrollRecord {
     complaints?: number
     repairCost?: number
   }
+  // 額外補貼/扣除（可多筆，供「其他補貼」「其他扣除」欄位）
+  extraAllowances?: Array<{ name: string; amount: number; note?: string }>
+  extraDeductions?: Array<{ name: string; amount: number; note?: string }>
   bonusRate?: 10 | 20 | 30 // 獎金比例
   platform?: '同' | '日' | '黃' | '今'
   issuanceDate?: string // 發放日期
@@ -453,8 +462,10 @@ export interface ProductRepo {
 export interface ScheduleRepo {
   listSupport(range?: { start: string; end: string }): Promise<SupportShift[]>
   saveSupportShift(shift: Omit<SupportShift, 'id' | 'updatedAt'> & { id?: string }): Promise<SupportShift>
+  removeSupportShift(id: string): Promise<void>
   listTechnicianLeaves(range?: { start: string; end: string }): Promise<TechnicianLeave[]>
   saveTechnicianLeave(leave: Omit<TechnicianLeave, 'id' | 'updatedAt'> & { id?: string }): Promise<TechnicianLeave>
+  removeTechnicianLeave(id: string): Promise<void>
   listWork(range?: { start: string; end: string }, technicianEmail?: string): Promise<TechnicianWork[]>
   saveWork(work: Omit<TechnicianWork, 'id' | 'updatedAt'> & { id?: string }): Promise<TechnicianWork>
   removeWork(id: string): Promise<void>
@@ -499,6 +510,7 @@ export interface ModelsRepo {
 export interface CustomerRepo {
   list(): Promise<Customer[]>
   get(id: string): Promise<Customer | null>
+  findByPhone(phone: string): Promise<Customer | null>
   upsert(customer: Omit<Customer, 'id' | 'updatedAt'> & { id?: string }): Promise<Customer>
   remove(id: string): Promise<void>
 }
@@ -550,6 +562,10 @@ export interface AppSettings {
   bulletinUpdatedBy?: string
   countdownEnabled?: boolean
   countdownMinutes?: number
+  // 新增：營運控制開關
+  autoDispatchEnabled?: boolean
+  autoDispatchMinScore?: number // 0~100，預設 80（=4星）
+  reviewBonusPoints?: number // 會員好評上傳截圖贈點（預設 50）
 }
 
 export interface SettingsRepo {

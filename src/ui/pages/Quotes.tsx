@@ -20,7 +20,7 @@ export default function QuotesPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl bg-white p-6 shadow-card">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">職人語錄</h1>
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-6">職人語錄</h1>
         <p className="text-gray-600 mb-6">
           激勵同事夥伴們的 {totalQuotes} 句語錄，希望能為您的工作帶來正能量和動力。
         </p>
@@ -120,7 +120,7 @@ export default function QuotesPage() {
 
       {/* 語錄分類 */}
       <div className="rounded-2xl bg-white p-6 shadow-card">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">語錄分類</h2>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-5">語錄分類</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { title: '專業精神', keyword: '專業', color: 'bg-blue-100 text-blue-800' },

@@ -14,6 +14,29 @@ export default function TechnicianManagementPage() {
   const [ratingEdit, setRatingEdit] = useState<{ id:number; override:number|null }|null>(null)
   useEffect(() => { (async()=>{ const a:any = await loadAdapters(); setRepo(a.technicianRepo); setUser(a.authRepo.getCurrentUser()) ; setRows(await a.technicianRepo.list()) })() }, [])
   const load = async () => { if (!repo) return; setRows(await repo.list()) }
+
+  async function resetPassword(email: string, name?: string, phone?: string) {
+    try {
+      if (!email) { alert('缺少 email'); return }
+      const payload = { 
+        email: String(email).toLowerCase(), 
+        role: 'technician', 
+        name: name||'', 
+        phone: phone||'',
+        resetPassword: true  // 強制重設密碼
+      }
+      const res = await fetch('/.netlify/functions/provision-internal-user', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+      const data = await res.json().catch(()=>({}))
+      if (!res.ok || !data?.ok) {
+        alert('重設失敗：' + (data?.message || res.statusText))
+        return
+      }
+      alert('已重設為 a123123，請通知技師於 /login 登入後再更改')
+    } catch (e:any) {
+      alert('重設失敗：' + (e?.message || '未知錯誤'))
+    }
+  }
+
   return (
     <div className="space-y-3">
       <div className="text-lg font-semibold">技師管理</div>
@@ -68,7 +91,10 @@ export default function TechnicianManagementPage() {
               <button onClick={()=>{navigator.clipboard.writeText(t.code)}} className="rounded-lg bg-gray-100 px-3 py-1 text-sm">複製編號</button>
               <button onClick={()=>setEdit(t)} className="rounded-lg bg-gray-900 px-3 py-1 text-white">編輯</button>
               {(() => { const email = (user?.email||'').toLowerCase(); const canAdjust = user?.role==='admin' || email==='a90046766@gmail.com'; return canAdjust ? (
-                <button onClick={()=>setRatingEdit({ id: t.id, override: t.rating_override ?? null })} className="rounded-lg bg-indigo-600 px-3 py-1 text-white">調整評分</button>
+                <>
+                  <button onClick={()=>setRatingEdit({ id: t.id, override: t.rating_override ?? null })} className="rounded-lg bg-indigo-600 px-3 py-1 text-white">調整評分</button>
+                  <button onClick={()=> resetPassword(t.email, t.name, t.phone)} className="rounded-lg bg-rose-600 px-3 py-1 text-white">重設密碼</button>
+                </>
               ) : null })()}
               <button onClick={async()=>{ const { confirmTwice } = await import('../kit'); if(await confirmTwice('確認刪除此技師？','刪除後無法復原，仍要刪除？')){ await (await import('../../adapters/local/technicians')).technicianRepo.remove(t.id); load() } }} className="rounded-lg bg-rose-500 px-3 py-1 text-white">刪除</button>
             </div>
@@ -108,8 +134,16 @@ export default function TechnicianManagementPage() {
                   <option value="base1">保1（40k+10%）</option>
                   <option value="base2">保2（40k+20%）</option>
                   <option value="base3">保3（40k+30%）</option>
+                  <option value="afterTax80">結案金額/1.05*0.8</option>
+                  <option value="custom">自訂</option>
                 </select>
               </div>
+              {edit.revenueShareScheme==='custom' && (
+                <>
+                  <div>自訂金額：<input className="w-full rounded border px-2 py-1" type="number" value={edit.customCommission ?? ''} onChange={e=> setEdit({ ...edit, customCommission: (e.target.value===''? undefined : Number(e.target.value)) })} placeholder="直接輸入每月自訂金額" /></div>
+                  <div>備註：<textarea className="w-full rounded border px-2 py-1" rows={2} value={edit.customCalcNote || ''} onChange={e=> setEdit({ ...edit, customCalcNote: e.target.value })} placeholder="例如：結案/1.05*0.8 僅本季" /></div>
+                </>
+              )}
             </div>
             <div className="mt-2 text-sm">
               <div className="mb-1 font-semibold">技能矩陣</div>
@@ -198,7 +232,11 @@ export default function TechnicianManagementPage() {
               <button onClick={()=>setRatingEdit(null)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
               <button onClick={async()=>{
                 try {
-                  await fetch(`/api/employees/${ratingEdit!.id}`, { method:'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ rating_override: ratingEdit!.override }) })
+                  const { error } = await supabase
+                    .from('technicians')
+                    .update({ rating_override: (ratingEdit!.override === null ? null : Number(ratingEdit!.override)) })
+                    .eq('id', ratingEdit!.id)
+                  if (error) throw error
                   setRatingEdit(null); await load()
                 } catch(e:any) { alert(e?.message || '更新失敗') }
               }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">儲存</button>

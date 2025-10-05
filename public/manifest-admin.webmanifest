@@ -1,0 +1,25 @@
+{
+  "name": "日式洗濯（內部）",
+  "short_name": "日式洗濯",
+  "start_url": "/login",
+  "id": "/admin-app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "lang": "zh-Hant",
+  "icons": [
+    { "src": "https://cdn.statically.io/gh/stevenjoezhang/emoji-assets/main/png/512/1F305.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "https://cdn.statically.io/gh/stevenjoezhang/emoji-assets/main/png/512/1F305.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "派工首頁", "short_name": "派工", "url": "/dispatch" },
+    { "name": "訂單管理", "short_name": "訂單", "url": "/orders" },
+    { "name": "排程", "short_name": "排程", "url": "/schedule" },
+    { "name": "個人管理", "short_name": "我的", "url": "/me" }
+  ]
+}
+
+
+

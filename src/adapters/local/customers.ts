@@ -15,6 +15,11 @@ class LocalCustomerRepo implements CustomerRepo {
 
   async list(): Promise<Customer[]> { return this.load() }
   async get(id: string): Promise<Customer | null> { return this.load().find(c => c.id === id) || null }
+  async findByPhone(phone: string): Promise<Customer | null> {
+    const p = (phone || '').trim()
+    if (!p) return null
+    return this.load().find(c => c.phone === p) || null
+  }
   async upsert(customer: Omit<Customer, 'id' | 'updatedAt'> & { id?: string }): Promise<Customer> {
     const rows = this.load()
     const now = new Date().toISOString()

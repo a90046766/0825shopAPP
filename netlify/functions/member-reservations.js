@@ -23,11 +23,11 @@ exports.handler = async (event) => {
 
     const supabase = createClient(url, key)
 
-    // 讀取 pending 的預約訂單（對應會員）
+    // 讀取 pending/draft 的預約訂單（對應會員）
     let query = supabase
       .from('orders')
       .select('id, order_number, customer_id, customer_email, customer_address, preferred_date, preferred_time_start, preferred_time_end, status, service_items, created_at')
-      .eq('status', 'pending')
+      .in('status', ['pending','draft'])
       .order('created_at', { ascending: false })
 
     const emailLc = String(email || '').toLowerCase()
@@ -43,21 +43,105 @@ exports.handler = async (event) => {
     const { data, error } = await query
     if (error) throw error
 
-    const rows = []
+    let rows = []
     for (const o of (data || [])) {
-      const items = Array.isArray(o.service_items) ? o.service_items : []
-      for (const it of items) {
+      let items = Array.isArray(o.service_items) ? o.service_items : []
+      // 若品項空，嘗試以 email 在時間窗內從 relay_reservations 回填（±2 小時）
+      if (!items || items.length===0) {
+        try {
+          const emailFromOrder = String(o.customer_email||'').toLowerCase()
+          const baseEmail = emailFromOrder || emailLc
+          if (baseEmail) {
+            const start = new Date(new Date(o.created_at).getTime() - 2*60*60*1000).toISOString()
+            const end = new Date(new Date(o.created_at).getTime() + 2*60*60*1000).toISOString()
+            const { data: rel } = await supabase
+              .from('relay_reservations')
+              .select('customer_email, customer_address, items_json, created_at')
+              .eq('customer_email', baseEmail)
+              .gte('created_at', start)
+              .lte('created_at', end)
+              .order('created_at', { ascending: false })
+            if (Array.isArray(rel) && rel.length>0) {
+              try { items = JSON.parse(rel[0].items_json||'[]') || [] } catch { items = [] }
+            }
+          }
+        } catch {}
+      }
+      for (const it of (items||[])) {
         rows.push({
           reservation_number: o.order_number || o.id,
           status: o.status || 'pending',
           service_name: it.name,
           quantity: it.quantity,
-          service_price: it.unitPrice,
+          service_price: it.unitPrice || it.price,
           customer_address: o.customer_address || '',
           reservation_date: o.preferred_date || '',
           reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${o.preferred_time_start}-${o.preferred_time_end}` : (o.preferred_time_start || ''),
+          source: 'orders'
         })
       }
+    }
+
+    // 備援：若 orders 無資料，改從 relay_reservations 撈近 7 天（以 email 比對）
+    if (rows.length === 0 && emailLc) {
+      try {
+        const seven = new Date(Date.now() - 7*24*60*60*1000).toISOString()
+        const { data: relays } = await supabase
+          .from('relay_reservations')
+          .select('customer_email, customer_address, preferred_date, preferred_time, items_json, created_at, id')
+          .gte('created_at', seven)
+          .order('created_at', { ascending: false })
+        if (Array.isArray(relays)) {
+          for (const r of relays) {
+            if (String(r.customer_email||'').toLowerCase() !== emailLc) continue
+            let items = []
+            try { items = JSON.parse(r.items_json||'[]') } catch {}
+            for (const it of (items||[])) {
+              rows.push({
+                reservation_number: String(r.id),
+                status: 'pending',
+                service_name: it.name,
+                quantity: it.quantity,
+                service_price: it.price || it.unitPrice,
+                customer_address: r.customer_address || '',
+                reservation_date: r.preferred_date || '',
+                reservation_time: r.preferred_time || '',
+                source: 'relay'
+              })
+            }
+          }
+        }
+      } catch {}
+    }
+    
+    // 新增：若使用 customerId 查不到，以 email 改查 orders 狀態 in (pending,draft)
+    if (rows.length === 0 && emailLc) {
+      try {
+        const { data: pendings } = await supabase
+          .from('orders')
+          .select('id, order_number, customer_address, preferred_date, preferred_time_start, preferred_time_end, status, service_items, created_at, payment_method, points_used, points_deduct_amount')
+          .in('status', ['pending','draft'])
+          .eq('customer_email', emailLc)
+          .order('created_at', { ascending: false })
+        if (Array.isArray(pendings) && pendings.length>0) {
+          for (const o of pendings) {
+            const items = Array.isArray(o.service_items) ? o.service_items : []
+            for (const it of items) {
+              rows.push({
+                reservation_number: o.order_number || o.id,
+                status: o.status || 'pending',
+                service_name: it.name,
+                quantity: it.quantity,
+                service_price: it.unitPrice,
+                customer_address: o.customer_address || '',
+                reservation_date: o.preferred_date || '',
+                reservation_time: (o.preferred_time_start && o.preferred_time_end) ? `${String(o.preferred_time_start).slice(0,5)}-${String(o.preferred_time_end).slice(0,5)}` : (String(o.preferred_time_start||'').slice(0,5) || ''),
+                source: 'orders'
+              })
+            }
+          }
+        }
+      } catch {}
     }
 
     return { statusCode: 200, body: JSON.stringify({ success: true, data: rows }) }

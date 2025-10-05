@@ -16,13 +16,16 @@ import {
 
 export default function OrderManagementPage() {
   const [rows, setRows] = useState<any[]>([])
+  const [total, setTotal] = useState<number>(0)
+  const [page, setPage] = useState<number>(0)
+  const PAGE_SIZE = 200
   const [repos, setRepos] = useState<any>(null)
   const getCurrentUser = () => { try{ const s=localStorage.getItem('supabase-auth-user'); if(s) return JSON.parse(s) }catch{}; try{ const l=localStorage.getItem('local-auth-user'); if(l) return JSON.parse(l) }catch{}; return null }
   const user = getCurrentUser()
   const [q, setQ] = useState('')
-  const [yy, setYy] = useState('')
-  const [mm, setMm] = useState('')
-  const [statusTab, setStatusTab] = useState<'all'|'pending'|'confirmed'|'completed'|'closed'|'invoice'>('all')
+  const [yy, setYy] = useState<string>(String(new Date().getFullYear()))
+  const [mm, setMm] = useState(String(new Date().getMonth()+1).padStart(2,'0'))
+  const [statusTab, setStatusTab] = useState<'pending'|'confirmed'|'completed'|'closed'|'canceled'|'all'>('confirmed')
   const [pf, setPf] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<any>({ 
@@ -42,21 +45,145 @@ export default function OrderManagementPage() {
     photos:[], 
     signatures:{} 
   })
+  const [draftId, setDraftId] = useState<string>('')
+  const [formDirty, setFormDirty] = useState<boolean>(false)
+  const [isAutoSaving, setIsAutoSaving] = useState<boolean>(false)
+  const [lastSavedAt, setLastSavedAt] = useState<string>('')
+  const [submitting, setSubmitting] = useState<boolean>(false)
+  const [draftCreating, setDraftCreating] = useState<boolean>(false)
   const [activePercent, setActivePercent] = useState<number>(0)
   const [products, setProducts] = useState<any[]>([])
-  const load = async () => { if (!repos) return; setRows(await repos.orderRepo.list()) }
+  const [quickAddress, setQuickAddress] = useState<string>('')
+  const [savedAddresses, setSavedAddresses] = useState<Array<{ id?: string; label?: string; address: string }>>([])
+  const [selectedMap, setSelectedMap] = useState<Record<string, boolean>>({})
+  // 技師視圖：若客服已從排班指派，但尚未寫入 orders.assignedTechnicians，也能顯示
+  const [ownBySchedule, setOwnBySchedule] = useState<Record<string, boolean>>({})
+  const load = async () => { 
+    if (!repos) return
+    try {
+      const res = await (repos.orderRepo.listByFilter ? repos.orderRepo.listByFilter({ year: yy, month: mm, status: statusTab as any, q, platforms: Object.keys(pf).filter(k=>pf[k]), limit: PAGE_SIZE, offset: page*PAGE_SIZE }) : { rows: await repos.orderRepo.list(), total: 0 })
+      setRows(res.rows||[])
+      setTotal(res.total|| (res.rows||[]).length)
+    } catch { }
+  }
   useEffect(()=>{ (async()=>{ const a = await loadAdapters(); setRepos(a); })() },[])
   useEffect(()=>{ if (repos) load() },[repos])
+  useEffect(()=>{ if (repos) load() },[yy, mm, statusTab, q, JSON.stringify(pf), page])
   useEffect(()=>{ getActivePercent().then(setActivePercent) },[creating])
   useEffect(()=>{ (async()=>{ try { const a = repos || (await loadAdapters()); setProducts(await a.productRepo.list()) } catch {} })() },[creating, repos])
+
+  // 技師視圖：依目前年份/月份（或當月）抓取班表，將屬於自己的 orderId 做為後援過濾
+  useEffect(()=>{
+    if (!repos) return
+    if (user?.role !== 'technician') { setOwnBySchedule({}); return }
+    const now = new Date()
+    const year = yy || String(now.getFullYear())
+    const month = mm || String(now.getMonth()+1).padStart(2,'0')
+    const start = `${year}-${month}-01`
+    const lastDay = new Date(Number(year), Number(month), 0).getDate()
+    const end = `${year}-${month}-${String(lastDay).padStart(2,'0')}`
+    ;(async()=>{
+      try{
+        const ws = await repos.scheduleRepo.listWork({ start, end })
+        const emailLc = String(user?.email||'').toLowerCase()
+        const mine = (ws||[]).filter((w:any)=> String(w.technicianEmail||'').toLowerCase()===emailLc)
+        const map: Record<string, boolean> = {}
+        for (const w of mine) { if (w.orderId) map[w.orderId] = true }
+        setOwnBySchedule(map)
+      } catch {
+        setOwnBySchedule({})
+      }
+    })()
+  }, [repos, user?.role, user?.email, yy, mm])
+
+  // 依手機載入常用地址（若已存在客戶）
+  useEffect(()=>{
+    if (!repos) return
+    const phone = (form.customerPhone||'').trim()
+    if (!phone) { setSavedAddresses([]); return }
+    ;(async()=>{
+      try {
+        const c = await repos.customerRepo.findByPhone(phone)
+        const addrs = (c?.addresses || []) as Array<{ id?: string; label?: string; address: string }>
+        setSavedAddresses(addrs)
+      } catch { setSavedAddresses([]) }
+    })()
+  }, [repos, form.customerPhone])
+
+  // 當開啟新建視窗，且已填姓名與手機時，自動建立草稿
+  useEffect(()=>{
+    if (!creating) return
+    if (!repos) return
+    if (draftId) return
+    if (!form.customerName || !form.customerPhone) return
+    if (draftCreating) return
+    let cancelled = false
+    setDraftCreating(true)
+    ;(async()=>{
+      try {
+        const draftPayload: any = {
+          customerName: form.customerName,
+          customerPhone: form.customerPhone,
+          customerEmail: form.customerEmail || '',
+          customerAddress: form.customerAddress || '',
+          preferredDate: form.preferredDate || undefined,
+          preferredTimeStart: form.preferredTimeStart,
+          preferredTimeEnd: form.preferredTimeEnd,
+          platform: form.platform || '日',
+          referrerCode: form.referrerCode || '',
+          serviceItems: form.serviceItems || [],
+          assignedTechnicians: [],
+          signatures: {},
+          status: 'draft',
+          createdBy: (user?.name || user?.email || '系統')
+        }
+        const o = await repos.orderRepo.create(draftPayload)
+        if (!cancelled && o?.id) {
+          setDraftId(o.id as string)
+          setFormDirty(false)
+          setLastSavedAt(new Date().toISOString())
+        }
+      } catch {} finally { setDraftCreating(false) }
+    })()
+    return ()=>{ cancelled = true }
+  }, [creating, repos, draftId, form.customerName, form.customerPhone, draftCreating])
+
+  // 每 5 秒自動儲存草稿（僅在有變更時）
+  useEffect(()=>{
+    if (!creating) return
+    if (!repos) return
+    if (!draftId) return
+    if (submitting || draftCreating) return
+    const h = setInterval(async()=>{
+      if (!formDirty) return
+      setIsAutoSaving(true)
+      try {
+        const clean: any = { ...form }
+        if (!clean.preferredDate) delete clean.preferredDate
+        await repos.orderRepo.update(draftId, { ...clean, status: 'draft' } as any)
+        setFormDirty(false)
+        setLastSavedAt(new Date().toISOString())
+      } catch {}
+      setIsAutoSaving(false)
+    }, 5000)
+    return ()=>clearInterval(h)
+  }, [creating, repos, draftId, formDirty, form, submitting, draftCreating])
   const isTech = user?.role === 'technician'
+  const isSupportOrAdmin = user?.role === 'admin' || user?.role === 'support'
   const isOwner = (o:any) => {
     if (!isTech) return true
     const names: string[] = Array.isArray(o.assignedTechnicians)? o.assignedTechnicians : []
-    return names.includes(user?.name || '')
+    const myName = user?.name || ''
+    const sigTech = (o as any).signatureTechnician || ''
+    const byAssigned = names.includes(myName)
+    const bySignature = sigTech === myName
+    const bySchedule = !!ownBySchedule[o.id]
+    return byAssigned || bySignature || bySchedule
   }
 
-  const filtered = rows.filter(o => {
+  const hasEssential = (o:any) => Boolean((o.customerName||'').trim() && (o.customerPhone||'').trim())
+  // 基礎集合：依搜尋/平台/年份月份/權限
+  const baseRows = rows.filter(o => {
     const hit = !q || o.id.includes(q) || (o.customerName||'').includes(q)
     const pfKeys = Object.keys(pf).filter(k=>pf[k])
     const byPf = pfKeys.length===0 || pfKeys.includes(o.platform)
@@ -64,47 +191,66 @@ export default function OrderManagementPage() {
     const y = dateKey.slice(0,4)
     const m = dateKey.slice(5,7)
     const byDate = (!yy || y===yy) && (!mm || m===mm)
-    const byStatus = (()=>{
-      if (statusTab==='all') return true
-      if (statusTab==='pending') return o.status==='draft'
-      if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
-      if (statusTab==='completed') return o.status==='completed'
-      if (statusTab==='closed') return o.status==='closed' || o.status==='canceled' || (o as any).status==='unservice'
-      if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
-      return true
-    })()
-    return hit && byPf && byDate && byStatus && isOwner(o)
+    return hit && byPf && byDate && isOwner(o)
+  })
+  // 依頁籤狀態再過濾
+  const filtered = baseRows.filter(o => {
+    if (statusTab==='all') return true
+    if (statusTab==='pending') return o.status==='draft' && hasEssential(o)
+    if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
+    if (statusTab==='completed') return o.status==='completed'
+    if (statusTab==='closed') return o.status==='closed'
+    if (statusTab==='canceled') return o.status==='canceled' || (o as any).status==='unservice'
+    if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
+    return true
   })
 
-  // 技師卡牌式統計
-  const ownRows = rows.filter(isOwner)
+  // 卡牌統計：以基礎集合為準（年切齊）
   const counts = {
-    all: ownRows.length,
-    pending: ownRows.filter(o=> o.status==='draft').length,
-    confirmed: ownRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
-    completed: ownRows.filter(o=> o.status==='completed').length,
-    closed: ownRows.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
-    invoice: ownRows.filter(o=> o.status==='completed' && !o.invoiceCode).length,
+    all: baseRows.length,
+    pending: baseRows.filter(o=> o.status==='draft' && hasEssential(o)).length,
+    confirmed: baseRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
+    completed: baseRows.filter(o=> o.status==='completed').length,
+    closed: baseRows.filter(o=> o.status==='closed').length,
+    canceled: baseRows.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
+    invoice: baseRows.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
   } as any
-  const yearOptions = Array.from(new Set((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean))).sort()
+  // 技師「新派」徽章：以目前待服務（confirmed/in_progress）中屬於自己的訂單，與本機已讀集合比較
+  const myEmailLc = (user?.email||'').toLowerCase()
+  const seenKey = `seen-assigned:${myEmailLc}`
+  const getSeenIds = (): Set<string> => {
+    try { const raw = localStorage.getItem(seenKey); return new Set(raw ? JSON.parse(raw) : []) } catch { return new Set() }
+  }
+  const markSeen = (ids: string[]) => { try { localStorage.setItem(seenKey, JSON.stringify(Array.from(new Set(ids)))) } catch {} }
+  const ownConfirmedIds = (rows||[])
+    .filter(isOwner)
+    .filter((o:any)=> ['confirmed','in_progress'].includes(o.status))
+    .map((o:any)=> String(o.id))
+  const newAssignedCount = (()=>{ const seen = getSeenIds(); return ownConfirmedIds.filter(id=> !seen.has(id)).length })()
+  const yearOptions = Array.from(new Set([ String(new Date().getFullYear()), ...((rows||[]).map((o:any)=> (o.workCompletedAt||o.createdAt||'').slice(0,4)).filter(Boolean)) ])).sort()
+  const listed = filtered
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">訂單管理</div>
       <div className="flex items-center gap-2 text-xs">
-        {([
-          ['all','全部'],
-          ['pending','待確認'],
-          ['confirmed','待服務'],
-          ['completed','已完成'],
-          ['invoice','發票未寄送'],
-          ['closed','已結案'],
-        ] as any[]).map(([key,label])=> (
+        {(
+          isTech
+            ? ([['confirmed','待服務'],['completed','已完成'],['closed','已結案'],...(counts.canceled>0 ? [['canceled','已取消']] : []),['all','全部']] as any[])
+            : ([['pending','待確認'],['confirmed','待服務'],['completed','已完成'],['closed','已結案'],...(counts.canceled>0 ? [['canceled','已取消']] : []),['all','全部']] as any[])
+        ).map(([key,label])=> (
           <button
             key={key}
             onClick={()=>setStatusTab(key)}
-            className={`rounded-full px-3 py-1.5 font-medium shadow-sm transition ${statusTab===key? 'bg-gray-900 text-white ring-2 ring-gray-700' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50'}`}
-          >{label}</button>
+            className={`rounded-2xl px-4 py-2 font-medium shadow-card transition ${statusTab===key? 'ring-2 ring-gray-700' : ''} ${key==='pending' ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' : key==='confirmed' ? 'bg-blue-50 border border-blue-200 text-blue-800' : key==='completed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : key==='closed' ? 'bg-gray-50 border border-gray-200 text-gray-800' : key==='canceled' ? 'bg-rose-50 border border-rose-200 text-rose-800' : 'bg-purple-50 border border-purple-200 text-purple-800'}`}
+          >
+            <span className="relative inline-flex items-center">
+              {label}
+              {isTech && key==='confirmed' && newAssignedCount>0 && (
+                <span title="新派單" className="ml-1 inline-flex items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{newAssignedCount}</span>
+              )}
+            </span>
+          </button>
         ))}
       </div>
         <div className="flex items-center gap-2">
@@ -117,16 +263,29 @@ export default function OrderManagementPage() {
             <option value="">全部月份</option>
             {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m=> <option key={m} value={m}>{m}</option>)}
           </select>
-          <input type="month" className="rounded border px-2 py-1 text-sm" onChange={e=>{
+          <input type="month" className="rounded border px-2 py-1 text-sm" value={`${yy}-${mm}`} onChange={e=>{
             const ym = e.target.value
-            if (!ym) { load(); return }
-            const list = (rows||[]).filter((o:any)=>{
-              const d = (o.workCompletedAt||o.createdAt||'').slice(0,7)
-              return d === ym
-            })
-            setRows(list as any)
+            if (!ym){ setYy(''); setMm(''); setPage(0); return }
+            const [y,m] = ym.split('-')
+            setYy(y||'')
+            setMm((m||'').padStart(2,'0'))
+            setPage(0)
           }} />
-          {can(user,'orders.create') && <button onClick={()=>setCreating(true)} className="rounded-lg bg-brand-500 px-3 py-1 text-white">新建訂單</button>}
+          {can(user,'orders.create') && <button onClick={async()=>{ 
+            try {
+              const a = repos || (await loadAdapters())
+              // 先建立最小草稿（draft），取得正式單號/ID
+          const payload: any = {
+                customerName:'', customerPhone:'', customerAddress:'', preferredTimeStart:'09:00', preferredTimeEnd:'12:00', platform:'日', serviceItems:[{name:'服務',quantity:1,unitPrice:1000}], assignedTechnicians:[], signatures:{}, status:'draft'
+              }
+          payload.createdBy = (user?.name || user?.email || '系統')
+              const o = await a.orderRepo.create(payload)
+              // 導向正式訂單頁編輯
+              location.assign(`/orders/${o.id}`)
+            } catch (e:any) {
+              alert('建立草稿失敗：' + (e?.message||'未知錯誤'))
+            }
+          }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">新建訂單</button>}
           <button onClick={async()=>{
             const input = document.createElement('input')
             input.type = 'file'
@@ -173,100 +332,52 @@ export default function OrderManagementPage() {
             }
             input.click()
           }} className="rounded-lg bg-emerald-600 px-3 py-1 text-white">匯入</button>
+          {/* 多選刪除（僅管理員顯示） */}
+          {can(user,'orders.delete') && (
+            <div className="ml-2 flex items-center gap-2">
+              <span className="text-gray-600">已選 {Object.keys(selectedMap).filter(id=>selectedMap[id]).length} 筆</span>
+              <button
+                onClick={()=>{
+                  const map: Record<string, boolean> = {}
+                  listed.forEach(o=>{ map[o.id] = true })
+                  setSelectedMap(map)
+                }}
+                className="rounded bg-gray-100 px-2 py-1"
+              >全選本列表</button>
+              <button
+                onClick={()=> setSelectedMap({})}
+                className="rounded bg-gray-100 px-2 py-1"
+              >清除選取</button>
+              <button
+                onClick={async()=>{
+                  const ids = Object.keys(selectedMap).filter(id=> selectedMap[id])
+                  if (ids.length===0) { alert('尚未選取任何訂單'); return }
+                  if (!confirm(`將刪除已選取 ${ids.length} 筆訂單，且無法復原，是否繼續？`)) return
+                  const reason = prompt('請輸入刪除原因', 'admin bulk delete') || 'admin bulk delete'
+                  let ok = 0
+                  for (const id of ids) {
+                    try { await repos.orderRepo.delete(id, reason); ok++ } catch {}
+                  }
+                  setRows(prev => prev.filter(x => !ids.includes(x.id)))
+                  setSelectedMap({})
+                  alert(`已刪除 ${ok}/${ids.length} 筆`)
+                }}
+                className="rounded bg-rose-600 px-2 py-1 text-white"
+              >刪除選取</button>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* 技師卡牌式入口：顯示各分類數量，可點擊切換 */}
-      {isTech && (
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {([ 
-            ['all','全部', counts.all],
-            ['pending','待確認', counts.pending],
-            ['confirmed','待服務', counts.confirmed],
-            ['completed','已完成', counts.completed],
-            ['invoice','發票未寄送', counts.invoice],
-            ['closed','已結案', counts.closed],
-          ] as any[]).map(([key,label,num])=> (
-            <button key={key} onClick={()=>setStatusTab(key)} className={`rounded-2xl border p-4 text-left shadow-card ${statusTab===key? 'ring-2 ring-brand-400' : ''}`}>
-              <div className="text-xs text-gray-500">{label}</div>
-              <div className="mt-1 text-2xl font-extrabold tabular-nums">{num}</div>
-            </button>
-          ))}
+      {total>PAGE_SIZE && (
+        <div className="flex items-center justify-end gap-2 text-xs">
+          <span>共 {total} 筆</span>
+          <button disabled={page===0} onClick={()=>setPage(p=>Math.max(0,p-1))} className={`rounded px-2 py-1 ${page===0?'bg-gray-100 text-gray-400':'bg-gray-100 hover:bg-gray-200'}`}>上一頁</button>
+          <span>{page+1} / {Math.max(1, Math.ceil(total/PAGE_SIZE))}</span>
+          <button disabled={(page+1)>=Math.ceil(total/PAGE_SIZE)} onClick={()=>setPage(p=>p+1)} className={`rounded px-2 py-1 ${((page+1)>=Math.ceil(total/PAGE_SIZE))?'bg-gray-100 text-gray-400':'bg-gray-100 hover:bg-gray-200'}`}>下一頁</button>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        {['日','同','黃','今'].map(p=> (
-          <button key={p} onClick={()=>setPf(s=>({ ...s, [p]: !s[p] }))} className={`rounded-full px-2.5 py-1 ${pf[p]? 'bg-brand-100 text-brand-700 ring-1 ring-brand-300' : 'bg-gray-100 text-gray-700'}`}>{p}</button>
-        ))}
-        <button onClick={()=>setPf({})} className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100">清除</button>
-        {filtered.length>0 && (
-          <>
-            <button onClick={()=>{
-              const header = ['項次','日期','平台','訂單編號','地區','數量','服務技師','結案金額']
-              const lines = filtered.map((o:any, index: number)=>{
-                // 提取地址資訊
-                const location = extractLocationFromAddress(o.customerAddress)
-                const region = location.city && location.district ? `${location.city}${location.district}` : o.customerAddress
-                
-                // 計算數量
-                const quantity = calculateOrderQuantity(o.serviceItems || [])
-                
-                // 格式化技師顯示
-                const technicians = formatTechniciansDisplay(o.assignedTechnicians || [])
-                
-                // 計算結案金額
-                const finalAmount = calculateFinalAmount(o.serviceItems || [], o.status)
-                
-                return [
-                  index + 1,
-                  o.preferredDate || '',
-                  o.platform || '',
-                  o.id || '',
-                  region,
-                  quantity,
-                  technicians,
-                  finalAmount
-                ].join(',')
-              })
-              const csv = [header.join(','),...lines].join('\n')
-              const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = 'orders_report.csv'
-              a.click(); URL.revokeObjectURL(url)
-            }} className="ml-auto rounded bg-gray-900 px-2.5 py-1 text-white">匯出報表 CSV</button>
-            <button onClick={()=>{
-              const header = ['項次','日期','平台','訂單編號','地區','數量','服務技師','結案金額']
-              const rowsHtml = filtered.map((o:any, index: number)=>{
-                // 提取地址資訊
-                const location = extractLocationFromAddress(o.customerAddress)
-                const region = location.city && location.district ? `${location.city}${location.district}` : o.customerAddress
-                
-                // 計算數量
-                const quantity = calculateOrderQuantity(o.serviceItems || [])
-                
-                // 格式化技師顯示
-                const technicians = formatTechniciansDisplay(o.assignedTechnicians || [])
-                
-                // 計算結案金額
-                const finalAmount = calculateFinalAmount(o.serviceItems || [], o.status)
-                
-                return `<tr><td>${index + 1}</td><td>${o.preferredDate || ''}</td><td>${o.platform || ''}</td><td>${o.id || ''}</td><td>${region}</td><td>${quantity}</td><td>${technicians}</td><td>${finalAmount}</td></tr>`
-              }).join('')
-              const html = `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body><table><thead><tr>${header.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`
-              const blob = new Blob([html], { type: 'application/vnd.ms-excel' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = 'orders_report.xls'
-              a.click(); URL.revokeObjectURL(url)
-            }} className="rounded bg-brand-600 px-2.5 py-1 text-white">匯出報表 Excel</button>
-          </>
-        )}
-      </div>
       <div className="rounded-2xl bg-white p-2 shadow-card">
-        {filtered.map(o => (
+        {listed.map(o => (
           <Link key={o.id} to={`/orders/${o.id}`} className="flex items-center justify-between border-b p-3 text-sm">
             <div>
               <div className="font-semibold">{o.id} <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] ${o.platform==='日'?'bg-blue-100 text-blue-700':o.platform==='同'?'bg-purple-100 text-purple-700':o.platform==='黃'?'bg-amber-100 text-amber-700':'bg-green-100 text-green-700'}`}>{o.platform}</span></div>
@@ -296,6 +407,31 @@ export default function OrderManagementPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              {can(user,'orders.delete') && (
+                <input
+                  type="checkbox"
+                  checked={!!selectedMap[o.id]}
+                  onChange={(e)=>{ e.preventDefault(); e.stopPropagation(); const checked = e.target.checked; setSelectedMap(s=> ({ ...s, [o.id]: checked })) }}
+                  onClick={(e)=>{ e.preventDefault(); e.stopPropagation() }}
+                  title="選取刪除"
+                />
+              )}
+              {can(user,'orders.delete') && (
+                <button
+                  onClick={async (e)=>{
+                    e.preventDefault(); e.stopPropagation()
+                    if (!confirm(`確定刪除訂單 ${o.id}？此動作無法復原`)) return
+                    const reason = prompt('請輸入刪除原因', 'admin manual delete') || 'admin manual delete'
+                    try {
+                      await repos.orderRepo.delete(o.id, reason)
+                      setRows(prev => prev.filter(x => x.id !== o.id))
+                    } catch {
+                      alert('刪除失敗，請重試')
+                    }
+                  }}
+                  className="rounded bg-rose-600 px-2 py-1 text-white"
+                >刪除</button>
+              )}
               <div className="text-gray-600">›</div>
             </div>
           </Link>
@@ -307,11 +443,72 @@ export default function OrderManagementPage() {
           <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-card">
             <div className="mb-2 text-lg font-semibold">新建訂單</div>
             <div className="space-y-2 text-sm">
-              <input className="w-full rounded border px-2 py-1" placeholder="客戶姓名" value={form.customerName} onChange={e=>setForm({...form,customerName:e.target.value})} />
-              <input className="w-full rounded border px-2 py-1" placeholder="手機" value={form.customerPhone} onChange={e=>setForm({...form,customerPhone:e.target.value})} />
+              <input className="w-full rounded border px-2 py-1" placeholder="客戶姓名" value={form.customerName} onChange={e=>{ setForm({...form,customerName:e.target.value}); setFormDirty(true) }} />
+              <input className="w-full rounded border px-2 py-1" placeholder="手機" value={form.customerPhone} onChange={e=>{ setForm({...form,customerPhone:e.target.value}); setFormDirty(true) }} />
               
               {/* 地址管理 */}
               <div className="grid grid-cols-3 gap-2">
+                {/* 快速貼上完整地址 → 自動解析 */}
+                <input 
+                  className="col-span-3 rounded border px-2 py-1" 
+                  placeholder="快速貼上完整地址（自動解析縣市/區域/詳細）" 
+                  value={quickAddress}
+                  onChange={e=>setQuickAddress(e.target.value)}
+                  onBlur={()=>{
+                    const raw = quickAddress.trim()
+                    if (!raw) return
+                    const loc = extractLocationFromAddress(raw)
+                    const city = loc.city || form.customerCity
+                    const district = loc.district || form.customerDistrict
+                    const detail = loc.address || form.customerDetailAddress || raw
+                    setForm({
+                      ...form,
+                      customerCity: city,
+                      customerDistrict: district,
+                      customerDetailAddress: detail,
+                      customerAddress: formatAddressDisplay(city, district, detail)
+                    })
+                    setFormDirty(true)
+                  }}
+                />
+
+                {/* 常用地址（依手機） */}
+                {savedAddresses.length>0 && (
+                  <div className="col-span-3 grid grid-cols-3 gap-2">
+                    <select 
+                      className="col-span-2 rounded border px-2 py-1"
+                      onChange={e=>{
+                        const addr = e.target.value
+                        if (!addr) return
+                        const loc = extractLocationFromAddress(addr)
+                        const city = loc.city || ''
+                        const district = loc.district || ''
+                        const detail = loc.address || addr
+                        setForm({
+                          ...form,
+                          customerCity: city,
+                          customerDistrict: district,
+                          customerDetailAddress: detail,
+                          customerAddress: formatAddressDisplay(city, district, detail)
+                        })
+                        setFormDirty(true)
+                      }}
+                    >
+                      <option value="">選擇常用地址</option>
+                      {savedAddresses.map((a, i)=> (
+                        <option key={(a.id||'')+i} value={a.address}>{a.label ? `${a.label}：${a.address}` : a.address}</option>
+                      ))}
+                    </select>
+                    <button 
+                      className="rounded bg-gray-100 px-2 py-1 text-xs"
+                      onClick={()=>{
+                        if (!form.customerAddress) return
+                        alert('已套用常用地址')
+                      }}
+                    >套用</button>
+                  </div>
+                )}
+
                 <select 
                   className="rounded border px-2 py-1" 
                   value={form.customerCity} 
@@ -323,6 +520,7 @@ export default function OrderManagementPage() {
                       customerDistrict: '',
                       customerAddress: formatAddressDisplay(city, form.customerDistrict, form.customerDetailAddress)
                     })
+                    setFormDirty(true)
                   }}
                 >
                   <option value="">選擇縣市</option>
@@ -341,6 +539,7 @@ export default function OrderManagementPage() {
                       customerDistrict: district,
                       customerAddress: formatAddressDisplay(form.customerCity, district, form.customerDetailAddress)
                     })
+                    setFormDirty(true)
                   }}
                   disabled={!form.customerCity}
                 >
@@ -361,6 +560,7 @@ export default function OrderManagementPage() {
                       customerDetailAddress: detailAddress,
                       customerAddress: formatAddressDisplay(form.customerCity, form.customerDistrict, detailAddress)
                     })
+                    setFormDirty(true)
                   }} 
                 />
               </div>
@@ -397,18 +597,18 @@ export default function OrderManagementPage() {
                 </div>
               )}
               <div className="flex gap-2">
-                <input type="date" className="w-full rounded border px-2 py-1" value={form.preferredDate} onChange={e=>setForm({...form,preferredDate:e.target.value})} />
-                <input type="time" className="w-full rounded border px-2 py-1" value={form.preferredTimeStart} onChange={e=>setForm({...form,preferredTimeStart:e.target.value})} />
-                <input type="time" className="w-full rounded border px-2 py-1" value={form.preferredTimeEnd} onChange={e=>setForm({...form,preferredTimeEnd:e.target.value})} />
+                <input type="date" className="w-full rounded border px-2 py-1" value={form.preferredDate} onChange={e=>{ setForm({...form,preferredDate:e.target.value}); setFormDirty(true) }} />
+                <input type="time" className="w-full rounded border px-2 py-1" value={form.preferredTimeStart} onChange={e=>{ setForm({...form,preferredTimeStart:e.target.value}); setFormDirty(true) }} />
+                <input type="time" className="w-full rounded border px-2 py-1" value={form.preferredTimeEnd} onChange={e=>{ setForm({...form,preferredTimeEnd:e.target.value}); setFormDirty(true) }} />
               </div>
-              <input className="w-full rounded border px-2 py-1" placeholder="推薦碼（MOxxxx / SRxxx / SExxx）" value={form.referrerCode} onChange={e=>setForm({...form,referrerCode:e.target.value})} />
+              <input className="w-full rounded border px-2 py-1" placeholder="推薦碼（MOxxxx / SRxxx / SExxx）" value={form.referrerCode} onChange={e=>{ setForm({...form,referrerCode:e.target.value}); setFormDirty(true) }} />
               <div className="grid gap-1 text-xs text-gray-500">
                 <div>活動折扣：{activePercent > 0 ? `${activePercent}%` : '—'}</div>
-                <input className="w-full rounded border px-2 py-1 text-sm" placeholder="會員編號（MOxxxx）可選" value={(form as any).memberCode||''} onChange={e=>setForm({...form, memberCode: e.target.value})} />
+                <input className="w-full rounded border px-2 py-1 text-sm" placeholder="會員編號（MOxxxx）可選" value={(form as any).memberCode||''} onChange={e=>{ setForm({...form, memberCode: e.target.value}); setFormDirty(true) }} />
               </div>
               <div>
                 <label className="mr-2 text-sm text-gray-600">平台</label>
-                <select className="rounded border px-2 py-1 text-sm" value={form.platform||'日'} onChange={e=>setForm({...form, platform: e.target.value})}>
+                <select className="rounded border px-2 py-1 text-sm" value={form.platform||'日'} onChange={e=>{ setForm({...form, platform: e.target.value}); setFormDirty(true) }}>
                   <option value="日">日</option>
                   <option value="同">同</option>
                   <option value="黃">黃</option>
@@ -420,27 +620,29 @@ export default function OrderManagementPage() {
                   <div key={idx} className="grid grid-cols-6 items-center gap-2">
                     <select className="col-span-2 rounded border px-2 py-1" value={it.productId||''} onChange={e=>{
                       const val=e.target.value; const arr=[...form.serviceItems]; if(!val){ arr[idx]={...arr[idx], productId:'', name: it.name}; setForm({...form, serviceItems: arr}); return }
-                      const p = products.find((x:any)=>x.id===val); arr[idx]={...arr[idx], productId: val, name: p?.name || it.name, unitPrice: p?.unitPrice || it.unitPrice}; setForm({...form, serviceItems: arr})
+                      const p = products.find((x:any)=>x.id===val); arr[idx]={...arr[idx], productId: val, name: p?.name || it.name, unitPrice: p?.unitPrice || it.unitPrice}; setForm({...form, serviceItems: arr}); setFormDirty(true)
                     }}>
                       <option value="">自訂</option>
                       {products.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
                     </select>
-                    <input className="col-span-2 rounded border px-2 py-1" placeholder="項目" value={it.name} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], name:e.target.value}; setForm({...form, serviceItems: arr}) }} />
-                    <input type="number" className="rounded border px-2 py-1" placeholder="數量" value={it.quantity} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], quantity:Number(e.target.value)}; setForm({...form, serviceItems: arr}) }} />
+                    <input className="col-span-2 rounded border px-2 py-1" placeholder="項目" value={it.name} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], name:e.target.value}; setForm({...form, serviceItems: arr}); setFormDirty(true) }} />
+                    <input type="number" className="rounded border px-2 py-1" placeholder="數量" value={it.quantity} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], quantity:Number(e.target.value)}; setForm({...form, serviceItems: arr}); setFormDirty(true) }} />
                     <div className="flex items-center gap-2">
-                      <input type="number" className="w-24 rounded border px-2 py-1" placeholder="單價" value={it.unitPrice} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], unitPrice:Number(e.target.value)}; setForm({...form, serviceItems: arr}) }} />
-                      <button onClick={()=>{ const arr=[...form.serviceItems]; arr.splice(idx,1); setForm({...form, serviceItems: arr.length?arr:[{ name:'服務', quantity:1, unitPrice:0 }]}) }} className="rounded bg-gray-100 px-2 py-1 text-xs">刪</button>
+                      <input type="number" className="w-24 rounded border px-2 py-1" placeholder="單價" value={it.unitPrice} onChange={e=>{ const arr=[...form.serviceItems]; arr[idx]={...arr[idx], unitPrice:Number(e.target.value)}; setForm({...form, serviceItems: arr}); setFormDirty(true) }} />
+                      <button onClick={()=>{ const arr=[...form.serviceItems]; arr.splice(idx,1); setForm({...form, serviceItems: arr.length?arr:[{ name:'服務', quantity:1, unitPrice:0 }]}); setFormDirty(true) }} className="rounded bg-gray-100 px-2 py-1 text-xs">刪</button>
                     </div>
                   </div>
                 ))}
-                <button onClick={()=>setForm({...form, serviceItems:[...form.serviceItems, { name:'', quantity:1, unitPrice:0 }]})} className="rounded bg-gray-100 px-2 py-1 text-xs">新增品項</button>
+                <button onClick={()=>{ setForm({...form, serviceItems:[...form.serviceItems, { name:'', quantity:1, unitPrice:0 }]}); setFormDirty(true) }} className="rounded bg-gray-100 px-2 py-1 text-xs">新增品項</button>
               </div>
             </div>
             <div className="mt-3 flex justify-end gap-2">
-              <button onClick={()=>setCreating(false)} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
+              <button onClick={async()=>{ try{ if(draftId && repos){ await repos.orderRepo.delete(draftId, 'cancel new order draft') } }catch{} setCreating(false); setDraftId(''); setFormDirty(false); setIsAutoSaving(false); setLastSavedAt('') }} className="rounded-lg bg-gray-100 px-3 py-1">取消</button>
               <button onClick={async()=>{
                 try {
                   if(!repos) return
+                  if (submitting) return
+                  setSubmitting(true)
                   
                   // 地址驗證：檢查是否為非標準服務區
                   const addressValidation = validateServiceArea(form.customerCity, form.customerDistrict)
@@ -456,8 +658,7 @@ export default function OrderManagementPage() {
                   // 自動新增客戶（如果不存在）
                   if (clean.customerPhone && clean.customerName) {
                     try {
-                      const existingCustomers = await repos.customerRepo.list()
-                      const existingCustomer = existingCustomers.find((c: any) => c.phone === clean.customerPhone)
+                      const existingCustomer = await repos.customerRepo.findByPhone(clean.customerPhone)
                       
                       if (!existingCustomer) {
                         // 創建新客戶
@@ -474,6 +675,16 @@ export default function OrderManagementPage() {
                         }
                         await repos.customerRepo.upsert(newCustomer)
                         console.log('已自動新增客戶:', clean.customerName)
+                      } else {
+                        // 若有新地址，補齊常用地址
+                        const addr = (clean.customerAddress||'').trim()
+                        if (addr) {
+                          const exists = (existingCustomer.addresses||[]).some((a:any)=> a.address === addr)
+                          if (!exists) {
+                            const updated = { ...existingCustomer, addresses: [ ...(existingCustomer.addresses||[]), { id:`ADDR-${Math.random().toString(36).slice(2,8)}`, address: addr } ] }
+                            await repos.customerRepo.upsert(updated)
+                          }
+                        }
                       }
                     } catch (error) {
                       console.log('自動新增客戶失敗:', error)
@@ -489,8 +700,17 @@ export default function OrderManagementPage() {
                   if ((clean as any).memberCode && String((clean as any).memberCode).toUpperCase().startsWith('MO')) {
                     try { const m = await repos.memberRepo.findByCode(String((clean as any).memberCode).toUpperCase()); if (m) memberId = m.id } catch {}
                   }
-                  await repos.orderRepo.create({ ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items } as any)
+                  const createdBy = (user?.name || user?.email || '系統')
+                  if (draftId) {
+                    await repos.orderRepo.update(draftId, { ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items, createdBy } as any)
+                  } else {
+                    await repos.orderRepo.create({ ...clean, status:'confirmed', platform: clean.platform||'日', memberId, serviceItems: items, createdBy } as any)
+                  }
                   setCreating(false)
+                  setDraftId('')
+                  setFormDirty(false)
+                  setIsAutoSaving(false)
+                  setLastSavedAt('')
                   setForm({ 
                     customerName:'', 
                     customerPhone:'', 
@@ -512,8 +732,13 @@ export default function OrderManagementPage() {
                   load()
                 } catch (e:any) {
                   alert('建立失敗：' + (e?.message || '未知錯誤'))
+                } finally {
+                  setSubmitting(false)
                 }
-              }} className="rounded-lg bg-brand-500 px-3 py-1 text-white">建立</button>
+              }} className={`rounded-lg px-3 py-1 text-white ${submitting?'bg-gray-400 cursor-not-allowed':'bg-brand-500'}`} disabled={submitting}>建立</button>
+            </div>
+            <div className="mt-2 text-right text-[11px] text-gray-500">
+              {submitting ? '送出中…' : isAutoSaving ? '自動儲存中…' : (lastSavedAt ? `已自動儲存於 ${new Date(lastSavedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '輸入姓名與手機後會自動建立草稿')}
             </div>
           </div>
         </div>

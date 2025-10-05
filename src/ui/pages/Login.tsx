@@ -33,7 +33,10 @@ export default function LoginPage() {
       const a = await loadAdapters()
       const norm = normalizeEmail(email)
       const pass = (password || '').trim() || 'a123123'
-      const u = await a.authRepo.login(norm, pass)
+      const u = await Promise.race([
+        a.authRepo.login(norm, pass),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('登入逾時，請稍後重試')), 15000))
+      ])
       
       // 處理記住帳號
       if (remember) localStorage.setItem('remember-login-email', norm)
@@ -63,6 +66,14 @@ export default function LoginPage() {
       return `${s}@gmail.com`
     }
     return s
+  }
+
+  // 輔助：即時保存記住的帳號（避免僅在登入成功後才保存）
+  function saveRemembered(raw: string) {
+    try {
+      const norm = normalizeEmail(raw)
+      if (remember && norm) localStorage.setItem('remember-login-email', norm)
+    } catch {}
   }
 
   return (
@@ -117,7 +128,7 @@ export default function LoginPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); saveRemembered(e.target.value) }}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 placeholder="請輸入 Email"
                 required
@@ -136,20 +147,18 @@ export default function LoginPage() {
             />
           </div>
 
-          {!remember && (
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="remember"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-              />
-              <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
-                記住帳號
-              </label>
-            </div>
-          )}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="remember"
+              checked={remember}
+              onChange={(e) => { setRemember(e.target.checked); if (!e.target.checked) { try { localStorage.removeItem('remember-login-email') } catch {} } else { saveRemembered(email) } }}
+              className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+            />
+            <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
+              記住帳號
+            </label>
+          </div>
         </div>
 
         <button

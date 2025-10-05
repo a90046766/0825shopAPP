@@ -57,11 +57,19 @@ export function ListCell({ title, subtitle, right }: { title: string; subtitle?:
   )
 }
 
-export function PhotoGrid({ urls }: { urls: string[] }) {
+export function PhotoGrid({ urls, deletable, onDelete }: { urls: string[]; deletable?: boolean; onDelete?: (index: number) => void }) {
   return (
     <div className="grid grid-cols-3 gap-2">
       {urls.map((u, i) => (
-        <div key={i} className="aspect-square overflow-hidden rounded-xl bg-gray-100">
+        <div key={i} className="relative aspect-square overflow-hidden rounded-xl bg-gray-100">
+          {deletable && onDelete && (
+            <button
+              type="button"
+              onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); onDelete(i) }}
+              title="刪除"
+              className="absolute right-1 top-1 z-10 rounded bg-black/60 px-2 py-0.5 text-[11px] text-white hover:bg-black/80"
+            >刪除</button>
+          )}
           <img src={u} className="h-full w-full object-cover" />
         </div>
       ))}
