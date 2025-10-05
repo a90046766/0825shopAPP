@@ -6,12 +6,22 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 // 正式網域一律忽略此開關，避免指向 invalid 主機造成白屏
 const isProdHost = (() => { try { if (typeof window === 'undefined') return false; const h = window.location.hostname; return h === 'store.942clean.com.tw' || h.endsWith('.942clean.com.tw') || h === 'app.942clean.com.tw'; } catch { return false } })()
 const forceFunctionsOnly = (typeof window !== 'undefined') && (localStorage.getItem('useFunctionsOnly') === '1') && !isProdHost
-// 對 supabase 請求強制短逾時，避免全站卡住
-const SUP_TIMEOUT_MS = 3000
+// 對 supabase 請求設置逾時：Auth 放寬到 10s，其餘 8s，避免登入逾時
+const BASE_TIMEOUT_MS = 8000
+const AUTH_TIMEOUT_MS = 10000
 const timeoutFetch: typeof fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   try {
     const controller = new AbortController()
-    const t = setTimeout(() => controller.abort(), SUP_TIMEOUT_MS)
+    let urlStr = ''
+    try {
+      urlStr = typeof input === 'string'
+        ? input
+        : (input instanceof URL
+          ? input.href
+          : (input as any)?.url || '')
+    } catch {}
+    const timeoutMs = /\/auth\//.test(urlStr) ? AUTH_TIMEOUT_MS : BASE_TIMEOUT_MS
+    const t = setTimeout(() => controller.abort(), timeoutMs)
     const nextInit = { ...(init||{}), signal: controller.signal }
     return (window as any).fetch(input as any, nextInit).finally(() => clearTimeout(t))
   } catch (e) {
