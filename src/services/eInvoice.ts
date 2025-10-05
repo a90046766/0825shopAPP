@@ -8,9 +8,12 @@ type B2CInput = {
   amount: number
 }
 
-// 改為以 /api/einvoice/* 為主要路徑（對應 netlify 轉發至單一函式 einvoice.js）
-const API_BASE_PRIMARY = '/api/einvoice' as const
-const API_BASE_FALLBACK = '/.netlify/functions/einvoice' as const
+// 回到正式供應商函式：使用具名函式端點
+const API_B2C = '/.netlify/functions/einvoice-create-b2c'
+const API_B2B = '/.netlify/functions/einvoice-create-b2b'
+const API_CANCEL = '/.netlify/functions/einvoice-cancel'
+const API_QUERY = '/.netlify/functions/einvoice-query'
+const API_PRINT = '/.netlify/functions/einvoice-print'
 
 async function withTimeoutFetch(url: string, init: any, timeoutMs = 10000): Promise<Response> {
   const controller = new AbortController()
@@ -22,54 +25,29 @@ async function withTimeoutFetch(url: string, init: any, timeoutMs = 10000): Prom
   }
 }
 
-async function postWithRetry(opPath: string, body: any, timeoutMs = 10000) {
-  // 規範化片段：例如 '/create-b2c'
-  const path = opPath.startsWith('/') ? opPath : `/${opPath}`
-  // 1) 主要走 /api/einvoice/*
-  try {
-    const res = await withTimeoutFetch(`${API_BASE_PRIMARY}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    }, timeoutMs)
-    if (res.ok) {
-      const j = await res.json().catch(()=>({}))
-      if (!j || (!j.ok && !j.invoiceNumber && !j.code)) throw new Error(j?.error || '供應商無有效回應')
-      return j
-    }
-    // 若 HTTP 非 2xx，落入後備
-  } catch {}
-  // 2) 後備：走 /.netlify/functions/einvoice/*（直接打函式，加強保險）
-  try {
-    const res2 = await withTimeoutFetch(`${API_BASE_FALLBACK}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    }, timeoutMs)
-    if (!res2.ok) throw new Error(`HTTP ${res2.status}`)
-    const j2 = await res2.json().catch(()=>({}))
-    if (!j2 || (!j2.ok && !j2.invoiceNumber && !j2.code)) throw new Error(j2?.error || '供應商無有效回應')
-    return j2
-  } catch (e: any) {
-    throw new Error(e?.message || '發票服務請求失敗')
-  }
+async function postJson(url: string, body: any, timeoutMs = 12000) {
+  const res = await withTimeoutFetch(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) }, timeoutMs)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const j = await res.json().catch(()=>({}))
+  if (!j || (!j.success && !j.invoiceNumber && !j.code)) throw new Error(j?.error || '供應商無有效回應')
+  return j
 }
 
 export const EInvoice = {
   async createB2C(input: B2CInput): Promise<any> {
-    return await postWithRetry('/create-b2c', input, 10000)
+    return await postJson(API_B2C, input, 12000)
   },
   async createB2B(input: any): Promise<any> {
-    return await postWithRetry('/create-b2b', input, 10000)
+    return await postJson(API_B2B, input, 12000)
   },
   async cancel(invoiceCode: string): Promise<any> {
-    return await postWithRetry('/cancel', { invoiceCode }, 10000)
+    return await postJson(API_CANCEL, { invoiceCode }, 12000)
   },
   async query(invoiceCode: string): Promise<any> {
-    return await postWithRetry('/query', { invoiceCode }, 10000)
+    return await postJson(API_QUERY, { invoiceCode }, 12000)
   },
   async print(invoiceCode: string): Promise<any> {
-    return await postWithRetry('/print', { invoiceCode }, 10000)
+    return await postJson(API_PRINT, { invoiceCode }, 12000)
   }
 }
 

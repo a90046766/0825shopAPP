@@ -16,13 +16,6 @@
   status = 301
 
 # API 轉發到 Netlify Functions（/api/*）
-# 優先：einvoice 統一路徑 → 單一函式
-[[redirects]]
-  from = "/api/einvoice/*"
-  to = "/.netlify/functions/einvoice"
-  status = 200
-  force = true
-
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
