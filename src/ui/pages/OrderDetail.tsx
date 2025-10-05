@@ -175,6 +175,7 @@ export default function PageOrderDetail() {
   const isAssignedTech = user?.role==='technician' && Array.isArray(order.assignedTechnicians) && order.assignedTechnicians.includes(user?.name || '')
   const isTechnician = user?.role === 'technician'
   const isClosed = order?.status === 'closed'
+  const isPaid = (payStatus === 'paid')
   const statusText = (s: string) => s==='draft' ? '待確認' : s==='confirmed' ? '已確認' : s==='in_progress' ? '服務中' : s==='completed' ? '已完成' : s==='closed' ? '已結案' : s==='canceled' ? '已取消' : s
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n || 0)
   const subTotal = (order.serviceItems||[]).reduce((s:number,it:any)=>s+it.unitPrice*it.quantity,0)
@@ -182,25 +183,30 @@ export default function PageOrderDetail() {
   const hasTechSignature = Boolean(order?.signatures && (order as any).signatures?.technician)
   const hasCustomerSignature = Boolean(order?.signatures && (order as any).signatures?.customer)
   const hasSignature = hasTechSignature && hasCustomerSignature
-  const requirePhotosOk = (order.photosBefore?.length||0) > 0 || (order.photosAfter?.length||0) > 0
+  const hasBefore = (order.photosBefore?.length||0) > 0
+  const hasAfter = (order.photosAfter?.length||0) > 0
+  const requirePhotosOk = hasBefore && hasAfter
+  const started = !!order?.workStartedAt
+  const finished = !!order?.workCompletedAt || order?.status==='completed' || order?.status==='closed'
   // 簽名候選名單：優先用訂單內的 assignedTechnicians，否則回退使用從排程推導的 derivedAssigned
   const signCandidates: string[] = (Array.isArray(order.assignedTechnicians) && order.assignedTechnicians.length>0)
     ? order.assignedTechnicians
     : (derivedAssigned || [])
   const canClose = (
-    (order.status==='in_progress' || order.status==='unservice' || order.status==='completed') &&
+    started &&
+    finished &&
     timeLeftSec===0 &&
     hasSignature &&
-    (!!payMethod || payStatus==='nopay') &&
-    (payStatus==='paid' || payStatus==='nopay') &&
-    requirePhotosOk
+    requirePhotosOk &&
+    (payStatus==='paid')
   )
   const closeDisabledReason = (()=>{
-    if (!(order.status==='in_progress' || order.status==='unservice' || order.status==='completed')) return (order.status==='confirmed' ? '尚未開始服務' : '尚未開始/或已標記無法服務')
-    if (timeLeftSec>0) return `剩餘 ${String(Math.floor(timeLeftSec/60)).padStart(2,'0')}:${String(timeLeftSec%60).padStart(2,'0')}`
-    if (!hasTechSignature || !hasCustomerSignature) return '需完成雙簽名'
-    if (!(payStatus==='paid' || payStatus==='nopay')) return '需完成付款或標記不用付款'
-    if (!requirePhotosOk) return '需上傳至少一張服務照片（前或後皆可）'
+    if (!started) return '需先「開始服務」'
+    if (!finished) return '需先「服務完成」'
+    if (timeLeftSec>0) return `冷卻中，剩餘 ${String(Math.floor(timeLeftSec/60)).padStart(2,'0')}:${String(timeLeftSec%60).padStart(2,'0')}`
+    if (!hasTechSignature || !hasCustomerSignature) return '需完成技師與客戶雙簽名'
+    if (!hasBefore || !hasAfter) return '需上傳洗前與洗後照片'
+    if (payStatus!=='paid') return '需完成收款（付款狀態：已收款）'
     return ''
   })()
   return (
