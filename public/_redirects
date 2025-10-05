@@ -1,10 +1,7 @@
 /* /index.html 200
 
-<<<<<<< HEAD
-=======
-/* /index.html 200
-
-/* /index.html 200
-
->>>>>>> hotfix/prod-73bed50
+/api/products-list /.netlify/functions/products-list 200
+/api/orders/reservations /.netlify/functions/orders-reservations 200
+/api/reservations /.netlify/functions/reservations 200
+/api/member-reservations/:customerId /.netlify/functions/member-reservations 200
 
