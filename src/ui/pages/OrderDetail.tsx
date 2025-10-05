@@ -936,8 +936,10 @@ export default function PageOrderDetail() {
                     }
                     const code = res?.invoiceNumber || res?.code
                     if (!code) { throw new Error(res?.error || '開立失敗（供應商未回傳發票號）') }
+                    // 先本地即時反映，再落盤並嘗試讀回
+                    try { setOrder((prev:any)=> prev ? { ...prev, invoiceCode: code, invoiceStatus: 'issued' } : prev) } catch {}
                     await repos.orderRepo.update(order.id, { invoiceCode: code, invoiceStatus: 'issued' as any })
-                    const o = await repos.orderRepo.get(order.id); setOrder(o)
+                    try { const o = await repos.orderRepo.get(order.id); if (o) setOrder(o) } catch {}
                     setInvoiceOpen(false)
                     alert('已開立電子發票：' + code)
                   }catch(err:any){ alert('開立失敗：' + (err?.message||'未知錯誤')) }
