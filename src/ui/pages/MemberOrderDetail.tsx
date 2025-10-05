@@ -64,7 +64,15 @@ export default function MemberOrderDetailPage() {
       <div className="mt-3"><Link className="text-blue-600" to="/store/member/orders">返回我的訂單</Link></div>
     </div>
   )
-  if (!order) return null
+  if (!order) return (
+    <div className="p-4">
+      <div className="rounded bg-yellow-50 p-3 text-sm text-yellow-800">暫時無法載入此訂單，請稍後再試或返回列表。</div>
+      <div className="mt-3 flex gap-2">
+        <button onClick={()=>{ try{ location.reload() }catch{} }} className="rounded bg-gray-900 px-3 py-1 text-white text-sm">重新整理</button>
+        <Link className="text-blue-600 text-sm" to="/store/member/orders">返回我的訂單</Link>
+      </div>
+    </div>
+  )
 
   const subTotal = Array.isArray(order.serviceItems) ? order.serviceItems.reduce((s:number,it:any)=> s + (it.unitPrice||0)*(it.quantity||0), 0) : (order.subTotal||0)
   const final = Math.max(0, subTotal - (order.pointsDeductAmount||0))
