@@ -32,7 +32,11 @@ async function postWithRetry(opPath: string, body: any, timeoutMs = 10000) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     }, timeoutMs)
-    if (res.ok) return await res.json().catch(()=>({}))
+    if (res.ok) {
+      const j = await res.json().catch(()=>({}))
+      if (!j || (!j.ok && !j.invoiceNumber && !j.code)) throw new Error(j?.error || '供應商無有效回應')
+      return j
+    }
     // 若 HTTP 非 2xx，落入後備
   } catch {}
   // 2) 後備：走 /.netlify/functions/einvoice/*（直接打函式，加強保險）
@@ -43,7 +47,9 @@ async function postWithRetry(opPath: string, body: any, timeoutMs = 10000) {
       body: JSON.stringify(body)
     }, timeoutMs)
     if (!res2.ok) throw new Error(`HTTP ${res2.status}`)
-    return await res2.json().catch(()=>({}))
+    const j2 = await res2.json().catch(()=>({}))
+    if (!j2 || (!j2.ok && !j2.invoiceNumber && !j2.code)) throw new Error(j2?.error || '供應商無有效回應')
+    return j2
   } catch (e: any) {
     throw new Error(e?.message || '發票服務請求失敗')
   }

@@ -934,7 +934,8 @@ export default function PageOrderDetail() {
                       // B2C
                       res = await (svc as any).EInvoice.createB2C(payload)
                     }
-                    const code = res?.invoiceNumber || res?.code || 'INV-' + String(Math.random()).slice(2,8)
+                    const code = res?.invoiceNumber || res?.code
+                    if (!code) { throw new Error(res?.error || '開立失敗（供應商未回傳發票號）') }
                     await repos.orderRepo.update(order.id, { invoiceCode: code, invoiceStatus: 'issued' as any })
                     const o = await repos.orderRepo.get(order.id); setOrder(o)
                     setInvoiceOpen(false)
