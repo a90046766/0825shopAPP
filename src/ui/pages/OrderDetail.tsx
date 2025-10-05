@@ -20,6 +20,9 @@ export default function PageOrderDetail() {
   const [promiseOpen, setPromiseOpen] = useState(false)
   const [editItems, setEditItems] = useState(false)
   const [itemsDraft, setItemsDraft] = useState<any[]>([])
+  // 技師專用：品項增減（僅新增調整，不直接異動原始）
+  const [adjOpen, setAdjOpen] = useState(false)
+  const [adjDraft, setAdjDraft] = useState<any[]>([])
   const [memberCode, setMemberCode] = useState<string>('')
   const [memberName, setMemberName] = useState<string>('')
   const [memberPoints, setMemberPoints] = useState<number>(0)
@@ -425,6 +428,58 @@ export default function PageOrderDetail() {
             </div>
           )}
           {user?.role!=='technician' && !isClosed && <div className="mt-2 text-right"><button onClick={()=>setEditItems(e=>!e)} className="rounded bg-gray-100 px-2 py-1 text-xs">{editItems?'取消':'編輯項目'}</button></div>}
+
+          {isTechnician && !isClosed && (
+            <div className="mt-3 rounded border p-2">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-sm font-medium text-gray-700">品項增減（僅新增調整，原始不變）</div>
+                <button onClick={()=>setAdjOpen(v=>!v)} className="rounded bg-gray-100 px-2 py-1 text-xs">{adjOpen? '收合':'展開'}</button>
+              </div>
+              {adjOpen && (
+                <div className="space-y-2 text-sm">
+                  {adjDraft.map((it:any, i:number)=>{
+                    const sub = (Number(it.unitPrice)||0) * (Number(it.quantity)||0)
+                    return (
+                      <div key={i} className="grid grid-cols-6 items-center gap-2">
+                        <select className="col-span-2 rounded border px-2 py-1" value={it.productId||''} onChange={(e)=>{ const val=e.target.value; const arr=[...adjDraft]; if(val){ const p = products.find((x:any)=>x.id===val); arr[i]={...arr[i], productId:val, name:p?.name||it.name, unitPrice:p?.unitPrice||it.unitPrice}; } else { arr[i]={...arr[i], productId:undefined}; } setAdjDraft(arr) }}>
+                          <option value="">自訂</option>
+                          {products.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
+                        </select>
+                        <input className="col-span-2 rounded border px-2 py-1" value={it.name||''} onChange={e=>{ const arr=[...adjDraft]; arr[i]={...arr[i], name:e.target.value}; setAdjDraft(arr) }} />
+                        <div className="flex items-center gap-2">
+                          <input type="number" className="w-16 rounded border px-2 py-1 text-right" value={it.quantity} onChange={e=>{ const arr=[...adjDraft]; const q = Number(e.target.value)||0; arr[i]={...arr[i], quantity:q}; setAdjDraft(arr) }} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input type="number" className="w-24 rounded border px-2 py-1 text-right" value={it.unitPrice} onChange={e=>{ const arr=[...adjDraft]; arr[i]={...arr[i], unitPrice:Number(e.target.value)||0}; setAdjDraft(arr) }} />
+                          <span className="text-xs text-gray-500">小計 {fmt(sub)}</span>
+                        </div>
+                        <button onClick={()=>{ const arr=[...adjDraft]; arr.splice(i,1); setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">刪</button>
+                      </div>
+                    )
+                  })}
+                  <div className="flex items-center justify-between">
+                    <button onClick={()=>setAdjDraft([...adjDraft, { name:'', quantity:-1, unitPrice:0 }])} className="rounded bg-gray-100 px-2 py-1">新增調整</button>
+                    <div className="text-right">
+                      <button onClick={async()=>{
+                        try {
+                          if (!Array.isArray(adjDraft) || adjDraft.length===0) { alert('請先新增調整'); return }
+                          // 僅允許名稱與單價存在；數量可為負數
+                          const normalized = adjDraft.map((x:any)=> ({ name: String(x.name||'調整'), quantity: Number(x.quantity)||0, unitPrice: Number(x.unitPrice)||0, productId: x.productId }))
+                          const next = [ ...(order.serviceItems||[]), ...normalized ]
+                          await repos.orderRepo.update(order.id, { serviceItems: next })
+                          const o = await repos.orderRepo.get(order.id)
+                          setOrder(o)
+                          setAdjDraft([])
+                          setAdjOpen(false)
+                          alert('已套用增減調整')
+                        } catch (e) { alert('套用失敗，請重試') }
+                      }} className="rounded bg-brand-500 px-3 py-1 text-white">套用調整</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 積分抵扣 */}
           <div className="space-y-2">

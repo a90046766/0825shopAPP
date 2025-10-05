@@ -144,7 +144,12 @@ export default function MemberOrdersPage() {
 
       // 正式訂單仍可讀 supabase（如已轉單）
       const emailLc = (member.email||'').toLowerCase()
-      const { data, error } = await supabase.from('orders').select('*').eq('customer_email', emailLc).order('created_at', { ascending: false })
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, order_number, status, service_items, assigned_technicians, created_at')
+        .eq('customer_email', emailLc)
+        .order('created_at', { ascending: false })
+        .limit(100)
       if (error) throw error
       const supOrders = (data||[]).filter((o:any)=> (o.status||'')!=='pending').map((o:any)=> ({
         id: o.order_number || o.id,
@@ -171,7 +176,7 @@ export default function MemberOrdersPage() {
         body: JSON.stringify({ stars, score, comment, highlights, issues, recommend })
       })
       const j = await res.json()
-      if (!j.success) throw new Error(j.error || '提交評價失敗')
+      if (!j.success) throw new Error(j.error || 'API 失敗，改走後備管道')
       await load()
       // 讀取設定，若有 reviewBonusPoints，提示上傳截圖領點數
       try {
@@ -185,7 +190,20 @@ export default function MemberOrdersPage() {
         }
       } catch { alert('感謝您的評價！') }
     } catch (e: any) {
-      alert(e?.message || '提交評價失敗')
+      // 後備：直接寫入 Supabase member_feedback 表，避免 API 轉發或 Functions 異常
+      try {
+        const memberId = String((member as any)?.id || (member as any)?.code || (member as any)?.customerId || (member as any)?.email || '')
+        await supabase.from('member_feedback').insert({
+          member_id: memberId,
+          order_id: orderId,
+          kind: 'suggest',
+          comment: comment || `stars=${stars}, score=${score}, recommend=${recommend}`
+        } as any)
+        await load()
+        alert('感謝您的評價！')
+      } catch (err: any) {
+        alert(err?.message || '提交評價失敗')
+      }
     }
   }
 
