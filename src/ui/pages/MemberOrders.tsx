@@ -36,6 +36,7 @@ export default function MemberOrdersPage() {
   const [tab, setTab] = useState<'reservations'|'orders'>('orders')
   const [reservations, setReservations] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
+  const [techPhoneByName, setTechPhoneByName] = useState<Record<string,string>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [shareOpen, setShareOpen] = useState(false)
@@ -160,6 +161,22 @@ export default function MemberOrdersPage() {
 
       setReservations(resv)
       setOrders(supOrders)
+
+      // 取技師電話映射（按名稱匹配）
+      try {
+        const names = Array.from(new Set((supOrders||[]).flatMap((o:any)=> Array.isArray(o.assigned_technicians)? o.assigned_technicians : []).filter(Boolean)))
+        if (names.length > 0) {
+          const { data: techs } = await supabase
+            .from('technicians')
+            .select('name,phone')
+            .in('name', names as any)
+          const map: Record<string,string> = {}
+          for (const t of (techs||[])) { if (t?.name) map[String(t.name)] = String(t.phone||'') }
+          setTechPhoneByName(map)
+        } else {
+          setTechPhoneByName({})
+        }
+      } catch {}
     } catch (e: any) {
       setError(e?.message || '載入失敗')
     } finally {
@@ -343,7 +360,12 @@ export default function MemberOrdersPage() {
                   <div>品項數量：<span className="font-semibold">{count}</span></div>
                   <div>預估金額：<span className="font-semibold">NT$ {amount.toLocaleString()}</span></div>
                   {Array.isArray(o.assigned_technicians) && o.assigned_technicians.length>0 && (
-                    <div className="col-span-2 truncate">服務技師：<span className="font-semibold">{o.assigned_technicians.join('、')}</span></div>
+                    <div className="col-span-2 truncate">
+                      服務技師：
+                      <span className="font-semibold">
+                        {o.assigned_technicians.map((n:string)=> techPhoneByName[n] ? `${n}（${techPhoneByName[n]}）` : n).join('、')}
+                      </span>
+                    </div>
                   )}
                 </div>
                 <div className="mt-2 space-y-1 text-xs md:text-sm text-blue-900/80">

@@ -73,6 +73,20 @@ export default function MemberOrderDetailPage() {
     before: Array.isArray(order.photosBefore) ? order.photosBefore : [],
     after: Array.isArray(order.photosAfter) ? order.photosAfter : []
   }
+  const [techPhones, setTechPhones] = useState<Record<string,string>>({})
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const names = Array.isArray(order?.assignedTechnicians) ? order.assignedTechnicians.filter(Boolean) : []
+        if (names.length>0) {
+          const { data } = await supabase.from('technicians').select('name,phone').in('name', names as any)
+          const map:Record<string,string> = {}
+          for (const t of (data||[])) { if (t?.name) map[String(t.name)] = String(t.phone||'') }
+          setTechPhones(map)
+        } else setTechPhones({})
+      } catch { setTechPhones({}) }
+    })()
+  }, [order?.assignedTechnicians])
 
   const addToCartAgain = async () => {
     if (!order?.serviceItems || order.serviceItems.length===0) { alert('此訂單沒有可再次下單的品項'); return }
@@ -164,6 +178,14 @@ export default function MemberOrderDetailPage() {
           <div>服務時段：<span className="font-medium">{timeBand||'-'}</span></div>
           <div>付款方式：<span className="font-medium">{order.paymentMethod||'-'}</span></div>
         </div>
+        {Array.isArray(order.assignedTechnicians) && order.assignedTechnicians.length>0 && (
+          <div className="mt-1 text-xs md:text-sm text-gray-700">
+            服務技師：
+            <span className="font-medium">
+              {order.assignedTechnicians.map((n:string)=> techPhones[n] ? `${n}（${techPhones[n]}）` : n).join('、')}
+            </span>
+          </div>
+        )}
         <div className="mt-3">
           <div className="font-medium text-gray-800 mb-1">品項明細</div>
           <div className="rounded border">
