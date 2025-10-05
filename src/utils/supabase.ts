@@ -3,9 +3,22 @@ import { createClient } from '@supabase/supabase-js'
 const url = import.meta.env.VITE_SUPABASE_URL as string
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 // 允許以本地開關快速改走 Functions：localStorage.useFunctionsOnly = '1'
-// 正式網域一律忽略此開關，避免指向 invalid 主機造成白屏
-const isProdHost = (() => { try { if (typeof window === 'undefined') return false; const h = window.location.hostname; return h === 'store.942clean.com.tw' || h.endsWith('.942clean.com.tw') || h === 'app.942clean.com.tw'; } catch { return false } })()
-const forceFunctionsOnly = (typeof window !== 'undefined') && (localStorage.getItem('useFunctionsOnly') === '1') && !isProdHost
+// 僅在本機開發環境允許 useFunctionsOnly；正式環境一律忽略並自動清除
+const isLocalDev = (() => {
+  try {
+    if (typeof window === 'undefined') return false
+    const h = window.location.hostname
+    const isLocalName = (h === 'localhost' || h === '127.0.0.1' || h === '::1' || h.endsWith('.local'))
+    const isFile = window.location.protocol === 'file:'
+    return isLocalName || isFile
+  } catch { return false }
+})()
+try {
+  if (typeof window !== 'undefined' && !isLocalDev && localStorage.getItem('useFunctionsOnly') === '1') {
+    localStorage.removeItem('useFunctionsOnly')
+  }
+} catch {}
+const forceFunctionsOnly = (typeof window !== 'undefined') && isLocalDev && (localStorage.getItem('useFunctionsOnly') === '1')
 // 對 supabase 請求設置逾時：Auth 放寬到 10s，其餘 8s，避免登入逾時
 const BASE_TIMEOUT_MS = 8000
 const AUTH_TIMEOUT_MS = 10000
