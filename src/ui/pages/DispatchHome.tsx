@@ -97,12 +97,7 @@ export default function PageDispatchHome() {
       <div>
         <div className="text-lg font-semibold">快速入口</div>
         <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-          <Link to="/orders" className="relative rounded-xl border bg-white p-4 shadow-card">
-            訂單管理
-            {user?.role==='technician' && (badges.orders||0) > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-xs font-medium text-white">{(badges.orders as number) > 99 ? '99+' : badges.orders}</span>
-            )}
-          </Link>
+          <Link to="/orders" className="relative rounded-xl border bg-white p-4 shadow-card">訂單管理</Link>
           <Link to="/schedule" className="rounded-xl border bg-white p-4 shadow-card">排班/派工</Link>
           <Link to="/report-center" className="relative rounded-xl border bg-white p-4 shadow-card">
             回報中心

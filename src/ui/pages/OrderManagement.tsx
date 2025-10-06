@@ -193,10 +193,10 @@ export default function OrderManagementPage() {
     const byDate = (!yy || y===yy) && (!mm || m===mm)
     return hit && byPf && byDate && isOwner(o)
   })
-  // 依頁籤狀態再過濾
+  // 依頁籤狀態再過濾（待確認需涵蓋 draft/pending，待服務含 confirmed/in_progress）
   const filtered = baseRows.filter(o => {
     if (statusTab==='all') return true
-    if (statusTab==='pending') return o.status==='draft' && hasEssential(o)
+    if (statusTab==='pending') return (o.status==='draft' || o.status==='pending') && hasEssential(o)
     if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
     if (statusTab==='completed') return o.status==='completed'
     if (statusTab==='closed') return o.status==='closed'
@@ -208,7 +208,7 @@ export default function OrderManagementPage() {
   // 卡牌統計：以基礎集合為準（年切齊）
   const counts = {
     all: baseRows.length,
-    pending: baseRows.filter(o=> o.status==='draft' && hasEssential(o)).length,
+    pending: baseRows.filter(o=> (o.status==='draft' || o.status==='pending') && hasEssential(o)).length,
     confirmed: baseRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
     completed: baseRows.filter(o=> o.status==='completed').length,
     closed: baseRows.filter(o=> o.status==='closed').length,
@@ -231,29 +231,27 @@ export default function OrderManagementPage() {
   const listed = filtered
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="text-lg font-semibold">訂單管理</div>
-      <div className="flex items-center gap-2 text-xs">
-        {(
-          isTech
-            ? ([['confirmed','待服務'],['completed','已完成'],['closed','已結案'],...(counts.canceled>0 ? [['canceled','已取消']] : []),['all','全部']] as any[])
-            : ([['pending','待確認'],['confirmed','待服務'],['completed','已完成'],['closed','已結案'],...(counts.canceled>0 ? [['canceled','已取消']] : []),['all','全部']] as any[])
-        ).map(([key,label])=> (
-          <button
-            key={key}
-            onClick={()=>setStatusTab(key)}
-            className={`rounded-2xl px-4 py-2 font-medium shadow-card transition ${statusTab===key? 'ring-2 ring-gray-700' : ''} ${key==='pending' ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' : key==='confirmed' ? 'bg-blue-50 border border-blue-200 text-blue-800' : key==='completed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : key==='closed' ? 'bg-gray-50 border border-gray-200 text-gray-800' : key==='canceled' ? 'bg-rose-50 border border-rose-200 text-rose-800' : 'bg-purple-50 border border-purple-200 text-purple-800'}`}
-          >
-            <span className="relative inline-flex items-center">
-              {label}
-              {isTech && key==='confirmed' && newAssignedCount>0 && (
-                <span title="新派單" className="ml-1 inline-flex items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{newAssignedCount}</span>
-              )}
-            </span>
-          </button>
-        ))}
-      </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          {(
+            isTech
+              ? ([['confirmed','待服務'],['completed','已完成'],['closed','已結案'],['all','全部']] as any[])
+              : ([['pending','待確認'],['confirmed','待服務'],['completed','已完成'],['closed','已結案'],['all','全部']] as any[])
+          ).map(([key,label])=> (
+            <button
+              key={key}
+              onClick={()=>setStatusTab(key)}
+              className={`rounded-2xl px-4 py-3 font-medium shadow-card transition ${statusTab===key? 'ring-2 ring-gray-700' : ''} ${key==='pending' ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' : key==='confirmed' ? 'bg-blue-50 border border-blue-200 text-blue-800' : key==='completed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : key==='closed' ? 'bg-gray-50 border border-gray-200 text-gray-800' : 'bg-purple-50 border border-purple-200 text-purple-800'}`}
+            >
+              <span className="inline-flex items-baseline gap-2">
+                <span>{label}</span>
+                <span className="text-base font-bold">{counts[key]}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <input placeholder="搜尋ID/客戶" className="rounded border px-2 py-1 text-sm" value={q} onChange={e=>setQ(e.target.value)} />
           <select className="rounded border px-2 py-1 text-sm" value={yy} onChange={e=>setYy(e.target.value)}>
             <option value="">全部年份</option>
@@ -364,6 +362,24 @@ export default function OrderManagementPage() {
                 }}
                 className="rounded bg-rose-600 px-2 py-1 text-white"
               >刪除選取</button>
+              <button
+                onClick={async()=>{
+                  try {
+                    const y = new Date().getFullYear()
+                    const defaultDate = `${y}-09-30`
+                    const date = prompt('輸入要刪除的日期（YYYY-MM-DD）', defaultDate) || ''
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { alert('日期格式錯誤'); return }
+                    const targets = (rows||[]).filter((o:any)=> String(o.createdAt||o.created_at||'').slice(0,10)===date)
+                    if (targets.length===0) { alert('該日期無訂單'); return }
+                    if (!confirm(`將刪除 ${date} 的 ${targets.length} 筆訂單，且無法復原，是否繼續？`)) return
+                    let ok = 0
+                    for (const o of targets) { try { await repos.orderRepo.delete(o.id, `admin date purge ${date}`); ok++ } catch {} }
+                    setRows(prev => prev.filter((x:any)=> String(x.createdAt||x.created_at||'').slice(0,10)!==date))
+                    alert(`已刪除 ${ok}/${targets.length} 筆（${date}）`)
+                  } catch (e:any) { alert(e?.message||'刪除失敗') }
+                }}
+                className="rounded bg-rose-100 px-2 py-1 text-rose-700"
+              >刪除指定日期</button>
             </div>
           )}
         </div>
