@@ -11,6 +11,7 @@ export default function MemberBell() {
 
   const load = async () => {
     if (!member) return
+    try { if (typeof navigator !== 'undefined' && navigator.onLine === false) return } catch {}
     setLoading(true)
     try {
       // 優先讀取後端 API（派工系統）
@@ -81,6 +82,7 @@ export default function MemberBell() {
     if (!member) return
     try {
       await fetch(`/api/notifications/member/${member.id}/read-all`, { method: 'PUT' })
+      setList(prev => (prev||[]).map(n => ({ ...n, is_read: true })))
       await load()
     } catch {}
     try {
@@ -95,7 +97,13 @@ export default function MemberBell() {
     } catch {}
   }
 
-  useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t) }, [])
+  useEffect(() => { 
+    load(); 
+    const t = setInterval(load, 30000); 
+    const onOnline = () => load();
+    try { window.addEventListener('online', onOnline) } catch {}
+    return () => { clearInterval(t); try { window.removeEventListener('online', onOnline) } catch {} }
+  }, [])
 
   const unread = list.filter(n => !n.is_read).length
 
@@ -134,7 +142,7 @@ export default function MemberBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-[9998]" onClick={()=>setOpen(false)} />
-          <div className="fixed right-2 top-14 w-[28rem] max-w-[90vw] max-h-[calc(100vh-120px)] overflow-auto rounded-xl border bg-white shadow-2xl z-[9999]">
+          <div className="fixed top-14 right-2 left-2 md:left-auto w-[28rem] max-w-[calc(100vw-16px)] md:max-w-[90vw] max-h-[calc(100vh-120px)] overflow-auto rounded-xl border bg-white shadow-2xl z-[9999]">
             <div className="flex items-center justify-between p-2 border-b">
               <div className="text-sm font-medium">通知</div>
               <div className="flex items-center gap-2">
