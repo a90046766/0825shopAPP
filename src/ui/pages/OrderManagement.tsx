@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { supabase } from '../../utils/supabase'
 import { getActivePercent } from '../../utils/promotions'
 import { Link } from 'react-router-dom'
 import { can } from '../../utils/permissions'
@@ -346,6 +347,25 @@ export default function OrderManagementPage() {
                 onClick={()=> setSelectedMap({})}
                 className="rounded bg-gray-100 px-2 py-1"
               >清除選取</button>
+              <button
+                onClick={async()=>{
+                  try {
+                    const y = new Date().getFullYear()
+                    const defaultCut = `${y}-10-01` // 表示統計「9/30 以前」
+                    const cut = prompt('查核截止日期（不含當日，格式 YYYY-MM-DD，例如 2025-10-01 表示 9/30 以前）', defaultCut) || ''
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(cut)) { alert('日期格式錯誤'); return }
+                    const { count, error } = await supabase
+                      .from('orders')
+                      .select('id', { head: true, count: 'exact' })
+                      .lt('created_at', `${cut}T00:00:00Z`)
+                    if (error) { alert('查核失敗：' + (error.message||'未知錯誤')); return }
+                    alert(`${cut} 以前可刪除的訂單數量：${Number(count||0)}（僅統計，未進行刪除）`)
+                  } catch (e:any) {
+                    alert(e?.message||'查核失敗')
+                  }
+                }}
+                className="rounded bg-blue-100 px-2 py-1 text-blue-700"
+              >查核 9/30 以前（只統計）</button>
               <button
                 onClick={async()=>{
                   const ids = Object.keys(selectedMap).filter(id=> selectedMap[id])
