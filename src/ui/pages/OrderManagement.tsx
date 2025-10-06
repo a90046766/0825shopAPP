@@ -386,6 +386,37 @@ export default function OrderManagementPage() {
                 onClick={async()=>{
                   try {
                     const y = new Date().getFullYear()
+                    const defaultCut = `${y}-10-01` // 不含當日，表示刪除 9/30 以前
+                    const cut = prompt('批次刪除：輸入截止日（不含當日，YYYY-MM-DD，例如 2025-10-01 表示 9/30 以前）', defaultCut) || ''
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(cut)) { alert('日期格式錯誤'); return }
+                    if (!confirm(`確認刪除「${cut}」以前的所有訂單？此操作無法復原。`)) return
+                    // 輕量抓取 IDs（避免載入所有欄位）
+                    const { data, error } = await supabase
+                      .from('orders')
+                      .select('id, created_at')
+                      .lt('created_at', `${cut}T00:00:00Z`)
+                      .order('created_at', { ascending: true })
+                    if (error) { alert('讀取待刪清單失敗：' + (error.message||'未知錯誤')); return }
+                    const list = Array.isArray(data) ? data : []
+                    if (list.length===0) { alert('沒有符合條件的訂單'); return }
+                    if (!confirm(`共 ${list.length} 筆，確定要刪除？`)) return
+                    let ok = 0
+                    for (const row of list) {
+                      try { await repos.orderRepo.delete(row.id, `admin purge before ${cut}`); ok++ } catch {}
+                    }
+                    setRows(prev => prev.filter((x:any)=>{
+                      const ca = String(x.createdAt||x.created_at||'')
+                      return !(ca && ca < `${cut}T00:00:00Z`)
+                    }))
+                    alert(`刪除完成：${ok}/${list.length} 筆（截止 ${cut}）`)
+                  } catch (e:any) { alert(e?.message||'刪除失敗') }
+                }}
+                className="rounded bg-rose-200 px-2 py-1 text-rose-800"
+              >刪除 9/30 以前（批次）</button>
+              <button
+                onClick={async()=>{
+                  try {
+                    const y = new Date().getFullYear()
                     const defaultDate = `${y}-09-30`
                     const date = prompt('輸入要刪除的日期（YYYY-MM-DD）', defaultDate) || ''
                     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { alert('日期格式錯誤'); return }
