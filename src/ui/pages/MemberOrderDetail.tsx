@@ -18,6 +18,21 @@ export default function MemberOrderDetailPage() {
   const [goodNote, setGoodNote] = useState('')
   const [suggestText, setSuggestText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [techPhones, setTechPhones] = useState<Record<string,string>>({})
+
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const names = Array.isArray(order?.assignedTechnicians) ? order.assignedTechnicians.filter(Boolean) : []
+        if (names.length>0) {
+          const { data } = await supabase.from('technicians').select('name,phone').in('name', names as any)
+          const map:Record<string,string> = {}
+          for (const t of (data||[])) { if (t?.name) map[String(t.name)] = String(t.phone||'') }
+          setTechPhones(map)
+        } else setTechPhones({})
+      } catch { setTechPhones({}) }
+    })()
+  }, [order?.assignedTechnicians])
 
   useEffect(() => {
     (async()=>{
@@ -27,25 +42,32 @@ export default function MemberOrderDetailPage() {
       try {
         // 優先雲端
         try { const a = await loadAdapters(); const o = await a.orderRepo.get(id); if (o) { setOrder(o); setLoading(false); return } } catch {}
-        // 回退 localStorage（reservationOrders）
+        // 回退：以 API 讀取預約單（以會員 ID / email 查詢），直接組合成可顯示結構
         try {
-          const all = JSON.parse(localStorage.getItem('reservationOrders') || '[]')
-          const found = all.find((o:any)=> String(o.id)===String(id))
-          if (found) {
-            const subTotal = (found.items||[]).reduce((s:number,it:any)=> s + (it.price||0)*(it.quantity||0), 0)
-            setOrder({
-              id: found.id,
-              customerAddress: found.customerInfo?.address,
-              preferredDate: found.customerInfo?.preferredDate,
-              preferredTimeStart: found.customerInfo?.preferredTime,
-              preferredTimeEnd: '',
-              paymentMethod: found.paymentMethod,
-              pointsDeductAmount: found.pointsDiscount,
-              serviceItems: (found.items||[]).map((it:any)=> ({ name: it.name, quantity: it.quantity, unitPrice: it.price })),
-              subTotal,
-            })
-            setLoading(false)
-            return
+          const cid = (member as any)?.customerId || '0'
+          const emailLc = (member?.email||'').toLowerCase()
+          const res = await fetch(`/api/member-reservations/${encodeURIComponent(cid)}?email=${encodeURIComponent(emailLc)}`)
+          const j = await res.json()
+          if (j?.success && Array.isArray(j.data)) {
+            const found = j.data.find((r:any)=> String(r.reservation_number)===String(id))
+            if (found) {
+              const items = [{ service_name: found.service_name||'服務', quantity: Number(found.quantity||0), price: Number(found.service_price||0) }]
+              const subTotal = items.reduce((s:number,it:any)=> s + (it.price||0)*(it.quantity||0), 0)
+              setOrder({
+                id: found.reservation_number,
+                customerAddress: found.customer_address || '',
+                preferredDate: found.reservation_date || '',
+                preferredTimeStart: found.reservation_time || '',
+                preferredTimeEnd: '',
+                paymentMethod: '',
+                pointsDeductAmount: 0,
+                serviceItems: items.map((it:any)=> ({ name: it.service_name, quantity: it.quantity, unitPrice: it.price })),
+                subTotal,
+                status: found.status || 'pending'
+              })
+              setLoading(false)
+              return
+            }
           }
         } catch {}
         setError('找不到這筆訂單')
@@ -81,20 +103,6 @@ export default function MemberOrderDetailPage() {
     before: Array.isArray(order.photosBefore) ? order.photosBefore : [],
     after: Array.isArray(order.photosAfter) ? order.photosAfter : []
   }
-  const [techPhones, setTechPhones] = useState<Record<string,string>>({})
-  useEffect(()=>{
-    (async()=>{
-      try{
-        const names = Array.isArray(order?.assignedTechnicians) ? order.assignedTechnicians.filter(Boolean) : []
-        if (names.length>0) {
-          const { data } = await supabase.from('technicians').select('name,phone').in('name', names as any)
-          const map:Record<string,string> = {}
-          for (const t of (data||[])) { if (t?.name) map[String(t.name)] = String(t.phone||'') }
-          setTechPhones(map)
-        } else setTechPhones({})
-      } catch { setTechPhones({}) }
-    })()
-  }, [order?.assignedTechnicians])
 
   const addToCartAgain = async () => {
     if (!order?.serviceItems || order.serviceItems.length===0) { alert('此訂單沒有可再次下單的品項'); return }
