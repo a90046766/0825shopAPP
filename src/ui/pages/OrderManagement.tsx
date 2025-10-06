@@ -17,6 +17,7 @@ import {
 
 export default function OrderManagementPage() {
   const [rows, setRows] = useState<any[]>([])
+  const [allRows, setAllRows] = useState<any[]>([])
   const [total, setTotal] = useState<number>(0)
   const [page, setPage] = useState<number>(0)
   const PAGE_SIZE = 200
@@ -62,9 +63,22 @@ export default function OrderManagementPage() {
   const load = async () => { 
     if (!repos) return
     try {
-      const res = await (repos.orderRepo.listByFilter ? repos.orderRepo.listByFilter({ year: yy, month: mm, status: statusTab as any, q, platforms: Object.keys(pf).filter(k=>pf[k]), limit: PAGE_SIZE, offset: page*PAGE_SIZE }) : { rows: await repos.orderRepo.list(), total: 0 })
-      setRows(res.rows||[])
-      setTotal(res.total|| (res.rows||[]).length)
+      if (repos.orderRepo.listByFilter) {
+        const platforms = Object.keys(pf).filter(k=>pf[k])
+        const [resList, resAll] = await Promise.all([
+          repos.orderRepo.listByFilter({ year: yy, month: mm, status: statusTab as any, q, platforms, limit: PAGE_SIZE, offset: page*PAGE_SIZE }),
+          // 取全部資料以計算各卡牌數量（不帶 q，避免搜尋造成數量隱藏）
+          repos.orderRepo.listByFilter({ year: yy, month: mm, platforms, limit: 2000, offset: 0 } as any)
+        ])
+        setRows(resList.rows||[])
+        setTotal(resList.total|| (resList.rows||[]).length)
+        setAllRows(resAll.rows||[])
+      } else {
+        const res = { rows: await repos.orderRepo.list(), total: 0 }
+        setRows(res.rows||[])
+        setTotal(res.total|| (res.rows||[]).length)
+        setAllRows(res.rows||[])
+      }
     } catch { }
   }
   useEffect(()=>{ (async()=>{ const a = await loadAdapters(); setRepos(a); })() },[])
@@ -183,7 +197,7 @@ export default function OrderManagementPage() {
   }
 
   const hasEssential = (o:any) => Boolean((o.customerName||'').trim() && (o.customerPhone||'').trim())
-  // 基礎集合：依搜尋/平台/年份月份/權限
+  // 基礎集合（列表用）：依搜尋/平台/年月/權限
   const baseRows = rows.filter(o => {
     const hit = !q || o.id.includes(q) || (o.customerName||'').includes(q)
     const pfKeys = Object.keys(pf).filter(k=>pf[k])
@@ -193,6 +207,16 @@ export default function OrderManagementPage() {
     const m = dateKey.slice(5,7)
     const byDate = (!yy || y===yy) && (!mm || m===mm)
     return hit && byPf && byDate && isOwner(o)
+  })
+  // 基礎集合（計數用）：不受搜尋 q 影響，僅依平台/年月/權限
+  const baseAll = allRows.filter(o => {
+    const pfKeys = Object.keys(pf).filter(k=>pf[k])
+    const byPf = pfKeys.length===0 || pfKeys.includes(o.platform)
+    const dateKey = (o.workCompletedAt || o.createdAt || '').slice(0,7)
+    const y = dateKey.slice(0,4)
+    const m = dateKey.slice(5,7)
+    const byDate = (!yy || y===yy) && (!mm || m===mm)
+    return byPf && byDate && isOwner(o)
   })
   // 依頁籤狀態再過濾（待確認需涵蓋 draft/pending，待服務含 confirmed/in_progress）
   const filtered = baseRows.filter(o => {
@@ -206,15 +230,15 @@ export default function OrderManagementPage() {
     return true
   })
 
-  // 卡牌統計：以基礎集合為準（年切齊）
+  // 卡牌統計：以全量集合為準（年切齊、權限過濾），不需點擊即可顯示
   const counts = {
-    all: baseRows.length,
-    pending: baseRows.filter(o=> (o.status==='draft' || o.status==='pending') && hasEssential(o)).length,
-    confirmed: baseRows.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
-    completed: baseRows.filter(o=> o.status==='completed').length,
-    closed: baseRows.filter(o=> o.status==='closed').length,
-    canceled: baseRows.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
-    invoice: baseRows.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
+    all: baseAll.length,
+    pending: baseAll.filter(o=> (o.status==='draft' || o.status==='pending') && hasEssential(o)).length,
+    confirmed: baseAll.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
+    completed: baseAll.filter(o=> o.status==='completed').length,
+    closed: baseAll.filter(o=> o.status==='closed').length,
+    canceled: baseAll.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
+    invoice: baseAll.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
   } as any
   // 技師「新派」徽章：以目前待服務（confirmed/in_progress）中屬於自己的訂單，與本機已讀集合比較
   const myEmailLc = (user?.email||'').toLowerCase()
@@ -349,25 +373,6 @@ export default function OrderManagementPage() {
               >清除選取</button>
               <button
                 onClick={async()=>{
-                  try {
-                    const y = new Date().getFullYear()
-                    const defaultCut = `${y}-10-01` // 表示統計「9/30 以前」
-                    const cut = prompt('查核截止日期（不含當日，格式 YYYY-MM-DD，例如 2025-10-01 表示 9/30 以前）', defaultCut) || ''
-                    if (!/^\d{4}-\d{2}-\d{2}$/.test(cut)) { alert('日期格式錯誤'); return }
-                    const { count, error } = await supabase
-                      .from('orders')
-                      .select('id', { head: true, count: 'exact' })
-                      .lt('created_at', `${cut}T00:00:00Z`)
-                    if (error) { alert('查核失敗：' + (error.message||'未知錯誤')); return }
-                    alert(`${cut} 以前可刪除的訂單數量：${Number(count||0)}（僅統計，未進行刪除）`)
-                  } catch (e:any) {
-                    alert(e?.message||'查核失敗')
-                  }
-                }}
-                className="rounded bg-blue-100 px-2 py-1 text-blue-700"
-              >查核 9/30 以前（只統計）</button>
-              <button
-                onClick={async()=>{
                   const ids = Object.keys(selectedMap).filter(id=> selectedMap[id])
                   if (ids.length===0) { alert('尚未選取任何訂單'); return }
                   if (!confirm(`將刪除已選取 ${ids.length} 筆訂單，且無法復原，是否繼續？`)) return
@@ -382,37 +387,6 @@ export default function OrderManagementPage() {
                 }}
                 className="rounded bg-rose-600 px-2 py-1 text-white"
               >刪除選取</button>
-              <button
-                onClick={async()=>{
-                  try {
-                    const y = new Date().getFullYear()
-                    const defaultCut = `${y}-10-01` // 不含當日，表示刪除 9/30 以前
-                    const cut = prompt('批次刪除：輸入截止日（不含當日，YYYY-MM-DD，例如 2025-10-01 表示 9/30 以前）', defaultCut) || ''
-                    if (!/^\d{4}-\d{2}-\d{2}$/.test(cut)) { alert('日期格式錯誤'); return }
-                    if (!confirm(`確認刪除「${cut}」以前的所有訂單？此操作無法復原。`)) return
-                    // 輕量抓取 IDs（避免載入所有欄位）
-                    const { data, error } = await supabase
-                      .from('orders')
-                      .select('id, created_at')
-                      .lt('created_at', `${cut}T00:00:00Z`)
-                      .order('created_at', { ascending: true })
-                    if (error) { alert('讀取待刪清單失敗：' + (error.message||'未知錯誤')); return }
-                    const list = Array.isArray(data) ? data : []
-                    if (list.length===0) { alert('沒有符合條件的訂單'); return }
-                    if (!confirm(`共 ${list.length} 筆，確定要刪除？`)) return
-                    let ok = 0
-                    for (const row of list) {
-                      try { await repos.orderRepo.delete(row.id, `admin purge before ${cut}`); ok++ } catch {}
-                    }
-                    setRows(prev => prev.filter((x:any)=>{
-                      const ca = String(x.createdAt||x.created_at||'')
-                      return !(ca && ca < `${cut}T00:00:00Z`)
-                    }))
-                    alert(`刪除完成：${ok}/${list.length} 筆（截止 ${cut}）`)
-                  } catch (e:any) { alert(e?.message||'刪除失敗') }
-                }}
-                className="rounded bg-rose-200 px-2 py-1 text-rose-800"
-              >刪除 9/30 以前（批次）</button>
               <button
                 onClick={async()=>{
                   try {
