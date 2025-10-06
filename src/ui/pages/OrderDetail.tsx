@@ -67,10 +67,23 @@ export default function PageOrderDetail() {
   useEffect(()=>{ (async()=>{ try { if (!repos) return; if (order?.memberId) { const m = await repos.memberRepo.get(order.memberId); setMemberCode(m?.code||''); setMemberName(m?.name||''); setMemberPoints(m?.points||0) } else { setMemberCode(''); setMemberName(''); setMemberPoints(0) } } catch {} })() },[order?.memberId, repos])
   useEffect(()=>{
     if (!order) return
-    const toLocal = (iso:string) => {
-      try { return iso.slice(0,19) + (iso.includes('Z')?'':'') } catch { return '' }
+    const formatTaipeiInput = (iso:string) => {
+      try {
+        const d = new Date(iso)
+        const parts = new Intl.DateTimeFormat('zh-TW', {
+          timeZone: 'Asia/Taipei', hour12: false,
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit'
+        }).formatToParts(d)
+        const obj: Record<string,string> = {}
+        for (const p of parts) obj[p.type] = p.value
+        return `${obj.year}-${obj.month}-${obj.day}T${obj.hour}:${obj.minute}`
+      } catch {
+        try { return (iso||'').slice(0,16) } catch { return '' }
+      }
     }
-    setCreatedAtEdit(order.createdAt?.slice(0,16).replace('T','T') || new Date().toISOString().slice(0,16))
+    const created = (order as any).createdAt || (order as any).created_at || new Date().toISOString()
+    setCreatedAtEdit(formatTaipeiInput(created))
     setDateEdit(order.preferredDate||'')
     setStartEdit(order.preferredTimeStart||'09:00')
     setEndEdit(order.preferredTimeEnd||'12:00')
