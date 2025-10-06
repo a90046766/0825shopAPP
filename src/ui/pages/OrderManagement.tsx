@@ -221,7 +221,7 @@ export default function OrderManagementPage() {
   // 依頁籤狀態再過濾（待確認需涵蓋 draft/pending，待服務含 confirmed/in_progress）
   const filtered = baseRows.filter(o => {
     if (statusTab==='all') return true
-    if (statusTab==='pending') return (o.status==='draft' || o.status==='pending') && hasEssential(o)
+    if (statusTab==='pending') return (o.status==='draft' || o.status==='pending')
     if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
     if (statusTab==='completed') return o.status==='completed'
     if (statusTab==='closed') return o.status==='closed'
@@ -233,7 +233,7 @@ export default function OrderManagementPage() {
   // 卡牌統計：以全量集合為準（年切齊、權限過濾），不需點擊即可顯示
   const counts = {
     all: baseAll.length,
-    pending: baseAll.filter(o=> (o.status==='draft' || o.status==='pending') && hasEssential(o)).length,
+    pending: baseAll.filter(o=> (o.status==='draft' || o.status==='pending')).length,
     confirmed: baseAll.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
     completed: baseAll.filter(o=> o.status==='completed').length,
     closed: baseAll.filter(o=> o.status==='closed').length,
