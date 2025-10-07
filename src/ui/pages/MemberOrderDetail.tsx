@@ -308,10 +308,16 @@ export default function MemberOrderDetailPage() {
                     let ok = false
                     let serverErr: string | null = null
                     try {
-                      const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
+                      let resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ kind: 'good', comment: goodNote||null, asset_path: path })
                       })
+                      if (resp.status === 404) {
+                        resp = await fetch(`/.netlify/functions/orders-member-rating?customerId=${encodeURIComponent(member.id)}&orderId=${encodeURIComponent(String(order.id))}`, {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ kind: 'good', comment: goodNote||null, asset_path: path })
+                        })
+                      }
                       const jj = await resp.json().catch(()=>({ success:false }))
                       ok = !!(jj && jj.success)
                       serverErr = (jj && jj.error) ? String(jj.error) : null
@@ -373,10 +379,16 @@ export default function MemberOrderDetailPage() {
                     let ok = false
                     let serverErr: string | null = null
                     try {
-                      const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
+                      let resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ kind: 'suggest', comment: suggestText })
                       })
+                      if (resp.status === 404) {
+                        resp = await fetch(`/.netlify/functions/orders-member-rating?customerId=${encodeURIComponent(member.id)}&orderId=${encodeURIComponent(String(order.id))}`, {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ kind: 'suggest', comment: suggestText })
+                        })
+                      }
                       const jj = await resp.json().catch(()=>({ success:false }))
                       ok = !!(jj && jj.success)
                       serverErr = (jj && jj.error) ? String(jj.error) : null

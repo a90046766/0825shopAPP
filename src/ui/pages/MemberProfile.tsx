@@ -55,7 +55,9 @@ export default function MemberProfilePage() {
             try {
               const targetEmail = 'a13788051@gmail.com'
               if (String((mrow as any).email||'').toLowerCase() === targetEmail && currentCode !== 'MO7777') {
-                await supabase.from('members').upsert({ email, code: 'MO7777' }, { onConflict: 'email' })
+                const { data: ex } = await supabase.from('members').select('email').eq('email', email).maybeSingle()
+                if (ex) await supabase.from('members').update({ code: 'MO7777' }).eq('email', email)
+                else await supabase.from('members').insert({ email, code: 'MO7777' })
                 setMemberCode('MO7777')
                 syncLocalMemberCode('MO7777')
               }
@@ -78,7 +80,11 @@ export default function MemberProfilePage() {
               }
             } catch {}
             const code = newCode || ('MO' + gen4())
-            try { await supabase.from('members').upsert({ email, name: member.name||'', phone: '', addresses: [], code }, { onConflict: 'email' }) } catch {}
+            try {
+              const { data: ex2 } = await supabase.from('members').select('email').eq('email', email).maybeSingle()
+              if (ex2) await supabase.from('members').update({ name: member.name||'', phone: '', addresses: [], code }).eq('email', email)
+              else await supabase.from('members').insert({ email, name: member.name||'', phone: '', addresses: [], code })
+            } catch {}
             setMemberCode(code)
             syncLocalMemberCode(code)
           }
@@ -137,10 +143,14 @@ export default function MemberProfilePage() {
     try {
       const email = String(member.email || '').toLowerCase()
       const row: any = { name: form.name || '', phone: form.phone || '', addresses: form.address ? [form.address] : [] }
-      const { error } = await supabase
-        .from('members')
-        .upsert({ email, ...row }, { onConflict: 'email' })
-      if (error) throw error
+      const { data: ex } = await supabase.from('members').select('email').eq('email', email).maybeSingle()
+      if (ex) {
+        const { error } = await supabase.from('members').update(row).eq('email', email)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('members').insert({ email, ...row })
+        if (error) throw error
+      }
       alert('已儲存')
     } catch (e: any) {
       setError(e?.message || '儲存失敗')
