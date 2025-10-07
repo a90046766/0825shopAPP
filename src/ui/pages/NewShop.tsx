@@ -113,7 +113,12 @@ export default function NewShop() {
             const emailLc = String(email||'').toLowerCase();
             if (emailLc) {
               const { data: m } = await supabase.from('members').select('code').eq('email', emailLc).maybeSingle();
-              if (m?.code) { setMemberId(String(m.code)); } else { setMemberId(''); }
+              let code = m?.code ? String(m.code) : ''
+              // 若目標帳號且缺碼，直接補 MO7777（一次性）
+              if (!code && emailLc === 'a13788051@gmail.com') {
+                try { await supabase.from('members').upsert({ email: emailLc, code: 'MO7777' }, { onConflict: 'email' }); code = 'MO7777' } catch {}
+              }
+              setMemberId(code || '')
             }
           } catch {}
 				} catch {}
