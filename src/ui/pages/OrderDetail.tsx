@@ -477,19 +477,19 @@ export default function PageOrderDetail() {
                           return (
                             <tr key={i} className="border-b last:border-0">
                               <td className="px-2 py-1">
-                                <select className="rounded border px-2 py-1" value={it.productId||''} onChange={(e)=>{ const val=e.target.value; const arr=[...adjDraft]; if(val){ const p = products.find((x:any)=>x.id===val); arr[i]={...arr[i], productId:val, name:p?.name||it.name, unitPrice:p?.unitPrice||it.unitPrice}; } else { arr[i]={...arr[i], productId:undefined}; } setAdjDraft(arr) }}>
+                                <select className="max-w-[12rem] truncate rounded border px-2 py-1" value={it.productId||''} onChange={(e)=>{ const val=e.target.value; const arr=[...adjDraft]; if(val){ const p = products.find((x:any)=>x.id===val); arr[i]={...arr[i], productId:val, name:p?.name||it.name, unitPrice:p?.unitPrice||it.unitPrice}; } else { arr[i]={...arr[i], productId:undefined}; } setAdjDraft(arr) }}>
                                   <option value="">自訂</option>
                                   {products.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
                                 </select>
                               </td>
                               <td className="px-2 py-1">
-                                <input className="w-full rounded border px-2 py-1" placeholder="例如：濾網" value={it.name||''} onChange={e=>{ const arr=[...adjDraft]; arr[i]={...arr[i], name:e.target.value}; setAdjDraft(arr) }} />
+                                <input className="w-full min-w-[14rem] rounded border px-2 py-1" placeholder="例如：濾網" value={it.name||''} onChange={e=>{ const arr=[...adjDraft]; arr[i]={...arr[i], name:e.target.value}; setAdjDraft(arr) }} />
                               </td>
                               <td className="px-2 py-1 text-right">
                                 <div className="inline-flex items-center gap-1">
-                                  <button onClick={()=>{ const arr=[...adjDraft]; arr[i]={...arr[i], quantity:(Number(arr[i].quantity)||0)-1}; setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">-1</button>
-                                  <input type="number" className="w-20 rounded border px-2 py-1 text-right" value={it.quantity} onChange={e=>{ const arr=[...adjDraft]; const q = Number(e.target.value)||0; arr[i]={...arr[i], quantity:q}; setAdjDraft(arr) }} />
-                                  <button onClick={()=>{ const arr=[...adjDraft]; arr[i]={...arr[i], quantity:(Number(arr[i].quantity)||0)+1}; setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">+1</button>
+                                  <button type="button" onClick={()=>{ const arr=[...adjDraft]; arr[i]={...arr[i], quantity:(Number(arr[i].quantity)||0)-1}; setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">-1</button>
+                                  <span className="inline-block min-w-[2.5rem] text-right">{Number(it.quantity)||0}</span>
+                                  <button type="button" onClick={()=>{ const arr=[...adjDraft]; arr[i]={...arr[i], quantity:(Number(arr[i].quantity)||0)+1}; setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">+1</button>
                                 </div>
                               </td>
                               <td className="px-2 py-1 text-right">
@@ -497,7 +497,7 @@ export default function PageOrderDetail() {
                               </td>
                               <td className="px-2 py-1 text-right text-gray-700">{fmt(sub)}</td>
                               <td className="px-2 py-1 text-center">
-                                <button onClick={()=>{ const arr=[...adjDraft]; arr.splice(i,1); setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">刪</button>
+                                <button type="button" onClick={()=>{ const arr=[...adjDraft]; arr.splice(i,1); setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">刪</button>
                               </td>
                             </tr>
                           )
@@ -524,10 +524,11 @@ export default function PageOrderDetail() {
                     </div>
                     <div className="text-right">
                       <button
-                        disabled={!Array.isArray(adjDraft) || adjDraft.filter((x:any)=> Number(x.quantity)||0).length===0}
+                        type="button"
+                        disabled={!Array.isArray(adjDraft) || !adjDraft.some((x:any)=> Number(x.quantity)!==0)}
                         onClick={async()=>{
                           try {
-                            if (!Array.isArray(adjDraft) || adjDraft.filter((x:any)=> Number(x.quantity)||0).length===0) { alert('請先輸入調整（數量可為負數）'); return }
+                            if (!Array.isArray(adjDraft) || !adjDraft.some((x:any)=> Number(x.quantity)!==0)) { alert('請先輸入調整（數量可為負數）'); return }
                             const normalized = adjDraft.map((x:any)=> ({ name: String(x.name||'調整'), quantity: Number(x.quantity)||0, unitPrice: Number(x.unitPrice)||0, productId: x.productId }))
                             const next = [ ...(order.serviceItems||[]), ...normalized ]
                             await repos.orderRepo.update(order.id, { serviceItems: next })
@@ -538,7 +539,7 @@ export default function PageOrderDetail() {
                             alert('已套用增減調整')
                           } catch (e:any) { alert('套用失敗：' + (e?.message||'請稍後再試')) }
                         }}
-                        className={`rounded px-3 py-1 text-white ${(!Array.isArray(adjDraft) || adjDraft.filter((x:any)=> Number(x.quantity)||0).length===0)?'bg-gray-300 cursor-not-allowed':'bg-brand-500'}`}
+                        className={`rounded px-3 py-1 text-white ${(!Array.isArray(adjDraft) || !adjDraft.some((x:any)=> Number(x.quantity)!==0))?'bg-gray-300 cursor-not-allowed':'bg-brand-500'}`}
                       >套用調整</button>
                     </div>
                   </div>
