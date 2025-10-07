@@ -459,19 +459,21 @@ export default function PageOrderDetail() {
                   {adjDraft.map((it:any, i:number)=>{
                     const sub = (Number(it.unitPrice)||0) * (Number(it.quantity)||0)
                     return (
-                      <div key={i} className="grid grid-cols-6 items-center gap-2">
+                      <div key={i} className="grid grid-cols-7 items-center gap-2">
                         <select className="col-span-2 rounded border px-2 py-1" value={it.productId||''} onChange={(e)=>{ const val=e.target.value; const arr=[...adjDraft]; if(val){ const p = products.find((x:any)=>x.id===val); arr[i]={...arr[i], productId:val, name:p?.name||it.name, unitPrice:p?.unitPrice||it.unitPrice}; } else { arr[i]={...arr[i], productId:undefined}; } setAdjDraft(arr) }}>
                           <option value="">自訂</option>
                           {products.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
                         </select>
                         <input className="col-span-2 rounded border px-2 py-1" value={it.name||''} onChange={e=>{ const arr=[...adjDraft]; arr[i]={...arr[i], name:e.target.value}; setAdjDraft(arr) }} />
-                        <div className="flex items-center gap-2">
-                          <input type="number" className="w-16 rounded border px-2 py-1 text-right" value={it.quantity} onChange={e=>{ const arr=[...adjDraft]; const q = Number(e.target.value)||0; arr[i]={...arr[i], quantity:q}; setAdjDraft(arr) }} />
+                        <div className="col-span-1 flex items-center gap-1">
+                          <span className="text-xs text-gray-500">數量</span>
+                          <input type="number" className="w-20 rounded border px-2 py-1 text-right" value={it.quantity} onChange={e=>{ const arr=[...adjDraft]; const q = Number(e.target.value)||0; arr[i]={...arr[i], quantity:q}; setAdjDraft(arr) }} />
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="col-span-1 flex items-center gap-1">
+                          <span className="text-xs text-gray-500">單價</span>
                           <input type="number" className="w-24 rounded border px-2 py-1 text-right" value={it.unitPrice} onChange={e=>{ const arr=[...adjDraft]; arr[i]={...arr[i], unitPrice:Number(e.target.value)||0}; setAdjDraft(arr) }} />
-                          <span className="text-xs text-gray-500">小計 {fmt(sub)}</span>
                         </div>
+                        <div className="col-span-1 text-right text-xs text-gray-600">小計 {fmt(sub)}</div>
                         <button onClick={()=>{ const arr=[...adjDraft]; arr.splice(i,1); setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">刪</button>
                       </div>
                     )
@@ -1045,10 +1047,16 @@ export default function PageOrderDetail() {
                 if (order.status!=='confirmed') return
                 if (!confirm('是否確認開始服務？')) return
                 const now = new Date().toISOString()
-                await repos.orderRepo.update(order.id, { 
-                  status: 'in_progress', 
-                  workStartedAt: now
-                })
+                try {
+                  if ((repos.orderRepo as any).startWork) {
+                    await (repos.orderRepo as any).startWork(order.id, now)
+                  } else {
+                    await repos.orderRepo.update(order.id, { status: 'in_progress', workStartedAt: now })
+                  }
+                } catch(e:any) {
+                  alert('開始服務失敗：' + (e?.message||'請稍後再試'))
+                  return
+                }
                 const o=await repos.orderRepo.get(order.id); setOrder(o)
               // 觸發結案後兩階段通知（穩定：寫 notifications 表）
               try {
