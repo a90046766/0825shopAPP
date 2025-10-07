@@ -162,7 +162,10 @@ export default function MemberProfilePage() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-3xl mx-auto">
         <div className="mb-4 flex items-center justify-between">
-          <div className="text-lg md:text-xl font-bold">會員資料</div>
+          <div className="flex items-center gap-2">
+            <Link to="/store/member/orders" className="rounded border px-2 py-1 text-sm">返回</Link>
+            <div className="text-lg md:text-xl font-bold">會員資料</div>
+          </div>
           <div className="flex items-center gap-2 text-sm">
             <Link to="/store/member/orders" className="rounded border px-3 py-1">我的訂單</Link>
             <Link to="/login/member/reset" className="rounded bg-blue-600 px-3 py-1 text-white">忘記/重設密碼</Link>
