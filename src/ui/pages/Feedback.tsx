@@ -6,29 +6,30 @@ export default function FeedbackPage(){
   const [loading, setLoading] = useState(false)
   const [q, setQ] = useState('')
   const [kind, setKind] = useState<'all'|'good'|'suggest'>('all')
+  const [role, setRole] = useState<string>('')
+
+  useEffect(()=>{
+    try{
+      const s = localStorage.getItem('supabase-auth-user')
+      if (s) { const u = JSON.parse(s||'{}'); setRole(String(u?.role||'')) }
+    } catch {}
+  }, [])
 
   const load = async()=>{
     setLoading(true)
     try {
-      // 先走 Service Role API，避免 RLS 導致看不到
-      try {
-        const res = await fetch('/api/member-feedback-list')
-        const j = await res.json()
-        if (j?.success && Array.isArray(j.data)) {
-          setRows(j.data)
-        } else {
-          throw new Error('api_failed')
-        }
-      } catch {
-        // 後備：直接讀表（需確保 RLS 允許管理端讀取）
-        const { data, error } = await supabase.from('member_feedback').select('*').order('created_at', { ascending: false })
-        if (error) throw error
-        setRows(data||[])
+      // 僅走 Service Role API，避免 RLS 與 CORS
+      const res = await fetch('/api/member-feedback-list')
+      const j = await res.json()
+      if (j?.success && Array.isArray(j.data)) {
+        setRows(j.data)
+      } else {
+        setRows([])
       }
-    } catch {}
+    } catch { setRows([]) }
     setLoading(false)
   }
-  useEffect(()=>{ load() }, [])
+  useEffect(()=>{ if (role==='admin' || role==='support') load() }, [role])
 
   const list = useMemo(()=>{
     return (rows||[]).filter((r:any)=> (kind==='all' || r.kind===kind)).filter((r:any)=>{
@@ -37,6 +38,15 @@ export default function FeedbackPage(){
       return String(r.member_id||'').toLowerCase().includes(t) || String(r.order_id||'').toLowerCase().includes(t) || String(r.comment||'').toLowerCase().includes(t)
     })
   }, [rows, q, kind])
+
+  if (role!=='admin' && role!=='support') {
+    return (
+      <div className="space-y-3">
+        <div className="text-lg font-semibold">回饋檢視</div>
+        <div className="text-sm text-gray-500">您沒有檢視權限</div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3">

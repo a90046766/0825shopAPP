@@ -208,21 +208,23 @@ function DesktopNav() {
           }
         } catch {}
 
-        // 回饋檢視徽章：以本機已讀集合比較
+        // 回饋檢視徽章：僅管理員/客服才計算（避免會員端觸發跨域）
         let feedback = 0
-        try {
-          const { data } = await supabase.from('member_feedback').select('id, created_at').order('created_at', { ascending: false }).limit(200)
-          const ids = (data||[]).map((r:any)=> String(r.id)).filter(Boolean)
-          const key = 'seen-feedback-ids'
-          const seenArr = (()=>{ try{ return JSON.parse(localStorage.getItem(key)||'[]') }catch{ return [] } })() as string[]
-          const seenSet = new Set(seenArr)
-          if (loc.pathname.startsWith('/feedback')) {
-            try { localStorage.setItem(key, JSON.stringify(ids)) } catch {}
-            feedback = 0
-          } else {
-            feedback = ids.filter(id => !seenSet.has(id)).length
-          }
-        } catch {}
+        if (user?.role === 'admin' || user?.role === 'support') {
+          try {
+            const { data } = await supabase.from('member_feedback').select('id, created_at').order('created_at', { ascending: false }).limit(200)
+            const ids = (data||[]).map((r:any)=> String(r.id)).filter(Boolean)
+            const key = 'seen-feedback-ids'
+            const seenArr = (()=>{ try{ return JSON.parse(localStorage.getItem(key)||'[]') }catch{ return [] } })() as string[]
+            const seenSet = new Set(seenArr)
+            if (loc.pathname.startsWith('/feedback')) {
+              try { localStorage.setItem(key, JSON.stringify(ids)) } catch {}
+              feedback = 0
+            } else {
+              feedback = ids.filter(id => !seenSet.has(id)).length
+            }
+          } catch {}
+        }
 
         setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: unreadReports, approvals, broadcast, feedback }))
       } catch {}
