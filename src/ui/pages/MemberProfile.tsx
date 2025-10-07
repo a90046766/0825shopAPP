@@ -37,18 +37,48 @@ export default function MemberProfilePage() {
           if (mrow) {
             const addr = Array.isArray((mrow as any).addresses) && (mrow as any).addresses[0] ? (mrow as any).addresses[0] : ''
             setForm({ name: mrow.name || member.name || '', email: mrow.email || email, phone: mrow.phone || '', address: addr || '' })
-            if ((mrow as any).code) setMemberCode((mrow as any).code)
-            // 若缺少會員編號，立即補齊
-            if (!mrow.code) {
-              const gen = () => 'MO' + Math.random().toString(36).slice(2,8).toUpperCase()
-              const code = gen()
-              try { await supabase.from('members').upsert({ email, name: mrow.name||'', phone: mrow.phone||'', addresses: mrow.addresses||[], code }, { onConflict: 'email' }) } catch {}
-              setMemberCode(code)
+            const currentCode = String((mrow as any).code || '')
+            if (currentCode) setMemberCode(currentCode)
+            // 若缺少或不符合規格，立即補齊為「MO+4碼數字」（不連號、亂數）；滿了再換 MP、MQ...
+            if (!currentCode || !/^MO\d{4}$/.test(currentCode)) {
+              const prefixes = ['MO','MP','MQ','MR','MS','MT','MU','MV','MW','MX','MY','MZ']
+              const gen4 = () => String(Math.floor(Math.random()*10000)).padStart(4,'0')
+              let newCode = ''
+              try {
+                for (const pf of prefixes) {
+                  let tried = 0
+                  while (tried < 50) { // 每個前綴嘗試 50 次亂數
+                    const candidate = pf + gen4()
+                    const { data: exists } = await supabase.from('members').select('email').eq('code', candidate).maybeSingle()
+                    if (!exists) { newCode = candidate; break }
+                    tried++
+                  }
+                  if (newCode) break
+                }
+              } catch {}
+              if (newCode) {
+                try { await supabase.from('members').upsert({ email, name: mrow.name||'', phone: mrow.phone||'', addresses: mrow.addresses||[], code: newCode }, { onConflict: 'email' }) } catch {}
+                setMemberCode(newCode)
+              }
             }
           } else {
             // 不存在會員資料時，建立一筆並產生會員編號
-            const gen = () => 'MO' + Math.random().toString(36).slice(2,8).toUpperCase()
-            const code = gen()
+            const prefixes = ['MO','MP','MQ','MR','MS','MT','MU','MV','MW','MX','MY','MZ']
+            const gen4 = () => String(Math.floor(Math.random()*10000)).padStart(4,'0')
+            let newCode = ''
+            try {
+              for (const pf of prefixes) {
+                let tried = 0
+                while (tried < 50) {
+                  const candidate = pf + gen4()
+                  const { data: exists } = await supabase.from('members').select('email').eq('code', candidate).maybeSingle()
+                  if (!exists) { newCode = candidate; break }
+                  tried++
+                }
+                if (newCode) break
+              }
+            } catch {}
+            const code = newCode || ('MO' + gen4())
             try { await supabase.from('members').upsert({ email, name: member.name||'', phone: '', addresses: [], code }, { onConflict: 'email' }) } catch {}
             setMemberCode(code)
           }
