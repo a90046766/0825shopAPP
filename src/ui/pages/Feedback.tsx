@@ -10,9 +10,21 @@ export default function FeedbackPage(){
   const load = async()=>{
     setLoading(true)
     try {
-      const { data, error } = await supabase.from('member_feedback').select('*').order('created_at', { ascending: false })
-      if (error) throw error
-      setRows(data||[])
+      // 先走 Service Role API，避免 RLS 導致看不到
+      try {
+        const res = await fetch('/api/member-feedback-list')
+        const j = await res.json()
+        if (j?.success && Array.isArray(j.data)) {
+          setRows(j.data)
+        } else {
+          throw new Error('api_failed')
+        }
+      } catch {
+        // 後備：直接讀表（需確保 RLS 允許管理端讀取）
+        const { data, error } = await supabase.from('member_feedback').select('*').order('created_at', { ascending: false })
+        if (error) throw error
+        setRows(data||[])
+      }
     } catch {}
     setLoading(false)
   }

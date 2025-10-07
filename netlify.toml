@@ -58,6 +58,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/member-feedback-list"
+  to = "/.netlify/functions/member-feedback-list"
+  status = 200
+
+[[redirects]]
   from = "/api/orders/reservations"
   to = "/.netlify/functions/orders-reservations"
   status = 200
