@@ -42,7 +42,7 @@ export default function FeedbackPage(){
   if (role!=='admin' && role!=='support') {
     return (
       <div className="space-y-3">
-        <div className="text-lg font-semibold">回饋檢視</div>
+        <div className="text-lg font-semibold">客戶反饋</div>
         <div className="text-sm text-gray-500">您沒有檢視權限</div>
       </div>
     )
@@ -50,7 +50,7 @@ export default function FeedbackPage(){
 
   return (
     <div className="space-y-3">
-      <div className="text-lg font-semibold">回饋檢視</div>
+      <div className="text-lg font-semibold">客戶反饋</div>
       <div className="flex items-center gap-2">
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="搜尋 會員/訂單/評論" className="rounded border px-3 py-1 text-sm" />
         <select value={kind} onChange={e=>setKind(e.target.value as any)} className="rounded border px-3 py-1 text-sm">
