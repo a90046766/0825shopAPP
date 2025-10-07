@@ -51,29 +51,15 @@ export default function MemberProfilePage() {
             setForm({ name: mrow.name || member.name || '', email: mrow.email || email, phone: mrow.phone || '', address: addr || '' })
             const currentCode = String((mrow as any).code || '')
             if (currentCode) { setMemberCode(currentCode); syncLocalMemberCode(currentCode) }
-            // 若缺少或不符合規格，立即補齊為「MO+4碼數字」（不連號、亂數）；滿了再換 MP、MQ...
-            if (!currentCode || !/^MO\d{4}$/.test(currentCode)) {
-              const prefixes = ['MO','MP','MQ','MR','MS','MT','MU','MV','MW','MX','MY','MZ']
-              const gen4 = () => String(Math.floor(Math.random()*10000)).padStart(4,'0')
-              let newCode = ''
-              try {
-                for (const pf of prefixes) {
-                  let tried = 0
-                  while (tried < 50) { // 每個前綴嘗試 50 次亂數
-                    const candidate = pf + gen4()
-                    const { data: exists } = await supabase.from('members').select('email').eq('code', candidate).maybeSingle()
-                    if (!exists) { newCode = candidate; break }
-                    tried++
-                  }
-                  if (newCode) break
-                }
-              } catch {}
-              if (newCode) {
-                try { await supabase.from('members').upsert({ email, name: mrow.name||'', phone: mrow.phone||'', addresses: mrow.addresses||[], code: newCode }, { onConflict: 'email' }) } catch {}
-                setMemberCode(newCode)
-                syncLocalMemberCode(newCode)
+            // 直接鎖定特定會員為 MO7777（依你要求）
+            try {
+              const targetEmail = 'a13788051@gmail.com'
+              if (String((mrow as any).email||'').toLowerCase() === targetEmail && currentCode !== 'MO7777') {
+                await supabase.from('members').upsert({ email, code: 'MO7777' }, { onConflict: 'email' })
+                setMemberCode('MO7777')
+                syncLocalMemberCode('MO7777')
               }
-            }
+            } catch {}
           } else {
             // 不存在會員資料時，建立一筆並產生會員編號
             const prefixes = ['MO','MP','MQ','MR','MS','MT','MU','MV','MW','MX','MY','MZ']
