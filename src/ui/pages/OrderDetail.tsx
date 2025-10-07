@@ -625,7 +625,7 @@ export default function PageOrderDetail() {
                   {payStatus === 'paid' ? (
                     <span className="rounded bg-emerald-100 px-3 py-1 text-emerald-700">已確認收款</span>
                   ) : (
-                    <button onClick={()=>{ setSignAs('technician'); setPaySignOpen(true) }} className="rounded bg-gray-900 px-3 py-1 text-white">簽名確認收款</button>
+                    <button type="button" onClick={()=>{ setSignAs('technician'); setPaySignOpen(true) }} className="rounded bg-gray-900 px-3 py-1 text-white">簽名確認收款</button>
                   )}
                 </div>
               </div>

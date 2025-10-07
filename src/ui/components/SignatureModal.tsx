@@ -22,13 +22,13 @@ export default function SignatureModal({ open, onClose, onSave }: { open: boolea
   }, [open])
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onWheel={(e)=>e.preventDefault()} onTouchMove={(e)=>e.preventDefault()}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-4">
         <div className="mb-2 text-lg font-semibold">簽名</div>
         <canvas ref={ref} width={360} height={240} className="h-60 w-full rounded border" style={{ touchAction: 'none' }} />
         <div className="mt-3 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded bg-gray-100 px-3 py-1">取消</button>
-          <button onClick={()=>{ const dataUrl = ref.current!.toDataURL('image/png'); onSave(dataUrl) }} className="rounded bg-brand-500 px-3 py-1 text-white">確定</button>
+          <button type="button" onClick={onClose} className="rounded bg-gray-100 px-3 py-1">取消</button>
+          <button type="button" onClick={()=>{ const dataUrl = ref.current!.toDataURL('image/png'); onSave(dataUrl) }} className="rounded bg-brand-500 px-3 py-1 text-white">確定</button>
         </div>
       </div>
     </div>
