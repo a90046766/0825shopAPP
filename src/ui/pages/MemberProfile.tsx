@@ -226,61 +226,7 @@ export default function MemberProfilePage() {
             </div>
             <div className="rounded-2xl bg-white p-4 shadow md:col-span-1">
               <div className="text-sm text-gray-600">推薦分享</div>
-              {memberCode ? (
-                <>
-                  <div className="mt-1 text-xs text-gray-500">你的會員編號：<span className="font-mono font-semibold">{memberCode}</span></div>
-                  <div className="mt-2">
-                    <input
-                      readOnly
-                      value={`${shortUrl || ((typeof window!=='undefined' ? window.location.origin : '') + '/register/member?ref=' + memberCode)}`}
-                      className="w-full rounded border px-3 py-2 text-sm bg-gray-50"
-                      onClick={(e)=> (e.target as HTMLInputElement).select()}
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <button
-                      onClick={async()=>{ try{ await navigator.clipboard.writeText(shortUrl || `${window.location.origin}/register/member?ref=${memberCode}`); alert('已複製分享連結'); }catch{ try{ const input = document.querySelector('input[readOnly]') as HTMLInputElement; if(input){ input.select(); document.execCommand('copy'); alert('已選取，若未自動複製請按 Ctrl+C'); } else { throw new Error('no input') } }catch{ alert('無法複製，請手動選取後複製'); } } }}
-                      className="rounded border px-3 py-1 text-sm hover:bg-gray-50"
-                    >複製連結</button>
-                    {typeof navigator!=='undefined' && (navigator as any).share ? (
-                      <button
-                        onClick={()=>{ try{ (navigator as any).share({ title: '日式洗濯 - 會員推薦註冊', url: shortUrl || `${window.location.origin}/register/member?ref=${memberCode}` }) }catch{} }}
-                        className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-                      >行動分享</button>
-                    ) : null}
-                    <button
-                      disabled={genning}
-                      onClick={async()=>{
-                        try {
-                          setGenning(true)
-                          const original = `${window.location.origin}/register/member?ref=${memberCode}`
-                          const rsp = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(original)}`)
-                          const txt = await rsp.text()
-                          if (rsp.ok && txt && /^https:\/\//i.test(txt)) setShortUrl(txt.trim())
-                          else alert('短網址產生失敗，已保留原始連結')
-                        } catch {
-                          alert('短網址服務暫時無法使用，請用原始連結')
-                        } finally {
-                          setGenning(false)
-                        }
-                      }}
-                      className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-60"
-                    >{genning ? '產生中…' : (shortUrl ? '重新產生短網址' : '產生短網址')}</button>
-                  </div>
-                  <div className="mt-4 flex justify-center">
-                    <img
-                      alt="推薦註冊 QR"
-                      className="rounded border bg-white p-2"
-                      width={220}
-                      height={220}
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(shortUrl || ((typeof window!=='undefined' ? window.location.origin : '') + '/register/member?ref=' + memberCode))}`}
-                    />
-                  </div>
-                  <div className="mt-2 text-xs text-gray-500 text-center">手機掃碼將自動套用你的推薦碼（短網址由第三方提供）</div>
-                </>
-              ) : (
-                <div className="mt-2 text-sm text-gray-500">尚未取得會員編號，請稍後重試或重新整理頁面。</div>
-              )}
+              <div className="mt-2 text-sm text-gray-500">請至「分享推薦」頁使用功能（右上角選單）。此處僅顯示個人資料，避免與首頁代碼不同步。</div>
             </div>
           </div>
         )}

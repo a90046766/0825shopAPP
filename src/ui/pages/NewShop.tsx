@@ -108,33 +108,12 @@ export default function NewShop() {
 						email;
 					setDisplayName(nameFromMeta || '');
 					
-          // 會員編號：以 members.code 為準（不同步時以 localStorage 後備），並回寫 localStorage
+          // 會員編號：僅讀取 DB 的 members.code（不寫回、不讀 localStorage）
           try {
             const emailLc = String(email||'').toLowerCase();
             if (emailLc) {
               const { data: m } = await supabase.from('members').select('code').eq('email', emailLc).maybeSingle();
-              if (m?.code) {
-                const code = String(m.code)
-                setMemberId(code);
-                try {
-                  const s = localStorage.getItem('member-auth-user');
-                  if (s) {
-                    const obj = JSON.parse(s||'{}');
-                    if (obj && obj.code !== code) {
-                      obj.code = code; localStorage.setItem('member-auth-user', JSON.stringify(obj));
-                      try { window.dispatchEvent(new Event('storage')) } catch {}
-                    }
-                  }
-                } catch {}
-              } else {
-                try {
-                  const s = localStorage.getItem('member-auth-user');
-                  if (s) {
-                    const obj = JSON.parse(s||'{}');
-                    if (obj?.code) setMemberId(String(obj.code));
-                  }
-                } catch {}
-              }
+              if (m?.code) { setMemberId(String(m.code)); } else { setMemberId(''); }
             }
           } catch {}
 				} catch {}
