@@ -1,4 +1,5 @@
-export async function applyPointsOnOrderCompletion(order: any): Promise<{ success: boolean; awarded?: number; message?: string }> {
+// Helper: 透過 Functions 申請訂單結案加點（保留做為後備管道）
+export async function requestOrderCompletionPoints(order: any): Promise<{ success: boolean; awarded?: number; message?: string }> {
   try {
     if (!order) return { success: false, message: 'no_order' }
     const payload = {
