@@ -66,6 +66,10 @@
   from = "/api/points/apply-order"
   to = "/.netlify/functions/points-apply-order"
   status = 200
+[[redirects]]
+  from = "/api/points/apply-by-order"
+  to = "/.netlify/functions/points-apply-by-order"
+  status = 200
 
 [[redirects]]
   from = "/api/orders/reservations"
