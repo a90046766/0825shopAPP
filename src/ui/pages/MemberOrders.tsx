@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { getMemberUser } from '../../utils/memberAuth'
 import { Link } from 'react-router-dom'
 import MemberBell from '../components/MemberBell'
-import { Home, ShoppingBag, ClipboardList, CheckCircle2, Share2 } from 'lucide-react'
+import { Home, ShoppingBag, ClipboardList, CheckCircle2, Share2, User } from 'lucide-react'
 import ShareReferral from '../components/ShareReferral'
 import { supabase } from '../../utils/supabase'
 
@@ -297,6 +297,12 @@ export default function MemberOrdersPage() {
             <div className="font-semibold">分享推薦</div>
           </div>
         </button>
+        <Link to="/store/member/profile" className="rounded-xl border border-gray-200 bg-white p-3 hover:bg-gray-50 transition-colors">
+          <div className="flex items-center gap-2 text-gray-900">
+            <User className="h-5 w-5" />
+            <div className="font-semibold">個人資料</div>
+          </div>
+        </Link>
       </div>
 
       {error && <div className="mb-3 rounded bg-red-50 text-red-700 px-3 py-2 text-sm">{error}</div>}
