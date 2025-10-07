@@ -27,29 +27,54 @@ export default function MemberProfilePage() {
         const email = String(member.email || '').toLowerCase()
         setForm((f) => ({ ...f, name: member.name || '', email, phone: '', address: '' }))
 
-        // 讀取會員資料（members 表）
+        // 讀取/補齊會員資料（members 表）
         try {
-          const { data } = await supabase
+          const { data: mrow } = await supabase
             .from('members')
             .select('name,email,phone,addresses,code')
             .eq('email', email)
             .maybeSingle()
-          if (data) {
-            const addr = Array.isArray((data as any).addresses) && (data as any).addresses[0] ? (data as any).addresses[0] : ''
-            setForm({ name: data.name || member.name || '', email: data.email || email, phone: data.phone || '', address: addr || '' })
-            if ((data as any).code) setMemberCode((data as any).code)
+          if (mrow) {
+            const addr = Array.isArray((mrow as any).addresses) && (mrow as any).addresses[0] ? (mrow as any).addresses[0] : ''
+            setForm({ name: mrow.name || member.name || '', email: mrow.email || email, phone: mrow.phone || '', address: addr || '' })
+            if ((mrow as any).code) setMemberCode((mrow as any).code)
+            // 若缺少會員編號，立即補齊
+            if (!mrow.code) {
+              const gen = () => 'MO' + Math.random().toString(36).slice(2,8).toUpperCase()
+              const code = gen()
+              try { await supabase.from('members').upsert({ email, name: mrow.name||'', phone: mrow.phone||'', addresses: mrow.addresses||[], code }, { onConflict: 'email' }) } catch {}
+              setMemberCode(code)
+            }
+          } else {
+            // 不存在會員資料時，建立一筆並產生會員編號
+            const gen = () => 'MO' + Math.random().toString(36).slice(2,8).toUpperCase()
+            const code = gen()
+            try { await supabase.from('members').upsert({ email, name: member.name||'', phone: '', addresses: [], code }, { onConflict: 'email' }) } catch {}
+            setMemberCode(code)
           }
         } catch {}
 
-        // 讀取積分（member_points 表 → fallback localStorage）
+        // 讀取積分（以 member_id 優先；後備 email；最後 localStorage）
         let p = 0
         try {
-          const { data: row } = await supabase
-            .from('member_points')
-            .select('balance')
-            .eq('member_email', email)
-            .maybeSingle()
-          if (row && typeof row.balance === 'number') p = row.balance
+          // 先以 member.id 查
+          if (member.id) {
+            const { data: rowById } = await supabase
+              .from('member_points')
+              .select('balance')
+              .eq('member_id', member.id)
+              .maybeSingle()
+            if (rowById && typeof (rowById as any).balance === 'number') p = (rowById as any).balance
+          }
+          // 後備以 email 查
+          if (!p) {
+            const { data: rowByEmail } = await supabase
+              .from('member_points')
+              .select('balance')
+              .eq('member_email', email)
+              .maybeSingle()
+            if (rowByEmail && typeof (rowByEmail as any).balance === 'number') p = (rowByEmail as any).balance
+          }
         } catch {}
         if (!p) {
           try { p = parseInt(localStorage.getItem('customerPoints') || '0') || 0 } catch {}
@@ -61,7 +86,7 @@ export default function MemberProfilePage() {
           const { data: logs } = await supabase
             .from('member_points_ledger')
             .select('created_at, delta, reason, order_id, ref_key')
-            .eq('member_id', member.id || email)
+            .eq('member_id', (member as any).id || email)
             .order('created_at', { ascending: false })
             .limit(50)
           setLedger(Array.isArray(logs)? logs: [])
