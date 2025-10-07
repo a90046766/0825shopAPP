@@ -306,6 +306,7 @@ export default function MemberOrderDetailPage() {
                     if (upErr) throw upErr
                     // 改走後端 Function（Service Role 避免 RLS）
                     let ok = false
+                    let serverErr: string | null = null
                     try {
                       const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -313,6 +314,7 @@ export default function MemberOrderDetailPage() {
                       })
                       const jj = await resp.json().catch(()=>({ success:false }))
                       ok = !!(jj && jj.success)
+                      serverErr = (jj && jj.error) ? String(jj.error) : null
                       if (jj && jj.error==='already_submitted') { alert('已提交過好評，感謝您的支持！'); setFbOpen(''); setGoodFile(null); setGoodNote(''); setSubmitting(false); return }
                     } catch {}
                     if (!ok) {
@@ -329,7 +331,7 @@ export default function MemberOrderDetailPage() {
                         ok = true
                       } catch {}
                     }
-                    alert(ok ? '已收到您的好評，謝謝！' : '提交失敗，請稍後再試')
+                    alert(ok ? '已收到您的好評，謝謝！' : ('提交失敗：' + (serverErr || '請稍後再試')))
                     setFbOpen(''); setGoodFile(null); setGoodNote('')
                   } catch(e:any) {
                     alert('提交失敗：' + (e?.message||'未知錯誤'))
@@ -369,6 +371,7 @@ export default function MemberOrderDetailPage() {
                     if (Array.isArray(existed) && existed.length>0) { alert('已提交過建議，感謝您的回饋！'); setSubmitting(false); return }
                     // 改走後端 Function（Service Role 避免 RLS）
                     let ok = false
+                    let serverErr: string | null = null
                     try {
                       const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -376,6 +379,7 @@ export default function MemberOrderDetailPage() {
                       })
                       const jj = await resp.json().catch(()=>({ success:false }))
                       ok = !!(jj && jj.success)
+                      serverErr = (jj && jj.error) ? String(jj.error) : null
                       if (jj && jj.error==='already_submitted') { alert('此訂單已提交過建議，感謝您的回饋！'); setFbOpen(''); setSuggestText(''); setSubmitting(false); return }
                     } catch {}
                     if (!ok) {
@@ -390,7 +394,7 @@ export default function MemberOrderDetailPage() {
                         ok = true
                       } catch {}
                     }
-                    alert(ok ? '已收到您的建議，謝謝！' : '提交失敗，請稍後再試')
+                    alert(ok ? '已收到您的建議，謝謝！' : ('提交失敗：' + (serverErr || '請稍後再試')))
                     setFbOpen(''); setSuggestText('')
                   } catch(e:any) {
                     alert('提交失敗：' + (e?.message||'未知錯誤'))
