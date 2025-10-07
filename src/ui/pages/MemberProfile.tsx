@@ -19,6 +19,18 @@ export default function MemberProfilePage() {
   const [genning, setGenning] = useState<boolean>(false)
 
   useEffect(() => {
+    const syncLocalMemberCode = (code: string) => {
+      try {
+        const s = localStorage.getItem('member-auth-user')
+        if (!s) return
+        const obj = JSON.parse(s || '{}')
+        if (obj && obj.code !== code) {
+          obj.code = code
+          localStorage.setItem('member-auth-user', JSON.stringify(obj))
+          try { window.dispatchEvent(new Event('storage')) } catch {}
+        }
+      } catch {}
+    }
     if (!member) { setLoading(false); return }
     const load = async () => {
       setLoading(true)
@@ -38,7 +50,7 @@ export default function MemberProfilePage() {
             const addr = Array.isArray((mrow as any).addresses) && (mrow as any).addresses[0] ? (mrow as any).addresses[0] : ''
             setForm({ name: mrow.name || member.name || '', email: mrow.email || email, phone: mrow.phone || '', address: addr || '' })
             const currentCode = String((mrow as any).code || '')
-            if (currentCode) setMemberCode(currentCode)
+            if (currentCode) { setMemberCode(currentCode); syncLocalMemberCode(currentCode) }
             // 若缺少或不符合規格，立即補齊為「MO+4碼數字」（不連號、亂數）；滿了再換 MP、MQ...
             if (!currentCode || !/^MO\d{4}$/.test(currentCode)) {
               const prefixes = ['MO','MP','MQ','MR','MS','MT','MU','MV','MW','MX','MY','MZ']
@@ -59,6 +71,7 @@ export default function MemberProfilePage() {
               if (newCode) {
                 try { await supabase.from('members').upsert({ email, name: mrow.name||'', phone: mrow.phone||'', addresses: mrow.addresses||[], code: newCode }, { onConflict: 'email' }) } catch {}
                 setMemberCode(newCode)
+                syncLocalMemberCode(newCode)
               }
             }
           } else {
@@ -81,6 +94,7 @@ export default function MemberProfilePage() {
             const code = newCode || ('MO' + gen4())
             try { await supabase.from('members').upsert({ email, name: member.name||'', phone: '', addresses: [], code }, { onConflict: 'email' }) } catch {}
             setMemberCode(code)
+            syncLocalMemberCode(code)
           }
         } catch {}
 
