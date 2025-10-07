@@ -102,16 +102,28 @@ export default function NewShop() {
 							.maybeSingle();
 						setIsAdminSupport(!!staffRow && (staffRow.role === 'admin' || staffRow.role === 'support'));
 					}
-					const nameFromMeta =
+          const nameFromMeta =
 						(u?.user?.user_metadata as any)?.full_name ||
 						(u?.user?.user_metadata as any)?.name ||
 						email;
 					setDisplayName(nameFromMeta || '');
 					
-					// 獲取會員編號（從用戶ID或email生成）
-					const userId = u?.user?.id || '';
-					const memberNum = userId ? `M${userId.slice(-6).toUpperCase()}` : '';
-					setMemberId(memberNum);
+          // 會員編號：以 members.code 為準（不同步時以 localStorage 後備）
+          try {
+            const emailLc = String(email||'').toLowerCase();
+            if (emailLc) {
+              const { data: m } = await supabase.from('members').select('code').eq('email', emailLc).maybeSingle();
+              if (m?.code) setMemberId(String(m.code)); else {
+                try {
+                  const s = localStorage.getItem('member-auth-user');
+                  if (s) {
+                    const obj = JSON.parse(s||'{}');
+                    if (obj?.code) setMemberId(String(obj.code));
+                  }
+                } catch {}
+              }
+            }
+          } catch {}
 				} catch {}
 
 				// 讀全站開關（失敗則當作未啟用，顯示固定版），加 3 秒超時
