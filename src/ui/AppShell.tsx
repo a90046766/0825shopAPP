@@ -3,6 +3,7 @@ import { can } from '../utils/permissions'
 // 通知改為透過 adapters 取得雲端 repository
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../adapters'
+import { supabase } from '../utils/supabase'
 
 function getCurrentUser(): any {
   try {
@@ -160,7 +161,39 @@ function DesktopNav() {
           return false
         }).length
         const approvals = (techApps?.length||0)
-        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: visible, approvals }))
+
+        // 站內廣播徽章：若公告更新時間新於已讀時間，顯示 1
+        let broadcast = 0
+        try {
+          const s = await (a as any)?.settingsRepo?.get?.().catch(()=>null)
+          const updatedAt = s?.bulletinUpdatedAt || s?.bulletin_updated_at || null
+          const updatedTs = updatedAt ? Date.parse(String(updatedAt)) : 0
+          const seenTs = Number(localStorage.getItem('seen-bulletin-at')||'0') || 0
+          if (loc.pathname.startsWith('/admin/broadcast')) {
+            localStorage.setItem('seen-bulletin-at', String(updatedTs || Date.now()))
+            broadcast = 0
+          } else {
+            broadcast = updatedTs > seenTs ? 1 : 0
+          }
+        } catch {}
+
+        // 回饋檢視徽章：以本機已讀集合比較
+        let feedback = 0
+        try {
+          const { data } = await supabase.from('member_feedback').select('id, created_at').order('created_at', { ascending: false }).limit(200)
+          const ids = (data||[]).map((r:any)=> String(r.id)).filter(Boolean)
+          const key = 'seen-feedback-ids'
+          const seenArr = (()=>{ try{ return JSON.parse(localStorage.getItem(key)||'[]') }catch{ return [] } })() as string[]
+          const seenSet = new Set(seenArr)
+          if (loc.pathname.startsWith('/feedback')) {
+            try { localStorage.setItem(key, JSON.stringify(ids)) } catch {}
+            feedback = 0
+          } else {
+            feedback = ids.filter(id => !seenSet.has(id)).length
+          }
+        } catch {}
+
+        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: visible, approvals, broadcast, feedback }))
       } catch {}
     })()
   }, [loc.pathname])
@@ -175,9 +208,11 @@ function DesktopNav() {
         allowed = true
       }
     }
-    // 僅保留指定頁面的徽章：待審核、回報中心
+    // 僅保留指定頁面的徽章：待審核、回報中心、站內廣播、回饋檢視
     const rawBadge = to==='/approvals' ? (counts.approvals||0)
       : to==='/report-center' ? (counts.reports||0)
+      : to==='/admin/broadcast' ? (counts.broadcast||0)
+      : to==='/feedback' ? (counts.feedback||0)
       : undefined
     const badge = rawBadge && rawBadge > 0 ? rawBadge : undefined
     return <Item key={to} to={to} label={label} badge={badge} disabled={!allowed} />
