@@ -24,7 +24,7 @@ export default function PageDispatchHome() {
   useEffect(()=>{ autoResize(taRef.current) }, [bulletin])
   useEffect(()=>{ const onResize = () => autoResize(taRef.current); window.addEventListener('resize', onResize, { passive: true } as any); return () => window.removeEventListener('resize', onResize) }, [])
 
-  // 數字徽章：技師顯示「訂單管理/回報中心」數量
+  // 數字徽章：技師顯示「訂單管理」數量；回報中心改用未讀數（以本機已讀與 readByEmails 為準）
   useEffect(() => {
     (async()=>{
       try {
@@ -41,17 +41,33 @@ export default function PageDispatchHome() {
           const byEmail = emailLc ? await base.contains('assigned_technicians', [emailLc]) : { count: 0 }
           ordersCount = Math.max(Number(byName.count||0), Number(byEmail.count||0))
         } catch { ordersCount = 0 }
-        // 回報：仍以 repo.list() 但僅一次，過濾未結案與與我相關
+        // 回報中心未讀：見 AppShell 的邏輯（本機 seen + readByEmails）
         let reportsCount = 0
         try {
           const threads = await ((repos as any)?.reportsRepo?.list?.() ?? [])
-          reportsCount = (threads||[]).filter((t:any)=>{
-            if (String(t.status||'') !== 'open') return false
+          const visibleThreads = (threads||[]).filter((t:any)=>{
             const target = String(t.target||'')
-            const list = Array.isArray(t.targetEmails) ? t.targetEmails.map((x:string)=>String(x||'').toLowerCase()) : []
-            const hit = (target==='all') || (target==='tech') || (target==='technician') || (target==='technicians') || (list.includes(emailLc)) || (String(t.createdBy||'').toLowerCase()===emailLc)
-            return hit
-          }).length
+            if (target==='all') return true
+            if (target==='tech' || target==='technician' || target==='technicians') return true
+            if (target==='subset') {
+              const list = Array.isArray(t.targetEmails) ? t.targetEmails.map((x:string)=>String(x||'').toLowerCase()) : []
+              return list.includes(emailLc)
+            }
+            return false
+          })
+          const seenKey = 'seen-report-thread-ids'
+          const seenArr = (()=>{ try{ return JSON.parse(localStorage.getItem(seenKey)||'[]') }catch{ return [] } })() as string[]
+          const seenSet = new Set(seenArr)
+          const ids = visibleThreads.map((t:any)=> String(t.id)).filter(Boolean)
+          const mine = ids.filter((id:string)=>{
+            try {
+              const t = visibleThreads.find((x:any)=> String(x.id)===id)
+              const reads: string[] = Array.isArray(t?.readByEmails)? t.readByEmails : []
+              if (reads.map(x=>String(x||'').toLowerCase()).includes(emailLc)) return false
+            } catch {}
+            return !seenSet.has(id)
+          })
+          reportsCount = mine.length
         } catch { reportsCount = 0 }
         setBadges({ orders: ordersCount, reports: reportsCount })
       } catch { setBadges({}) }

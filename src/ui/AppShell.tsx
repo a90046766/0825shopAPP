@@ -26,11 +26,15 @@ function AppBar() {
     <div className="sticky top-0 z-20 flex h-14 items-center justify-center bg-brand-500 text-white">
       <div className="absolute left-3 cursor-pointer text-sm" onClick={() => navigate('/dispatch')}>返回(總覽)</div>
       <div className="text-lg font-semibold">{t}</div>
-      <div className="absolute right-3 flex items-center gap-2 text-xs opacity-90">
-        {/* 後台小鈴鐺（技師也顯示；行動版亦顯示） */}
-        <StaffBell />
-        <span>{u?.name || ''}</span>
-        <button 
+      <div className="absolute right-2 flex items-center gap-2 text-xs opacity-90">
+        {/* 技師：小螢幕使用 compact 版鈴鐺，隱藏名稱/登出按鈕 */}
+        <div className="sm:hidden">
+          <StaffBell compact />
+        </div>
+        <div className="hidden sm:flex items-center gap-2">
+          <StaffBell />
+          <span className="max-w-[10rem] truncate">{u?.name || ''}</span>
+          <button 
           onClick={async () => {
             try { const a = await loadAdapters(); await a.authRepo.logout() } catch {}
             try { const mod = await import('../utils/supabase'); await mod.supabase.auth.signOut().catch(()=>{}) } catch {}
@@ -41,6 +45,7 @@ function AppBar() {
         >
           登出
         </button>
+        </div>
       </div>
     </div>
   )

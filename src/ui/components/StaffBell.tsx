@@ -12,7 +12,7 @@ function getStaffUser(): StaffUser {
   return null
 }
 
-export default function StaffBell() {
+export default function StaffBell({ compact = false }: { compact?: boolean }) {
   const user = getStaffUser()
   const [open, setOpen] = useState(false)
   const [list, setList] = useState<any[]>([])
@@ -134,10 +134,10 @@ export default function StaffBell() {
 
   return (
     <div className="relative">
-      <button onClick={()=>setOpen(v=>!v)} className="relative rounded-lg border px-3 py-2 text-sm bg-white">
-        <Bell className="inline h-4 w-4 mr-1" />
-        通知
-        {unread>0 && <span className="ml-2 rounded bg-red-600 text-white text-xs px-1.5">{unread}</span>}
+      <button onClick={()=>setOpen(v=>!v)} className={`relative rounded-lg border ${compact? 'px-2 py-2' : 'px-3 py-2'} text-sm bg-white`}>
+        <Bell className={`inline h-4 w-4 ${compact? '' : 'mr-1'}`} />
+        {!compact && '通知'}
+        {unread>0 && <span className={`${compact? 'ml-1' : 'ml-2'} rounded bg-red-600 text-white text-xs px-1.5`}>{unread}</span>}
       </button>
       {open && (
         <>
