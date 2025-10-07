@@ -72,6 +72,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/member-code-set"
+  to = "/.netlify/functions/member-code-set"
+  status = 200
+
+[[redirects]]
   from = "/api/orders/reservations"
   to = "/.netlify/functions/orders-reservations"
   status = 200
