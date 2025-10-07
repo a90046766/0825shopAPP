@@ -305,14 +305,31 @@ export default function MemberOrderDetailPage() {
                     const { error: upErr } = await supabase.storage.from('review-uploads').upload(path, goodFile, { upsert: false, contentType: goodFile.type||'image/jpeg' })
                     if (upErr) throw upErr
                     // 改走後端 Function（Service Role 避免 RLS）
-                    const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
-                      method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ kind: 'good', comment: goodNote||null, asset_path: path })
-                    })
-                    const jj = await resp.json().catch(()=>({ success:false }))
-                    if (jj && jj.success) alert('已收到您的好評，謝謝！')
-                    else if (jj && jj.error==='already_submitted') alert('已提交過好評，感謝您的支持！')
-                    else alert('提交失敗，請稍後再試')
+                    let ok = false
+                    try {
+                      const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ kind: 'good', comment: goodNote||null, asset_path: path })
+                      })
+                      const jj = await resp.json().catch(()=>({ success:false }))
+                      ok = !!(jj && jj.success)
+                      if (jj && jj.error==='already_submitted') { alert('已提交過好評，感謝您的支持！'); setFbOpen(''); setGoodFile(null); setGoodNote(''); setSubmitting(false); return }
+                    } catch {}
+                    if (!ok) {
+                      // 後備：直接寫入 Supabase（RLS 需允許 member 自己寫入）
+                      try {
+                        await supabase.from('member_feedback').insert({
+                          member_id: member.id,
+                          order_id: String(order.id),
+                          kind: 'good',
+                          comment: goodNote||null,
+                          asset_path: path,
+                          created_at: new Date().toISOString()
+                        })
+                        ok = true
+                      } catch {}
+                    }
+                    alert(ok ? '已收到您的好評，謝謝！' : '提交失敗，請稍後再試')
                     setFbOpen(''); setGoodFile(null); setGoodNote('')
                   } catch(e:any) {
                     alert('提交失敗：' + (e?.message||'未知錯誤'))
@@ -351,14 +368,29 @@ export default function MemberOrderDetailPage() {
                       .limit(1)
                     if (Array.isArray(existed) && existed.length>0) { alert('已提交過建議，感謝您的回饋！'); setSubmitting(false); return }
                     // 改走後端 Function（Service Role 避免 RLS）
-                    const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
-                      method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ kind: 'suggest', comment: suggestText })
-                    })
-                    const jj = await resp.json().catch(()=>({ success:false }))
-                    if (jj && jj.success) alert('已收到您的建議，謝謝！')
-                    else if (jj && jj.error==='already_submitted') alert('此訂單已提交過建議，感謝您的回饋！')
-                    else alert('提交失敗，請稍後再試')
+                    let ok = false
+                    try {
+                      const resp = await fetch(`/api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(order.id)}/rating`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ kind: 'suggest', comment: suggestText })
+                      })
+                      const jj = await resp.json().catch(()=>({ success:false }))
+                      ok = !!(jj && jj.success)
+                      if (jj && jj.error==='already_submitted') { alert('此訂單已提交過建議，感謝您的回饋！'); setFbOpen(''); setSuggestText(''); setSubmitting(false); return }
+                    } catch {}
+                    if (!ok) {
+                      // 後備：直接寫入 Supabase（RLS 需允許 member 自己寫入）
+                      try {
+                        await supabase.from('member_feedback').insert({
+                          member_id: member.id,
+                          order_id: String(order.id),
+                          comment: suggestText,
+                          created_at: new Date().toISOString()
+                        })
+                        ok = true
+                      } catch {}
+                    }
+                    alert(ok ? '已收到您的建議，謝謝！' : '提交失敗，請稍後再試')
                     setFbOpen(''); setSuggestText('')
                   } catch(e:any) {
                     alert('提交失敗：' + (e?.message||'未知錯誤'))

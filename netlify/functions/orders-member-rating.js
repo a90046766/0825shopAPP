@@ -12,7 +12,7 @@ exports.handler = async (event) => {
     const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
     if (!url || !key) {
-      return { statusCode: 200, body: JSON.stringify({ success: true, data: { note: 'no_service_key' } }) }
+      return { statusCode: 200, body: JSON.stringify({ success: false, error: 'no_service_key' }) }
     }
     const supabase = createClient(url, key, { auth: { persistSession: false } })
 
