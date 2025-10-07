@@ -3,6 +3,7 @@ import { can } from '../utils/permissions'
 // 通知改為透過 adapters 取得雲端 repository
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../adapters'
+import StaffBell from './components/StaffBell'
 import { supabase } from '../utils/supabase'
 
 function getCurrentUser(): any {
@@ -314,6 +315,7 @@ export default function AppShell() {
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/80 px-4 py-3 backdrop-blur">
           <div className="text-base font-semibold text-gray-800">日式洗濯家電服務</div>
           <div className="flex items-center gap-3">
+            <StaffBell />
             <div className="text-sm text-gray-700">{getCurrentUser()?.name || ''}</div>
             <button onClick={async ()=>{ 
               try { const a = await loadAdapters(); await a.authRepo.logout() } catch {}
