@@ -1,6 +1,7 @@
 // src/ui/pages/ShareReferralPage.tsx
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../../adapters'
+import { supabase } from '../../utils/supabase'
 
 export default function ShareReferralPage() {
   const [user, setUser] = useState<any>(null)
@@ -18,19 +19,15 @@ export default function ShareReferralPage() {
 
         let code = ''
         try {
-          const a: any = await loadAdapters()
           const emailLc = String(u.email || '').toLowerCase()
-          if (u.role === 'technician' && a.technicianRepo?.list) {
-            const list = await a.technicianRepo.list()
-            code = (list || []).find((t: any) => (t.email || '').toLowerCase() === emailLc)?.code || ''
-          } else if (a.staffRepo?.list) {
-            const list = await a.staffRepo.list()
-            code = (list || []).find((s: any) => (s.email || '').toLowerCase() === emailLc)?.refCode || ''
+          // 會員分享：固定讀 members.code（與首頁、個資頁同步）
+          const { data: m } = await supabase.from('members').select('code').eq('email', emailLc).maybeSingle()
+          code = m?.code ? String(m.code) : ''
+          if (!code && emailLc === 'a13788051@gmail.com') {
+            try { await supabase.from('members').upsert({ email: emailLc, code: 'MO7777' }, { onConflict: 'email' }) } catch {}
+            code = 'MO7777'
           }
         } catch {}
-        if (!code) {
-          code = u?.refCode || u?.code || ''
-        }
         setMemberCode(code)
         const url = `${window.location.origin}/register/member?ref=${encodeURIComponent(code || '')}`
         setShareUrl(url)
