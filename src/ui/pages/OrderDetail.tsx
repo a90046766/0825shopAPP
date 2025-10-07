@@ -456,45 +456,90 @@ export default function PageOrderDetail() {
               </div>
               {adjOpen && (
                 <div className="space-y-2 text-sm">
-                  {adjDraft.map((it:any, i:number)=>{
-                    const sub = (Number(it.unitPrice)||0) * (Number(it.quantity)||0)
-                    return (
-                      <div key={i} className="grid grid-cols-7 items-center gap-2">
-                        <select className="col-span-2 rounded border px-2 py-1" value={it.productId||''} onChange={(e)=>{ const val=e.target.value; const arr=[...adjDraft]; if(val){ const p = products.find((x:any)=>x.id===val); arr[i]={...arr[i], productId:val, name:p?.name||it.name, unitPrice:p?.unitPrice||it.unitPrice}; } else { arr[i]={...arr[i], productId:undefined}; } setAdjDraft(arr) }}>
-                          <option value="">自訂</option>
-                          {products.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
-                        </select>
-                        <input className="col-span-2 rounded border px-2 py-1" value={it.name||''} onChange={e=>{ const arr=[...adjDraft]; arr[i]={...arr[i], name:e.target.value}; setAdjDraft(arr) }} />
-                        <div className="col-span-1 flex items-center gap-1">
-                          <span className="text-xs text-gray-500">數量</span>
-                          <input type="number" className="w-20 rounded border px-2 py-1 text-right" value={it.quantity} onChange={e=>{ const arr=[...adjDraft]; const q = Number(e.target.value)||0; arr[i]={...arr[i], quantity:q}; setAdjDraft(arr) }} />
-                        </div>
-                        <div className="col-span-1 flex items-center gap-1">
-                          <span className="text-xs text-gray-500">單價</span>
-                          <input type="number" className="w-24 rounded border px-2 py-1 text-right" value={it.unitPrice} onChange={e=>{ const arr=[...adjDraft]; arr[i]={...arr[i], unitPrice:Number(e.target.value)||0}; setAdjDraft(arr) }} />
-                        </div>
-                        <div className="col-span-1 text-right text-xs text-gray-600">小計 {fmt(sub)}</div>
-                        <button onClick={()=>{ const arr=[...adjDraft]; arr.splice(i,1); setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">刪</button>
-                      </div>
-                    )
-                  })}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-gray-500">
+                          <th className="px-2 py-1 text-left">品項</th>
+                          <th className="px-2 py-1 text-left">名稱/自訂</th>
+                          <th className="px-2 py-1 text-right">數量(±)</th>
+                          <th className="px-2 py-1 text-right">單價</th>
+                          <th className="px-2 py-1 text-right">小計</th>
+                          <th className="px-2 py-1">操作</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adjDraft.length===0 && (
+                          <tr><td colSpan={6} className="px-2 py-3 text-center text-gray-400">尚無調整，請點「新增一列」</td></tr>
+                        )}
+                        {adjDraft.map((it:any, i:number)=>{
+                          const sub = (Number(it.unitPrice)||0) * (Number(it.quantity)||0)
+                          return (
+                            <tr key={i} className="border-b last:border-0">
+                              <td className="px-2 py-1">
+                                <select className="rounded border px-2 py-1" value={it.productId||''} onChange={(e)=>{ const val=e.target.value; const arr=[...adjDraft]; if(val){ const p = products.find((x:any)=>x.id===val); arr[i]={...arr[i], productId:val, name:p?.name||it.name, unitPrice:p?.unitPrice||it.unitPrice}; } else { arr[i]={...arr[i], productId:undefined}; } setAdjDraft(arr) }}>
+                                  <option value="">自訂</option>
+                                  {products.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
+                                </select>
+                              </td>
+                              <td className="px-2 py-1">
+                                <input className="w-full rounded border px-2 py-1" placeholder="例如：濾網" value={it.name||''} onChange={e=>{ const arr=[...adjDraft]; arr[i]={...arr[i], name:e.target.value}; setAdjDraft(arr) }} />
+                              </td>
+                              <td className="px-2 py-1 text-right">
+                                <div className="inline-flex items-center gap-1">
+                                  <button onClick={()=>{ const arr=[...adjDraft]; arr[i]={...arr[i], quantity:(Number(arr[i].quantity)||0)-1}; setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">-1</button>
+                                  <input type="number" className="w-20 rounded border px-2 py-1 text-right" value={it.quantity} onChange={e=>{ const arr=[...adjDraft]; const q = Number(e.target.value)||0; arr[i]={...arr[i], quantity:q}; setAdjDraft(arr) }} />
+                                  <button onClick={()=>{ const arr=[...adjDraft]; arr[i]={...arr[i], quantity:(Number(arr[i].quantity)||0)+1}; setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">+1</button>
+                                </div>
+                              </td>
+                              <td className="px-2 py-1 text-right">
+                                <input type="number" className="w-24 rounded border px-2 py-1 text-right" value={it.unitPrice} onChange={e=>{ const arr=[...adjDraft]; arr[i]={...arr[i], unitPrice:Number(e.target.value)||0}; setAdjDraft(arr) }} />
+                              </td>
+                              <td className="px-2 py-1 text-right text-gray-700">{fmt(sub)}</td>
+                              <td className="px-2 py-1 text-center">
+                                <button onClick={()=>{ const arr=[...adjDraft]; arr.splice(i,1); setAdjDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">刪</button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colSpan={4} className="px-2 py-2 text-right text-gray-500">調整合計</td>
+                          <td className="px-2 py-2 text-right font-semibold">{fmt((adjDraft||[]).reduce((s:number,x:any)=> s + (Number(x.unitPrice)||0)*(Number(x.quantity)||0), 0))}</td>
+                          <td className="px-2 py-2"></td>
+                        </tr>
+                        <tr>
+                          <td colSpan={4} className="px-2 py-1 text-right text-gray-500">套用後預估金額</td>
+                          <td className="px-2 py-1 text-right font-semibold">{fmt(((order.serviceItems||[]).reduce((s:number,it:any)=> s + (Number(it.unitPrice)||0)*(Number(it.quantity)||0), 0)) + (adjDraft||[]).reduce((s:number,x:any)=> s + (Number(x.unitPrice)||0)*(Number(x.quantity)||0), 0))}</td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                   <div className="flex items-center justify-between">
-                    <button onClick={()=>setAdjDraft([...adjDraft, { name:'', quantity:-1, unitPrice:0 }])} className="rounded bg-gray-100 px-2 py-1">新增調整</button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={()=>setAdjDraft([...adjDraft, { name:'', quantity:-1, unitPrice:0 }])} className="rounded bg-gray-100 px-2 py-1">新增一列</button>
+                      <button onClick={()=>setAdjDraft([])} className="rounded bg-gray-100 px-2 py-1">清空</button>
+                    </div>
                     <div className="text-right">
-                      <button onClick={async()=>{
-                        try {
-                          if (!Array.isArray(adjDraft) || adjDraft.length===0) { alert('請先新增調整'); return }
-                          // 僅允許名稱與單價存在；數量可為負數
-                          const normalized = adjDraft.map((x:any)=> ({ name: String(x.name||'調整'), quantity: Number(x.quantity)||0, unitPrice: Number(x.unitPrice)||0, productId: x.productId }))
-                          const next = [ ...(order.serviceItems||[]), ...normalized ]
-                          await repos.orderRepo.update(order.id, { serviceItems: next })
-                          const o = await repos.orderRepo.get(order.id)
-                          setOrder(o)
-                          setAdjDraft([])
-                          setAdjOpen(false)
-                          alert('已套用增減調整')
-                        } catch (e) { alert('套用失敗，請重試') }
-                      }} className="rounded bg-brand-500 px-3 py-1 text-white">套用調整</button>
+                      <button
+                        disabled={!Array.isArray(adjDraft) || adjDraft.filter((x:any)=> Number(x.quantity)||0).length===0}
+                        onClick={async()=>{
+                          try {
+                            if (!Array.isArray(adjDraft) || adjDraft.filter((x:any)=> Number(x.quantity)||0).length===0) { alert('請先輸入調整（數量可為負數）'); return }
+                            const normalized = adjDraft.map((x:any)=> ({ name: String(x.name||'調整'), quantity: Number(x.quantity)||0, unitPrice: Number(x.unitPrice)||0, productId: x.productId }))
+                            const next = [ ...(order.serviceItems||[]), ...normalized ]
+                            await repos.orderRepo.update(order.id, { serviceItems: next })
+                            const o = await repos.orderRepo.get(order.id)
+                            setOrder(o)
+                            setAdjDraft([])
+                            setAdjOpen(false)
+                            alert('已套用增減調整')
+                          } catch (e:any) { alert('套用失敗：' + (e?.message||'請稍後再試')) }
+                        }}
+                        className={`rounded px-3 py-1 text-white ${(!Array.isArray(adjDraft) || adjDraft.filter((x:any)=> Number(x.quantity)||0).length===0)?'bg-gray-300 cursor-not-allowed':'bg-brand-500'}`}
+                      >套用調整</button>
                     </div>
                   </div>
                 </div>
