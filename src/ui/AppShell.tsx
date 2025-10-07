@@ -27,6 +27,8 @@ function AppBar() {
       <div className="absolute left-3 cursor-pointer text-sm" onClick={() => navigate('/dispatch')}>返回(總覽)</div>
       <div className="text-lg font-semibold">{t}</div>
       <div className="absolute right-3 flex items-center gap-2 text-xs opacity-90">
+        {/* 後台小鈴鐺（技師也顯示；行動版亦顯示） */}
+        <StaffBell />
         <span>{u?.name || ''}</span>
         <button 
           onClick={async () => {
@@ -138,7 +140,7 @@ function DesktopNav() {
         // 以穩定來源計數：
         // - 預約：/api/reservations pending 筆數
         // - 訂單：orders confirmed & 未開工
-        // - 回報中心：僅未結案且對當前使用者可見
+        // - 回報中心：改為「未讀數」（由 threads.readByEmails 判斷），若在 /report-center 則歸零
         const a = await loadAdapters()
         const [ordersAll, threads, resR, techApps] = await Promise.all([
           a.orderRepo?.list?.() ?? [],
@@ -150,17 +152,40 @@ function DesktopNav() {
         const needAssign = (ordersAll||[]).filter((o:any)=> o.status==='confirmed' && (!Array.isArray(o.assignedTechnicians) || o.assignedTechnicians.length===0)).length
         const rsvPending = Array.isArray(resR?.data) ? resR.data.filter((r:any)=> r.status==='pending').length : 0
         const emailLc = (user?.email||'').toLowerCase()
-        const visible = (threads||[]).filter((t:any)=>{
-          if (t.status !== 'open') return false
-          if (t.target === 'all') return true
-          if (t.target === 'tech') return user?.role === 'technician'
-          if (t.target === 'support') return user?.role === 'support'
-          if (t.target === 'subset') {
+        const visibleThreads = (threads||[]).filter((t:any)=>{
+          const target = String(t.target||'')
+          if (target === 'all') return true
+          if (target === 'tech') return user?.role === 'technician'
+          if (target === 'support') return user?.role === 'support'
+          if (target === 'subset') {
             const list = (t.targetEmails||[]).map((x:string)=> (x||'').toLowerCase())
             return list.includes(emailLc)
           }
           return false
-        }).length
+        })
+        let unreadReports = 0
+        try {
+          const seenKey = 'seen-report-thread-ids'
+          const seenArr = (()=>{ try{ return JSON.parse(localStorage.getItem(seenKey)||'[]') }catch{ return [] } })() as string[]
+          const seenSet = new Set(seenArr)
+          const ids = visibleThreads.map((t:any)=> String(t.id)).filter(Boolean)
+          // 若停在頁面上，視為已讀：立即記錄目前可見清單
+          if (loc.pathname.startsWith('/report-center')) {
+            try { localStorage.setItem(seenKey, JSON.stringify(ids)) } catch {}
+            unreadReports = 0
+          } else {
+            // 若 threads 帶 readByEmails，優先以是否包含自己為「已讀」
+            const mine = ids.filter((id:string)=>{
+              try {
+                const t = visibleThreads.find((x:any)=> String(x.id)===id)
+                const reads: string[] = Array.isArray(t?.readByEmails)? t.readByEmails : []
+                if (reads.map(x=>String(x||'').toLowerCase()).includes(emailLc)) return false
+              } catch {}
+              return !seenSet.has(id)
+            })
+            unreadReports = mine.length
+          }
+        } catch { unreadReports = 0 }
         const approvals = (techApps?.length||0)
 
         // 站內廣播徽章：若公告更新時間新於已讀時間，顯示 1
@@ -194,7 +219,7 @@ function DesktopNav() {
           }
         } catch {}
 
-        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: visible, approvals, broadcast, feedback }))
+        setCounts(c=>({ ...c, orders: ordersNew, schedule: needAssign, reservations: rsvPending, reports: unreadReports, approvals, broadcast, feedback }))
       } catch {}
     })()
   }, [loc.pathname])

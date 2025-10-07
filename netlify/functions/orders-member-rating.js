@@ -21,7 +21,9 @@ exports.handler = async (event) => {
 
     // 解析 path 或 query 取得參數（相容 redirect 附加 query）
     const parts = (event.path || '').split('/')
-    const u = new URL((event.rawUrl || 'http://local') + (event.rawQuery ? ('?'+event.rawQuery) : ''))
+    const raw = event.rawUrl || (`http://local${event.path||''}`)
+    const hasQ = raw.includes('?')
+    const u = new URL(hasQ ? raw : `${raw}${event.rawQuery?`?${event.rawQuery}`:''}`)
     const qOrderId = u.searchParams.get('orderId') || ''
     const qCustomerId = u.searchParams.get('customerId') || ''
     const orderId = decodeURIComponent(qOrderId || parts[parts.length - 2] || '')
@@ -52,7 +54,9 @@ exports.handler = async (event) => {
             return { statusCode: 200, body: JSON.stringify({ success: false, error: 'already_submitted' }) }
           }
         } catch {}
-        const { error } = await supabase.from('member_feedback').insert(fb)
+        // 欄位相容：若資料表使用不同命名，嘗試對應
+        const rows = [fb]
+        const { error } = await supabase.from('member_feedback').insert(rows)
         if (error) errorMsg = error.message || String(error)
       } else {
         // 評分模式
@@ -79,7 +83,8 @@ exports.handler = async (event) => {
             return { statusCode: 200, body: JSON.stringify({ success: false, error: 'already_submitted' }) }
           }
         } catch {}
-        const { error } = await supabase.from('member_feedback').insert(payload)
+        const rows = [payload]
+        const { error } = await supabase.from('member_feedback').insert(rows)
         if (error) errorMsg = error.message || String(error)
       }
     } catch (e) { errorMsg = String(e?.message || e) }
