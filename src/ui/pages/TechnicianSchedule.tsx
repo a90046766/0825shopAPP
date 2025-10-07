@@ -65,6 +65,7 @@ export default function TechnicianSchedulePage() {
   const [techLeaveSlot, setTechLeaveSlot] = useState<'am' | 'pm' | 'full'>('am')
   const [techLeaveType, setTechLeaveType] = useState<'排休' | '特休' | '事假' | '婚假' | '病假' | '喪假'>('排休')
   const [techLeaveEmail, setTechLeaveEmail] = useState('')
+  const [submittingLeave, setSubmittingLeave] = useState(false)
 
   const navigate = useNavigate()
   const [hoverDate, setHoverDate] = useState<string>('')
@@ -939,14 +940,18 @@ export default function TechnicianSchedulePage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2">
-                <button onClick={()=>setTechLeaveOpen(false)} className="rounded bg-gray-100 px-3 py-1">取消</button>
-                <button onClick={async()=>{
+                <button type="button" onClick={()=>setTechLeaveOpen(false)} className="rounded bg-gray-100 px-3 py-1">取消</button>
+                <button type="button" disabled={submittingLeave} onClick={async()=>{
                   try {
                     if (!repos) return
+                    setSubmittingLeave(true)
                     const color = (type: string) => type==='排休'||type==='特休'? '#FEF3C7' : type==='事假'? '#DBEAFE' : type==='婚假'? '#FCE7F3' : type==='病假'? '#E5E7EB' : '#9CA3AF'
                     const email = (user?.role==='technician' ? (user.email||'') : techLeaveEmail || '')
                     if (!email) { alert('請選擇技師'); return }
-                    const payload:any = { technicianEmail: email.toLowerCase(), date: techLeaveDate, fullDay: techLeaveSlot==='full', startTime: techLeaveSlot==='am'? '09:00' : (techLeaveSlot==='pm' ? '13:00' : null), endTime: techLeaveSlot==='am'? '12:00' : (techLeaveSlot==='pm' ? '18:00' : null), reason: techLeaveType, color: color(techLeaveType) }
+                    const isFull = techLeaveSlot==='full'
+                    const startTime = isFull ? '00:00' : (techLeaveSlot==='am' ? '09:00' : '13:00')
+                    const endTime = isFull ? '23:59' : (techLeaveSlot==='am' ? '12:00' : '18:00')
+                    const payload:any = { technicianEmail: email.toLowerCase(), date: techLeaveDate, fullDay: isFull, startTime, endTime, reason: techLeaveType, color: color(techLeaveType) }
                     try {
                       await repos.scheduleRepo.saveTechnicianLeave(payload)
                     } catch (e:any) {
@@ -966,8 +971,10 @@ export default function TechnicianSchedulePage() {
                     alert('已建立休假')
                   } catch (e:any) {
                     alert('建立休假失敗：' + (e?.message||''))
+                  } finally {
+                    setSubmittingLeave(false)
                   }
-                }} className="rounded bg-brand-500 px-3 py-1 text-white">送出</button>
+                }} className={`rounded px-3 py-1 text-white ${submittingLeave? 'bg-gray-400' : 'bg-brand-500 hover:bg-brand-600'}`}>{submittingLeave? '送出中…' : '送出'}</button>
               </div>
             </div>
           </div>
