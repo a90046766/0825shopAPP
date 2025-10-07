@@ -19,6 +19,7 @@ export default function MemberOrderDetailPage() {
   const [suggestText, setSuggestText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [techPhones, setTechPhones] = useState<Record<string,string>>({})
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   useEffect(()=>{
     (async()=>{
@@ -245,9 +246,9 @@ export default function MemberOrderDetailPage() {
                 <div className="text-xs text-gray-500 mb-1">清洗前（{photos.before.length}/24）</div>
                 <div className="grid grid-cols-3 gap-2">
                   {photos.before.map((u:string,i:number)=> (
-                    <a key={i} href={u} target="_blank" rel="noreferrer" className="block rounded overflow-hidden border">
+                    <button key={i} type="button" onClick={()=>setPreviewUrl(u)} className="block rounded overflow-hidden border focus:outline-none">
                       <img src={u} alt="before" className="h-24 w-full object-cover" />
-                    </a>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -257,9 +258,9 @@ export default function MemberOrderDetailPage() {
                 <div className="text-xs text-gray-500 mb-1">清洗後（{photos.after.length}/24）</div>
                 <div className="grid grid-cols-3 gap-2">
                   {photos.after.map((u:string,i:number)=> (
-                    <a key={i} href={u} target="_blank" rel="noreferrer" className="block rounded overflow-hidden border">
+                    <button key={i} type="button" onClick={()=>setPreviewUrl(u)} className="block rounded overflow-hidden border focus:outline-none">
                       <img src={u} alt="after" className="h-24 w-full object-cover" />
-                    </a>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -365,6 +366,15 @@ export default function MemberOrderDetailPage() {
                 }} className={`rounded px-3 py-1 text-white ${submitting?'bg-gray-400':'bg-brand-600 hover:bg-brand-700'}`}>{submitting?'提交中…':'送出'}</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* 照片燈箱預覽 */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 bg-black/80 p-4 grid place-items-center" onClick={()=>setPreviewUrl(null)}>
+          <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e)=>e.stopPropagation()}>
+            <img src={previewUrl} alt="preview" className="max-h-[90vh] max-w-[90vw] object-contain rounded" />
+            <button type="button" onClick={()=>setPreviewUrl(null)} className="absolute -top-3 -right-3 rounded-full bg-white/90 px-2 py-1 text-sm shadow">關閉</button>
           </div>
         </div>
       )}
