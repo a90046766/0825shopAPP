@@ -54,6 +54,23 @@ exports.handler = async (event) => {
         return `OD${Date.now().toString(36).toUpperCase().slice(-5)}`;
       };
 
+      // 讀取會員預設資料（若前端未帶 phone/address 時補齊）
+      let memberDefaults = { phone: null, address: null };
+      try {
+        const emailLc = String(payload?.customer?.email || payload?.email || '').toLowerCase();
+        if (emailLc) {
+          const { data: mrow } = await supabase
+            .from('members')
+            .select('phone,addresses')
+            .eq('email', emailLc)
+            .maybeSingle();
+          if (mrow) {
+            memberDefaults.phone = mrow.phone || null;
+            memberDefaults.address = (Array.isArray(mrow.addresses) && mrow.addresses[0]) ? mrow.addresses[0] : null;
+          }
+        }
+      } catch {}
+
       // 1) 優先 RPC 建單（若後端尚未建立 RPC，這段會失敗但不影響回傳）
       try {
         const { data, error } = await supabase.rpc('create_reservation_order', {
@@ -73,9 +90,15 @@ exports.handler = async (event) => {
                 const t = parseTime(payload.preferredTime);
                 const patch = {};
                 if (!row.customer_name && (payload.customer?.name)) patch.customer_name = payload.customer.name;
-                if (!row.customer_phone && (payload.customer?.phone)) patch.customer_phone = payload.customer.phone;
+                if (!row.customer_phone) {
+                  if (payload.customer?.phone) patch.customer_phone = payload.customer.phone;
+                  else if (memberDefaults.phone) patch.customer_phone = memberDefaults.phone;
+                }
                 if (!row.customer_email && (payload.customer?.email)) patch.customer_email = payload.customer.email;
-                if (!row.customer_address && (payload.customer?.address)) patch.customer_address = payload.customer.address;
+                if (!row.customer_address) {
+                  if (payload.customer?.address) patch.customer_address = payload.customer.address;
+                  else if (memberDefaults.address) patch.customer_address = memberDefaults.address;
+                }
                 if (!row.preferred_date && payload.preferredDate && /^\d{4}-\d{2}-\d{2}$/.test(payload.preferredDate)) patch.preferred_date = payload.preferredDate;
                 if ((!row.preferred_time_start || !row.preferred_time_end) && t.start && t.end) {
                   patch.preferred_time_start = t.start; patch.preferred_time_end = t.end;
@@ -98,9 +121,9 @@ exports.handler = async (event) => {
       try {
         const row = {
           customer_name: payload?.customer?.name || null,
-          customer_phone: payload?.customer?.phone || null,
+          customer_phone: payload?.customer?.phone || memberDefaults.phone || null,
           customer_email: payload?.customer?.email || null,
-          customer_address: payload?.customer?.address || null,
+          customer_address: payload?.customer?.address || memberDefaults.address || null,
           preferred_date: payload?.preferredDate || null,
           preferred_time: payload?.preferredTime || null,
           note: payload?.note || null,
@@ -121,9 +144,9 @@ exports.handler = async (event) => {
           const row = {
             order_number,
             customer_name: payload?.customer?.name || null,
-            customer_phone: payload?.customer?.phone || null,
+            customer_phone: payload?.customer?.phone || memberDefaults.phone || null,
             customer_email: payload?.customer?.email || null,
-            customer_address: payload?.customer?.address || null,
+            customer_address: payload?.customer?.address || memberDefaults.address || null,
             preferred_date: (/^\d{4}-\d{2}-\d{2}$/.test(payload?.preferredDate||'')) ? payload.preferredDate : null,
             preferred_time_start: t.start,
             preferred_time_end: t.end,
