@@ -19,10 +19,13 @@ exports.handler = async (event) => {
     const isJson = (event.headers?.['content-type'] || '').includes('application/json')
     const body = isJson ? JSON.parse(event.body || '{}') : {}
 
-    // 解析 path 取得參數
+    // 解析 path 或 query 取得參數（相容 redirect 附加 query）
     const parts = (event.path || '').split('/')
-    const orderId = decodeURIComponent(parts[parts.length - 2] || '') // .../orders/:orderId/rating
-    const customerId = decodeURIComponent(parts[parts.length - 4] || '') // .../member/:customerId/orders/...
+    const u = new URL((event.rawUrl || 'http://local') + (event.rawQuery ? ('?'+event.rawQuery) : ''))
+    const qOrderId = u.searchParams.get('orderId') || ''
+    const qCustomerId = u.searchParams.get('customerId') || ''
+    const orderId = decodeURIComponent(qOrderId || parts[parts.length - 2] || '')
+    const customerId = decodeURIComponent(qCustomerId || parts[parts.length - 4] || '')
 
     let errorMsg = null
     try {

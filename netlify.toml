@@ -66,6 +66,12 @@
   to = "/.netlify/functions/member-reservations"
   status = 200
 
+# 會員回饋提交（服務角色）
+[[redirects]]
+  from = "/api/orders/member/:customerId/orders/:orderId/rating"
+  to = "/.netlify/functions/orders-member-rating?customerId=:customerId&orderId=:orderId"
+  status = 200
+
 [[redirects]]
   from = "/.well-known/*"
   to = "/.netlify/functions/:splat"
