@@ -175,10 +175,8 @@ function DesktopNav() {
         allowed = true
       }
     }
+    // 僅保留指定頁面的徽章：待審核、回報中心
     const rawBadge = to==='/approvals' ? (counts.approvals||0)
-      : to==='/orders' ? (counts.orders||0)
-      : to==='/schedule' ? (counts.schedule||0)
-      : to==='/reservations' ? (counts.reservations||0)
       : to==='/report-center' ? (counts.reports||0)
       : undefined
     const badge = rawBadge && rawBadge > 0 ? rawBadge : undefined
