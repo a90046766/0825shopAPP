@@ -247,6 +247,7 @@ export default function MemberOrdersPage() {
         <div className="text-base md:text-lg font-bold">我的訂單</div>
         <div className="flex gap-2 items-center">
           <MemberBell />
+          <Link to="/store/member/profile" className="rounded border px-3 py-1 text-sm hover:bg-gray-50">會員資料/積分</Link>
           {/* 安裝 App（Android/桌面） */}
           <button
             onClick={installApp}
