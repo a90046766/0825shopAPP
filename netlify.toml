@@ -63,6 +63,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/points/apply-order"
+  to = "/.netlify/functions/points-apply-order"
+  status = 200
+
+[[redirects]]
   from = "/api/orders/reservations"
   to = "/.netlify/functions/orders-reservations"
   status = 200

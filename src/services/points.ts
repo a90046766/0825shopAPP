@@ -1,3 +1,21 @@
+export async function applyPointsOnOrderCompletion(order: any): Promise<{ success: boolean; awarded?: number; message?: string }> {
+  try {
+    if (!order) return { success: false, message: 'no_order' }
+    const payload = {
+      orderId: String(order.id||''),
+      memberId: String(order.memberId||''),
+      items: Array.isArray(order.serviceItems) ? order.serviceItems : [],
+      pointsDeductAmount: Number(order.pointsDeductAmount||0)
+    }
+    const res = await fetch('/api/points/apply-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    const j = await res.json().catch(()=>({ success:false }))
+    if (j && j.success) return { success: true, awarded: Number(j.points||0) }
+    return { success: false, message: j?.error || `HTTP ${res.status}` }
+  } catch (e: any) {
+    return { success: false, message: e?.message || 'unknown_error' }
+  }
+}
+
 import type { Order } from '../core/repository'
 import { supabase } from '../utils/supabase'
 import { loadAdapters } from '../adapters'

@@ -58,6 +58,20 @@ exports.handler = async (event) => {
         const rows = [fb]
         const { error } = await supabase.from('member_feedback').insert(rows)
         if (error) errorMsg = error.message || String(error)
+        // 加點（好評/建議）：以設定 review_bonus_points 為準（一次性、避免重複）
+        try {
+          const k = String(body.kind||'')
+          const { data: s } = await supabase.from('app_settings').select('*').limit(1).maybeSingle()
+          const bonus = Number(s?.review_bonus_points||0)
+          if (bonus > 0 && customerId && orderId) {
+            const ref = `review_bonus_${orderId}_${customerId}_${k}`
+            const { data: ex } = await supabase.from('member_points_ledger').select('id').eq('ref_key', ref).maybeSingle()
+            if (!ex) {
+              await supabase.from('member_points_ledger').insert({ member_id: customerId, delta: bonus, reason: (k==='good'?'好評上傳獎勵':'建議評提交獎勵'), order_id: orderId, ref_key: ref, created_at: new Date().toISOString() })
+              try { await supabase.rpc('add_points_to_member', { p_member_id: customerId, p_delta: bonus }) } catch {}
+            }
+          }
+        } catch {}
       } else {
         // 評分模式
         const payload = {
@@ -86,6 +100,19 @@ exports.handler = async (event) => {
         const rows = [payload]
         const { error } = await supabase.from('member_feedback').insert(rows)
         if (error) errorMsg = error.message || String(error)
+        // 評分模式：同樣套用建議評加點
+        try {
+          const { data: s } = await supabase.from('app_settings').select('*').limit(1).maybeSingle()
+          const bonus = Number(s?.review_bonus_points||0)
+          if (bonus > 0 && payload.member_id && payload.order_id) {
+            const ref = `review_bonus_${payload.order_id}_${payload.member_id}_score`
+            const { data: ex } = await supabase.from('member_points_ledger').select('id').eq('ref_key', ref).maybeSingle()
+            if (!ex) {
+              await supabase.from('member_points_ledger').insert({ member_id: payload.member_id, delta: bonus, reason: '評分提交獎勵', order_id: payload.order_id, ref_key: ref, created_at: new Date().toISOString() })
+              try { await supabase.rpc('add_points_to_member', { p_member_id: payload.member_id, p_delta: bonus }) } catch {}
+            }
+          }
+        } catch {}
       }
     } catch (e) { errorMsg = String(e?.message || e) }
 

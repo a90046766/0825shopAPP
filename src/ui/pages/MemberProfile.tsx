@@ -11,6 +11,7 @@ export default function MemberProfilePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [points, setPoints] = useState<number>(0)
+  const [ledger, setLedger] = useState<any[]>([])
   const [form, setForm] = useState({ name: '', email: '', phone: '', address: '' })
   const [saving, setSaving] = useState(false)
   const [memberCode, setMemberCode] = useState<string>('')
@@ -54,6 +55,17 @@ export default function MemberProfilePage() {
           try { p = parseInt(localStorage.getItem('customerPoints') || '0') || 0 } catch {}
         }
         setPoints(p)
+
+        // 讀取積分明細（近 50 筆）
+        try {
+          const { data: logs } = await supabase
+            .from('member_points_ledger')
+            .select('created_at, delta, reason, order_id, ref_key')
+            .eq('member_id', member.id || email)
+            .order('created_at', { ascending: false })
+            .limit(50)
+          setLedger(Array.isArray(logs)? logs: [])
+        } catch { setLedger([]) }
       } catch (e: any) {
         setError(e?.message || '載入失敗')
       } finally {
@@ -137,6 +149,22 @@ export default function MemberProfilePage() {
               <div className="mt-4">
                 <Link to="/store/products" className="inline-block rounded bg-blue-600 px-4 py-2 text-white">前往選購</Link>
               </div>
+              {ledger.length>0 && (
+                <div className="mt-4">
+                  <div className="text-sm font-semibold text-gray-800">積分明細</div>
+                  <div className="mt-2 divide-y text-xs">
+                    {ledger.map((l:any, i:number)=> (
+                      <div key={i} className="py-2 flex items-center justify-between">
+                        <div className="min-w-0 pr-2">
+                          <div className="truncate text-gray-700">{l.reason || '回饋'}</div>
+                          <div className="text-[11px] text-gray-500">{l.order_id? `訂單 ${l.order_id}` : (l.ref_key||'')} · {new Date(l.created_at).toLocaleString('zh-TW')}</div>
+                        </div>
+                        <div className={`font-semibold ${Number(l.delta||0)>=0? 'text-emerald-700':'text-rose-700'}`}>{Number(l.delta||0)>=0? '+':''}{l.delta}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="rounded-2xl bg-white p-4 shadow md:col-span-1">
               <div className="text-sm text-gray-600">推薦分享</div>
