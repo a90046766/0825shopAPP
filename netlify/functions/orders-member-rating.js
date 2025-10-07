@@ -58,6 +58,15 @@ exports.handler = async (event) => {
         const rows = [fb]
         const { error } = await supabase.from('member_feedback').insert(rows)
         if (error) errorMsg = error.message || String(error)
+        // 通知客服/後台：有新客戶反饋（好評/建議）
+        try {
+          await supabase.from('notifications').insert({
+            title: (fb.kind === 'good' ? '客戶好評' : '客戶建議'),
+            body: `會員 ${fb.member_id} 訂單 ${fb.order_id} 提交${fb.kind === 'good' ? '好評' : '建議'}`,
+            target: 'support',
+            created_at: new Date().toISOString()
+          })
+        } catch {}
         // 加點（好評/建議）：以設定 review_bonus_points 為準（一次性、避免重複）
         try {
           const k = String(body.kind||'')
@@ -107,6 +116,15 @@ exports.handler = async (event) => {
         const rows = [payload]
         const { error } = await supabase.from('member_feedback').insert(rows)
         if (error) errorMsg = error.message || String(error)
+        // 通知客服/後台：有新客戶評分
+        try {
+          await supabase.from('notifications').insert({
+            title: '客戶評分',
+            body: `會員 ${payload.member_id} 訂單 ${payload.order_id} 提交評分（${payload.stars}★）` ,
+            target: 'support',
+            created_at: new Date().toISOString()
+          })
+        } catch {}
         // 評分模式：同樣套用建議評加點
         try {
           const { data: s } = await supabase.from('app_settings').select('*').limit(1).maybeSingle()
