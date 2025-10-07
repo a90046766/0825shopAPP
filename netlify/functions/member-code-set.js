@@ -4,11 +4,21 @@
 exports.handler = async (event) => {
   const json = (code, body) => ({ statusCode: code, headers: { 'Content-Type': 'application/json; charset=utf-8' }, body: JSON.stringify(body) })
   try {
-    if ((event.httpMethod||'').toUpperCase() !== 'POST') return json(405, { success:false, error:'method_not_allowed' })
+    const method = (event.httpMethod||'').toUpperCase()
     let body = {}
-    try { body = JSON.parse(event.body||'{}') } catch {}
-    const email = String(body.email||'').toLowerCase().trim()
-    const codeVal = String(body.code||'').toUpperCase().trim()
+    if (method === 'POST') {
+      try { body = JSON.parse(event.body||'{}') } catch {}
+    }
+    const raw = event.rawUrl || (`http://local${event.path||''}${event.rawQuery?`?${event.rawQuery}`:''}`)
+    let email = String(body.email||'').toLowerCase().trim()
+    let codeVal = String(body.code||'').toUpperCase().trim()
+    if (!email || !codeVal) {
+      try {
+        const u = new URL(raw)
+        email = email || String(u.searchParams.get('email')||'').toLowerCase().trim()
+        codeVal = codeVal || String(u.searchParams.get('code')||'').toUpperCase().trim()
+      } catch {}
+    }
     if (!email || !codeVal) return json(400, { success:false, error:'missing_fields' })
 
     const { createClient } = require('@supabase/supabase-js')
