@@ -68,7 +68,14 @@ exports.handler = async (event) => {
             const { data: ex } = await supabase.from('member_points_ledger').select('id').eq('ref_key', ref).maybeSingle()
             if (!ex) {
               await supabase.from('member_points_ledger').insert({ member_id: customerId, delta: bonus, reason: (k==='good'?'好評上傳獎勵':'建議評提交獎勵'), order_id: orderId, ref_key: ref, created_at: new Date().toISOString() })
-              try { await supabase.rpc('add_points_to_member', { p_member_id: customerId, p_delta: bonus }) } catch {}
+              try { await supabase.rpc('add_points_to_member', { p_member_id: customerId, p_delta: bonus }) } catch {
+                // 後備：若 RPC 不在，直接 upsert member_points
+                try {
+                  const { data: mp } = await supabase.from('member_points').select('balance').eq('member_id', customerId).maybeSingle()
+                  const balance = Number(mp?.balance||0) + bonus
+                  await supabase.from('member_points').upsert({ member_id: customerId, balance })
+                } catch {}
+              }
             }
           }
         } catch {}
@@ -109,7 +116,13 @@ exports.handler = async (event) => {
             const { data: ex } = await supabase.from('member_points_ledger').select('id').eq('ref_key', ref).maybeSingle()
             if (!ex) {
               await supabase.from('member_points_ledger').insert({ member_id: payload.member_id, delta: bonus, reason: '評分提交獎勵', order_id: payload.order_id, ref_key: ref, created_at: new Date().toISOString() })
-              try { await supabase.rpc('add_points_to_member', { p_member_id: payload.member_id, p_delta: bonus }) } catch {}
+              try { await supabase.rpc('add_points_to_member', { p_member_id: payload.member_id, p_delta: bonus }) } catch {
+                try {
+                  const { data: mp } = await supabase.from('member_points').select('balance').eq('member_id', payload.member_id).maybeSingle()
+                  const balance = Number(mp?.balance||0) + bonus
+                  await supabase.from('member_points').upsert({ member_id: payload.member_id, balance })
+                } catch {}
+              }
             }
           }
         } catch {}

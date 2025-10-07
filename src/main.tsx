@@ -405,3 +405,27 @@ createRoot(document.getElementById('root')!).render(
     )
   }
 })()
+
+// 全域攔截：動態 chunk 載入失敗（MIME 變成 text/html）時，自動重新載入一次
+;(function(){
+  try {
+    const w = window as any
+    if (w.__chunkErrorHandled) return
+    w.__chunkErrorHandled = true
+    window.addEventListener('error', function(e:any){
+      try {
+        const t = String(e?.message||'')
+        const isChunkLoadError = /Loading chunk [\w-]+ failed|Failed to fetch dynamically imported module|MIME type of \"text\/html\"/.test(t)
+        if (isChunkLoadError) {
+          const key = 'last-chunk-reload-at'
+          const last = Number(localStorage.getItem(key)||'0')
+          const now = Date.now()
+          if (now - last > 10_000) { // 10 秒避免重複循環
+            localStorage.setItem(key, String(now))
+            location.reload()
+          }
+        }
+      } catch {}
+    }, true)
+  } catch {}
+})()
