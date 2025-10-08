@@ -17,6 +17,7 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false)
   const [list, setList] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [channel, setChannel] = useState<'all'|'store'|'approvals'|'inventory'|'support'>('all')
 
   const load = async () => {
     if (!user) return
@@ -28,7 +29,7 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
         const emailLc = String(user.email||'').toLowerCase()
         // 1) 優先呼叫後端整合 API
         try {
-          const res = await fetch(`/.netlify/functions/staff-notifications?email=${encodeURIComponent(emailLc)}`)
+          const res = await fetch(`/_api/staff-notifications?email=${encodeURIComponent(emailLc)}`)
           const j = await res.json()
           if (j?.success && Array.isArray(j.data)) {
             merged = j.data
@@ -253,7 +254,8 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const unread = list.filter(n => !n.is_read).length
+  const filtered = list.filter((n:any)=> channel==='all' ? true : (String(n.channel||'')===channel))
+  const unread = filtered.filter((n:any)=> !n.is_read).length
 
   const extractOrderId = (text: string) => {
     try {
@@ -289,12 +291,20 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
             </div>
             <div className="divide-y">
               {loading && <div className="p-3 text-sm text-gray-500">載入中...</div>}
-              {!loading && list.length===0 && <div className="p-3 text-sm text-gray-500">目前沒有通知</div>}
-              {list.map(n => {
+              {!loading && filtered.length===0 && <div className="p-3 text-sm text-gray-500">目前沒有通知</div>}
+              {/* 簡易頻道篩選 */}
+              <div className="p-2 flex items-center gap-2 text-xs text-gray-700">
+                <span className="text-gray-500">分類</span>
+                {['all','store','approvals','inventory','support'].map((ch:any)=>(
+                  <button key={ch} onClick={()=>setChannel(ch)} className={`rounded border px-2 py-0.5 ${channel===ch?'bg-gray-900 text-white border-gray-900':'bg-white text-gray-700 hover:bg-gray-50'}`}>{ch}</button>
+                ))}
+              </div>
+              {filtered.map(n => {
                 const orderId = extractOrderId(String(n.message||'') + ' ' + String(n.title||''))
                 return (
                   <div key={n.id} className={`p-3 ${n.is_read? 'bg-white':'bg-blue-50'}`}>
                     <div className="text-sm font-medium">{n.title}</div>
+                    {n.channel && <div className="mt-0.5 text-[10px] inline-block rounded bg-gray-100 px-1.5 text-gray-600">{n.channel}</div>}
                     {n.data && (
                       <div className="mt-1 text-sm text-gray-700">
                         <div>會員：<span className="font-mono">{n.data.member_code||n.data.member_id||''}</span></div>

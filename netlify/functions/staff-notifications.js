@@ -17,7 +17,7 @@ exports.handler = async (event) => {
     // 讀取最新通知
     const { data, error } = await supabase
       .from('notifications')
-      .select('id,title,body,message,target,target_user_email,targetEmails,created_at,expires_at,sent_at,scheduled_at')
+      .select('id,title,body,message,target,target_user_email,targetEmails,channel,created_at,expires_at,sent_at,scheduled_at')
       .order('created_at', { ascending: false })
       .limit(200)
     if (error) return json(200, { success: false, error: error.message })
@@ -63,11 +63,25 @@ exports.handler = async (event) => {
             }
           } catch {}
         }
+        const ch = (()=>{
+          if (n.channel) return String(n.channel)
+          try { if (dataObj && (dataObj.kind==='good' || dataObj.kind==='suggest' || dataObj.kind==='score')) return 'support' } catch {}
+          const t = String(n.title||'')
+          if (t.includes('新訂單')) return 'store'
+          if (t.includes('技師申請') || t.includes('申請')) return 'approvals'
+          if (t.includes('採購') || t.includes('庫存')) return 'inventory'
+          const tgt = String(n.target||'')
+          if (tgt==='inventory') return 'inventory'
+          if (tgt==='approvals') return 'approvals'
+          if (tgt==='support' || tgt==='staff' || tgt==='admin') return 'support'
+          return 'support'
+        })()
         return {
           id: n.id,
           title: n.title,
           message: dataObj ? '' : (n.body || n.message),
           data: dataObj,
+          channel: ch,
           is_read: false,
           created_at: n.created_at
         }
