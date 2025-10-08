@@ -417,6 +417,20 @@ class SupabaseOrderRepo implements OrderRepo {
 
       // 回退流程（兩段式）：先產生單號再插入
       const row = toDbRow(draft)
+      // 自動綁定會員：若未提供 memberId 且有 customerEmail，嘗試以 email 反查 members.id
+      try {
+        if (!row['member_id']) {
+          const email = String(row['customer_email']||'').toLowerCase()
+          if (email) {
+            const { data: m } = await supabase
+              .from('members')
+              .select('id')
+              .eq('email', email)
+              .maybeSingle()
+            if (m?.id) row['member_id'] = m.id
+          }
+        }
+      } catch {}
       // 若有 createdBy，轉到 snake case 欄位
       if ((draft as any).createdBy && !row['created_by']) row['created_by'] = (draft as any).createdBy
       row.id = generateUUID()
