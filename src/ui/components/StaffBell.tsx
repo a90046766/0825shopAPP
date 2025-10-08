@@ -26,78 +26,91 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
       let merged: any[] = []
       try {
         const emailLc = String(user.email||'').toLowerCase()
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(200)
-        if (!error && Array.isArray(data)) {
-          const now = new Date()
-          merged = (data||[])
-            .filter((n:any)=>{
-              const t = String(n.target||'')
-              if (t==='all') return true
-              if (t==='user') return String(n.target_user_email||'').toLowerCase()===emailLc
-              if (t==='tech' || t==='technician' || t==='technicians') return (user.role==='technician')
-              if (t==='support' || t==='staff' || t==='admin') return (user.role==='support' || user.role==='admin')
-              if (t==='subset') {
-                const list = Array.isArray(n.targetEmails) ? n.targetEmails.map((x:string)=>String(x||'').toLowerCase()) : []
-                return list.includes(emailLc)
-              }
-              return false
-            })
-            .filter((n:any)=>{
-              const notExpired = !n.expires_at || new Date(n.expires_at) > now
-              const delivered = (n.sent_at && new Date(n.sent_at) <= now) || (n.scheduled_at && new Date(n.scheduled_at) <= now) || !n.sent_at
-              return notExpired && delivered
-            })
-            .map((n:any)=>{
-              let dataObj:any = null
-              try { if (n.body && typeof n.body==='string' && n.body.trim().startsWith('{')) dataObj = JSON.parse(n.body) } catch {}
-              // 舊通知（非 JSON）解析：盡力從文字抽取 member_id 與 order_id
-              if (!dataObj) {
-                try {
-                  const text = String(n.body || n.message || '')
-                  const title = String(n.title || '')
-                  const uuid = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i)
-                  const od = text.match(/\bOD[0-9]+\b/i)
-                  const kind = title.includes('好評') ? 'good' : (title.includes('建議') ? 'suggest' : (title.includes('評分') ? 'score' : undefined))
-                  if (uuid || od || kind) {
-                    dataObj = {
-                      kind,
-                      member_id: uuid ? uuid[0] : undefined,
-                      order_id: od ? od[0] : undefined,
-                      comment: kind==='suggest' ? text : undefined
+        // 1) 優先呼叫後端整合 API
+        try {
+          const res = await fetch(`/.netlify/functions/staff-notifications?email=${encodeURIComponent(emailLc)}`)
+          const j = await res.json()
+          if (j?.success && Array.isArray(j.data)) {
+            merged = j.data
+          }
+        } catch {}
+        // 2) 後備：直接從 Supabase 讀取（舊邏輯保留）
+        if (merged.length === 0) {
+          const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(200)
+          if (!error && Array.isArray(data)) {
+            const now = new Date()
+            merged = (data||[])
+              .filter((n:any)=>{
+                const t = String(n.target||'')
+                if (t==='all') return true
+                if (t==='user') return String(n.target_user_email||'').toLowerCase()===emailLc
+                if (t==='tech' || t==='technician' || t==='technicians') return (user.role==='technician')
+                if (t==='support' || t==='staff' || t==='admin') return (user.role==='support' || user.role==='admin')
+                if (t==='subset') {
+                  const list = Array.isArray(n.targetEmails) ? n.targetEmails.map((x:string)=>String(x||'').toLowerCase()) : []
+                  return list.includes(emailLc)
+                }
+                return false
+              })
+              .filter((n:any)=>{
+                const notExpired = !n.expires_at || new Date(n.expires_at) > now
+                const delivered = (n.sent_at && new Date(n.sent_at) <= now) || (n.scheduled_at && new Date(n.scheduled_at) <= now) || !n.sent_at
+                return notExpired && delivered
+              })
+              .map((n:any)=>{
+                let dataObj:any = null
+                try { if (n.body && typeof n.body==='string' && n.body.trim().startsWith('{')) dataObj = JSON.parse(n.body) } catch {}
+                // 舊通知（非 JSON）解析：盡力從文字抽取 member_id 與 order_id
+                if (!dataObj) {
+                  try {
+                    const text = String(n.body || n.message || '')
+                    const title = String(n.title || '')
+                    const uuid = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i)
+                    const od = text.match(/\bOD[0-9]+\b/i)
+                    const kind = title.includes('好評') ? 'good' : (title.includes('建議') ? 'suggest' : (title.includes('評分') ? 'score' : undefined))
+                    if (uuid || od || kind) {
+                      dataObj = {
+                        kind,
+                        member_id: uuid ? uuid[0] : undefined,
+                        order_id: od ? od[0] : undefined,
+                        comment: kind==='suggest' ? text : undefined
+                      }
                     }
-                  }
-                } catch {}
-              }
-              return {
-                id: n.id,
-                title: n.title,
-                message: dataObj ? '' : (n.body || n.message),
-                data: dataObj,
-                is_read: false,
-                created_at: n.created_at
-              }
-            })
-
-          // 讀取已讀紀錄
-          try {
-            const ids = (merged||[]).map((it:any)=>it.id).filter(Boolean)
-            if (ids.length>0) {
-              const { data: reads } = await supabase
-                .from('notifications_read')
-                .select('notification_id')
-                .in('notification_id', ids)
-                .eq('user_email', emailLc)
-              const readSet = new Set((reads||[]).map((r:any)=>r.notification_id))
-              merged = (merged||[]).map((it:any)=> ({ ...it, is_read: readSet.has(it.id) || !!it.is_read }))
-            }
-          } catch {}
+                  } catch {}
+                }
+                return {
+                  id: n.id,
+                  title: n.title,
+                  message: dataObj ? '' : (n.body || n.message),
+                  data: dataObj,
+                  is_read: false,
+                  created_at: n.created_at
+                }
+              })
+            // 後續處理（去重、補碼等）保持不變，會在下方處理
+          }
         }
+
+        // 讀取已讀紀錄（保持與原邏輯一致）
+        try {
+          const ids = (merged||[]).map((it:any)=>it.id).filter(Boolean)
+          if (ids.length>0) {
+            const { data: reads } = await supabase
+              .from('notifications_read')
+              .select('notification_id')
+              .in('notification_id', ids)
+              .eq('user_email', emailLc)
+            const readSet = new Set((reads||[]).map((r:any)=>r.notification_id))
+            merged = (merged||[]).map((it:any)=> ({ ...it, is_read: readSet.has(it.id) || !!it.is_read }))
+          }
+        } catch {}
       } catch {}
-      // 去重：同類型且 payload 相同的通知只保留一則（優先 JSON）
+
+      // 去重與補碼（保留原本邏輯）
       try {
         const map: Record<string, any> = {}
         for (const it of merged) {
@@ -107,16 +120,14 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
             } catch {}
             return `${it.title}|${it.message||''}`
           })()
-        	if (!map[key]) map[key] = it
+          if (!map[key]) map[key] = it
           else {
-            // 若已存在，優先保留有 data(JSON) 的版本
             if (!!it.data && !map[key].data) map[key] = it
           }
         }
         merged = Object.values(map)
       } catch {}
 
-      // 批次把 UUID 補成會員代碼（MO+四位數），僅在 data 沒有 member_code 時
       try {
         const needIds = Array.from(new Set(merged
           .map((it:any)=> String(it?.data?.member_id||'').trim())
@@ -137,12 +148,10 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
         }
       } catch {}
 
-      // 進一步回補：若仍缺 member_code，改以 order_id -> orders(customer_email/phone) -> members 對照
       try {
         const missing = merged.filter((it:any)=> it?.data && !it?.data?.member_code && !!it?.data?.order_id)
         const orderIds = Array.from(new Set(missing.map((it:any)=> String(it.data.order_id))))
         if (orderIds.length>0) {
-          // 先以 order_number 查，若取不到再以 id 查
           let orders:any[] = []
           try {
             const { data: o1 } = await supabase
