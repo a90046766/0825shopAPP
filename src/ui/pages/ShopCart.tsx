@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { checkMemberAuth } from '../../utils/memberAuth'
+import { supabase } from '../../utils/supabase'
 import { loadAdapters } from '../../adapters'
 
 export default function ShopCartPage() {
@@ -258,12 +259,52 @@ export default function ShopCartPage() {
       setCart(JSON.parse(savedCart))
     }
     
-    // 載入客戶積分
+    // 初始載入：若本地有暫存，先顯示，稍後會以雲端覆蓋
     const savedPoints = localStorage.getItem('customerPoints')
-    if (savedPoints) {
-      setCustomerPoints(parseInt(savedPoints))
-    }
+    if (savedPoints) setCustomerPoints(parseInt(savedPoints))
   }, [])
+
+  // 與雲端同步會員積分（以 member_points.balance 為準，回退 members.points）
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!memberUser) return
+        let p = 0
+        try {
+          if (memberUser.id) {
+            const { data: byId } = await supabase
+              .from('member_points')
+              .select('balance')
+              .eq('member_id', memberUser.id)
+              .maybeSingle()
+            if (byId && typeof (byId as any).balance === 'number') p = (byId as any).balance
+          }
+        } catch {}
+        try {
+          if (!p && memberUser.email) {
+            const { data: byEmail } = await supabase
+              .from('member_points')
+              .select('balance')
+              .eq('member_email', String(memberUser.email).toLowerCase())
+              .maybeSingle()
+            if (byEmail && typeof (byEmail as any).balance === 'number') p = (byEmail as any).balance
+          }
+        } catch {}
+        try {
+          if (!p && memberUser.email) {
+            const { data: mem } = await supabase
+              .from('members')
+              .select('points')
+              .eq('email', String(memberUser.email).toLowerCase())
+              .maybeSingle()
+            if (mem && typeof (mem as any).points === 'number') p = (mem as any).points
+          }
+        } catch {}
+        setCustomerPoints(p || 0)
+        try { localStorage.setItem('customerPoints', String(p || 0)) } catch {}
+      } catch {}
+    })()
+  }, [memberUser?.id, memberUser?.email])
 
   // 儲存購物車到 localStorage
   useEffect(() => {
