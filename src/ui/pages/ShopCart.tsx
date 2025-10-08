@@ -600,6 +600,16 @@ export default function ShopCartPage() {
             })
           }
         } catch {}
+        // 若 memberId 不在，改用 email 扣除
+        try {
+          if (usePoints && pointsToUse > 0 && !memberId && memberUser?.email) {
+            await fetch('/.netlify/functions/points-use-on-create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ memberEmail: String(memberUser.email).toLowerCase(), orderId: createdId, points: pointsToUse })
+            })
+          }
+        } catch {}
         if (usePoints && pointsToUse > 0) {
           const newPoints = customerPoints - pointsToUse
           setCustomerPoints(newPoints)

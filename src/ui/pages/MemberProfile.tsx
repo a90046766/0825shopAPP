@@ -12,7 +12,7 @@ export default function MemberProfilePage() {
   const [error, setError] = useState('')
   const [points, setPoints] = useState<number>(0)
   const [ledger, setLedger] = useState<any[]>([])
-  const [form, setForm] = useState({ name: '', email: '', phone: '', address: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', city: '', district: '', address: '' })
   const [saving, setSaving] = useState(false)
   const [memberCode, setMemberCode] = useState<string>('')
   const [shortUrl, setShortUrl] = useState<string>('')
@@ -37,7 +37,7 @@ export default function MemberProfilePage() {
       setError('')
       try {
         const email = String(member.email || '').toLowerCase()
-        setForm((f) => ({ ...f, name: member.name || '', email, phone: '', address: '' }))
+        setForm((f) => ({ ...f, name: member.name || '', email, phone: '', city: '', district: '', address: '' }))
 
         // 讀取/補齊會員資料（members 表）
         try {
@@ -47,11 +47,19 @@ export default function MemberProfilePage() {
             .eq('email', email)
             .maybeSingle()
           if (mrow) {
-            const addr = Array.isArray((mrow as any).addresses) && (mrow as any).addresses[0] ? (mrow as any).addresses[0] : ''
-            setForm({ name: mrow.name || member.name || '', email: mrow.email || email, phone: mrow.phone || '', address: addr || '' })
+            const addr = Array.isArray((mrow as any).addresses) && (mrow as any).addresses[0] ? String((mrow as any).addresses[0]) : ''
+            // 嘗試切分為 縣市/區域/街道門牌（簡單切分，避免複雜規則）
+            let city = '', district = '', address = ''
+            try {
+              if (addr) {
+                city = addr.slice(0, 3)
+                district = addr.slice(3, 6)
+                address = addr.slice(6)
+              }
+            } catch {}
+            setForm({ name: mrow.name || member.name || '', email: mrow.email || email, phone: mrow.phone || '', city, district, address })
             const currentCode = String((mrow as any).code || '')
             if (currentCode) { setMemberCode(currentCode); syncLocalMemberCode(currentCode) }
-            // 直接鎖定特定會員為 MO7777（依你要求）
             try {
               const targetEmail = 'a13788051@gmail.com'
               if (String((mrow as any).email||'').toLowerCase() === targetEmail && currentCode !== 'MO7777') {
@@ -62,38 +70,12 @@ export default function MemberProfilePage() {
                 syncLocalMemberCode('MO7777')
               }
             } catch {}
-          } else {
-            // 不存在會員資料時，建立一筆並產生會員編號
-            const prefixes = ['MO','MP','MQ','MR','MS','MT','MU','MV','MW','MX','MY','MZ']
-            const gen4 = () => String(Math.floor(Math.random()*10000)).padStart(4,'0')
-            let newCode = ''
-            try {
-              for (const pf of prefixes) {
-                let tried = 0
-                while (tried < 50) {
-                  const candidate = pf + gen4()
-                  const { data: exists } = await supabase.from('members').select('email').eq('code', candidate).maybeSingle()
-                  if (!exists) { newCode = candidate; break }
-                  tried++
-                }
-                if (newCode) break
-              }
-            } catch {}
-            const code = newCode || ('MO' + gen4())
-            try {
-              const { data: ex2 } = await supabase.from('members').select('email').eq('email', email).maybeSingle()
-              if (ex2) await supabase.from('members').update({ name: member.name||'', phone: '', addresses: [], code }).eq('email', email)
-              else await supabase.from('members').insert({ email, name: member.name||'', phone: '', addresses: [], code })
-            } catch {}
-            setMemberCode(code)
-            syncLocalMemberCode(code)
           }
         } catch {}
 
         // 讀取積分（以 member_id 優先；後備 email；最後 localStorage）
         let p = 0
         try {
-          // 先以 member.id 查
           if (member.id) {
             const { data: rowById } = await supabase
               .from('member_points')
@@ -102,7 +84,6 @@ export default function MemberProfilePage() {
               .maybeSingle()
             if (rowById && typeof (rowById as any).balance === 'number') p = (rowById as any).balance
           }
-          // 後備以 email 查
           if (!p) {
             const { data: rowByEmail } = await supabase
               .from('member_points')
@@ -142,7 +123,8 @@ export default function MemberProfilePage() {
     setError('')
     try {
       const email = String(member.email || '').toLowerCase()
-      const row: any = { name: form.name || '', phone: form.phone || '', addresses: form.address ? [form.address] : [] }
+      const addressStr = `${(form.city||'')}${(form.district||'')}${(form.address||'')}`.trim()
+      const row: any = { name: form.name || '', phone: form.phone || '', addresses: addressStr ? [addressStr] : [] }
       const { data: ex } = await supabase.from('members').select('email').eq('email', email).maybeSingle()
       if (ex) {
         const { error } = await supabase.from('members').update(row).eq('email', email)
@@ -200,9 +182,19 @@ export default function MemberProfilePage() {
                   <label className="block text-sm text-gray-700 mb-1">電話</label>
                   <input value={form.phone} onChange={e=>setForm({...form, phone: e.target.value})} className="w-full rounded border px-3 py-2" />
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">地址</label>
-                  <input value={form.address} onChange={e=>setForm({...form, address: e.target.value})} className="w-full rounded border px-3 py-2" placeholder="城市區域與街道門牌" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">縣市</label>
+                    <input value={form.city} onChange={e=>setForm({...form, city: e.target.value})} className="w-full rounded border px-3 py-2" placeholder="例如：台北市" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">區域</label>
+                    <input value={form.district} onChange={e=>setForm({...form, district: e.target.value})} className="w-full rounded border px-3 py-2" placeholder="例如：大安區" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">地址</label>
+                    <input value={form.address} onChange={e=>setForm({...form, address: e.target.value})} className="w-full rounded border px-3 py-2" placeholder="例如：重慶南路一段100號6樓" />
+                  </div>
                 </div>
               </div>
               <div className="mt-4 text-right">

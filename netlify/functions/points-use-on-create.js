@@ -7,16 +7,30 @@ exports.handler = async (event) => {
     if ((event.httpMethod||'').toUpperCase() !== 'POST') return json(405, { success:false, error:'method_not_allowed' })
     let body = {}
     try { body = JSON.parse(event.body||'{}') } catch {}
-    const memberId = String(body.memberId||'')
+    let memberId = String(body.memberId||'')
+    const memberEmail = String(body.memberEmail||'').toLowerCase()
     const orderId = String(body.orderId||'')
     const points = Math.max(0, Number(body.points||0))
-    if (!memberId || !orderId || !(points>0)) return json(400, { success:false, error:'invalid_params' })
+    if ((!memberId && !memberEmail) || !orderId || !(points>0)) return json(400, { success:false, error:'invalid_params' })
 
     const { createClient } = require('@supabase/supabase-js')
     const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
     if (!url || !key) return json(500, { success:false, error:'missing_service_role' })
     const supabase = createClient(url, key, { auth: { persistSession: false } })
+
+    // 若未提供 memberId，以 email 反查 members.id
+    if (!memberId && memberEmail) {
+      try {
+        const { data: m } = await supabase
+          .from('members')
+          .select('id')
+          .eq('email', memberEmail)
+          .maybeSingle()
+        if (m?.id) memberId = String(m.id)
+      } catch {}
+    }
+    if (!memberId) return json(400, { success:false, error:'member_not_found' })
 
     const refKey = `order_points_used_${orderId}`
     const { data: existed } = await supabase.from('member_points_ledger').select('id').eq('ref_key', refKey).maybeSingle()
