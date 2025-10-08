@@ -27,11 +27,26 @@ exports.handler = async (event) => {
       })
       .map((n) => {
         const title = String(n.title || '')
-        const msg = String(n.body || '')
+        const raw = String(n.body || '')
         const kind = title.includes('好評') ? 'good' : (title.includes('建議') ? 'suggest' : 'score')
-        const mid = (() => { const m = msg.match(/會員\s+([A-Za-z0-9\-]+)/); return m ? m[1] : '' })()
-        const oid = (() => { const m = msg.match(/訂單\s+([A-Za-z0-9\-:_]+)/); return m ? m[1] : '' })()
-        return { id: n.id, kind, member_id: mid, order_id: oid, comment: (kind==='suggest'? msg: ''), created_at: n.created_at }
+        let payload = null
+        try { if (raw.trim().startsWith('{')) payload = JSON.parse(raw) } catch {}
+        if (payload) {
+          return {
+            id: n.id,
+            kind: String(payload.kind||kind),
+            member_id: String(payload.member_id||''),
+            member_code: payload.member_code || null,
+            order_id: String(payload.order_id||''),
+            comment: String(payload.comment||'') || null,
+            asset_path: payload.asset_path || null,
+            created_at: n.created_at
+          }
+        }
+        // 舊版純文字回退：試著從訊息中抽取 UUID 與訂單編號
+        const mid = (() => { const m = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i); return m ? m[0] : '' })()
+        const oid = (() => { const m = raw.match(/\bOD[0-9]+\b/i); return m ? m[0] : '' })()
+        return { id: n.id, kind, member_id: mid, member_code: null, order_id: oid, comment: (kind==='suggest'? raw: ''), created_at: n.created_at }
       })
 
     // 針對清單中的訂單補上客戶名稱/電話，方便後台檢視

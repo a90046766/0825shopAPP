@@ -60,7 +60,13 @@ exports.handler = async (event) => {
         if (error) errorMsg = error.message || String(error)
         // 通知客服/後台：有新客戶反饋（好評/建議）
         try {
-          const payload = { kind: fb.kind, member_id: fb.member_id, order_id: fb.order_id, asset_path: fb.asset_path||null, comment: fb.comment||null }
+          // 取會員代碼以避免前端顯示 UUID
+          let memberCode = ''
+          try {
+            const { data: mem } = await supabase.from('members').select('code').eq('id', fb.member_id).maybeSingle()
+            memberCode = String(mem?.code || '')
+          } catch {}
+          const payload = { kind: fb.kind, member_id: fb.member_id, member_code: memberCode || null, order_id: fb.order_id, asset_path: fb.asset_path||null, comment: fb.comment||null }
           await supabase.from('notifications').insert({
             title: (fb.kind === 'good' ? '客戶好評' : '客戶建議'),
             body: JSON.stringify(payload),
@@ -119,7 +125,12 @@ exports.handler = async (event) => {
         if (error) errorMsg = error.message || String(error)
         // 通知客服/後台：有新客戶評分
         try {
-          const note = { kind: 'score', member_id: payload.member_id, order_id: payload.order_id, stars: payload.stars, comment: payload.comment||null }
+          let memberCode = ''
+          try {
+            const { data: mem } = await supabase.from('members').select('code').eq('id', payload.member_id).maybeSingle()
+            memberCode = String(mem?.code || '')
+          } catch {}
+          const note = { kind: 'score', member_id: payload.member_id, member_code: memberCode || null, order_id: payload.order_id, stars: payload.stars, comment: payload.comment||null }
           await supabase.from('notifications').insert({
             title: '客戶評分',
             body: JSON.stringify(note),

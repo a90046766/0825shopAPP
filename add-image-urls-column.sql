@@ -7,3 +7,5 @@ COMMENT ON COLUMN inventory.image_urls IS '工具設備圖片URL陣列，儲存�
 
 
 
+
+

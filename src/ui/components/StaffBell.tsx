@@ -79,6 +79,46 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
           } catch {}
         }
       } catch {}
+      // 去重：同類型且 payload 相同的通知只保留一則（優先 JSON）
+      try {
+        const map: Record<string, any> = {}
+        for (const it of merged) {
+          const key = (()=>{
+            try {
+              if (it.data && it.data.kind && it.data.order_id) return `${it.data.kind}:${it.data.order_id}:${it.data.member_id||''}`
+            } catch {}
+            return `${it.title}|${it.message||''}`
+          })()
+        	if (!map[key]) map[key] = it
+          else {
+            // 若已存在，優先保留有 data(JSON) 的版本
+            if (!!it.data && !map[key].data) map[key] = it
+          }
+        }
+        merged = Object.values(map)
+      } catch {}
+
+      // 批次把 UUID 補成會員代碼（MO+四位數），僅在 data 沒有 member_code 時
+      try {
+        const needIds = Array.from(new Set(merged
+          .map((it:any)=> String(it?.data?.member_id||'').trim())
+          .filter((x:string)=> !!x)))
+        if (needIds.length>0) {
+          const { data: mems } = await supabase
+            .from('members')
+            .select('id,code')
+            .in('id', needIds as any)
+          const codeMap = new Map((mems||[]).map((m:any)=> [String(m.id), String(m.code||'')]))
+          merged = merged.map((it:any)=> {
+            if (it?.data?.member_id && !it?.data?.member_code) {
+              const code = codeMap.get(String(it.data.member_id)) || ''
+              return { ...it, data: { ...it.data, member_code: code||null } }
+            }
+            return it
+          })
+        }
+      } catch {}
+
       setList(merged)
     } catch {}
     setLoading(false)
@@ -160,16 +200,19 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
                     <div className="text-sm font-medium">{n.title}</div>
                     {n.data && (
                       <div className="mt-1 text-sm text-gray-700">
-                        <div>會員：<span className="font-mono">{n.data.member_id||''}</span></div>
+                        <div>會員：<span className="font-mono">{n.data.member_code||n.data.member_id||''}</span></div>
                         <div>訂單：<span className="font-mono">{n.data.order_id||''}</span></div>
-                        {n.data.kind==='suggest' && n.data.comment && (
+                        {n.data.stars ? (
+                          <div className="mt-1">評分：<span className="font-mono">{n.data.stars}</span> ⭐</div>
+                        ) : null}
+                        {n.data.comment ? (
                           <div className="mt-1 whitespace-pre-wrap">{n.data.comment}</div>
-                        )}
-                        {n.data.kind==='good' && n.data.asset_path && (
+                        ) : null}
+                        {n.data.asset_path ? (
                           <div className="mt-1">
                             <img src={`${supabase.storage.from('review-uploads').getPublicUrl(n.data.asset_path).data.publicUrl}`} alt="upload" className="max-h-40 rounded border" />
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     )}
                     {!n.data && <div className="text-sm text-gray-600 mt-1">{n.message}</div>}
