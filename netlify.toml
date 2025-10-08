@@ -61,6 +61,10 @@
   from = "/api/member-feedback-list"
   to = "/.netlify/functions/member-feedback-list"
   status = 200
+[[redirects]]
+  from = "/api/notifications-feedback-list"
+  to = "/.netlify/functions/notifications-feedback-list"
+  status = 200
 
 [[redirects]]
   from = "/api/points/apply-order"

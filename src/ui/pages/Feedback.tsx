@@ -18,34 +18,18 @@ export default function FeedbackPage(){
   const load = async()=>{
     setLoading(true)
     try {
-      // 僅走 Service Role API，避免 RLS 與 CORS
+      // 1) 先用 Service Role 讀 DB 反饋
       const res = await fetch('/api/member-feedback-list')
       const j = await res.json()
-      if (j?.success && Array.isArray(j.data) && j.data.length>0) {
-        setRows(j.data)
-      } else {
-        // 後備：從 notifications 抽取『客戶好評/建議/評分』並映射為清單
-        try {
-          const { data } = await supabase
-            .from('notifications')
-            .select('id,title,body,created_at')
-            .order('created_at', { ascending: false })
-            .limit(200)
-          const list = (data||[]).filter((n:any)=>{
-            const t = String(n.title||'')
-            return t.includes('客戶好評') || t.includes('客戶建議') || t.includes('客戶評分')
-          }).map((n:any)=>{
-            const title = String(n.title||'')
-            const msg = String(n.body||'')
-            const kind = title.includes('好評') ? 'good' : (title.includes('建議') ? 'suggest' : 'score')
-            const mid = (()=>{ const m=msg.match(/會員\s+([A-Za-z0-9\-]+)/); return m? m[1]: '' })()
-            const oid = (()=>{ const m=msg.match(/訂單\s+([A-Za-z0-9\-:_]+)/); return m? m[1]: '' })()
-            return { id: n.id, kind, member_id: mid, order_id: oid, comment: (kind==='suggest'? msg: ''), created_at: n.created_at }
-          })
-          setRows(list)
-        } catch { setRows([]) }
-      }
-    } catch { setRows([]) }
+      if (j?.success && Array.isArray(j.data) && j.data.length>0) { setRows(j.data); setLoading(false); return }
+    } catch {}
+    try {
+      // 2) 無資料則改用 Service Role 讀通知映射
+      const res2 = await fetch('/api/notifications-feedback-list')
+      const j2 = await res2.json()
+      if (j2?.success && Array.isArray(j2.data)) { setRows(j2.data); setLoading(false); return }
+    } catch {}
+    setRows([])
     setLoading(false)
   }
   useEffect(()=>{ if (role==='admin' || role==='support') load() }, [role])
