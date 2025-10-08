@@ -89,6 +89,29 @@ export default function ShopCartPage() {
     }
   }, [])
 
+  // 以 members 表補齊電話與地址（若有）
+  useEffect(() => {
+    (async()=>{
+      try{
+        if (!memberUser?.email) return
+        const emailLc = String(memberUser.email).toLowerCase()
+        const { data: m } = await supabase
+          .from('members')
+          .select('phone,addresses')
+          .eq('email', emailLc)
+          .maybeSingle()
+        if (m) {
+          const addr = Array.isArray((m as any).addresses) && (m as any).addresses[0] ? (m as any).addresses[0] : ''
+          setCustomerInfo(prev => ({
+            ...prev,
+            phone: prev.phone || (m as any).phone || '',
+            street: prev.street || addr || ''
+          }))
+        }
+      } catch {}
+    })()
+  }, [memberUser?.email])
+
   // 載入「我們的承諾」（CMS 優先，無則使用預設）
   useEffect(() => {
     (async () => {
@@ -565,32 +588,18 @@ export default function ShopCartPage() {
         console.warn('直寫雲端失敗，改用本地暫存：', cloudErr)
       }
 
-      // 同步派工系統的 reservation_orders（最小影響：不阻斷主要流程）
-      try {
-        const payload = {
-          customer: {
-            name: customerInfo.name,
-            phone: customerInfo.phone,
-            email: customerInfo.email,
-            address: fullAddress
-          },
-          preferredDate: customerInfo.preferredDate,
-          preferredTime: customerInfo.preferredTime,
-          note: [
-            `【承諾已同意】${new Date().toISOString()}`,
-            discountCode ? `折扣碼: ${discountCode}` : ''
-          ].filter(Boolean).join('\n'),
-          items: cart.map((it:any) => ({ name: it.name, quantity: it.quantity, price: it.price }))
-        }
-        fetch('/api/orders/reservations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).catch(()=>{})
-      } catch {}
-
       // 若雲端建立成功 → 清空購物車並導向（雙保險）
       if (createdId) {
+        // 建單成功後即時扣除使用積分（寫入 ledger 與餘額）
+        try {
+          if (usePoints && pointsToUse > 0 && memberId) {
+            await fetch('/.netlify/functions/points-use-on-create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ memberId, orderId: createdId, points: pointsToUse })
+            })
+          }
+        } catch {}
         if (usePoints && pointsToUse > 0) {
           const newPoints = customerPoints - pointsToUse
           setCustomerPoints(newPoints)

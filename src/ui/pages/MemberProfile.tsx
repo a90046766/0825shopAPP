@@ -178,7 +178,6 @@ export default function MemberProfilePage() {
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Link to="/store/member/orders" className="rounded border px-3 py-1">我的訂單</Link>
-            <Link to="/login/member/reset" className="rounded bg-blue-600 px-3 py-1 text-white">忘記/重設密碼</Link>
           </div>
         </div>
 
