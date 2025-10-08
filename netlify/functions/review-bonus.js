@@ -40,6 +40,15 @@ exports.handler = async (event) => {
       const bonus = Number(settingsRow?.review_bonus_points || 0)
       if (!(bonus > 0)) return json(400, { success:false, error:'bonus_disabled' })
 
+      // 擇一規則：同一訂單 good/suggest 只能擇一申請
+      const anyKey = `review_bonus_${orderId}_${memberId}_`
+      const { data: exAny } = await supabase
+        .from('member_points_ledger')
+        .select('id, ref_key')
+        .or(`ref_key.eq.review_bonus_${orderId}_${memberId}_good,ref_key.eq.review_bonus_${orderId}_${memberId}_suggest`)
+        .limit(1)
+      if (exAny) return json(200, { success:true, message:'already_claimed_any', bonus })
+
       const stampKey = `review_bonus_${orderId}_${memberId}_${kind}`
       const { data: ex } = await supabase.from('member_points_ledger').select('id').eq('ref_key', stampKey).maybeSingle()
       if (ex) return json(200, { success:true, message:'already_claimed', bonus })
@@ -66,7 +75,21 @@ exports.handler = async (event) => {
       const row = { member_id: memberId, delta: bonus, reason: desc, order_id: orderId, ref_key: stampKey, created_at: new Date().toISOString() }
       const { error: ie } = await supabase.from('member_points_ledger').insert(row)
       if (ie) return json(500, { success:false, error: ie.message })
-      try { await supabase.rpc('add_points_to_member', { p_member_id: memberId, p_delta: bonus }) } catch {}
+      try {
+        await supabase.rpc('add_points_to_member', { p_member_id: memberId, p_delta: bonus })
+      } catch {
+        try {
+          const { data: mp } = await supabase.from('member_points').select('balance').eq('member_id', memberId).maybeSingle()
+          const balance = Number(mp?.balance||0) + bonus
+          await supabase.from('member_points').upsert({ member_id: memberId, balance })
+        } catch {}
+      }
+      // 同步更新 members.points，供前台可折抵顯示
+      try {
+        const { data: m } = await supabase.from('members').select('points').eq('id', memberId).maybeSingle()
+        const next = Number(m?.points || 0) + bonus
+        await supabase.from('members').update({ points: next }).eq('id', memberId)
+      } catch {}
       return json(200, { success:true, bonus })
     }
 

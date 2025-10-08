@@ -41,7 +41,7 @@ exports.handler = async (event) => {
           asset_path: body.asset_path || null,
           created_at: new Date().toISOString()
         }
-        // 先檢查是否已提交過
+        // 先檢查是否已提交過（同類型）
         try {
           const { data: existed } = await supabase
             .from('member_feedback')
@@ -52,6 +52,19 @@ exports.handler = async (event) => {
             .limit(1)
           if (Array.isArray(existed) && existed.length>0) {
             return { statusCode: 200, body: JSON.stringify({ success: false, error: 'already_submitted' }) }
+          }
+        } catch {}
+        // 擇一規則：同一會員+同訂單，good/suggest 只能擇一提交
+        try {
+          const { data: anyExisted } = await supabase
+            .from('member_feedback')
+            .select('id, kind')
+            .eq('member_id', fb.member_id)
+            .eq('order_id', fb.order_id)
+            .in('kind', ['good','suggest'])
+            .limit(1)
+          if (Array.isArray(anyExisted) && anyExisted.length > 0) {
+            return { statusCode: 200, body: JSON.stringify({ success: false, error: 'already_submitted_any' }) }
           }
         } catch {}
         // 欄位相容：若資料表使用不同命名，嘗試對應
@@ -92,6 +105,12 @@ exports.handler = async (event) => {
                   await supabase.from('member_points').upsert({ member_id: customerId, balance })
                 } catch {}
               }
+              // 同步更新 members.points（供前台扣抵使用）
+              try {
+                const { data: m } = await supabase.from('members').select('points').eq('id', customerId).maybeSingle()
+                const next = Number(m?.points || 0) + bonus
+                await supabase.from('members').update({ points: next }).eq('id', customerId)
+              } catch {}
             }
           }
         } catch {}
