@@ -119,6 +119,76 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
         }
       } catch {}
 
+      // 進一步回補：若仍缺 member_code，改以 order_id -> orders(customer_email/phone) -> members 對照
+      try {
+        const missing = merged.filter((it:any)=> it?.data && !it?.data?.member_code && !!it?.data?.order_id)
+        const orderIds = Array.from(new Set(missing.map((it:any)=> String(it.data.order_id))))
+        if (orderIds.length>0) {
+          // 先以 order_number 查，若取不到再以 id 查
+          let orders:any[] = []
+          try {
+            const { data: o1 } = await supabase
+              .from('orders')
+              .select('id, order_number, customer_email, customer_phone')
+              .in('order_number', orderIds as any)
+            orders = Array.isArray(o1) ? o1 : []
+          } catch {}
+          try {
+            const foundNumbers = new Set(orders.map((o:any)=> String(o.order_number||'') ))
+            const rest = orderIds.filter(id => !foundNumbers.has(String(id)))
+            if (rest.length>0) {
+              const { data: o2 } = await supabase
+                .from('orders')
+                .select('id, order_number, customer_email, customer_phone')
+                .in('id', rest as any)
+              if (Array.isArray(o2)) orders = [...orders, ...o2]
+            }
+          } catch {}
+
+          const emails = Array.from(new Set(orders.map((o:any)=> String(o.customer_email||'').toLowerCase()).filter(Boolean)))
+          const phones = Array.from(new Set(orders.map((o:any)=> String(o.customer_phone||'')).filter(Boolean)))
+
+          const emailMap = new Map<string,string>()
+          const phoneMap = new Map<string,string>()
+          try {
+            if (emails.length>0) {
+              const { data: ms } = await supabase
+                .from('members')
+                .select('email,code')
+                .in('email', emails as any)
+              for (const m of (ms||[])) emailMap.set(String(m.email||'').toLowerCase(), String(m.code||''))
+            }
+          } catch {}
+          try {
+            if (phones.length>0) {
+              const { data: ms2 } = await supabase
+                .from('members')
+                .select('phone,code')
+                .in('phone', phones as any)
+              for (const m of (ms2||[])) phoneMap.set(String(m.phone||''), String(m.code||''))
+            }
+          } catch {}
+
+          const orderToCode = new Map<string,string>()
+          for (const o of orders) {
+            const codeByEmail = emailMap.get(String(o.customer_email||'').toLowerCase()) || ''
+            const codeByPhone = phoneMap.get(String(o.customer_phone||'')) || ''
+            const code = codeByEmail || codeByPhone || ''
+            if (code) {
+              orderToCode.set(String(o.order_number||o.id), code)
+            }
+          }
+
+          merged = merged.map((it:any)=> {
+            if (it?.data && !it?.data?.member_code && it?.data?.order_id) {
+              const code = orderToCode.get(String(it.data.order_id)) || ''
+              if (code) return { ...it, data: { ...it.data, member_code: code } }
+            }
+            return it
+          })
+        }
+      } catch {}
+
       setList(merged)
     } catch {}
     setLoading(false)
