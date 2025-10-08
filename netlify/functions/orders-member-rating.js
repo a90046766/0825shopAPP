@@ -60,9 +60,10 @@ exports.handler = async (event) => {
         if (error) errorMsg = error.message || String(error)
         // 通知客服/後台：有新客戶反饋（好評/建議）
         try {
+          const payload = { kind: fb.kind, member_id: fb.member_id, order_id: fb.order_id, message: (fb.kind==='good'?'客戶好評':'客戶建議') }
           await supabase.from('notifications').insert({
             title: (fb.kind === 'good' ? '客戶好評' : '客戶建議'),
-            body: `會員 ${fb.member_id} 訂單 ${fb.order_id} 提交${fb.kind === 'good' ? '好評' : '建議'}`,
+            body: JSON.stringify(payload),
             target: 'support',
             created_at: new Date().toISOString()
           })
@@ -118,9 +119,10 @@ exports.handler = async (event) => {
         if (error) errorMsg = error.message || String(error)
         // 通知客服/後台：有新客戶評分
         try {
+          const note = { kind: 'score', member_id: payload.member_id, order_id: payload.order_id, stars: payload.stars }
           await supabase.from('notifications').insert({
             title: '客戶評分',
-            body: `會員 ${payload.member_id} 訂單 ${payload.order_id} 提交評分（${payload.stars}★）` ,
+            body: JSON.stringify(note),
             target: 'support',
             created_at: new Date().toISOString()
           })

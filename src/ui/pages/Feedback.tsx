@@ -73,7 +73,7 @@ export default function FeedbackPage(){
               <div className="text-xs text-gray-500">{new Date(r.created_at).toLocaleString('zh-TW')}</div>
             </div>
             <div className="mt-1 text-gray-700">
-              <div>會員：<span className="font-mono">{r.member_id}</span></div>
+              <div>會員：<span className="font-mono">{r.member_id}</span> {r.customer_name? `｜${r.customer_name}`:''} {r.customer_phone? `｜${r.customer_phone}`:''}</div>
               <div>訂單：<span className="font-mono">{r.order_id}</span></div>
             </div>
             {r.kind==='suggest' && r.comment && (
