@@ -189,6 +189,35 @@ exports.handler = async (event) => {
       }
     } catch {}
 
+    // 從 member_feedback 補齊 comment / asset_path
+    try {
+      const toFill = list.filter((it)=> it?.data && (!!it.data.member_id) && (!!it.data.order_id) && ((it.data.kind==='suggest' && !it.data.comment) || (it.data.kind==='good' && !it.data.asset_path)))
+      const keys = Array.from(new Set(toFill.map((it)=> `${it.data.kind||''}|${it.data.member_id}|${it.data.order_id}`)))
+      if (keys.length>0) {
+        const kinds = Array.from(new Set(toFill.map((it)=> String(it.data.kind||''))))
+        const memberIds = Array.from(new Set(toFill.map((it)=> String(it.data.member_id))))
+        const orderIds2 = Array.from(new Set(toFill.map((it)=> String(it.data.order_id))))
+        const { data: fbRows } = await supabase
+          .from('member_feedback')
+          .select('member_id,order_id,kind,comment,asset_path,created_at')
+          .in('kind', kinds)
+          .in('member_id', memberIds)
+          .in('order_id', orderIds2)
+        const map = new Map()
+        for (const r of (fbRows||[])) {
+          map.set(`${r.kind}|${r.member_id}|${r.order_id}`, { comment: r.comment||null, asset_path: r.asset_path||null })
+        }
+        list = list.map((it)=>{
+          const k = `${it?.data?.kind||''}|${it?.data?.member_id||''}|${it?.data?.order_id||''}`
+          const v = map.get(k)
+          if (v) {
+            return { ...it, data: { ...it.data, comment: it.data.comment || v.comment || null, asset_path: it.data.asset_path || v.asset_path || null } }
+          }
+          return it
+        })
+      }
+    } catch {}
+
     return json(200, { success: true, data: list })
   } catch (e) {
     return json(200, { success: false, error: 'internal_error', message: String(e?.message || e) })
