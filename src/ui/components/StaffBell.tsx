@@ -158,12 +158,35 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
                 return (
                   <div key={n.id} className={`p-3 ${n.is_read? 'bg-white':'bg-blue-50'}`}>
                     <div className="text-sm font-medium">{n.title}</div>
-                    <div className="text-sm text-gray-600 mt-1">{n.message}</div>
+                    {n.data && (
+                      <div className="mt-1 text-sm text-gray-700">
+                        <div>會員：<span className="font-mono">{n.data.member_id||''}</span></div>
+                        <div>訂單：<span className="font-mono">{n.data.order_id||''}</span></div>
+                        {n.data.kind==='suggest' && n.data.comment && (
+                          <div className="mt-1 whitespace-pre-wrap">{n.data.comment}</div>
+                        )}
+                        {n.data.kind==='good' && n.data.asset_path && (
+                          <div className="mt-1">
+                            <img src={`${supabase.storage.from('review-uploads').getPublicUrl(n.data.asset_path).data.publicUrl}`} alt="upload" className="max-h-40 rounded border" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!n.data && <div className="text-sm text-gray-600 mt-1">{n.message}</div>}
                     <div className="mt-2">
                       {orderId && (
                         <a
                           href={`/orders/${encodeURIComponent(orderId)}`}
-                          onClick={async()=>{ await readOne(n.id) }}
+                          onClick={async(e)=>{ 
+                            try { await readOne(n.id) } catch {} 
+                            // 如果後台無此單，導向客戶端訂單詳情避免白屏
+                            setTimeout(()=>{
+                              try {
+                                const pathOk = location.pathname.startsWith('/orders/')
+                                if (!pathOk) location.href = `/store/member/orders/${encodeURIComponent(orderId)}`
+                              } catch {}
+                            }, 300)
+                          }}
                           className="inline-block rounded bg-gray-900 px-2 py-1 text-xs text-white hover:bg-gray-800"
                         >查看訂單</a>
                       )}
