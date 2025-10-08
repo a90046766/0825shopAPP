@@ -39,39 +39,22 @@ export default function PublicHeader() {
         }
       } catch {}
 
-      // 確保會員存在並補配編號
+      // 讀取會員資料（統一 API）
       try {
-        await supabase.rpc('ensure_member_exists_and_code', {
-          p_email: email,
-          p_phone: phone,
-          p_name: user.name ?? phone ?? email ?? '會員'
-        });
-      } catch {}
-
-      // 讀取會員資料
-      try {
-        const conds: string[] = [];
-        if (email) conds.push(`email.eq.${email}`);
-        if (phone) conds.push(`phone.eq.${phone}`);
-        if (conds.length === 0) return;
-
-        const { data, error } = await supabase
-          .from('members')
-          .select('id,name,code,email,phone')
-          .or(conds.join(','))
-          .limit(1)
-          .maybeSingle();
-        if (!error && data) {
-          setMemberInfo(data);
+        const q = new URLSearchParams(email? { memberEmail: email } : (phone? { phone: phone }: {} as any))
+        const res = await fetch(`/_api/member/profile?${q.toString()}`)
+        const j = await res.json()
+        if (j?.success && j.data) {
+          setMemberInfo({ id: j.data.id, name: j.data.name, email: j.data.email, phone: j.data.phone, code: j.data.code })
           try {
             const old = JSON.parse(localStorage.getItem('member-auth-user') || '{}');
             localStorage.setItem('member-auth-user', JSON.stringify({
               ...old,
               role: 'member',
-              name: data.name ?? old.name,
-              email: data.email ?? old.email,
-              phone: data.phone ?? old.phone,
-              code: data.code
+              name: j.data.name ?? old.name,
+              email: j.data.email ?? old.email,
+              phone: j.data.phone ?? old.phone,
+              code: j.data.code
             }));
           } catch {}
         }

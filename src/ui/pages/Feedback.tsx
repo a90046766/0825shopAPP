@@ -18,16 +18,10 @@ export default function FeedbackPage(){
   const load = async()=>{
     setLoading(true)
     try {
-      // 1) 先用 Service Role 讀 DB 反饋
-      const res = await fetch('/api/member-feedback-list')
+      // 改為統一走通知聚合 API（Service Role）
+      const res = await fetch('/_api/notifications-feedback-list')
       const j = await res.json()
-      if (j?.success && Array.isArray(j.data) && j.data.length>0) { setRows(j.data); setLoading(false); return }
-    } catch {}
-    try {
-      // 2) 無資料則改用 Service Role 讀通知映射
-      const res2 = await fetch('/api/notifications-feedback-list')
-      const j2 = await res2.json()
-      if (j2?.success && Array.isArray(j2.data)) { setRows(j2.data); setLoading(false); return }
+      if (j?.success && Array.isArray(j.data)) { setRows(j.data); setLoading(false); return }
     } catch {}
     setRows([])
     setLoading(false)
@@ -73,7 +67,7 @@ export default function FeedbackPage(){
               <div className="text-xs text-gray-500">{new Date(r.created_at).toLocaleString('zh-TW')}</div>
             </div>
             <div className="mt-1 text-gray-700">
-              <div>會員：<span className="font-mono">{r.member_id}</span> {r.customer_name? `｜${r.customer_name}`:''} {r.customer_phone? `｜${r.customer_phone}`:''}</div>
+              <div>會員：<span className="font-mono">{r.member_code || r.member_id}</span> {r.customer_name? `｜${r.customer_name}`:''} {r.customer_phone? `｜${r.customer_phone}`:''}</div>
               <div>訂單：<span className="font-mono">{r.order_id}</span></div>
             </div>
             {r.kind==='suggest' && r.comment && (
