@@ -189,29 +189,28 @@ exports.handler = async (event) => {
       }
     } catch {}
 
-    // 從 member_feedback 補齊 comment / asset_path
+    // 從 member_feedback 補齊 comment / asset_path（若缺 member_id 也可僅靠 order_id+kind 回填）
     try {
-      const toFill = list.filter((it)=> it?.data && (!!it.data.member_id) && (!!it.data.order_id) && ((it.data.kind==='suggest' && !it.data.comment) || (it.data.kind==='good' && !it.data.asset_path)))
-      const keys = Array.from(new Set(toFill.map((it)=> `${it.data.kind||''}|${it.data.member_id}|${it.data.order_id}`)))
-      if (keys.length>0) {
-        const kinds = Array.from(new Set(toFill.map((it)=> String(it.data.kind||''))))
-        const memberIds = Array.from(new Set(toFill.map((it)=> String(it.data.member_id))))
-        const orderIds2 = Array.from(new Set(toFill.map((it)=> String(it.data.order_id))))
+      const toFill = list.filter((it)=> it?.data && (!!it.data.order_id) && ((it.data.kind==='suggest' && !it.data.comment) || (it.data.kind==='good' && !it.data.asset_path)))
+      const kinds = Array.from(new Set(toFill.map((it)=> String(it.data.kind||''))))
+      const orderIds2 = Array.from(new Set(toFill.map((it)=> String(it.data.order_id))))
+      if (kinds.length>0 && orderIds2.length>0) {
         const { data: fbRows } = await supabase
           .from('member_feedback')
           .select('member_id,order_id,kind,comment,asset_path,created_at')
           .in('kind', kinds)
-          .in('member_id', memberIds)
           .in('order_id', orderIds2)
-        const map = new Map()
+          .order('created_at', { ascending: false })
+        const byKindOrder = new Map()
         for (const r of (fbRows||[])) {
-          map.set(`${r.kind}|${r.member_id}|${r.order_id}`, { comment: r.comment||null, asset_path: r.asset_path||null })
+          const key = `${r.kind}|${r.order_id}`
+          if (!byKindOrder.has(key)) byKindOrder.set(key, { comment: r.comment||null, asset_path: r.asset_path||null, member_id: r.member_id||null })
         }
         list = list.map((it)=>{
-          const k = `${it?.data?.kind||''}|${it?.data?.member_id||''}|${it?.data?.order_id||''}`
-          const v = map.get(k)
+          const key = `${it?.data?.kind||''}|${it?.data?.order_id||''}`
+          const v = byKindOrder.get(key)
           if (v) {
-            return { ...it, data: { ...it.data, comment: it.data.comment || v.comment || null, asset_path: it.data.asset_path || v.asset_path || null } }
+            return { ...it, data: { ...it.data, member_id: it.data.member_id || v.member_id || null, comment: it.data.comment || v.comment || null, asset_path: it.data.asset_path || v.asset_path || null } }
           }
           return it
         })
