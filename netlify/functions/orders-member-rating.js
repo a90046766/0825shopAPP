@@ -71,6 +71,33 @@ exports.handler = async (event) => {
         const rows = [fb]
         const { error } = await supabase.from('member_feedback').insert(rows)
         if (error) errorMsg = error.message || String(error)
+        // 將回饋寫入 orders.signatures.customer_feedback（以 order_number 優先，否則以 id）
+        try {
+          const fetchOrder = async () => {
+            let { data, error } = await supabase
+              .from('orders')
+              .select('id, order_number, signatures')
+              .eq('order_number', fb.order_id)
+              .maybeSingle()
+            if (!data) {
+              const r = await supabase
+                .from('orders')
+                .select('id, order_number, signatures')
+                .eq('id', fb.order_id)
+                .maybeSingle()
+              data = r.data || null
+            }
+            return data
+          }
+          const ord = await fetchOrder()
+          if (ord) {
+            const nowIso = new Date().toISOString()
+            const sig = (ord.signatures && typeof ord.signatures==='object') ? ord.signatures : {}
+            const feedback = { kind: fb.kind, comment: fb.comment||null, asset_path: fb.asset_path||null, at: nowIso, member_id: fb.member_id }
+            const nextSig = { ...sig, customer_feedback: feedback }
+            await supabase.from('orders').update({ signatures: nextSig, updated_at: nowIso }).eq('id', ord.id)
+          }
+        } catch {}
         // 通知客服/後台：有新客戶反饋（好評/建議）
         try {
           // 取會員代碼以避免前端顯示 UUID

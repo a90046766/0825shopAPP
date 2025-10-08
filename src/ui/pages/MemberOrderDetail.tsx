@@ -105,6 +105,20 @@ export default function MemberOrderDetailPage() {
     after: Array.isArray(order.photosAfter) ? order.photosAfter : []
   }
 
+  // 從 signatures.customer_feedback 呈現回饋（若有）
+  const feedback = (()=>{
+    try {
+      const sig:any = order.signatures || {}
+      const f:any = sig.customer_feedback || null
+      if (!f) return null
+      return {
+        kind: String(f.kind||''),
+        comment: f.comment ? String(f.comment) : '',
+        asset_path: f.asset_path ? String(f.asset_path) : ''
+      }
+    } catch { return null }
+  })()
+
   const addToCartAgain = async () => {
     if (!order?.serviceItems || order.serviceItems.length===0) { alert('此訂單沒有可再次下單的品項'); return }
     setAdding(true)
@@ -228,6 +242,20 @@ export default function MemberOrderDetailPage() {
         {(order.status==='closed' || order.status==='completed') && (
           <div className="mt-4 rounded border p-3">
             <div className="mb-2 text-sm font-medium text-gray-800">服務回饋</div>
+          {feedback ? (
+            <div className="mb-3 rounded border p-2 bg-gray-50 text-sm">
+              <div className="text-gray-700">
+                {feedback.kind==='suggest' && feedback.comment && (
+                  <div className="whitespace-pre-wrap">{feedback.comment}</div>
+                )}
+                {feedback.kind==='good' && feedback.asset_path && (
+                  <div className="mt-1">
+                    <img src={`${supabase.storage.from('review-uploads').getPublicUrl(feedback.asset_path).data.publicUrl}`} alt="upload" className="max-h-48 rounded border" />
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
             <div className="flex flex-wrap gap-2 text-sm">
               <button onClick={()=>setFbOpen('good')} className="rounded bg-emerald-600 px-3 py-2 text-white">上傳好評截圖（+50）</button>
               <button onClick={()=>setFbOpen('suggest')} className="rounded bg-brand-600 px-3 py-2 text-white">提交建議（+50）</button>

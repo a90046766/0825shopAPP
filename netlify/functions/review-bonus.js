@@ -65,10 +65,40 @@ exports.handler = async (event) => {
         const { error: upErr } = await supabase.storage.from('review-uploads').upload(path, buff, { contentType: mime, upsert: false })
         if (upErr) return json(500, { success:false, error: upErr.message })
         try { await supabase.from('member_feedback').insert({ member_id: memberId, order_id: orderId, kind: 'good', comment: null, asset_path: path, created_at: new Date().toISOString() }) } catch {}
+        // 寫入 orders.signatures.customer_feedback
+        try {
+          const { data: ord } = await supabase
+            .from('orders')
+            .select('id, order_number, signatures')
+            .or(`order_number.eq.${orderId},id.eq.${orderId}`)
+            .maybeSingle()
+          if (ord) {
+            const nowIso = new Date().toISOString()
+            const sig = (ord.signatures && typeof ord.signatures==='object') ? ord.signatures : {}
+            const feedback = { kind: 'good', comment: null, asset_path: path, at: nowIso, member_id: memberId }
+            const nextSig = { ...sig, customer_feedback: feedback }
+            await supabase.from('orders').update({ signatures: nextSig, updated_at: nowIso }).eq('id', ord.id)
+          }
+        } catch {}
       } else {
         const comment = (body.comment||'').toString().trim()
         if (!comment) return json(400, { success:false, error:'empty_comment' })
         try { await supabase.from('member_feedback').insert({ member_id: memberId, order_id: orderId, kind: 'suggest', comment, asset_path: null, created_at: new Date().toISOString() }) } catch {}
+        // 寫入 orders.signatures.customer_feedback
+        try {
+          const { data: ord } = await supabase
+            .from('orders')
+            .select('id, order_number, signatures')
+            .or(`order_number.eq.${orderId},id.eq.${orderId}`)
+            .maybeSingle()
+          if (ord) {
+            const nowIso = new Date().toISOString()
+            const sig = (ord.signatures && typeof ord.signatures==='object') ? ord.signatures : {}
+            const feedback = { kind: 'suggest', comment, asset_path: null, at: nowIso, member_id: memberId }
+            const nextSig = { ...sig, customer_feedback: feedback }
+            await supabase.from('orders').update({ signatures: nextSig, updated_at: nowIso }).eq('id', ord.id)
+          }
+        } catch {}
       }
 
       const desc = kind==='good' ? '好評上傳獎勵' : '建議評提交獎勵'
