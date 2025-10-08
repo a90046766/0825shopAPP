@@ -20,7 +20,7 @@ exports.handler = async (event) => {
       .limit(500)
     if (error) return json(200, { success: false, error: error.message })
 
-    const rows = (data || [])
+    let rows = (data || [])
       .filter((n) => {
         const t = String(n.title || '')
         return t.includes('客戶好評') || t.includes('客戶建議') || t.includes('客戶評分')
@@ -33,6 +33,19 @@ exports.handler = async (event) => {
         const oid = (() => { const m = msg.match(/訂單\s+([A-Za-z0-9\-:_]+)/); return m ? m[1] : '' })()
         return { id: n.id, kind, member_id: mid, order_id: oid, comment: (kind==='suggest'? msg: ''), created_at: n.created_at }
       })
+
+    // 針對清單中的訂單補上客戶名稱/電話，方便後台檢視
+    try {
+      const ids = Array.from(new Set(rows.map(r => String(r.order_id||'')).filter(Boolean)))
+      if (ids.length > 0) {
+        const { data: orders } = await supabase
+          .from('orders')
+          .select('id, customer_name, customer_phone')
+          .in('id', ids)
+        const map = new Map((orders||[]).map(o => [String(o.id), { name: o.customer_name||'', phone: o.customer_phone||'' }]))
+        rows = rows.map(r => ({ ...r, customer_name: (map.get(String(r.order_id))||{}).name || '', customer_phone: (map.get(String(r.order_id))||{}).phone || '' }))
+      }
+    } catch {}
 
     return json(200, { success: true, data: rows })
   } catch (e) {
