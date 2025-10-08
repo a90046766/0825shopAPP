@@ -54,6 +54,24 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
             .map((n:any)=>{
               let dataObj:any = null
               try { if (n.body && typeof n.body==='string' && n.body.trim().startsWith('{')) dataObj = JSON.parse(n.body) } catch {}
+              // 舊通知（非 JSON）解析：盡力從文字抽取 member_id 與 order_id
+              if (!dataObj) {
+                try {
+                  const text = String(n.body || n.message || '')
+                  const title = String(n.title || '')
+                  const uuid = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i)
+                  const od = text.match(/\bOD[0-9]+\b/i)
+                  const kind = title.includes('好評') ? 'good' : (title.includes('建議') ? 'suggest' : (title.includes('評分') ? 'score' : undefined))
+                  if (uuid || od || kind) {
+                    dataObj = {
+                      kind,
+                      member_id: uuid ? uuid[0] : undefined,
+                      order_id: od ? od[0] : undefined,
+                      comment: kind==='suggest' ? text : undefined
+                    }
+                  }
+                } catch {}
+              }
               return {
                 id: n.id,
                 title: n.title,
