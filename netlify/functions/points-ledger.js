@@ -29,17 +29,43 @@ exports.handler = async (event) => {
     }
     if (!memberId && !memberEmail) return json(400, { success:false, error:'missing_params' })
 
-    let q = supabase
-      .from('member_points_ledger')
-      .select('created_at, delta, reason, order_id, ref_key, member_id, member_email')
-      .order('created_at', { ascending: false })
-      .limit(limit)
-    if (memberId) q = q.eq('member_id', memberId)
-    else q = q.eq('member_email', memberEmail)
-
-    const { data, error } = await q
-    if (error) return json(500, { success:false, error: error.message })
-    return json(200, { success:true, data: data||[] })
+    // 盡量使用 member_id；若僅有 email，嘗試以 email 查詢（欄位不存在時忽略）
+    const selectCols = 'created_at, delta, reason, order_id, ref_key, member_id'
+    const rows = []
+    try {
+      if (memberId) {
+        const { data } = await supabase
+          .from('member_points_ledger')
+          .select(selectCols)
+          .eq('member_id', memberId)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+        if (Array.isArray(data)) rows.push(...data)
+      }
+    } catch {}
+    try {
+      if (!memberId && memberEmail) {
+        const { data } = await supabase
+          .from('member_points_ledger')
+          .select(selectCols)
+          .eq('member_email', memberEmail)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+        if (Array.isArray(data)) rows.push(...data)
+      }
+    } catch {}
+    // 合併去重、限制筆數
+    rows.sort((a,b)=> String(b.created_at||'').localeCompare(String(a.created_at||'')))
+    const unique = []
+    const seen = new Set()
+    for (const r of rows) {
+      const k = `${r.ref_key||''}|${r.order_id||''}|${r.created_at||''}`
+      if (seen.has(k)) continue
+      seen.add(k)
+      unique.push(r)
+      if (unique.length>=limit) break
+    }
+    return json(200, { success:true, data: unique })
   } catch (e) {
     return json(500, { success:false, error:'internal_error', message: String(e?.message||e) })
   }

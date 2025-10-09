@@ -37,6 +37,14 @@ export const checkMemberAuth = (): MemberUser | null => {
     // 僅回傳 null，不清除後台登入態，避免無法返回派工系統
     return null
   }
+  try {
+    // 防呆：若偵測到後台登入態（supabase-auth-user 或 local-auth-user），阻擋使用會員入口
+    const adminAuth = localStorage.getItem('supabase-auth-user') || localStorage.getItem('local-auth-user')
+    if (adminAuth) {
+      try { localStorage.removeItem('member-auth-user') } catch {}
+      return null
+    }
+  } catch {}
   return member
 }
 

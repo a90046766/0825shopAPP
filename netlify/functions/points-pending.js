@@ -54,13 +54,18 @@ exports.handler = async (event) => {
         if (m?.id) memberId = String(m.id)
       }
       if (!memberId) return json(400, { success:false, error:'member_not_found' })
-      const { data, error } = await supabase
-        .from('pending_points')
-        .select('id,order_id,points,reason,status,created_at')
-        .eq('member_id', memberId)
-        .order('created_at', { ascending: false })
-      if (error) return json(500, { success:false, error: error.message })
-      return json(200, { success:true, data: data||[] })
+      try {
+        const { data, error } = await supabase
+          .from('pending_points')
+          .select('id,order_id,points,reason,status,created_at')
+          .eq('member_id', memberId)
+          .order('created_at', { ascending: false })
+        if (error) return json(500, { success:false, error: error.message })
+        return json(200, { success:true, data: data||[] })
+      } catch (e) {
+        // 若表不存在或 schema cache 問題，回特定錯誤碼
+        return json(500, { success:false, error:'pending_points_table_missing' })
+      }
     }
 
     // 領取
