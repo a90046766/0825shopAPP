@@ -517,7 +517,16 @@ export default function ShopCartPage() {
           evening: { start: '18:00', end: '20:00' }
         }
         const tw = mapTime[customerInfo.preferredTime] || { start: undefined as any, end: undefined as any }
-        const serviceItems = cart.map((it:any)=> ({ name: it.name, quantity: it.quantity, unitPrice: Number(it.price||0), category: it.category }))
+        // 寫入服務品項：若為清洗類且達團購門檻，寫入團購價
+        const ctx = getCleaningGroupContext()
+        const serviceItems = cart.map((it:any)=> {
+          const fallback = allProducts.find(p => p.id === it.id) as any
+          const category = it.category ?? fallback?.category
+          const price = (typeof it.price === 'number' && !Number.isNaN(it.price)) ? it.price : (fallback?.price || 0)
+          const groupPrice = (typeof (it as any).groupPrice === 'number' && !Number.isNaN((it as any).groupPrice)) ? (it as any).groupPrice : fallback?.groupPrice
+          const unitPrice = (category === 'cleaning' && groupPrice && ctx.active) ? Number(groupPrice) : Number(price)
+          return ({ name: it.name, quantity: it.quantity, unitPrice, category })
+        })
         // 合法 UUID 的 memberId 才帶上，否則交由後端留空
         const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
         const memberId = (memberUser?.id && validUuid.test(memberUser.id)) ? memberUser.id : undefined
@@ -557,6 +566,14 @@ export default function ShopCartPage() {
             const payload = memberId ? { memberId, orderId: createdId, points: pointsToUse } : { memberEmail: String(memberUser.email||'').toLowerCase(), orderId: createdId, points: pointsToUse }
             await fetch('/_api/points/use-on-create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
           }
+          // 預估入點：建立待入點記錄（供會員中心領取），避免前端與後端計算落差
+          try {
+            const est = getEstimatedPoints()
+            if (est>0) {
+              const payload2 = memberId ? { memberId, orderId: createdId, points: est, reason: '消費回饋（預估）' } : { memberEmail: String(memberUser.email||'').toLowerCase(), orderId: createdId, points: est, reason: '消費回饋（預估）' }
+              await fetch('/_api/points/pending/create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload2) })
+            }
+          } catch {}
         } catch {}
         // 前端不再寫入本地積分；畫面僅即時刷新，下一次進來會由 API 取得
         try { localStorage.setItem('lastOrderId', createdId) } catch {}

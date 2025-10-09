@@ -783,9 +783,43 @@ export default function PageOrderDetail() {
                 <input className="rounded border px-2 py-1 text-sm" placeholder="輸入 MOxxxx" value={memberCode} onChange={e=>setMemberCode(e.target.value)} />
                 <button className="rounded bg-gray-900 px-2 py-1 text-white" onClick={async()=>{
                   const code = (memberCode||'').trim().toUpperCase()
-                  if (!code) { await repos.orderRepo.update(order.id, { memberId: undefined }); const o=await repos.orderRepo.get(order.id); setOrder(o); alert('已取消綁定'); return }
+                  if (!code) {
+                    await repos.orderRepo.update(order.id, { memberId: undefined })
+                    const o=await repos.orderRepo.get(order.id); setOrder(o)
+                    alert('已取消綁定')
+                    return
+                  }
                   if (!code.startsWith('MO')) { alert('請輸入有效的會員編號（MOxxxx）'); return }
-                  try { const m = await repos.memberRepo.findByCode(code); if (!m) { alert('查無此會員編號'); return } await repos.orderRepo.update(order.id, { memberId: m.id }); const o=await repos.orderRepo.get(order.id); setOrder(o); alert('已綁定會員：'+(m.name||'')) } catch { alert('綁定失敗') }
+                  try {
+                    const m = await repos.memberRepo.findByCode(code)
+                    if (!m) { alert('查無此會員編號'); return }
+                    await repos.orderRepo.update(order.id, { memberId: m.id })
+                    // 嘗試以統一 API 讀取會員資料並帶入客戶欄位
+                    try {
+                      const q = new URLSearchParams({ memberId: String(m.id) })
+                      const r = await fetch(`/_api/member/profile?${q.toString()}`)
+                      const j = await r.json()
+                      if (j?.success && j.data) {
+                        const name = String(j.data.name||'')
+                        const phone = String(j.data.phone||'')
+                        const email = String(j.data.email||'')
+                        const address = `${j.data.city||''}${j.data.district||''}${j.data.address||''}`
+                        const patch: any = {}
+                        if (name) patch.customerName = name
+                        if (phone) patch.customerPhone = phone
+                        if (email) patch.customerEmail = email
+                        if (address) patch.customerAddress = address
+                        if (Object.keys(patch).length>0) {
+                          await repos.orderRepo.update(order.id, patch)
+                        }
+                      }
+                    } catch {}
+                    const o=await repos.orderRepo.get(order.id)
+                    setOrder(o)
+                    alert('已綁定會員並帶入個人資料')
+                  } catch {
+                    alert('綁定失敗')
+                  }
                 }}>儲存</button>
                 {memberCode && <button className="rounded bg-gray-100 px-2 py-1" onClick={()=>navigator.clipboard?.writeText(memberCode)}>複製MO</button>}
               </span>
