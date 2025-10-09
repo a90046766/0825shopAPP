@@ -31,6 +31,19 @@ function normalizeTimeSlot(raw: string): string {
   return raw
 }
 
+function statusText(s: string): string {
+  switch (s) {
+    case 'draft': return '待確認'
+    case 'confirmed': return '已確認'
+    case 'in_progress': return '服務中'
+    case 'completed': return '已完工'
+    case 'closed': return '已結案'
+    case 'canceled': return '已取消'
+    case 'unservice': return '無法服務'
+    default: return s || ''
+  }
+}
+
 export default function MemberOrdersPage() {
   const member = getMemberUser()
   const [tab, setTab] = useState<'reservations'|'orders'>('orders')
@@ -353,53 +366,75 @@ export default function MemberOrdersPage() {
       )}
 
       {tab==='orders' && (
-        <div className="space-y-3">
-          {orders.map((o:any)=>{
+        <div className="space-y-6">
+          {(()=>{
+            const closedOrders = (orders||[]).filter((o:any)=> String(o.status)==='closed' || String(o.status)==='unservice')
+            const otherOrders = (orders||[]).filter((o:any)=> !(String(o.status)==='closed' || String(o.status)==='unservice'))
+            const renderCard = (o:any) => {
             const amount = Array.isArray(o.items) ? o.items.reduce((s:number,it:any)=> s + (Number(it.price)||0)*(Number(it.quantity)||0), 0) : 0
             const count = Array.isArray(o.items) ? o.items.reduce((n:number,it:any)=> n + (Number(it.quantity)||0), 0) : 0
-            return (
-              <Link key={o.id} to={`/store/member/orders/${encodeURIComponent(o.order_number||o.id)}`} className="block rounded-xl border border-blue-200 bg-blue-50 p-3 md:p-4 hover:bg-blue-100/70 transition-colors">
-                <div className="flex items-center gap-2">
-                  <div className="font-semibold text-sm md:text-base text-blue-900">訂單編號 {o.order_number || o.id}</div>
-                  <span className="ml-auto text-[11px] md:text-xs rounded px-2 py-0.5 bg-blue-200 text-blue-800">{o.status}</span>
-                </div>
-                <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs md:text-sm text-blue-900/90">
-                  <div>品項數量：<span className="font-semibold">{count}</span></div>
-                  <div>預估金額：<span className="font-semibold">NT$ {amount.toLocaleString()}</span></div>
-                  {Array.isArray(o.assigned_technicians) && o.assigned_technicians.length>0 && (
-                    <div className="col-span-2 truncate">
-                      服務技師：
-                      <span className="font-semibold">
-                        {o.assigned_technicians.map((n:string)=> techPhoneByName[n] ? `${n}（${techPhoneByName[n]}）` : n).join('、')}
-                      </span>
+              return (
+                <Link key={o.id} to={`/store/member/orders/${encodeURIComponent(o.order_number||o.id)}`} className="block rounded-xl border border-blue-200 bg-blue-50 p-3 md:p-4 hover:bg-blue-100/70 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <div className="font-semibold text-sm md:text-base text-blue-900">訂單編號 {o.order_number || o.id}</div>
+                    <span className="ml-auto text-[11px] md:text-xs rounded px-2 py-0.5 bg-blue-200 text-blue-800">{statusText(o.status)}</span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs md:text-sm text-blue-900/90">
+                    <div>品項數量：<span className="font-semibold">{count}</span></div>
+                    <div>預估金額：<span className="font-semibold">NT$ {amount.toLocaleString()}</span></div>
+                    {Array.isArray(o.assigned_technicians) && o.assigned_technicians.length>0 && (
+                      <div className="col-span-2 truncate">
+                        服務技師：
+                        <span className="font-semibold">
+                          {o.assigned_technicians.map((n:string)=> techPhoneByName[n] ? `${n}（${techPhoneByName[n]}）` : n).join('、')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-2 space-y-1 text-xs md:text-sm text-blue-900/80">
+                    {(o.items||[]).slice(0,3).map((it:any,idx:number)=> (
+                      <div key={idx}>• {it.service_name} ×{it.quantity}（NT$ {Number(it.price||0).toLocaleString()}）</div>
+                    ))}
+                    {(Array.isArray(o.items) && o.items.length>3) && (
+                      <div className="text-blue-800/50">… 其餘 {o.items.length-3} 項</div>
+                    )}
+                  </div>
+                  {o.photos && o.photos.length>0 && (
+                    <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {o.photos.map((p:any)=> (
+                        <img key={p.id} src={p.url} alt={p.caption||''} className="h-24 w-full object-cover rounded" />
+                      ))}
                     </div>
                   )}
-                </div>
-                <div className="mt-2 space-y-1 text-xs md:text-sm text-blue-900/80">
-                  {(o.items||[]).slice(0,3).map((it:any,idx:number)=> (
-                    <div key={idx}>• {it.service_name} ×{it.quantity}（NT$ {Number(it.price||0).toLocaleString()}）</div>
-                  ))}
-                  {(Array.isArray(o.items) && o.items.length>3) && (
-                    <div className="text-blue-800/50">… 其餘 {o.items.length-3} 項</div>
+                  {o.status==='completed' && (
+                    <div className="mt-3 rounded bg-blue-100/50 p-3">
+                      <div className="text-sm font-medium mb-2">為本次服務評價</div>
+                      <RatingForm orderId={o.id} onSubmit={submitRating} />
+                    </div>
                   )}
+                </Link>
+              )
+            }
+            return (
+              <>
+                <div>
+                  <div className="mb-2 text-sm font-semibold text-gray-700">已結案</div>
+                  <div className="space-y-3">
+                    {closedOrders.map(renderCard)}
+                    {closedOrders.length===0 && <div className="text-sm text-gray-400">目前沒有已結案訂單</div>}
+                  </div>
                 </div>
-                {o.photos && o.photos.length>0 && (
-                  <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {o.photos.map((p:any)=> (
-                      <img key={p.id} src={p.url} alt={p.caption||''} className="h-24 w-full object-cover rounded" />
-                    ))}
+                <div>
+                  <div className="mt-6 mb-2 text-sm font-semibold text-gray-700">進行中</div>
+                  <div className="space-y-3">
+                    {otherOrders.map(renderCard)}
+                    {otherOrders.length===0 && <div className="text-sm text-gray-400">目前沒有進行中訂單</div>}
                   </div>
-                )}
-                {o.status==='completed' && (
-                  <div className="mt-3 rounded bg-blue-100/50 p-3">
-                    <div className="text-sm font-medium mb-2">為本次服務評價</div>
-                    <RatingForm orderId={o.id} onSubmit={submitRating} />
-                  </div>
-                )}
-              </Link>
+                </div>
+                {(closedOrders.length===0 && otherOrders.length===0) && <div className="text-sm text-gray-500">目前沒有正式訂單</div>}
+              </>
             )
-          })}
-          {orders.length===0 && <div className="text-sm text-gray-500">目前沒有正式訂單</div>}
+          })()}
         </div>
       )}
 
