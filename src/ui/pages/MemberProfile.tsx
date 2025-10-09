@@ -20,6 +20,7 @@ export default function MemberProfilePage() {
   const [genning, setGenning] = useState<boolean>(false)
   const [claimingAll, setClaimingAll] = useState<boolean>(false)
   const [claimingMap, setClaimingMap] = useState<Record<string, boolean>>({})
+  const [pendingError, setPendingError] = useState<string>('')
 
   useEffect(() => {
     const syncLocalMemberCode = (code: string) => {
@@ -64,7 +65,7 @@ export default function MemberProfilePage() {
           ])
           try { const jb = await rb.json(); if (jb?.success) setPoints(Number(jb.balance||0)) } catch {}
           try { const jl = await rl.json(); if (jl?.success && Array.isArray(jl.data)) setLedger(jl.data) } catch {}
-          try { const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) setPending(jp.data) } catch {}
+          try { const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) { setPending(jp.data); setPendingError('') } else { setPending([]); setPendingError(String(jp?.error||'pending_points_error')) } } catch { setPending([]); setPendingError('pending_points_error') }
         } catch { }
       } catch (e: any) {
         setError(e?.message || '載入失敗')
@@ -87,7 +88,7 @@ export default function MemberProfilePage() {
       ])
       try { const jb = await rb.json(); if (jb?.success) setPoints(Number(jb.balance||0)) } catch {}
       try { const jl = await rl.json(); if (jl?.success && Array.isArray(jl.data)) setLedger(jl.data) } catch {}
-      try { const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) setPending(jp.data) } catch {}
+      try { const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) { setPending(jp.data); setPendingError('') } else { setPending([]); setPendingError(String(jp?.error||'pending_points_error')) } } catch { setPending([]); setPendingError('pending_points_error') }
     } catch {}
   }
 
@@ -215,10 +216,15 @@ export default function MemberProfilePage() {
               <div className="mt-4">
                 <Link to="/store/products" className="inline-block rounded bg-blue-600 px-4 py-2 text-white">前往選購</Link>
               </div>
-              {pending.length>0 && (
+              {(pendingError || pending.length>0) && (
                 <div className="mt-4">
                   <div className="text-sm font-semibold text-gray-800">待入點</div>
                   <div className="mt-2 divide-y text-xs">
+                    {pendingError && pending.length===0 && (
+                      <div className="py-2 text-rose-600 bg-rose-50 border border-rose-200 rounded px-2">
+                        {pendingError==='pending_points_table_missing' ? '待入點功能尚未啟用（缺少資料表），請稍後再試' : '待入點資料暫時無法讀取'}
+                      </div>
+                    )}
                     {pending.map((p:any,i:number)=> {
                       const pid = String(p.id||p.pk||p._id||p.uuid||i)
                       const claiming = !!claimingMap[pid]
