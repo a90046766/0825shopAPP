@@ -87,16 +87,7 @@ export default function MemberBell() {
       setList(prev => (prev||[]).map(n => ({ ...n, is_read: true })))
       await load()
     } catch {}
-    try {
-      // Supabase 回退：將目前列表逐一標記已讀
-      const emailLc = (member.email||'').toLowerCase()
-      for (const it of list) {
-        try {
-          await supabase.from('notifications_read').upsert({ notification_id: it.id, user_email: emailLc, read_at: new Date().toISOString() })
-        } catch {}
-      }
-      await load()
-    } catch {}
+    // 移除直接寫 Supabase 已讀（RLS 403），統一走 Functions API
   }
 
   useEffect(() => { 
@@ -129,10 +120,6 @@ export default function MemberBell() {
     try { 
       const q = new URLSearchParams(member?.id ? { memberId: member.id, id } : { memberEmail: String(member?.email||'').toLowerCase(), id })
       await fetch(`/_api/member-notifications/read?${q.toString()}`, { method: 'POST' })
-    } catch {}
-    try {
-      const emailLc = (member.email||'').toLowerCase()
-      await supabase.from('notifications_read').upsert({ notification_id: id, user_email: emailLc, read_at: new Date().toISOString() })
     } catch {}
     try { setList(prev => prev.map(n => n.id===id ? { ...n, is_read: true } : n)) } catch {}
   }

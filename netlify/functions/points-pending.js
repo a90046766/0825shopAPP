@@ -32,6 +32,13 @@ exports.handler = async (event) => {
       }
       if (!memberId) return json(400, { success:false, error:'member_not_found' })
       const row = { member_id: memberId, order_id: orderId, points, reason, status: 'pending', created_at: new Date().toISOString() }
+      // 表不存在時提前回報，避免 schema cache 錯誤誤導
+      try {
+        const { error: existsErr } = await supabase.from('pending_points').select('id').limit(1)
+        if (existsErr && (existsErr.message||'').includes('schema')) {
+          return json(500, { success:false, error:'pending_points_table_missing' })
+        }
+      } catch {}
       const { error } = await supabase.from('pending_points').insert(row)
       if (error) return json(500, { success:false, error: error.message })
       return json(200, { success:true })

@@ -33,13 +33,13 @@ exports.handler = async (event) => {
       try {
         if (memberId) {
           const { data: mp } = await supabase.from('member_points').select('balance').eq('member_id', memberId).maybeSingle()
-          if (mp && typeof (mp as any).balance === 'number') return Number((mp as any).balance)
+          if (mp && typeof mp.balance === 'number') return Number(mp.balance)
         }
       } catch {}
       try {
         if (memberEmail) {
           const { data: mp } = await supabase.from('member_points').select('balance').eq('member_email', memberEmail).maybeSingle()
-          if (mp && typeof (mp as any).balance === 'number') return Number((mp as any).balance)
+          if (mp && typeof mp.balance === 'number') return Number(mp.balance)
         }
       } catch {}
       return null

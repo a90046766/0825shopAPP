@@ -1093,6 +1093,13 @@ export default function PageOrderDetail() {
                 const tag = addFare ? '（含車馬費$400）' : ''
                 const merged = `${prevNote ? prevNote + '\n' : ''}[無法服務] ${unserviceReason}${tag}`.trim()
                 await repos.orderRepo.update(order.id, { status: 'unservice' as any, note: merged, serviceItems: items, closedAt: new Date().toISOString() })
+                try {
+                  // 同步以 Functions 依淨額入點（避免前端計算偏差）
+                  await fetch('/_api/points/apply-order', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ memberId: order.memberId, orderId: order.id, items, pointsDeductAmount: Number(order.pointsDeductAmount||0) })
+                  })
+                } catch {}
                 setUnserviceOpen(false)
                 setUnserviceConfirmPending(false)
               }

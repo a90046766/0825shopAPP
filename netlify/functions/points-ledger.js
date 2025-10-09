@@ -29,13 +29,13 @@ exports.handler = async (event) => {
     }
     if (!memberId && !memberEmail) return json(400, { success:false, error:'missing_params' })
 
-    const q = supabase
+    let q = supabase
       .from('member_points_ledger')
-      .select('created_at, delta, reason, order_id, ref_key')
+      .select('created_at, delta, reason, order_id, ref_key, member_id, member_email')
       .order('created_at', { ascending: false })
       .limit(limit)
-    if (memberId) q.eq('member_id', memberId)
-    else q.eq('member_id', memberEmail) // 兼容舊資料（不建議）
+    if (memberId) q = q.eq('member_id', memberId)
+    else q = q.eq('member_email', memberEmail)
 
     const { data, error } = await q
     if (error) return json(500, { success:false, error: error.message })
