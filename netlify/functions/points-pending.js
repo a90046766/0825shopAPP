@@ -60,11 +60,17 @@ exports.handler = async (event) => {
           .select('id,order_id,points,reason,status,created_at')
           .eq('member_id', memberId)
           .order('created_at', { ascending: false })
-        if (error) return json(500, { success:false, error: error.message })
+        if (error) {
+          const msg = String(error.message || error).toLowerCase()
+          if (msg.includes('schema') || msg.includes('does not exist') || msg.includes('not find') || msg.includes('relation')) {
+            return json(200, { success:false, error:'pending_points_table_missing' })
+          }
+          return json(500, { success:false, error: error.message })
+        }
         return json(200, { success:true, data: data||[] })
       } catch (e) {
         // 若表不存在或 schema cache 問題，回特定錯誤碼
-        return json(500, { success:false, error:'pending_points_table_missing' })
+        return json(200, { success:false, error:'pending_points_table_missing' })
       }
     }
 
@@ -74,8 +80,16 @@ exports.handler = async (event) => {
       try { body = JSON.parse(event.body||'{}') } catch {}
       const id = String(body.id||'')
       let row = null
+      let rowId = id
       if (id) {
         const r = await supabase.from('pending_points').select('*').eq('id', id).maybeSingle()
+        if (r.error) {
+          const msg = String(r.error.message || r.error).toLowerCase()
+          if (msg.includes('schema') || msg.includes('does not exist') || msg.includes('not find') || msg.includes('relation')) {
+            return json(200, { success:false, error:'pending_points_table_missing' })
+          }
+          return json(500, { success:false, error: r.error.message })
+        }
         row = r.data || null
       } else {
         // 支援以 memberId/memberEmail + orderId 兌換（方便結案流程呼叫）
@@ -88,7 +102,15 @@ exports.handler = async (event) => {
         }
         if (!memberId || !orderId) return json(400, { success:false, error:'invalid_params' })
         const r = await supabase.from('pending_points').select('*').eq('member_id', memberId).eq('order_id', orderId).eq('status','pending').order('created_at', { ascending: false }).limit(1)
+        if (r.error) {
+          const msg = String(r.error.message || r.error).toLowerCase()
+          if (msg.includes('schema') || msg.includes('does not exist') || msg.includes('not find') || msg.includes('relation')) {
+            return json(200, { success:false, error:'pending_points_table_missing' })
+          }
+          return json(500, { success:false, error: r.error.message })
+        }
         row = Array.isArray(r.data) && r.data.length>0 ? r.data[0] : null
+        if (row && row.id) rowId = String(row.id)
       }
       if (!row) return json(404, { success:false, error:'not_found' })
       if (row.status === 'claimed') return json(200, { success:true, message:'already_claimed' })
@@ -101,7 +123,7 @@ exports.handler = async (event) => {
         try { const { data: m } = await supabase.from('members').select('points').eq('id', row.member_id).maybeSingle(); const next = Number(m?.points||0) + Number(row.points||0); await supabase.from('members').update({ points: next }).eq('id', row.member_id) } catch {}
       } catch (e) { return json(500, { success:false, error: 'claim_failed' }) }
       // 標記已領取
-      await supabase.from('pending_points').update({ status: 'claimed', claimed_at: new Date().toISOString() }).eq('id', id)
+      await supabase.from('pending_points').update({ status: 'claimed', claimed_at: new Date().toISOString() }).eq('id', rowId)
       return json(200, { success:true })
     }
 
