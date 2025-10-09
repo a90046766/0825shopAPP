@@ -377,15 +377,15 @@ class SupabaseOrderRepo implements OrderRepo {
             // RPC 可能未填完整欄位：補寫必要欄位並回讀
             const created = fromDbRow(rpcRow)
             const patch: Partial<Order> = {}
-            // 補寫積分使用（部分 RPC 可能未保存）
-            if ((created as any).pointsUsed == null && (payload as any).pointsUsed != null) {
+            // 強制與前端保持一致：服務品項（含團購價）與積分折抵
+            if (Array.isArray(payload.serviceItems)) {
+              (patch as any).serviceItems = payload.serviceItems
+            }
+            if ((payload as any).pointsUsed != null) {
               ;(patch as any).pointsUsed = (payload as any).pointsUsed
             }
-            if ((created as any).pointsDeductAmount == null && (payload as any).pointsDeductAmount != null) {
+            if ((payload as any).pointsDeductAmount != null) {
               ;(patch as any).pointsDeductAmount = (payload as any).pointsDeductAmount
-            }
-            if ((!created.serviceItems || created.serviceItems.length===0) && Array.isArray(payload.serviceItems) && payload.serviceItems.length>0) {
-              (patch as any).serviceItems = payload.serviceItems
             }
             if ((!created.customerAddress || created.customerAddress.trim()==='') && payload.customerAddress) {
               (patch as any).customerAddress = payload.customerAddress
