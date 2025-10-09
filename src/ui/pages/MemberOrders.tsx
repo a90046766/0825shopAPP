@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { getMemberUser } from '../../utils/memberAuth'
 import { Link } from 'react-router-dom'
 import MemberBell from '../components/MemberBell'
-import { Home, ShoppingBag, ClipboardList, CheckCircle2, Share2, User, AlertCircle } from 'lucide-react'
+import { Home, ShoppingBag, ClipboardList, CheckCircle2, Share2, User } from 'lucide-react'
 import ShareReferral from '../components/ShareReferral'
 import { supabase } from '../../utils/supabase'
 
@@ -47,7 +47,6 @@ function statusText(s: string): string {
 export default function MemberOrdersPage() {
   const member = getMemberUser()
   const [tab, setTab] = useState<'reservations'|'orders'>('orders')
-  const [unserviceOnly, setUnserviceOnly] = useState(false)
   const [reservations, setReservations] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
   const [techPhoneByName, setTechPhoneByName] = useState<Record<string,string>>({})
@@ -72,18 +71,7 @@ export default function MemberOrdersPage() {
     return () => window.removeEventListener('beforeinstallprompt', handler as any)
   }, [])
 
-  // 允許以 URL 參數快速打開「無法服務」視圖，例如：/store/member/orders?unservice=1 或 ?view=unservice
-  useEffect(() => {
-    try {
-      const u = new URL(window.location.href)
-      const v = (u.searchParams.get('view')||'').toLowerCase()
-      const unservice = u.searchParams.get('unservice')
-      if (v==='unservice' || unservice==='1' || unservice==='true') {
-        setTab('orders')
-        setUnserviceOnly(true)
-      }
-    } catch {}
-  }, [])
+  // 移除會員端「無法服務」獨立視圖與卡牌
 
   async function installApp() {
     try {
@@ -282,7 +270,7 @@ export default function MemberOrdersPage() {
             title={!installPrompt ? '請用 Chrome/Edge 或等待安裝提示出現' : ''}
             className={`rounded px-3 py-1 text-sm ${installPrompt? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'}`}
           >安裝 App</button>
-          <button onClick={()=>{ setTab('orders'); setUnserviceOnly(false) }} className={`rounded px-3 py-1 text-sm ${(tab==='orders' && !unserviceOnly)?'bg-blue-600 text-white':'border border-blue-200 text-blue-600'}`}>正式訂單</button>
+          <button onClick={()=>{ setTab('orders') }} className={`rounded px-3 py-1 text-sm ${(tab==='orders')?'bg-blue-600 text-white':'border border-blue-200 text-blue-600'}`}>正式訂單</button>
           <button onClick={()=>setTab('reservations')} className={`rounded px-3 py-1 text-sm ${tab==='reservations'?'bg-amber-600 text-white':'border border-amber-200 text-amber-700'}`}>預約訂單</button>
           <button onClick={()=>{ setTab('orders'); setUnserviceOnly(true) }} className={`rounded px-3 py-1 text-sm ${(tab==='orders' && unserviceOnly)?'bg-rose-600 text-white':'border border-rose-200 text-rose-700'}`}>無法服務</button>
         </div>
@@ -307,16 +295,10 @@ export default function MemberOrdersPage() {
             <div className="font-semibold">返回購物</div>
           </div>
         </Link>
-        <button onClick={()=>{ setTab('orders'); setUnserviceOnly(false) }} className="text-left rounded-xl border border-indigo-200 bg-indigo-50 p-3 hover:bg-indigo-100/70 transition-colors">
+        <button onClick={()=>{ setTab('orders') }} className="text-left rounded-xl border border-indigo-200 bg-indigo-50 p-3 hover:bg-indigo-100/70 transition-colors">
           <div className="flex items-center gap-2 text-indigo-900">
             <CheckCircle2 className="h-5 w-5" />
             <div className="font-semibold">正式訂單</div>
-          </div>
-        </button>
-        <button onClick={()=>{ setTab('orders'); setUnserviceOnly(true) }} className="text-left rounded-xl border border-rose-200 bg-rose-50 p-3 hover:bg-rose-100/70 transition-colors">
-          <div className="flex items-center gap-2 text-rose-900">
-            <AlertCircle className="h-5 w-5" />
-            <div className="font-semibold">無法服務</div>
           </div>
         </button>
         <button onClick={()=>setTab('reservations')} className="text-left rounded-xl border border-amber-200 bg-amber-50 p-3 hover:bg-amber-100/70 transition-colors">
@@ -397,7 +379,7 @@ export default function MemberOrdersPage() {
           {(()=>{
             const closedOrders = (orders||[]).filter((o:any)=> String(o.status)==='closed' || String(o.status)==='unservice')
             const otherOrders = (orders||[]).filter((o:any)=> !(String(o.status)==='closed' || String(o.status)==='unservice'))
-            const unserviceOrders = (orders||[]).filter((o:any)=> String(o.status)==='unservice')
+            // 會員端不提供「無法服務」獨立視圖
             const renderCard = (o:any) => {
             const amount = Array.isArray(o.items) ? o.items.reduce((s:number,it:any)=> s + (Number(it.price)||0)*(Number(it.quantity)||0), 0) : 0
             const count = Array.isArray(o.items) ? o.items.reduce((n:number,it:any)=> n + (Number(it.quantity)||0), 0) : 0
@@ -443,20 +425,7 @@ export default function MemberOrdersPage() {
                 </Link>
               )
             }
-            if (unserviceOnly) {
-              return (
-                <>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-gray-700">無法服務</div>
-                    <button onClick={()=>setUnserviceOnly(false)} className="text-xs text-blue-600">顯示全部</button>
-                  </div>
-                  <div className="space-y-3">
-                    {unserviceOrders.map(renderCard)}
-                    {unserviceOrders.length===0 && <div className="text-sm text-gray-400">目前沒有無法服務訂單</div>}
-                  </div>
-                </>
-              )
-            }
+            
             return (
               <>
                 <div>
