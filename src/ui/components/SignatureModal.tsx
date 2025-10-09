@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import ReactDOM from 'react-dom'
 
 export default function SignatureModal({ open, onClose, onSave }: { open: boolean; onClose: ()=>void; onSave: (dataUrl: string)=>void }) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -21,9 +22,9 @@ export default function SignatureModal({ open, onClose, onSave }: { open: boolea
     return () => { cvs.removeEventListener('mousedown', start); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end); cvs.removeEventListener('touchstart', start as any); window.removeEventListener('touchmove', move as any); window.removeEventListener('touchend', end); restore() }
   }, [open])
   if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-4">
+  const modal = (
+    <div className="fixed inset-0 z-[2147483647] grid place-items-center bg-black/50 p-4" style={{ zIndex: 2147483647 }}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-card">
         <div className="mb-2 text-lg font-semibold">簽名</div>
         <canvas ref={ref} width={360} height={240} className="h-60 w-full rounded border" style={{ touchAction: 'none' }} />
         <div className="mt-3 flex justify-end gap-2">
@@ -33,6 +34,7 @@ export default function SignatureModal({ open, onClose, onSave }: { open: boolea
       </div>
     </div>
   )
+  return ReactDOM.createPortal(modal, document.body)
 }
 
 

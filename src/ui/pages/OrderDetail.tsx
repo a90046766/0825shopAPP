@@ -4,6 +4,7 @@ import { authRepo } from '../../adapters/local/auth'
 import { can } from '../../utils/permissions'
 import { useEffect, useState } from 'react'
 import { loadAdapters } from '../../adapters'
+import { supabase } from '../../utils/supabase'
 import { compressImageToDataUrl } from '../../utils/image'
 import SignatureModal from '../components/SignatureModal'
 import { 
@@ -43,6 +44,7 @@ export default function PageOrderDetail() {
   const [unserviceOpen, setUnserviceOpen] = useState(false)
   const [unserviceFare, setUnserviceFare] = useState<'none'|'fare400'>('none')
   const [unserviceReason, setUnserviceReason] = useState('')
+  const [unserviceConfirmPending, setUnserviceConfirmPending] = useState(false)
   // 電子發票編輯
   const [invoiceOpen, setInvoiceOpen] = useState(false)
   const [invoiceBuyerName, setInvoiceBuyerName] = useState('')
@@ -64,7 +66,19 @@ export default function PageOrderDetail() {
   useEffect(() => { if (!repos || !id) return; repos.orderRepo.get(id).then(setOrder) }, [id, repos])
   useEffect(()=>{ (async()=>{ try{ if(!repos) return; if(repos.technicianRepo?.list){ const rows = await repos.technicianRepo.list(); setTechs(rows||[]) } }catch{} })() },[repos])
   useEffect(() => { if (order) setItemsDraft(order.serviceItems || []) }, [order])
-  useEffect(()=>{ (async()=>{ try { if (!repos) return; if (order?.memberId) { const m = await repos.memberRepo.get(order.memberId); setMemberCode(m?.code||''); setMemberName(m?.name||''); setMemberPoints(m?.points||0) } else { setMemberCode(''); setMemberName(''); setMemberPoints(0) } } catch {} })() },[order?.memberId, repos])
+  useEffect(()=>{ (async()=>{ try { if (!repos) return; if (order?.memberId) { const m = await repos.memberRepo.get(order.memberId); setMemberCode(m?.code||''); setMemberName(m?.name||'');
+        // 單一真相：以統一 API 讀取
+        try { const q = new URLSearchParams({ memberId: order.memberId }); const r = await fetch(`/_api/points/balance?${q.toString()}`); const j = await r.json(); setMemberPoints(Number(j?.balance||0)) } catch { setMemberPoints(0) }
+      } else {
+        setMemberCode(''); setMemberName('');
+        // 舊訂單未綁會員：以客戶 Email 讀取
+        const email = String(order?.customerEmail||'').toLowerCase()
+        if (email) {
+          try { const q = new URLSearchParams({ memberEmail: email }); const r = await fetch(`/_api/points/balance?${q.toString()}`); const j = await r.json(); setMemberPoints(Number(j?.balance||0)) } catch { setMemberPoints(0) }
+        } else {
+          setMemberPoints(0)
+        }
+      } } catch {} })() },[order?.memberId, order?.customerEmail, repos])
   useEffect(()=>{
     if (!order) return
     const formatTaipeiInput = (iso:string) => {
@@ -189,7 +203,7 @@ export default function PageOrderDetail() {
   const isTechnician = user?.role === 'technician'
   const isClosed = order?.status === 'closed'
   const isPaid = (payStatus === 'paid')
-  const statusText = (s: string) => s==='draft' ? '待確認' : s==='confirmed' ? '已確認' : s==='in_progress' ? '服務中' : s==='completed' ? '已完成' : s==='closed' ? '已結案' : s==='canceled' ? '已取消' : s
+  const statusText = (s: string) => s==='draft' ? '待確認' : s==='confirmed' ? '已確認' : s==='in_progress' ? '服務中' : s==='completed' ? '已完成' : s==='closed' ? '已結案' : s==='canceled' ? '已取消' : s==='unservice' ? '無法服務' : s
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n || 0)
   const subTotal = (order.serviceItems||[]).reduce((s:number,it:any)=>s+it.unitPrice*it.quantity,0)
   const amountDue = Math.max(0, subTotal - (order.pointsDeductAmount||0))
@@ -565,7 +579,7 @@ export default function PageOrderDetail() {
                   value={order.pointsUsed || 0}
                   onChange={async (e) => {
                     const value = Math.min(Number(e.target.value), memberPoints)
-                    await repos.orderRepo.update(order.id, { pointsUsed: value, pointsDeductAmount: value * 10 })
+                    await repos.orderRepo.update(order.id, { pointsUsed: value, pointsDeductAmount: value })
                     const o = await repos.orderRepo.get(order.id)
                     setOrder(o)
                   }}
@@ -576,7 +590,7 @@ export default function PageOrderDetail() {
                 <button
                   onClick={async () => {
                     const maxPoints = memberPoints
-                    await repos.orderRepo.update(order.id, { pointsUsed: maxPoints, pointsDeductAmount: maxPoints * 10 })
+                    await repos.orderRepo.update(order.id, { pointsUsed: maxPoints, pointsDeductAmount: maxPoints })
                     const o = await repos.orderRepo.get(order.id)
                     setOrder(o)
                   }}
@@ -584,6 +598,19 @@ export default function PageOrderDetail() {
                 >
                   全部使用
                 </button>
+                {order.memberId && (
+                  <button
+                    onClick={async()=>{
+                      try {
+                        await fetch('/_api/points/use-on-create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ memberId: order.memberId, orderId: order.id, points: Number(order.pointsUsed||0) }) })
+                        alert('已發出扣點指令，稍後重新整理即可看到餘額變動')
+                      } catch {}
+                    }}
+                    className="ml-2 rounded bg-gray-900 px-2 py-1 text-xs text-white hover:bg-gray-800"
+                  >
+                    立即扣點
+                  </button>
+                )}
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <span>折抵金額：</span>
@@ -1028,17 +1055,20 @@ export default function PageOrderDetail() {
             await repos.orderRepo.update(order.id, { signatures })
             // 若為「無法服務」流程的簽名，落盤：狀態=unservice、備註加入原因、必要時加入車馬費
             try {
-              if (unserviceOpen && signAs === 'customer') {
+              if (unserviceConfirmPending && signAs === 'customer') {
                 const addFare = unserviceFare === 'fare400'
                 const items = Array.isArray(order.serviceItems) ? [...order.serviceItems] : []
                 if (addFare) {
-                  items.push({ name: '車馬費', quantity: 1, unitPrice: 400 } as any)
+                  items.push({ name: '車馬費$400', quantity: 1, unitPrice: 400 } as any)
+                } else {
+                  items.push({ name: '車馬費$0', quantity: 1, unitPrice: 0 } as any)
                 }
                 const prevNote = (order as any).note || ''
                 const tag = addFare ? '（含車馬費$400）' : ''
                 const merged = `${prevNote ? prevNote + '\n' : ''}[無法服務] ${unserviceReason}${tag}`.trim()
                 await repos.orderRepo.update(order.id, { status: 'unservice' as any, note: merged, serviceItems: items })
                 setUnserviceOpen(false)
+                setUnserviceConfirmPending(false)
               }
             } catch {}
             const o = await repos.orderRepo.get(order.id)
@@ -1104,22 +1134,7 @@ export default function PageOrderDetail() {
                   return
                 }
                 const o=await repos.orderRepo.get(order.id); setOrder(o)
-              // 觸發結案後兩階段通知（穩定：寫 notifications 表）
-              try {
-                const email = (o?.customerEmail||'').toLowerCase()
-                if (email) {
-                  await (await import('../../utils/supabase')).supabase.from('notifications').insert({
-                    title: '為本次服務評分',
-                    body: `訂單編號 ${o.id} 已結案，請為技師服務打分並留下建議，完成可領取 50 點。`,
-                    level: 'info', target: 'user', target_user_email: email, sent_at: new Date().toISOString()
-                  })
-                  await (await import('../../utils/supabase')).supabase.from('notifications').insert({
-                    title: '上傳好評截圖，再領 50 點',
-                    body: `感謝支持！上傳 Google/FB 好評截圖可再領 50 點。`,
-                    level: 'info', target: 'user', target_user_email: email, sent_at: new Date().toISOString()
-                  })
-                }
-              } catch {}
+              // 已移除：避免通知過於頻繁
               }}
               className={`rounded px-3 py-1 text-white ${order.status==='confirmed' ? 'bg-brand-500' : 'bg-gray-300 cursor-not-allowed'}`}
             >
@@ -1142,6 +1157,7 @@ export default function PageOrderDetail() {
                   workCompletedAt: now
                 })
                 const o=await repos.orderRepo.get(order.id); setOrder(o)
+                // 已移除：避免通知過於頻繁
               }}
               className={`rounded px-3 py-1 text-white ${(order.status==='in_progress' && timeLeftSec===0)?'bg-green-600':'bg-green-400/60 cursor-not-allowed'}`}
             >
@@ -1171,6 +1187,7 @@ export default function PageOrderDetail() {
                   if (fresh) await applyPointsOnOrderCompletion(fresh, repos)
                 } catch (e) { console.warn('apply points failed', e) }
                 const o=await repos.orderRepo.get(order.id); setOrder(o)
+                // 已移除：避免通知過於頻繁
               }}
               className={`rounded px-3 py-1 text-white ${canClose? 'bg-gray-900' : 'bg-gray-400 cursor-not-allowed'}`}
             >結案</button>
@@ -1344,8 +1361,8 @@ export default function PageOrderDetail() {
           </div>
         </div>
       )}
-      {unserviceOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
+      {unserviceOpen && !signOpen && (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-card">
             <div className="text-lg font-semibold">無法服務</div>
             <div className="mt-2 text-sm text-gray-700">請選擇車馬費：</div>
@@ -1357,7 +1374,7 @@ export default function PageOrderDetail() {
             <textarea value={unserviceReason} onChange={e=>setUnserviceReason(e.target.value)} rows={3} className="mt-1 w-full rounded border px-2 py-1 text-sm" placeholder="例如：現場設備故障/客戶臨時不在等" />
             <div className="mt-3 flex justify-between gap-2">
               <button onClick={()=>setUnserviceOpen(false)} className="rounded bg-gray-100 px-3 py-1">取消</button>
-              <button onClick={async()=>{ if(!unserviceReason.trim()){ alert('請填寫原因'); return } setSignAs('customer'); setSignOpen(true) }} className="rounded bg-amber-600 px-3 py-1 text-white">客戶簽名確認</button>
+              <button onClick={async()=>{ if(!unserviceReason.trim()){ alert('請填寫原因'); return } setUnserviceConfirmPending(true); setSignAs('customer'); setUnserviceOpen(false); setTimeout(()=> setSignOpen(true), 50) }} className="rounded bg-amber-600 px-3 py-1 text-white">客戶簽名確認</button>
             </div>
           </div>
         </div>
