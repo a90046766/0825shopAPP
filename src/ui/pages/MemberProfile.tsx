@@ -240,7 +240,15 @@ export default function MemberProfilePage() {
               )}
               {ledger.length>0 && (
                 <div className="mt-4">
-                  <div className="text-sm font-semibold text-gray-800">積分明細</div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold text-gray-800">積分明細</div>
+                    {pending.length>0 && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-700">尚有 {pending.length} 筆待入點</span>
+                        <button disabled={claimingAll} onClick={claimPendingAll} className={`rounded px-2 py-1 text-xs text-white ${claimingAll? 'bg-gray-400' : 'bg-emerald-600 hover:bg-emerald-700'}`}>{claimingAll?'領取中…':'全部領取'}</button>
+                      </div>
+                    )}
+                  </div>
                   <div className="mt-2 divide-y text-xs">
                     {ledger.map((l:any, i:number)=> (
                       <div key={i} className="py-2 flex items-center justify-between">
