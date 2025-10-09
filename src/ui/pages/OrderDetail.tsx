@@ -749,6 +749,7 @@ export default function PageOrderDetail() {
                   <option value="draft">待確認</option>
                   <option value="confirmed">已確認</option>
                   <option value="in_progress">服務中</option>
+                  <option value="unservice">無法服務</option>
                   <option value="completed">已完工</option>
                   <option value="closed">已結案</option>
                   <option value="canceled">已取消</option>
@@ -1053,16 +1054,29 @@ export default function PageOrderDetail() {
           try {
             const signatures = { ...(order.signatures||{}), [signAs]: dataUrl }
             await repos.orderRepo.update(order.id, { signatures })
-            // 若為「無法服務」流程的簽名，落盤：狀態=unservice、備註加入原因、必要時加入車馬費
+            // 若為「無法服務」流程的簽名，落盤：狀態=unservice、備註加入原因、加入車馬費與服務費減項
             try {
               if (unserviceConfirmPending && signAs === 'customer') {
                 const addFare = unserviceFare === 'fare400'
                 const items = Array.isArray(order.serviceItems) ? [...order.serviceItems] : []
-                if (addFare) {
-                  items.push({ name: '車馬費$400', quantity: 1, unitPrice: 400 } as any)
-                } else {
-                  items.push({ name: '車馬費$0', quantity: 1, unitPrice: 0 } as any)
+                // 產生減項：針對現有正向服務品項（排除車馬費與既有減項）建立負數數量
+                const hasExistingDeductions = items.some((x:any)=> typeof x?.name==='string' && x.name.startsWith('減項：'))
+                if (!hasExistingDeductions) {
+                  const deductions = items
+                    .filter((x:any)=> {
+                      const n = String(x?.name||'')
+                      const isFare = n.includes('車馬費')
+                      const isDed = n.startsWith('減項：')
+                      const qty = Number(x?.quantity||0)
+                      const price = Number(x?.unitPrice||0)
+                      return !isFare && !isDed && qty>0 && price>=0
+                    })
+                    .map((x:any)=> ({ name: `減項：${String(x.name)}`, quantity: -Math.abs(Number(x.quantity)||1), unitPrice: Number(x.unitPrice)||0 } as any))
+                  if (deductions.length>0) items.push(...deductions)
                 }
+                // 加入車馬費
+                if (addFare) { items.push({ name: '車馬費$400', quantity: 1, unitPrice: 400 } as any) }
+                else { items.push({ name: '車馬費$0', quantity: 1, unitPrice: 0 } as any) }
                 const prevNote = (order as any).note || ''
                 const tag = addFare ? '（含車馬費$400）' : ''
                 const merged = `${prevNote ? prevNote + '\n' : ''}[無法服務] ${unserviceReason}${tag}`.trim()
