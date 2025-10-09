@@ -492,19 +492,7 @@ export default function ShopCartPage() {
     }
 
     try {
-      // 確保派工系統內已建立客戶資料（失敗不阻斷提單）
-      try {
-        await fetch('/api/customers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: customerInfo.name,
-            phone: customerInfo.phone,
-            email: customerInfo.email,
-            address: fullAddress
-          })
-        })
-      } catch {}
+      // 略過舊的 /api/customers 呼叫，避免 404 噪音（不影響下單流程）
 
       // 優先直寫 Supabase（透過 adapters）
       let createdId = ''
