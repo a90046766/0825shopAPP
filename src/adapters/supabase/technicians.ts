@@ -120,6 +120,18 @@ class SupabaseTechnicianApplicationRepo implements TechnicianApplicationRepo {
     const now = new Date().toISOString()
     const { error } = await supabase.from('technician_applications').insert({ name: app.name, short_name: app.shortName, email: app.email, phone: app.phone, region: app.region, status: 'pending', applied_at: now })
     if (error) throw error
+    // 小鈴鐺：技師申請待審核
+    try {
+      await supabase.from('notifications').insert({
+        title: '技師申請（待審核）',
+        body: `申請人：${app.name}（${app.email}）` ,
+        level: 'info',
+        target: 'support',
+        channel: 'approvals',
+        created_at: new Date().toISOString(),
+        sent_at: new Date().toISOString()
+      } as any)
+    } catch {}
   }
   async approve(id: string): Promise<void> {
     // 1) 讀取申請資料

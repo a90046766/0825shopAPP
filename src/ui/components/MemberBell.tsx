@@ -14,10 +14,11 @@ export default function MemberBell() {
     try { if (typeof navigator !== 'undefined' && navigator.onLine === false) return } catch {}
     setLoading(true)
     try {
-      // 優先讀取後端 API（派工系統）
+      // 優先讀取後端 API（統一會員通知聚合）
       let merged: any[] = []
       try {
-        const res = await fetch(`/api/notifications/member/${member.id}`)
+        const q = new URLSearchParams(member?.id ? { memberId: member.id } : { memberEmail: String(member?.email||'').toLowerCase() })
+        const res = await fetch(`/_api/member-notifications?${q.toString()}`)
         const j = await res.json()
         if (j?.success && Array.isArray(j.data)) merged = j.data
       } catch {}
@@ -81,7 +82,8 @@ export default function MemberBell() {
   const readAll = async () => {
     if (!member) return
     try {
-      await fetch(`/api/notifications/member/${member.id}/read-all`, { method: 'PUT' })
+      const q = new URLSearchParams(member?.id ? { memberId: member.id } : { memberEmail: String(member?.email||'').toLowerCase() })
+      await fetch(`/_api/member-notifications/read-all?${q.toString()}`, { method: 'POST' })
       setList(prev => (prev||[]).map(n => ({ ...n, is_read: true })))
       await load()
     } catch {}
@@ -124,7 +126,10 @@ export default function MemberBell() {
 
   const readOne = async (id: string) => {
     if (!member) return
-    try { await fetch(`/api/notifications/member/${member.id}/read/${id}`, { method: 'PUT' }) } catch {}
+    try { 
+      const q = new URLSearchParams(member?.id ? { memberId: member.id, id } : { memberEmail: String(member?.email||'').toLowerCase(), id })
+      await fetch(`/_api/member-notifications/read?${q.toString()}`, { method: 'POST' })
+    } catch {}
     try {
       const emailLc = (member.email||'').toLowerCase()
       await supabase.from('notifications_read').upsert({ notification_id: id, user_email: emailLc, read_at: new Date().toISOString() })

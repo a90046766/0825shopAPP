@@ -14,13 +14,29 @@ export default function CustomerQuickSearch(props: { onSelect: (m: MemberLite) =
       if (!keyword) { setRows([]); return; }
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('members')
-          .select('id,name,phone,email,code')
-          .or(`name.ilike.%${keyword}%,phone.ilike.%${keyword}%,email.ilike.%${keyword}%,code.ilike.%${keyword}%`)
-          .limit(10);
-        if (error) throw error;
-        setRows((data || []) as MemberLite[]);
+        // 先嘗試以 email/phone 精準查單筆（走統一 API）
+        let list: MemberLite[] = [];
+        try {
+          const isEmail = keyword.includes('@');
+          const phoneLike = /^\d{6,}$/.test(keyword);
+          const qp = new URLSearchParams(isEmail? { memberEmail: keyword }: (phoneLike? { phone: keyword }: {} as any));
+          if (qp.toString()) {
+            const res = await fetch(`/_api/member/profile?${qp.toString()}`);
+            const j = await res.json();
+            if (j?.success && j.data) list = [{ id: j.data.id, name: j.data.name, phone: j.data.phone, email: j.data.email, code: j.data.code }];
+          }
+        } catch {}
+        // 回退：仍需關鍵字模糊查多筆（暫保留 DB 查詢）
+        if (list.length === 0) {
+          const { data, error } = await supabase
+            .from('members')
+            .select('id,name,phone,email,code')
+            .or(`name.ilike.%${keyword}%,phone.ilike.%${keyword}%,email.ilike.%${keyword}%,code.ilike.%${keyword}%`)
+            .limit(10);
+          if (error) throw error;
+          list = (data || []) as MemberLite[];
+        }
+        setRows(list);
       } catch (e) {
         console.error(e);
       } finally {

@@ -9,16 +9,30 @@ exports.handler = async (event) => {
     let body = {}
     try { body = JSON.parse(event.body||'{}') } catch {}
     const orderId = String(body.orderId||'')
-    const memberId = String(body.memberId||'')
+    let memberId = String(body.memberId||'')
+    const memberEmail = String(body.memberEmail||'').toLowerCase()
     const items = Array.isArray(body.items) ? body.items : []
     const pointsDeductAmount = Number(body.pointsDeductAmount||0)
-    if (!orderId || !memberId) return json(400, { success:false, error:'missing_params' })
+    if (!orderId) return json(400, { success:false, error:'missing_params' })
 
     const { createClient } = require('@supabase/supabase-js')
     const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
     if (!url || !key) return json(500, { success:false, error:'missing_service_role' })
     const supabase = createClient(url, key, { auth: { persistSession: false } })
+
+    // 若缺 memberId 但有 email，反查 members.id
+    if (!memberId && memberEmail) {
+      try {
+        const { data: m } = await supabase
+          .from('members')
+          .select('id')
+          .eq('email', memberEmail)
+          .maybeSingle()
+        if (m?.id) memberId = String(m.id)
+      } catch {}
+    }
+    if (!memberId) return json(400, { success:false, error:'member_not_found' })
 
     // 計算結案金額（含負數調整；扣除積分折抵）
     const gross = (items||[]).reduce((s,it)=> s + (Number(it.unitPrice)||0)*(Number(it.quantity)||0), 0)

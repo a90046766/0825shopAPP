@@ -226,11 +226,8 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
     if (!user) return
     try {
       const emailLc = String(user.email||'').toLowerCase()
-      for (const it of list) {
-        try {
-          await supabase.from('notifications_read').upsert({ notification_id: it.id, user_email: emailLc, read_at: new Date().toISOString() })
-        } catch {}
-      }
+      await fetch(`/_api/staff-notifications/read-all?email=${encodeURIComponent(emailLc)}`, { method: 'POST' })
+      for (const it of list) { try { await supabase.from('notifications_read').upsert({ notification_id: it.id, user_email: emailLc, read_at: new Date().toISOString() }) } catch {} }
       setList(prev => (prev||[]).map(n => ({ ...n, is_read: true })))
     } catch {}
     await load()
@@ -240,6 +237,7 @@ export default function StaffBell({ compact = false }: { compact?: boolean }) {
     if (!user) return
     try {
       const emailLc = String(user.email||'').toLowerCase()
+      await fetch(`/_api/staff-notifications/read?email=${encodeURIComponent(emailLc)}&id=${encodeURIComponent(id)}`, { method: 'POST' })
       await supabase.from('notifications_read').upsert({ notification_id: id, user_email: emailLc, read_at: new Date().toISOString() })
       setList(prev => prev.map(n => n.id===id ? { ...n, is_read: true } : n))
     } catch {}

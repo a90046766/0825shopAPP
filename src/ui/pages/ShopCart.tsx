@@ -89,24 +89,17 @@ export default function ShopCartPage() {
     }
   }, [])
 
-  // 以 members 表補齊電話與地址（若有）
+  // 以 member-profile API 補齊電話與地址（若有）
   useEffect(() => {
     (async()=>{
       try{
         if (!memberUser?.email) return
-        const emailLc = String(memberUser.email).toLowerCase()
-        const { data: m } = await supabase
-          .from('members')
-          .select('phone,addresses')
-          .eq('email', emailLc)
-          .maybeSingle()
-        if (m) {
-          const addr = Array.isArray((m as any).addresses) && (m as any).addresses[0] ? (m as any).addresses[0] : ''
-          setCustomerInfo(prev => ({
-            ...prev,
-            phone: prev.phone || (m as any).phone || '',
-            street: prev.street || addr || ''
-          }))
+        const q = new URLSearchParams({ memberEmail: String(memberUser.email).toLowerCase() })
+        const res = await fetch(`/_api/member/profile?${q.toString()}`)
+        const j = await res.json()
+        if (j?.success && j.data) {
+          const addr = `${j.data.city||''}${j.data.district||''}${j.data.address||''}`
+          setCustomerInfo(prev => ({ ...prev, phone: prev.phone || j.data.phone || '', street: prev.street || addr || '' }))
         }
       } catch {}
     })()
@@ -281,50 +274,17 @@ export default function ShopCartPage() {
     if (savedCart) {
       setCart(JSON.parse(savedCart))
     }
-    
-    // 初始載入：若本地有暫存，先顯示，稍後會以雲端覆蓋
-    const savedPoints = localStorage.getItem('customerPoints')
-    if (savedPoints) setCustomerPoints(parseInt(savedPoints))
   }, [])
 
-  // 與雲端同步會員積分（以 member_points.balance 為準，回退 members.points）
+  // 與雲端同步會員積分（單一真相 API）
   useEffect(() => {
     (async () => {
       try {
         if (!memberUser) return
-        let p = 0
-        try {
-          if (memberUser.id) {
-            const { data: byId } = await supabase
-              .from('member_points')
-              .select('balance')
-              .eq('member_id', memberUser.id)
-              .maybeSingle()
-            if (byId && typeof (byId as any).balance === 'number') p = (byId as any).balance
-          }
-        } catch {}
-        try {
-          if (!p && memberUser.email) {
-            const { data: byEmail } = await supabase
-              .from('member_points')
-              .select('balance')
-              .eq('member_email', String(memberUser.email).toLowerCase())
-              .maybeSingle()
-            if (byEmail && typeof (byEmail as any).balance === 'number') p = (byEmail as any).balance
-          }
-        } catch {}
-        try {
-          if (!p && memberUser.email) {
-            const { data: mem } = await supabase
-              .from('members')
-              .select('points')
-              .eq('email', String(memberUser.email).toLowerCase())
-              .maybeSingle()
-            if (mem && typeof (mem as any).points === 'number') p = (mem as any).points
-          }
-        } catch {}
-        setCustomerPoints(p || 0)
-        try { localStorage.setItem('customerPoints', String(p || 0)) } catch {}
+        const q = new URLSearchParams(memberUser.id ? { memberId: memberUser.id } : { memberEmail: String(memberUser.email||'').toLowerCase() })
+        const res = await fetch(`/_api/points/balance?${q.toString()}`)
+        const j = await res.json()
+        setCustomerPoints(Number(j?.balance||0))
       } catch {}
     })()
   }, [memberUser?.id, memberUser?.email])
@@ -591,30 +551,14 @@ export default function ShopCartPage() {
       // 若雲端建立成功 → 清空購物車並導向（雙保險）
       if (createdId) {
         // 建單成功後即時扣除使用積分（寫入 ledger 與餘額）
+        // 立即扣點（支援 memberId 或 email）
         try {
-          if (usePoints && pointsToUse > 0 && memberId) {
-            await fetch('/.netlify/functions/points-use-on-create', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ memberId, orderId: createdId, points: pointsToUse })
-            })
+          if (usePoints && pointsToUse > 0) {
+            const payload = memberId ? { memberId, orderId: createdId, points: pointsToUse } : { memberEmail: String(memberUser.email||'').toLowerCase(), orderId: createdId, points: pointsToUse }
+            await fetch('/_api/points/use-on-create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
           }
         } catch {}
-        // 若 memberId 不在，改用 email 扣除
-        try {
-          if (usePoints && pointsToUse > 0 && !memberId && memberUser?.email) {
-            await fetch('/.netlify/functions/points-use-on-create', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ memberEmail: String(memberUser.email).toLowerCase(), orderId: createdId, points: pointsToUse })
-            })
-          }
-        } catch {}
-        if (usePoints && pointsToUse > 0) {
-          const newPoints = customerPoints - pointsToUse
-          setCustomerPoints(newPoints)
-          localStorage.setItem('customerPoints', newPoints.toString())
-        }
+        // 前端不再寫入本地積分；畫面僅即時刷新，下一次進來會由 API 取得
         try { localStorage.setItem('lastOrderId', createdId) } catch {}
         try { localStorage.setItem('shopCart', JSON.stringify([])) } catch {}
         setCart([])
@@ -643,11 +587,6 @@ export default function ShopCartPage() {
       existingOrders.push(order)
       localStorage.setItem('reservationOrders', JSON.stringify(existingOrders))
 
-      if (usePoints && pointsToUse > 0) {
-        const newPoints = customerPoints - pointsToUse
-        setCustomerPoints(newPoints)
-        localStorage.setItem('customerPoints', newPoints.toString())
-      }
       try { localStorage.setItem('lastOrderId', order.id) } catch {}
       try { localStorage.setItem('shopCart', JSON.stringify([])) } catch {}
       setCart([])

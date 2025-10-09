@@ -2,6 +2,21 @@
 /api/orders/reservations /.netlify/functions/orders-reservations 200
 /api/reservations /.netlify/functions/reservations 200
 /api/member-reservations/:customerId /.netlify/functions/member-reservations 200
+/_api/points/apply-order /.netlify/functions/points-apply-order 200
+/_api/points/use-on-create /.netlify/functions/points-use-on-create 200
+/_api/points/pending/create /.netlify/functions/points-pending 200
+/_api/points/pending/list /.netlify/functions/points-pending 200
+/_api/points/pending/claim /.netlify/functions/points-pending 200
+/_api/points/balance /.netlify/functions/points-balance 200
+/_api/points/ledger /.netlify/functions/points-ledger 200
+/_api/member/profile /.netlify/functions/member-profile 200
+/_api/staff-notifications /.netlify/functions/staff-notifications 200
+/_api/staff-notifications/read /.netlify/functions/staff-notifications-read 200
+/_api/staff-notifications/read-all /.netlify/functions/staff-notifications-read-all 200
+/_api/notifications-feedback-list /.netlify/functions/notifications-feedback-list 200
+/_api/member-notifications /.netlify/functions/member-notifications 200
+/_api/member-notifications/read /.netlify/functions/member-notifications-read 200
+/_api/member-notifications/read-all /.netlify/functions/member-notifications-read-all 200
 ## do not route einvoice wildcard via demo proxy; use specific functions
 
 /* /index.html 200

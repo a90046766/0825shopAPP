@@ -20,17 +20,10 @@ export default function ShareReferralPage() {
         let code = ''
         try {
           const emailLc = String(u.email || '').toLowerCase()
-          // 會員分享：固定讀 members.code（與首頁、個資頁同步）
-          const { data: m } = await supabase.from('members').select('code').eq('email', emailLc).maybeSingle()
-          code = m?.code ? String(m.code) : ''
-          if (!code && emailLc === 'a13788051@gmail.com') {
-            try {
-              const { data: ex } = await supabase.from('members').select('email').eq('email', emailLc).maybeSingle()
-              if (ex) await supabase.from('members').update({ code: 'MO7777' }).eq('email', emailLc)
-              else await supabase.from('members').insert({ email: emailLc, code: 'MO7777' })
-            } catch {}
-            code = 'MO7777'
-          }
+          const q = new URLSearchParams({ memberEmail: emailLc })
+          const res = await fetch(`/_api/member/profile?${q.toString()}`)
+          const j = await res.json()
+          code = String(j?.data?.code || '')
         } catch {}
         setMemberCode(code)
         const url = `${window.location.origin}/register/member?ref=${encodeURIComponent(code || '')}`

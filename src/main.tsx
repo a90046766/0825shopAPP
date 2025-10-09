@@ -60,7 +60,8 @@ const AdminSettingsPage = React.lazy(() => import('./ui/pages/AdminSettings'))
 const AdminBroadcastPage = React.lazy(() => import('./ui/pages/AdminBroadcast'))
 const MemberOrdersPage = React.lazy(() => import('./ui/pages/MemberOrders'))
 const MemberOrderDetailPage = React.lazy(() => import('./ui/pages/MemberOrderDetail'))
-const MemberProfilePage = React.lazy(() => import('./ui/pages/MemberProfile'))
+// 改為同步載入，避免懸掛載入造成會員資料頁卡住
+import MemberProfilePage from './ui/pages/MemberProfile'
 import { supabase } from './utils/supabase'
 
 // 權限保護

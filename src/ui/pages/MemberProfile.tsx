@@ -12,6 +12,7 @@ export default function MemberProfilePage() {
   const [error, setError] = useState('')
   const [points, setPoints] = useState<number>(0)
   const [ledger, setLedger] = useState<any[]>([])
+  const [pending, setPending] = useState<any[]>([])
   const [form, setForm] = useState({ name: '', email: '', phone: '', city: '', district: '', address: '' })
   const [saving, setSaving] = useState(false)
   const [memberCode, setMemberCode] = useState<string>('')
@@ -39,75 +40,29 @@ export default function MemberProfilePage() {
         const email = String(member.email || '').toLowerCase()
         setForm((f) => ({ ...f, name: member.name || '', email, phone: '', city: '', district: '', address: '' }))
 
-        // 讀取/補齊會員資料（members 表）
+        // 讀取/補齊會員資料（統一 API）
         try {
-          const { data: mrow } = await supabase
-            .from('members')
-            .select('name,email,phone,addresses,code')
-            .eq('email', email)
-            .maybeSingle()
-          if (mrow) {
-            const addr = Array.isArray((mrow as any).addresses) && (mrow as any).addresses[0] ? String((mrow as any).addresses[0]) : ''
-            // 嘗試切分為 縣市/區域/街道門牌（簡單切分，避免複雜規則）
-            let city = '', district = '', address = ''
-            try {
-              if (addr) {
-                city = addr.slice(0, 3)
-                district = addr.slice(3, 6)
-                address = addr.slice(6)
-              }
-            } catch {}
-            setForm({ name: mrow.name || member.name || '', email: mrow.email || email, phone: mrow.phone || '', city, district, address })
-            const currentCode = String((mrow as any).code || '')
+          const q = new URLSearchParams({ memberEmail: email })
+          const res = await fetch(`/_api/member/profile?${q.toString()}`)
+          const j = await res.json()
+          if (j?.success && j.data) {
+            setForm({ name: j.data.name || member.name || '', email: j.data.email || email, phone: j.data.phone || '', city: j.data.city||'', district: j.data.district||'', address: j.data.address||'' })
+            const currentCode = String(j.data.code || '')
             if (currentCode) { setMemberCode(currentCode); syncLocalMemberCode(currentCode) }
-            try {
-              const targetEmail = 'a13788051@gmail.com'
-              if (String((mrow as any).email||'').toLowerCase() === targetEmail && currentCode !== 'MO7777') {
-                const { data: ex } = await supabase.from('members').select('email').eq('email', email).maybeSingle()
-                if (ex) await supabase.from('members').update({ code: 'MO7777' }).eq('email', email)
-                else await supabase.from('members').insert({ email, code: 'MO7777' })
-                setMemberCode('MO7777')
-                syncLocalMemberCode('MO7777')
-              }
-            } catch {}
           }
         } catch {}
 
-        // 讀取積分（以 member_id 優先；後備 email；最後 localStorage）
-        let p = 0
+        // 讀取積分（單一真相 API）
         try {
-          if (member.id) {
-            const { data: rowById } = await supabase
-              .from('member_points')
-              .select('balance')
-              .eq('member_id', member.id)
-              .maybeSingle()
-            if (rowById && typeof (rowById as any).balance === 'number') p = (rowById as any).balance
-          }
-          if (!p) {
-            const { data: rowByEmail } = await supabase
-              .from('member_points')
-              .select('balance')
-              .eq('member_email', email)
-              .maybeSingle()
-            if (rowByEmail && typeof (rowByEmail as any).balance === 'number') p = (rowByEmail as any).balance
-          }
-        } catch {}
-        if (!p) {
-          try { p = parseInt(localStorage.getItem('customerPoints') || '0') || 0 } catch {}
-        }
-        setPoints(p)
-
-        // 讀取積分明細（近 50 筆）
-        try {
-          const { data: logs } = await supabase
-            .from('member_points_ledger')
-            .select('created_at, delta, reason, order_id, ref_key')
-            .eq('member_id', (member as any).id || email)
-            .order('created_at', { ascending: false })
-            .limit(50)
-          setLedger(Array.isArray(logs)? logs: [])
-        } catch { setLedger([]) }
+          const q = new URLSearchParams(member.id? { memberId: member.id }: { memberEmail: email })
+          const [rb, rl] = await Promise.all([
+            fetch(`/_api/points/balance?${q.toString()}`),
+            fetch(`/_api/points/ledger?${q.toString()}&limit=50`)
+          ])
+          try { const jb = await rb.json(); if (jb?.success) setPoints(Number(jb.balance||0)) } catch {}
+          try { const jl = await rl.json(); if (jl?.success && Array.isArray(jl.data)) setLedger(jl.data) } catch {}
+          try { const rp = await fetch(`/_api/points/pending/list?${q.toString()}`); const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) setPending(jp.data) } catch {}
+        } catch { }
       } catch (e: any) {
         setError(e?.message || '載入失敗')
       } finally {
@@ -123,16 +78,9 @@ export default function MemberProfilePage() {
     setError('')
     try {
       const email = String(member.email || '').toLowerCase()
-      const addressStr = `${(form.city||'')}${(form.district||'')}${(form.address||'')}`.trim()
-      const row: any = { name: form.name || '', phone: form.phone || '', addresses: addressStr ? [addressStr] : [] }
-      const { data: ex } = await supabase.from('members').select('email').eq('email', email).maybeSingle()
-      if (ex) {
-        const { error } = await supabase.from('members').update(row).eq('email', email)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('members').insert({ email, ...row })
-        if (error) throw error
-      }
+      const payload = { memberEmail: email, name: form.name||'', phone: form.phone||'', city: form.city||'', district: form.district||'', address: form.address||'' }
+      const resp = await fetch('/_api/member/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const jr = await resp.json(); if (!jr?.success) throw new Error(jr?.error||'更新失敗')
       alert('已儲存')
     } catch (e: any) {
       setError(e?.message || '儲存失敗')
@@ -208,6 +156,22 @@ export default function MemberProfilePage() {
               <div className="mt-4">
                 <Link to="/store/products" className="inline-block rounded bg-blue-600 px-4 py-2 text-white">前往選購</Link>
               </div>
+              {pending.length>0 && (
+                <div className="mt-4">
+                  <div className="text-sm font-semibold text-gray-800">待入點</div>
+                  <div className="mt-2 divide-y text-xs">
+                    {pending.map((p:any,i:number)=> (
+                      <div key={i} className="py-2 flex items-center justify-between">
+                        <div className="min-w-0 pr-2">
+                          <div className="truncate text-gray-700">{p.reason || '消費回饋'}</div>
+                          <div className="text-[11px] text-gray-500">訂單 {p.order_id} · {new Date(p.created_at).toLocaleString('zh-TW')}</div>
+                        </div>
+                        <div className="font-semibold text-amber-700">+{p.points}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {ledger.length>0 && (
                 <div className="mt-4">
                   <div className="text-sm font-semibold text-gray-800">積分明細</div>

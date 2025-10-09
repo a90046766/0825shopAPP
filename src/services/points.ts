@@ -8,7 +8,7 @@ export async function requestOrderCompletionPoints(order: any): Promise<{ succes
       items: Array.isArray(order.serviceItems) ? order.serviceItems : [],
       pointsDeductAmount: Number(order.pointsDeductAmount||0)
     }
-    const res = await fetch('/api/points/apply-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+  const res = await fetch('/_api/points/apply-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     const j = await res.json().catch(()=>({ success:false }))
     if (j && j.success) return { success: true, awarded: Number(j.points||0) }
     return { success: false, message: j?.error || `HTTP ${res.status}` }

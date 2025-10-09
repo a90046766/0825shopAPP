@@ -377,6 +377,13 @@ class SupabaseOrderRepo implements OrderRepo {
             // RPC 可能未填完整欄位：補寫必要欄位並回讀
             const created = fromDbRow(rpcRow)
             const patch: Partial<Order> = {}
+            // 補寫積分使用（部分 RPC 可能未保存）
+            if ((created as any).pointsUsed == null && (payload as any).pointsUsed != null) {
+              ;(patch as any).pointsUsed = (payload as any).pointsUsed
+            }
+            if ((created as any).pointsDeductAmount == null && (payload as any).pointsDeductAmount != null) {
+              ;(patch as any).pointsDeductAmount = (payload as any).pointsDeductAmount
+            }
             if ((!created.serviceItems || created.serviceItems.length===0) && Array.isArray(payload.serviceItems) && payload.serviceItems.length>0) {
               (patch as any).serviceItems = payload.serviceItems
             }
@@ -407,6 +414,20 @@ class SupabaseOrderRepo implements OrderRepo {
             }
             try { if (Object.keys(patch).length>0) await this.update(created.id, patch) } catch {}
             try { const reread = await this.get(created.id); if (reread) return reread } catch {}
+            // 新訂單通知（僅購物站 channel）
+            try {
+              const title = '購物站新訂單'
+              const body = `新訂單：${String(created.id||'')}，客戶：${(draft as any).customerName||''}，電話：${(draft as any).customerPhone||''}`
+              await supabase.from('notifications').insert({
+                title,
+                body,
+                level: 'info',
+                target: 'support',
+                channel: 'store',
+                created_at: new Date().toISOString(),
+                sent_at: new Date().toISOString()
+              } as any)
+            } catch {}
             return created
           }
         } catch (rpcError: any) {
@@ -417,10 +438,11 @@ class SupabaseOrderRepo implements OrderRepo {
 
       // 回退流程（兩段式）：先產生單號再插入
       const row = toDbRow(draft)
-      // 自動綁定會員：若未提供 memberId 且有 customerEmail，嘗試以 email 反查 members.id
+      // 自動綁定會員：若未提供 memberId，嘗試以 email/phone 反查 members.id
       try {
         if (!row['member_id']) {
           const email = String(row['customer_email']||'').toLowerCase()
+          const phone = String(row['customer_phone']||'').trim()
           if (email) {
             const { data: m } = await supabase
               .from('members')
@@ -428,6 +450,14 @@ class SupabaseOrderRepo implements OrderRepo {
               .eq('email', email)
               .maybeSingle()
             if (m?.id) row['member_id'] = m.id
+          }
+          if (!row['member_id'] && phone) {
+            const { data: m2 } = await supabase
+              .from('members')
+              .select('id')
+              .eq('phone', phone)
+              .maybeSingle()
+            if (m2?.id) row['member_id'] = m2.id
           }
         }
       } catch {}
@@ -474,6 +504,12 @@ class SupabaseOrderRepo implements OrderRepo {
         console.error('Supabase order create error:', error)
         throw new Error(`訂單建立失敗: ${error.message}`)
       }
+      // 新訂單通知（僅購物站 channel）
+      try {
+        const title = '購物站新訂單'
+        const payload = { kind: 'new_order', order_id: String(row.order_number||row.id), customer_name: row.customer_name||'', customer_phone: row.customer_phone||'' }
+        await supabase.from('notifications').insert({ title, body: JSON.stringify(payload), level: 'info', target: 'support', channel: 'store', created_at: new Date().toISOString(), sent_at: new Date().toISOString() } as any)
+      } catch {}
       return fromDbRow(data)
     } catch (error) {
       console.error('Supabase order create exception:', error)

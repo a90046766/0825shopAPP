@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { loadAdapters } from '../../adapters'
 import { supabase } from '../../utils/supabase'
 import { compressImageToDataUrl } from '../../utils/image'
+import { applyGroupPricingToServiceItems } from '../../utils/groupPricing'
 import SignatureModal from '../components/SignatureModal'
 import { 
   TAIWAN_CITIES, 
@@ -455,7 +456,18 @@ export default function PageOrderDetail() {
                 )
               })}
               <div><button onClick={()=>setItemsDraft([...itemsDraft, { name:'', quantity:1, unitPrice:0 }])} className="rounded bg-gray-100 px-2 py-1">新增項目</button></div>
-              <div className="text-right">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={()=>{
+                    try {
+                      const applied = applyGroupPricingToServiceItems(itemsDraft)
+                      setItemsDraft(applied as any)
+                      alert('已套用團購價於清洗類品項')
+                    } catch {}
+                  }}
+                  className="rounded bg-orange-100 px-3 py-1 text-orange-700"
+                >套用團購價</button>
                 <button onClick={async()=>{ await repos.orderRepo.update(order.id, { serviceItems: itemsDraft }); const o=await repos.orderRepo.get(order.id); setOrder(o); setEditItems(false) }} className="rounded bg-brand-500 px-3 py-1 text-white">儲存</button>
               </div>
             </div>
@@ -1080,7 +1092,7 @@ export default function PageOrderDetail() {
                 const prevNote = (order as any).note || ''
                 const tag = addFare ? '（含車馬費$400）' : ''
                 const merged = `${prevNote ? prevNote + '\n' : ''}[無法服務] ${unserviceReason}${tag}`.trim()
-                await repos.orderRepo.update(order.id, { status: 'unservice' as any, note: merged, serviceItems: items })
+                await repos.orderRepo.update(order.id, { status: 'unservice' as any, note: merged, serviceItems: items, closedAt: new Date().toISOString() })
                 setUnserviceOpen(false)
                 setUnserviceConfirmPending(false)
               }

@@ -145,6 +145,18 @@ class SupabaseInventoryRepo implements InventoryRepo {
     const row = toPurchaseRequestDbRow(request)
     const { data, error } = await supabase.from('purchase_requests').insert(row).select().single()
     if (error) throw error
+    // 小鈴鐺：庫存採購申請（客服/管理端）
+    try {
+      await supabase.from('notifications').insert({
+        title: '庫存採購申請',
+        body: `品項：${row.item_name || ''}，數量：${row.requested_quantity || 0}（申請人：${row.requester_name || ''}）`,
+        level: 'info',
+        target: 'support',
+        channel: 'inventory',
+        created_at: new Date().toISOString(),
+        sent_at: new Date().toISOString()
+      } as any)
+    } catch {}
     return fromPurchaseRequestDbRow(data)
   }
   

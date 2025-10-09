@@ -108,23 +108,14 @@ export default function NewShop() {
 						email;
 					setDisplayName(nameFromMeta || '');
 					
-          // 會員編號：僅讀取 DB 的 members.code（不寫回、不讀 localStorage）
+          // 會員編號：改用統一 API 讀取（不寫回、不讀 localStorage）
           try {
             const emailLc = String(email||'').toLowerCase();
             if (emailLc) {
-              // 特例：你的帳號一律鎖 MO7777，避免任何殘留值覆蓋
-              if (emailLc === 'a13788051@gmail.com') {
-                try {
-                  const { data: ex } = await supabase.from('members').select('email').eq('email', emailLc).maybeSingle()
-                  if (ex) await supabase.from('members').update({ code: 'MO7777' }).eq('email', emailLc)
-                  else await supabase.from('members').insert({ email: emailLc, code: 'MO7777' })
-                } catch {}
-                setMemberId('MO7777')
-              } else {
-                const { data: m } = await supabase.from('members').select('code').eq('email', emailLc).maybeSingle();
-                const code = m?.code ? String(m.code) : ''
-                setMemberId(code)
-              }
+              const q = new URLSearchParams({ memberEmail: emailLc })
+              const res = await fetch(`/_api/member/profile?${q.toString()}`)
+              const j = await res.json()
+              setMemberId(String(j?.data?.code||''))
             }
           } catch {}
 				} catch {}
