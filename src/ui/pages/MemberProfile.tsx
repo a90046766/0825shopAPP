@@ -18,6 +18,8 @@ export default function MemberProfilePage() {
   const [memberCode, setMemberCode] = useState<string>('')
   const [shortUrl, setShortUrl] = useState<string>('')
   const [genning, setGenning] = useState<boolean>(false)
+  const [claimingAll, setClaimingAll] = useState<boolean>(false)
+  const [claimingMap, setClaimingMap] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const syncLocalMemberCode = (code: string) => {
@@ -55,13 +57,14 @@ export default function MemberProfilePage() {
         // 讀取積分（單一真相 API）
         try {
           const q = new URLSearchParams(member.id? { memberId: member.id }: { memberEmail: email })
-          const [rb, rl] = await Promise.all([
+          const [rb, rl, rp] = await Promise.all([
             fetch(`/_api/points/balance?${q.toString()}`),
-            fetch(`/_api/points/ledger?${q.toString()}&limit=50`)
+            fetch(`/_api/points/ledger?${q.toString()}&limit=50`),
+            fetch(`/_api/points/pending/list?${q.toString()}`)
           ])
           try { const jb = await rb.json(); if (jb?.success) setPoints(Number(jb.balance||0)) } catch {}
           try { const jl = await rl.json(); if (jl?.success && Array.isArray(jl.data)) setLedger(jl.data) } catch {}
-          try { const rp = await fetch(`/_api/points/pending/list?${q.toString()}`); const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) setPending(jp.data) } catch {}
+          try { const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) setPending(jp.data) } catch {}
         } catch { }
       } catch (e: any) {
         setError(e?.message || '載入失敗')
@@ -71,6 +74,52 @@ export default function MemberProfilePage() {
     }
     load()
   }, [])
+
+  const refreshPointsBlocks = async () => {
+    if (!member) return
+    try {
+      const email = String(member.email||'').toLowerCase()
+      const q = new URLSearchParams(member.id? { memberId: member.id }: { memberEmail: email })
+      const [rb, rl, rp] = await Promise.all([
+        fetch(`/_api/points/balance?${q.toString()}`),
+        fetch(`/_api/points/ledger?${q.toString()}&limit=50`),
+        fetch(`/_api/points/pending/list?${q.toString()}`)
+      ])
+      try { const jb = await rb.json(); if (jb?.success) setPoints(Number(jb.balance||0)) } catch {}
+      try { const jl = await rl.json(); if (jl?.success && Array.isArray(jl.data)) setLedger(jl.data) } catch {}
+      try { const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) setPending(jp.data) } catch {}
+    } catch {}
+  }
+
+  const claimPendingOne = async (id: string) => {
+    if (!member) return
+    try {
+      setClaimingMap(m=>({ ...m, [id]: true }))
+      const email = String(member.email||'').toLowerCase()
+      const payload = member.id ? { id, memberId: member.id } : { id, memberEmail: email }
+      const resp = await fetch('/_api/points/pending/claim', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+      const jr = await resp.json()
+      if (!jr?.success) throw new Error(jr?.error||'領取失敗')
+      await refreshPointsBlocks()
+      try { alert('已領取積分') } catch {}
+    } catch (e:any) {
+      try { alert(e?.message||'領取失敗') } catch {}
+    } finally {
+      setClaimingMap(m=>{ const n={...m}; delete n[id]; return n })
+    }
+  }
+
+  const claimPendingAll = async () => {
+    if (!member) return
+    if (!Array.isArray(pending) || pending.length===0) return
+    setClaimingAll(true)
+    try {
+      for (const p of pending) { try { await claimPendingOne(String(p.id||p.pk||p._id||p.uuid||'')) } catch {} }
+      await refreshPointsBlocks()
+    } finally {
+      setClaimingAll(false)
+    }
+  }
 
   const handleSave = async () => {
     if (!member) return
@@ -150,8 +199,18 @@ export default function MemberProfilePage() {
               </div>
             </div>
             <div className="rounded-2xl bg-white p-4 shadow">
-              <div className="text-sm text-gray-600">目前積分</div>
-              <div className="mt-1 text-3xl font-extrabold text-blue-700">{points.toLocaleString()}</div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-600">目前積分</div>
+                  <div className="mt-1 text-3xl font-extrabold text-blue-700">{points.toLocaleString()}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={refreshPointsBlocks} className="rounded border px-2 py-1 text-xs hover:bg-gray-50">刷新</button>
+                  {pending.length>0 && (
+                    <button disabled={claimingAll} onClick={claimPendingAll} className={`rounded px-2 py-1 text-xs text-white ${claimingAll? 'bg-gray-400' : 'bg-emerald-600 hover:bg-emerald-700'}`}>{claimingAll?'領取中…':'全部領取'}</button>
+                  )}
+                </div>
+              </div>
               <div className="mt-2 text-xs text-gray-500">消費 $100 = 1 點，可全額折抵。數值以後台結算為準。</div>
               <div className="mt-4">
                 <Link to="/store/products" className="inline-block rounded bg-blue-600 px-4 py-2 text-white">前往選購</Link>
@@ -160,15 +219,22 @@ export default function MemberProfilePage() {
                 <div className="mt-4">
                   <div className="text-sm font-semibold text-gray-800">待入點</div>
                   <div className="mt-2 divide-y text-xs">
-                    {pending.map((p:any,i:number)=> (
-                      <div key={i} className="py-2 flex items-center justify-between">
-                        <div className="min-w-0 pr-2">
-                          <div className="truncate text-gray-700">{p.reason || '消費回饋'}</div>
-                          <div className="text-[11px] text-gray-500">訂單 {p.order_id} · {new Date(p.created_at).toLocaleString('zh-TW')}</div>
+                    {pending.map((p:any,i:number)=> {
+                      const pid = String(p.id||p.pk||p._id||p.uuid||i)
+                      const claiming = !!claimingMap[pid]
+                      return (
+                        <div key={pid} className="py-2 flex items-center justify-between gap-2">
+                          <div className="min-w-0 pr-2">
+                            <div className="truncate text-gray-700">{p.reason || '消費回饋'}</div>
+                            <div className="text-[11px] text-gray-500">訂單 {p.order_id} · {new Date(p.created_at).toLocaleString('zh-TW')}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="font-semibold text-amber-700">+{p.points}</div>
+                            <button disabled={claiming} onClick={()=>claimPendingOne(pid)} className={`rounded px-2 py-1 text-xs ${claiming?'bg-gray-300 text-gray-600':'bg-emerald-600 text-white hover:bg-emerald-700'}`}>{claiming?'領取中…':'領取'}</button>
+                          </div>
                         </div>
-                        <div className="font-semibold text-amber-700">+{p.points}</div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
