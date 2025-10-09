@@ -244,30 +244,62 @@ export default function MemberProfilePage() {
                   </div>
                 </div>
               )}
-              {ledger.length>0 && (
+              {(() => {
+                // 將待入點與明細合併顯示於「積分明細」，待入點在前且可領取
+                const combined: Array<any> = [
+                  ...pending.map((p:any, i:number)=> ({
+                    _kind: 'pending',
+                    id: String(p.id||i),
+                    created_at: p.created_at,
+                    reason: p.reason || '消費回饋（待領取）',
+                    order_id: p.order_id,
+                    delta: Number(p.points||0)
+                  })),
+                  ...ledger.map((l:any, i:number)=> ({
+                    _kind: 'ledger',
+                    id: String(l.id||i),
+                    created_at: l.created_at,
+                    reason: l.reason || '回饋',
+                    order_id: l.order_id,
+                    delta: Number(l.delta||0)
+                  }))
+                ].sort((a:any,b:any)=> String(b.created_at||'').localeCompare(String(a.created_at||'')))
+                if (combined.length===0) return null
+                return (
                 <div className="mt-4">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold text-gray-800">積分明細</div>
-                    {pending.length>0 && (
+                    {(!pendingError && pending.length>0) && (
                       <div className="flex items-center gap-2 text-xs">
                         <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-700">尚有 {pending.length} 筆待入點</span>
                         <button disabled={claimingAll} onClick={claimPendingAll} className={`rounded px-2 py-1 text-xs text-white ${claimingAll? 'bg-gray-400' : 'bg-emerald-600 hover:bg-emerald-700'}`}>{claimingAll?'領取中…':'全部領取'}</button>
                       </div>
                     )}
                   </div>
+                  {pendingError && (
+                    <div className="mt-2 text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1">{pendingError==='pending_points_table_missing'?'待入點功能尚未啟用（缺少資料表），請通知管理員建立表格':'待入點資料暫時無法讀取'}</div>
+                  )}
                   <div className="mt-2 divide-y text-xs">
-                    {ledger.map((l:any, i:number)=> (
-                      <div key={i} className="py-2 flex items-center justify-between">
+                    {combined.map((row:any, i:number)=> (
+                      <div key={row.id+':'+i} className="py-2 flex items-center justify-between gap-2">
                         <div className="min-w-0 pr-2">
-                          <div className="truncate text-gray-700">{l.reason || '回饋'}</div>
-                          <div className="text-[11px] text-gray-500">{l.order_id? `訂單 ${l.order_id}` : (l.ref_key||'')} · {new Date(l.created_at).toLocaleString('zh-TW')}</div>
+                          <div className="truncate text-gray-700">{row.reason}</div>
+                          <div className="text-[11px] text-gray-500">{row.order_id? `訂單 ${row.order_id}` : ''} {row.order_id? '· ' : ''}{new Date(row.created_at).toLocaleString('zh-TW')}</div>
                         </div>
-                        <div className={`font-semibold ${Number(l.delta||0)>=0? 'text-emerald-700':'text-rose-700'}`}>{Number(l.delta||0)>=0? '+':''}{l.delta}</div>
+                        {row._kind==='pending' ? (
+                          <div className="flex items-center gap-2">
+                            <div className="font-semibold text-amber-700">+{row.delta}</div>
+                            <button disabled={!!claimingMap[row.id]} onClick={()=>claimPendingOne(row.id)} className={`rounded px-2 py-1 text-xs ${claimingMap[row.id]? 'bg-gray-300 text-gray-600':'bg-emerald-600 text-white hover:bg-emerald-700'}`}>{claimingMap[row.id]? '領取中…':'領取'}</button>
+                          </div>
+                        ) : (
+                          <div className={`font-semibold ${Number(row.delta||0)>=0? 'text-emerald-700':'text-rose-700'}`}>{Number(row.delta||0)>=0? '+':''}{row.delta}</div>
+                        )}
                       </div>
                     ))}
                   </div>
                 </div>
-              )}
+                )
+              })()}
             </div>
             <div className="rounded-2xl bg-white p-4 shadow md:col-span-1">
               <div className="text-sm text-gray-600">推薦分享</div>
