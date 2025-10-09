@@ -43,7 +43,7 @@ export default function MemberOrderDetailPage() {
       try {
         // 優先雲端
         try { const a = await loadAdapters(); const o = await a.orderRepo.get(id); if (o) { setOrder(o); setLoading(false); return } } catch {}
-        // 回退：以 API 讀取預約單（以會員 ID / email 查詢），直接組合成可顯示結構
+        // 回退：以 API 讀取預約單（以會員 ID / email 查詢），直接組合成可顯示結構，並嘗試補上會員代碼
         try {
           const cid = (member as any)?.customerId || '0'
           const emailLc = (member?.email||'').toLowerCase()
@@ -64,7 +64,8 @@ export default function MemberOrderDetailPage() {
                 pointsDeductAmount: 0,
                 serviceItems: items.map((it:any)=> ({ name: it.service_name, quantity: it.quantity, unitPrice: it.price })),
                 subTotal,
-                status: found.status || 'pending'
+                status: found.status || 'pending',
+                memberId: (member as any)?.id || '',
               })
               setLoading(false)
               return
@@ -222,8 +223,10 @@ export default function MemberOrderDetailPage() {
           <div className="rounded border">
             <div className="grid grid-cols-4 bg-gray-50 px-2 py-1 text-xs text-gray-600"><div>項目</div><div>數量</div><div>單價</div><div className="text-right">小計</div></div>
             {order.serviceItems?.map((it:any,i:number)=>{
-              const sub = (it.unitPrice||0)*(it.quantity||0)
-              return <div key={i} className="grid grid-cols-4 items-center px-2 py-1 text-sm"><div>{it.name}</div><div>{it.quantity}</div><div>{it.unitPrice}</div><div className="text-right">{sub}</div></div>
+              const qty = Number(it.quantity)||0
+              const price = Number(it.unitPrice)||0
+              const sub = price*qty
+              return <div key={i} className="grid grid-cols-4 items-center px-2 py-1 text-sm"><div>{it.name}</div><div className={qty<0?"text-rose-600":""}>{qty}</div><div>{price}</div><div className="text-right">{sub}</div></div>
             })}
             <div className="border-t px-2 py-1 text-right text-gray-900">小計：<span className="text-base font-semibold">{subTotal}</span></div>
             {order.pointsDeductAmount ? (

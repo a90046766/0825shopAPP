@@ -442,8 +442,8 @@ export default function PageOrderDetail() {
                     </select>
                     <input className="col-span-2 rounded border px-2 py-1" value={it.name} onChange={e=>{ const arr=[...itemsDraft]; arr[i]={...arr[i], name:e.target.value}; setItemsDraft(arr) }} />
                     <div className="flex items-center gap-2">
-                      <button onClick={()=>{ const arr=[...itemsDraft]; const q=Math.max(1, (Number(arr[i].quantity)||1)-1); arr[i]={...arr[i], quantity:q}; setItemsDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">-</button>
-                      <input type="number" className="w-16 rounded border px-2 py-1 text-right" value={it.quantity} onChange={e=>{ const arr=[...itemsDraft]; const q = Math.max(1, Number(e.target.value)||1); arr[i]={...arr[i], quantity:q}; setItemsDraft(arr) }} />
+                      <button onClick={()=>{ const arr=[...itemsDraft]; const q=(Number(arr[i].quantity)||0)-1; arr[i]={...arr[i], quantity:q}; setItemsDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">-</button>
+                      <input type="number" className="w-16 rounded border px-2 py-1 text-right" value={it.quantity} onChange={e=>{ const arr=[...itemsDraft]; let q = Number(e.target.value); if (Number.isNaN(q)) q = 0; arr[i]={...arr[i], quantity:q}; setItemsDraft(arr) }} />
                       <button onClick={()=>{ const arr=[...itemsDraft]; const q=(Number(arr[i].quantity)||0)+1; arr[i]={...arr[i], quantity:q}; setItemsDraft(arr) }} className="rounded bg-gray-100 px-2 py-1">+</button>
                     </div>
                     <div className="flex items-center gap-2">
