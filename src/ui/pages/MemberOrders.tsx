@@ -318,6 +318,12 @@ export default function MemberOrdersPage() {
             <div className="font-semibold">分享推薦</div>
           </div>
         </button>
+        <button onClick={()=>{ setTab('orders'); setUnserviceOnly(true) }} className="text-left rounded-xl border border-rose-300 bg-white p-3 hover:bg-rose-50 transition-colors">
+          <div className="flex items-center gap-2 text-rose-700">
+            <AlertCircle className="h-5 w-5" />
+            <div className="font-semibold">無法服務</div>
+          </div>
+        </button>
         <Link to="/store/member/profile" className="rounded-xl border border-gray-200 bg-white p-3 hover:bg-gray-50 transition-colors">
           <div className="flex items-center gap-2 text-gray-900">
             <User className="h-5 w-5" />
