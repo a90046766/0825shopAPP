@@ -72,6 +72,19 @@ export default function MemberOrdersPage() {
     return () => window.removeEventListener('beforeinstallprompt', handler as any)
   }, [])
 
+  // 允許以 URL 參數快速打開「無法服務」視圖，例如：/store/member/orders?unservice=1 或 ?view=unservice
+  useEffect(() => {
+    try {
+      const u = new URL(window.location.href)
+      const v = (u.searchParams.get('view')||'').toLowerCase()
+      const unservice = u.searchParams.get('unservice')
+      if (v==='unservice' || unservice==='1' || unservice==='true') {
+        setTab('orders')
+        setUnserviceOnly(true)
+      }
+    } catch {}
+  }, [])
+
   async function installApp() {
     try {
       if (!installPrompt) { alert('若未出現按鈕，請用 Chrome/Edge（Android/桌面）或 Safari（iPhone）開啟。'); return }
