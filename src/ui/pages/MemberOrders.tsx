@@ -269,8 +269,9 @@ export default function MemberOrdersPage() {
             title={!installPrompt ? '請用 Chrome/Edge 或等待安裝提示出現' : ''}
             className={`rounded px-3 py-1 text-sm ${installPrompt? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'}`}
           >安裝 App</button>
-          <button onClick={()=>setTab('orders')} className={`rounded px-3 py-1 text-sm ${tab==='orders'?'bg-blue-600 text-white':'border border-blue-200 text-blue-600'}`}>正式訂單</button>
+          <button onClick={()=>{ setTab('orders'); setUnserviceOnly(false) }} className={`rounded px-3 py-1 text-sm ${(tab==='orders' && !unserviceOnly)?'bg-blue-600 text-white':'border border-blue-200 text-blue-600'}`}>正式訂單</button>
           <button onClick={()=>setTab('reservations')} className={`rounded px-3 py-1 text-sm ${tab==='reservations'?'bg-amber-600 text-white':'border border-amber-200 text-amber-700'}`}>預約訂單</button>
+          <button onClick={()=>{ setTab('orders'); setUnserviceOnly(true) }} className={`rounded px-3 py-1 text-sm ${(tab==='orders' && unserviceOnly)?'bg-rose-600 text-white':'border border-rose-200 text-rose-700'}`}>無法服務</button>
         </div>
       </div>
       {/* iPhone 安裝引導（Safari） */}
