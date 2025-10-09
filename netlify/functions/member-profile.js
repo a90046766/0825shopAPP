@@ -31,8 +31,28 @@ exports.handler = async (event) => {
       if (memberId) qry = base.eq('id', memberId)
       else if (memberEmail) qry = base.eq('email', memberEmail)
       else qry = base.eq('phone', phone)
-      const { data, error } = await qry.maybeSingle()
+      let { data, error } = await qry.maybeSingle()
       if (error) return json(500, { success:false, error: error.message })
+      // 若不存在，且提供了 email 或 phone，則自動建立會員（MO+4）後再讀取
+      if (!data && (memberEmail || phone)) {
+        const genCode = async () => {
+          const pad = (n) => String(n).padStart(4, '0')
+          for (let i=0; i<10000; i++) {
+            const code = 'MO' + pad(Math.floor(Math.random()*10000))
+            const { data: existed } = await supabase.from('members').select('id').eq('code', code).maybeSingle()
+            if (!existed) return code
+          }
+          return 'MO9999'
+        }
+        const code = await genCode()
+        const insertRow = { code, email: memberEmail || null, phone: phone || null, name: null, points: 0, addresses: [] }
+        const ins = await supabase.from('members').insert(insertRow).select('id').maybeSingle()
+        if (!ins.error && ins.data && ins.data.id) {
+          memberId = String(ins.data.id)
+          const reload = await supabase.from('members').select('id,code,name,email,phone,addresses').eq('id', memberId).maybeSingle()
+          if (!reload.error && reload.data) data = reload.data
+        }
+      }
       if (!data) return json(404, { success:false, error:'not_found' })
       const addr = Array.isArray(data.addresses) && data.addresses[0] ? String(data.addresses[0]) : ''
       const city = addr ? addr.slice(0,3) : ''
