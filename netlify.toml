@@ -75,6 +75,66 @@
   to = "/.netlify/functions/points-apply-by-order"
   status = 200
 
+# Points API 映射（/_api 與 /api 皆支援，以符合前端呼叫）
+[[redirects]]
+  from = "/_api/points/balance"
+  to = "/.netlify/functions/points-balance"
+  status = 200
+[[redirects]]
+  from = "/api/points/balance"
+  to = "/.netlify/functions/points-balance"
+  status = 200
+
+[[redirects]]
+  from = "/_api/points/ledger"
+  to = "/.netlify/functions/points-ledger"
+  status = 200
+[[redirects]]
+  from = "/api/points/ledger"
+  to = "/.netlify/functions/points-ledger"
+  status = 200
+
+[[redirects]]
+  from = "/_api/points/pending/list"
+  to = "/.netlify/functions/points-pending/list"
+  status = 200
+[[redirects]]
+  from = "/api/points/pending/list"
+  to = "/.netlify/functions/points-pending/list"
+  status = 200
+
+[[redirects]]
+  from = "/_api/points/pending/create"
+  to = "/.netlify/functions/points-pending/create"
+  status = 200
+[[redirects]]
+  from = "/api/points/pending/create"
+  to = "/.netlify/functions/points-pending/create"
+  status = 200
+
+[[redirects]]
+  from = "/_api/points/pending/claim"
+  to = "/.netlify/functions/points-pending/claim"
+  status = 200
+[[redirects]]
+  from = "/api/points/pending/claim"
+  to = "/.netlify/functions/points-pending/claim"
+  status = 200
+
+[[redirects]]
+  from = "/_api/points/use-on-create"
+  to = "/.netlify/functions/points-use-on-create"
+  status = 200
+[[redirects]]
+  from = "/api/points/use-on-create"
+  to = "/.netlify/functions/points-use-on-create"
+  status = 200
+
+[[redirects]]
+  from = "/_api/points/apply-order"
+  to = "/.netlify/functions/points-apply-order"
+  status = 200
+
 [[redirects]]
   from = "/api/member-code-set"
   to = "/.netlify/functions/member-code-set"
