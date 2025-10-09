@@ -272,7 +272,7 @@ export default function MemberOrdersPage() {
           >安裝 App</button>
           <button onClick={()=>{ setTab('orders') }} className={`rounded px-3 py-1 text-sm ${(tab==='orders')?'bg-blue-600 text-white':'border border-blue-200 text-blue-600'}`}>正式訂單</button>
           <button onClick={()=>setTab('reservations')} className={`rounded px-3 py-1 text-sm ${tab==='reservations'?'bg-amber-600 text-white':'border border-amber-200 text-amber-700'}`}>預約訂單</button>
-          <button onClick={()=>{ setTab('orders'); setUnserviceOnly(true) }} className={`rounded px-3 py-1 text-sm ${(tab==='orders' && unserviceOnly)?'bg-rose-600 text-white':'border border-rose-200 text-rose-700'}`}>無法服務</button>
+          {/* 會員端移除「無法服務」獨立入口 */}
         </div>
       </div>
       {/* iPhone 安裝引導（Safari） */}
@@ -313,12 +313,7 @@ export default function MemberOrdersPage() {
             <div className="font-semibold">分享推薦</div>
           </div>
         </button>
-        <button onClick={()=>{ setTab('orders'); setUnserviceOnly(true) }} className="text-left rounded-xl border border-rose-300 bg-white p-3 hover:bg-rose-50 transition-colors">
-          <div className="flex items-center gap-2 text-rose-700">
-            <AlertCircle className="h-5 w-5" />
-            <div className="font-semibold">無法服務</div>
-          </div>
-        </button>
+        {/* 會員端移除「無法服務」卡牌 */}
         <Link to="/store/member/profile" className="rounded-xl border border-gray-200 bg-white p-3 hover:bg-gray-50 transition-colors">
           <div className="flex items-center gap-2 text-gray-900">
             <User className="h-5 w-5" />

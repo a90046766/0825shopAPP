@@ -27,7 +27,7 @@ export default function OrderManagementPage() {
   const [q, setQ] = useState('')
   const [yy, setYy] = useState<string>(String(new Date().getFullYear()))
   const [mm, setMm] = useState(String(new Date().getMonth()+1).padStart(2,'0'))
-  const [statusTab, setStatusTab] = useState<'pending'|'confirmed'|'completed'|'closed'|'canceled'|'all'>('confirmed')
+  const [statusTab, setStatusTab] = useState<'pending'|'confirmed'|'completed'|'unservice'|'closed'|'canceled'|'all'>('confirmed')
   const [pf, setPf] = useState<Record<string, boolean>>({})
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<any>({ 
@@ -224,8 +224,9 @@ export default function OrderManagementPage() {
     if (statusTab==='pending') return (o.status==='draft' || o.status==='pending')
     if (statusTab==='confirmed') return ['confirmed','in_progress'].includes(o.status)
     if (statusTab==='completed') return o.status==='completed'
+    if (statusTab==='unservice') return (o as any).status==='unservice'
     if (statusTab==='closed') return o.status==='closed'
-    if (statusTab==='canceled') return o.status==='canceled' || (o as any).status==='unservice'
+    if (statusTab==='canceled') return o.status==='canceled'
     if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
     return true
   })
@@ -236,8 +237,9 @@ export default function OrderManagementPage() {
     pending: baseAll.filter(o=> (o.status==='draft' || o.status==='pending')).length,
     confirmed: baseAll.filter(o=> ['confirmed','in_progress'].includes(o.status)).length,
     completed: baseAll.filter(o=> o.status==='completed').length,
+    unservice: baseAll.filter(o=> (o as any).status==='unservice').length,
     closed: baseAll.filter(o=> o.status==='closed').length,
-    canceled: baseAll.filter(o=> o.status==='canceled' || (o as any).status==='unservice').length,
+    canceled: baseAll.filter(o=> o.status==='canceled').length,
     invoice: baseAll.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
   } as any
   // 技師「新派」徽章：以目前待服務（confirmed/in_progress）中屬於自己的訂單，與本機已讀集合比較
@@ -261,13 +263,13 @@ export default function OrderManagementPage() {
         <div className="flex flex-wrap items-center gap-2 text-sm">
           {(
             isTech
-              ? ([['confirmed','待服務'],['completed','已完成'],['closed','已結案'],['all','全部']] as any[])
-              : ([['pending','待確認'],['confirmed','待服務'],['completed','已完成'],['closed','已結案'],['all','全部']] as any[])
+              ? ([['confirmed','待服務'],['completed','已完成'],['unservice','無法服務'],['closed','已結案'],['all','全部']] as any[])
+              : ([['pending','待確認'],['confirmed','待服務'],['completed','已完成'],['unservice','無法服務'],['closed','已結案'],['all','全部']] as any[])
           ).map(([key,label])=> (
             <button
               key={key}
               onClick={()=>setStatusTab(key)}
-              className={`rounded-2xl px-4 py-3 font-medium shadow-card transition ${statusTab===key? 'ring-2 ring-gray-700' : ''} ${key==='pending' ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' : key==='confirmed' ? 'bg-blue-50 border border-blue-200 text-blue-800' : key==='completed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : key==='closed' ? 'bg-gray-50 border border-gray-200 text-gray-800' : 'bg-purple-50 border border-purple-200 text-purple-800'}`}
+              className={`rounded-2xl px-4 py-3 font-medium shadow-card transition ${statusTab===key? 'ring-2 ring-gray-700' : ''} ${key==='pending' ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' : key==='confirmed' ? 'bg-blue-50 border border-blue-200 text-blue-800' : key==='completed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : key==='unservice' ? 'bg-rose-50 border border-rose-200 text-rose-800' : key==='closed' ? 'bg-gray-50 border border-gray-200 text-gray-800' : 'bg-purple-50 border border-purple-200 text-purple-800'}`}
             >
               <span className="inline-flex items-baseline gap-2">
                 <span>{label}</span>
@@ -426,11 +428,13 @@ export default function OrderManagementPage() {
                 {o.customerName}｜{o.preferredDate} {o.preferredTimeStart}~{o.preferredTimeEnd}｜推薦碼 {o.referrerCode||'-'} 
                 {o.referrerCode && <button onClick={(e)=>{e.preventDefault(); navigator.clipboard.writeText(o.referrerCode)}} className="ml-1 rounded bg-gray-100 px-2 py-0.5">複製</button>}
                 <br />
-                狀態：<span className={`ml-1 rounded px-1 py-0.5 text-[10px] ${
+                狀態：
+                <span className={`ml-1 rounded px-1 py-0.5 text-[10px] ${
                   o.status==='draft' ? 'bg-yellow-100 text-yellow-700' :
                   o.status==='confirmed' ? 'bg-blue-100 text-blue-700' :
                   o.status==='in_progress' ? 'bg-purple-100 text-purple-700' :
                   o.status==='completed' ? 'bg-green-100 text-green-700' :
+                  (o as any).status==='unservice' ? 'bg-rose-100 text-rose-700' :
                   o.status==='closed' ? 'bg-gray-100 text-gray-700' :
                   o.status==='canceled' ? 'bg-red-100 text-red-700' :
                   'bg-gray-100 text-gray-700'
@@ -439,8 +443,9 @@ export default function OrderManagementPage() {
                    o.status==='confirmed' ? '已確認' :
                    o.status==='in_progress' ? '服務中' :
                    o.status==='completed' ? '已完工' :
+                   (o as any).status==='unservice' ? '無法服務' :
                    o.status==='closed' ? '已結案' :
-                   o.status==='canceled' ? '已取消' : o.status}
+                   o.status==='canceled' ? '已取消' : (o as any).status}
                 </span>
               </div>
               {Array.isArray(o.assignedTechnicians) && o.assignedTechnicians.length>0 && (
