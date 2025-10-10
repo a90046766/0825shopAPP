@@ -1,5 +1,5 @@
 // Netlify Function: orders-member-rating
-// 目的：會員好評/建議提交即時 +50 入帳（以 ref_key 去重）
+// 目的：會員好評/建議提交 → 建立 pending +50（每種類各可提交一次），同時落盤 member_feedback 與通知
 // 用法：POST /.netlify/functions/orders-member-rating?customerId=MEMBER_ID&orderId=ORDER_ID
 // Body: { kind: 'good'|'suggest', comment?: string, asset_path?: string }
 
@@ -23,12 +23,19 @@ exports.handler = async (event) => {
     const assetPath = body.asset_path ? String(body.asset_path) : null
     if (!memberId || !orderId || !['good','suggest'].includes(kind)) return json(400, { success:false, error:'invalid_params' })
 
-    // 去重 key：rating_{kind}_{orderId}_{memberId}
-    const refKey = `rating_${kind}_${orderId}_${memberId}`
-    const { data: existed } = await supabase.from('member_points_ledger').select('id').eq('ref_key', refKey).maybeSingle()
-    if (existed) return json(200, { success:true, error:'already_submitted' })
+    // 伺服器端去重（同會員+同訂單+同類別 kind）
+    try {
+      const { data: existedKind } = await supabase
+        .from('member_feedback')
+        .select('id')
+        .eq('member_id', memberId)
+        .eq('order_id', orderId)
+        .eq('kind', kind)
+        .maybeSingle()
+      if (existedKind) return json(200, { success:false, error:'already_submitted' })
+    } catch {}
 
-    // 嘗試寫入回饋紀錄（若有表）但不影響加點
+    // 寫入回饋紀錄（若表不存在則忽略錯誤）
     try {
       const { error: fbErr } = await supabase.from('member_feedback').insert({
         member_id: memberId,
@@ -44,7 +51,7 @@ exports.handler = async (event) => {
       }
     } catch {}
 
-    // 改為建立 pending（領取後入帳）
+    // 建立 pending（領取後入帳）：允許 good 與 suggest 各一筆
     try {
       const { data: existsPending } = await supabase
         .from('pending_points')
@@ -60,6 +67,22 @@ exports.handler = async (event) => {
     const prow = { member_id: memberId, order_id: orderId, points: delta, reason, status: 'pending', created_at: new Date().toISOString() }
     const { error: pe } = await supabase.from('pending_points').insert(prow)
     if (pe) return json(500, { success:false, error: pe.message })
+
+    // 通知客服/後台：有新客戶回饋（內含內容）
+    try {
+      let memberCode = ''
+      try {
+        const { data: mem } = await supabase.from('members').select('code').eq('id', memberId).maybeSingle()
+        memberCode = String(mem?.code || '')
+      } catch {}
+      const payload = { kind, member_id: memberId, member_code: memberCode || null, order_id: orderId, asset_path: assetPath||null, comment: comment||null }
+      await supabase.from('notifications').insert({
+        title: (kind === 'good' ? '客戶好評' : '客戶建議'),
+        body: JSON.stringify(payload),
+        target: 'support',
+        created_at: new Date().toISOString()
+      })
+    } catch {}
     return json(200, { success:true })
   } catch (e) {
     return json(500, { success:false, error:'internal_error', message: String(e?.message||e) })
@@ -72,7 +95,7 @@ exports.handler = async (event) => {
 
 const { createClient } = require('@supabase/supabase-js')
 
-exports.handler = async (event) => {
+exports.legacyHandlerDisabled = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method Not Allowed' }) }
   }
