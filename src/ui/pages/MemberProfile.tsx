@@ -188,7 +188,7 @@ export default function MemberProfilePage() {
               <div className="mt-4">
                 <Link to="/store/products" className="inline-block rounded bg-blue-600 px-4 py-2 text-white">前往選購</Link>
               </div>
-              {false && (
+              {(pendingError || pending.length>0) && (
                 <div className="mt-4">
                   <div className="text-sm font-semibold text-gray-800">待入點</div>
                   <div className="mt-2 divide-y text-xs">
@@ -219,6 +219,14 @@ export default function MemberProfilePage() {
               {(() => {
                 // 將待入點與明細合併顯示於「積分明細」，待入點在前且可領取
                 const combined: Array<any> = [
+                  ...pending.map((p:any, i:number)=> ({
+                    _kind: 'pending',
+                    id: String(p.id||i),
+                    created_at: p.created_at,
+                    reason: p.reason || '消費回饋（待領取）',
+                    order_id: p.order_id,
+                    delta: Number(p.points||0)
+                  })),
                   ...ledger.map((l:any, i:number)=> ({
                     _kind: 'ledger',
                     id: String(l.id||i),

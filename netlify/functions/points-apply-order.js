@@ -38,20 +38,42 @@ exports.handler = async (event) => {
     const gross = (items||[]).reduce((s,it)=> s + (Number(it.unitPrice)||0)*(Number(it.quantity)||0), 0)
     const amount = Math.max(0, gross - (pointsDeductAmount||0))
 
-    // 規則：$100 = 1 點，向下取整
+    // 規則：$100 = 1 點，向下取整；改為建立 pending，待會員「領取」後入帳
     let points = Math.floor(amount / 100)
     if (!(points > 0)) return json(200, { success:true, points: 0 })
 
-    // 避免重複加點：以 orderId 建立唯一 ref_key
-    const refKey = `order_reward_${orderId}`
-    const { data: existed } = await supabase.from('member_points_ledger').select('id').eq('ref_key', refKey).maybeSingle()
-    if (existed) return json(200, { success:true, message:'already_awarded', points: 0 })
+    // 若已存在 pending 或已入帳（ref_key）則不重複建立
+    try {
+      const { data: existsPending } = await supabase
+        .from('pending_points')
+        .select('id')
+        .eq('member_id', memberId)
+        .eq('order_id', orderId)
+        .eq('status', 'pending')
+        .maybeSingle()
+      if (existsPending) return json(200, { success:true, message:'already_pending', points })
+    } catch {}
+    try {
+      const { data: existsLedger } = await supabase
+        .from('member_points_ledger')
+        .select('id')
+        .eq('order_id', orderId)
+        .eq('member_id', memberId)
+        .maybeSingle()
+      if (existsLedger) return json(200, { success:true, message:'already_awarded', points: 0 })
+    } catch {}
 
-    // 寫入點數明細並累加餘額
-    const row = { member_id: memberId, delta: points, reason: '訂單回饋', order_id: orderId, ref_key: refKey, created_at: new Date().toISOString() }
-    const { error: ie } = await supabase.from('member_points_ledger').insert(row)
-    if (ie) return json(500, { success:false, error: ie.message })
-    try { await supabase.rpc('add_points_to_member', { p_member_id: memberId, p_delta: points }) } catch {}
+    // 建立待入點
+    try {
+      // 表不存在或 schema cache 問題時，回傳特定錯誤碼讓前端顯示
+      const { error: existsErr } = await supabase.from('pending_points').select('id').limit(1)
+      if (existsErr && (String(existsErr.message||'').toLowerCase().includes('schema') || String(existsErr.message||'').toLowerCase().includes('exist'))) {
+        return json(200, { success:false, error:'pending_points_table_missing' })
+      }
+    } catch {}
+    const row = { member_id: memberId, order_id: orderId, points, reason: '訂單回饋', status: 'pending', created_at: new Date().toISOString() }
+    const { error: pe } = await supabase.from('pending_points').insert(row)
+    if (pe) return json(500, { success:false, error: pe.message })
     return json(200, { success:true, points })
   } catch (e) {
     return json(500, { success:false, error:'internal_error', message: String(e?.message||e) })

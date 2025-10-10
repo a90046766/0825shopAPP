@@ -44,23 +44,22 @@ exports.handler = async (event) => {
       }
     } catch {}
 
-    // 即時 +50 入帳
+    // 改為建立 pending（領取後入帳）
+    try {
+      const { data: existsPending } = await supabase
+        .from('pending_points')
+        .select('id')
+        .eq('member_id', memberId)
+        .eq('order_id', orderId)
+        .eq('status','pending')
+        .maybeSingle()
+      if (existsPending) return json(200, { success:true, message:'already_pending' })
+    } catch {}
     const delta = 50
     const reason = kind==='good' ? '好評+50' : '建議+50'
-    const row = { member_id: memberId, delta, reason, order_id: orderId, ref_key: refKey, created_at: new Date().toISOString() }
-    const { error: ie } = await supabase.from('member_points_ledger').insert(row)
-    if (ie) return json(500, { success:false, error: ie.message })
-
-    try {
-      await supabase.rpc('add_points_to_member', { p_member_id: memberId, p_delta: delta })
-    } catch {
-      try {
-        const { data: mp } = await supabase.from('member_points').select('balance').eq('member_id', memberId).maybeSingle()
-        const balance = Number(mp?.balance||0) + delta
-        await supabase.from('member_points').upsert({ member_id: memberId, balance })
-      } catch {}
-    }
-
+    const prow = { member_id: memberId, order_id: orderId, points: delta, reason, status: 'pending', created_at: new Date().toISOString() }
+    const { error: pe } = await supabase.from('pending_points').insert(prow)
+    if (pe) return json(500, { success:false, error: pe.message })
     return json(200, { success:true })
   } catch (e) {
     return json(500, { success:false, error:'internal_error', message: String(e?.message||e) })
