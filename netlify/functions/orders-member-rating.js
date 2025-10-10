@@ -1,3 +1,72 @@
+// Netlify Function: orders-member-rating
+// 目的：會員好評/建議提交即時 +50 入帳（以 ref_key 去重）
+// 用法：POST /.netlify/functions/orders-member-rating?customerId=MEMBER_ID&orderId=ORDER_ID
+// Body: { kind: 'good'|'suggest', comment?: string, asset_path?: string }
+
+exports.handler = async (event) => {
+  const json = (code, body) => ({ statusCode: code, headers: { 'Content-Type': 'application/json; charset=utf-8' }, body: JSON.stringify(body) })
+  try {
+    if ((event.httpMethod||'').toUpperCase() !== 'POST') return json(405, { success:false, error:'method_not_allowed' })
+    const { createClient } = require('@supabase/supabase-js')
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) return json(500, { success:false, error:'missing_service_role' })
+    const supabase = createClient(url, key, { auth: { persistSession: false } })
+
+    const u = new URL(event.rawUrl || ('http://local' + (event.path||'')))
+    const memberId = String(u.searchParams.get('customerId')||'')
+    const orderId = String(u.searchParams.get('orderId')||'')
+    let body = {}
+    try { body = JSON.parse(event.body||'{}') } catch {}
+    const kind = String(body.kind||'').toLowerCase()
+    const comment = body.comment ? String(body.comment) : null
+    const assetPath = body.asset_path ? String(body.asset_path) : null
+    if (!memberId || !orderId || !['good','suggest'].includes(kind)) return json(400, { success:false, error:'invalid_params' })
+
+    // 去重 key：rating_{kind}_{orderId}_{memberId}
+    const refKey = `rating_${kind}_${orderId}_${memberId}`
+    const { data: existed } = await supabase.from('member_points_ledger').select('id').eq('ref_key', refKey).maybeSingle()
+    if (existed) return json(200, { success:true, error:'already_submitted' })
+
+    // 嘗試寫入回饋紀錄（若有表）但不影響加點
+    try {
+      const { error: fbErr } = await supabase.from('member_feedback').insert({
+        member_id: memberId,
+        order_id: orderId,
+        kind,
+        comment,
+        asset_path: assetPath,
+        created_at: new Date().toISOString()
+      })
+      // 若缺表則忽略
+      if (fbErr && !String(fbErr.message||'').toLowerCase().includes('does not exist')) {
+        // 其它錯誤僅記錄，不中斷流程
+      }
+    } catch {}
+
+    // 即時 +50 入帳
+    const delta = 50
+    const reason = kind==='good' ? '好評+50' : '建議+50'
+    const row = { member_id: memberId, delta, reason, order_id: orderId, ref_key: refKey, created_at: new Date().toISOString() }
+    const { error: ie } = await supabase.from('member_points_ledger').insert(row)
+    if (ie) return json(500, { success:false, error: ie.message })
+
+    try {
+      await supabase.rpc('add_points_to_member', { p_member_id: memberId, p_delta: delta })
+    } catch {
+      try {
+        const { data: mp } = await supabase.from('member_points').select('balance').eq('member_id', memberId).maybeSingle()
+        const balance = Number(mp?.balance||0) + delta
+        await supabase.from('member_points').upsert({ member_id: memberId, balance })
+      } catch {}
+    }
+
+    return json(200, { success:true })
+  } catch (e) {
+    return json(500, { success:false, error:'internal_error', message: String(e?.message||e) })
+  }
+}
+
 /* Netlify Function: /api/orders/member/:customerId/orders/:orderId/rating
    目的：以 Service Role 寫入評分與好評截圖，避免 RLS 擋下（member_feedback）
 */

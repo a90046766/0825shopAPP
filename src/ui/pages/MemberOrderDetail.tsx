@@ -339,7 +339,7 @@ export default function MemberOrderDetailPage() {
                     let ok = false
                     let serverErr: string | null = null
                     try {
-                      const resp = await fetch(`/.netlify/functions/orders-member-rating?customerId=${encodeURIComponent(member.id)}&orderId=${encodeURIComponent(String(order.id))}`, {
+                      const resp = await fetch(`/_api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(String(order.id))}/rating`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ kind: 'good', comment: goodNote||null, asset_path: path })
                       })
@@ -404,7 +404,7 @@ export default function MemberOrderDetailPage() {
                     let ok = false
                     let serverErr: string | null = null
                     try {
-                      const resp = await fetch(`/.netlify/functions/orders-member-rating?customerId=${encodeURIComponent(member.id)}&orderId=${encodeURIComponent(String(order.id))}`, {
+                      const resp = await fetch(`/_api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(String(order.id))}/rating`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ kind: 'suggest', comment: suggestText })
                       })

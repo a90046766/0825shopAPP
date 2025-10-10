@@ -554,14 +554,7 @@ export default function ShopCartPage() {
             const payload = memberId ? { memberId, orderId: createdId, points: pointsToUse } : { memberEmail: String(memberUser.email||'').toLowerCase(), orderId: createdId, points: pointsToUse }
             await fetch('/_api/points/use-on-create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
           }
-          // 預估入點：建立待入點記錄（供會員中心領取），避免前端與後端計算落差
-          try {
-            const est = getEstimatedPoints()
-            if (est>0) {
-              const payload2 = memberId ? { memberId, orderId: createdId, points: est, reason: '消費回饋（預估）' } : { memberEmail: String(memberUser.email||'').toLowerCase(), orderId: createdId, points: est, reason: '消費回饋（預估）' }
-              await fetch('/_api/points/pending/create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload2) })
-            }
-          } catch {}
+          // 已改為結案即時入點，不再建立待入點
         } catch {}
         // 前端不再寫入本地積分；畫面僅即時刷新，下一次進來會由 API 取得
         try { localStorage.setItem('lastOrderId', createdId) } catch {}
