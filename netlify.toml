@@ -72,6 +72,11 @@
   status = 200
 
 [[redirects]]
+  from = "/_api/notifications-feedback-list"
+  to = "/.netlify/functions/notifications-feedback-list"
+  status = 200
+
+[[redirects]]
   from = "/api/points/apply-order"
   to = "/.netlify/functions/points-apply-order"
   status = 200
