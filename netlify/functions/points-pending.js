@@ -12,6 +12,9 @@ exports.handler = async (event) => {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
     if (!url || !key) return json(500, { success:false, error:'missing_service_role' })
     const supabase = createClient(url, key, { auth: { persistSession: false } })
+    const raw = event.rawUrl || ('http://local' + (event.path||''))
+    const uroot = new URL(raw)
+    const debug = uroot.searchParams.get('debug') === '1'
 
     const path = event.path || ''
     const method = (event.httpMethod||'GET').toUpperCase()
@@ -67,7 +70,7 @@ exports.handler = async (event) => {
           }
           return json(500, { success:false, error: error.message })
         }
-        return json(200, { success:true, data: data||[] })
+        return json(200, { success:true, data: data||[], ...(debug? { debug: { data_count: (data||[]).length } } : {}) })
       } catch (e) {
         // 若表不存在或 schema cache 問題，回特定錯誤碼
         return json(200, { success:false, error:'pending_points_table_missing' })

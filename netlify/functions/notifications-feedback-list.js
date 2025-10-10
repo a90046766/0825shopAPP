@@ -12,6 +12,9 @@ exports.handler = async (event) => {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
     if (!url || !key) return json(200, { success: false, error: 'missing_service_role' })
     const supabase = createClient(url, key, { auth: { persistSession: false } })
+    const raw = event.rawUrl || ('http://local' + (event.path||''))
+    const u = new URL(raw)
+    const debug = u.searchParams.get('debug') === '1'
 
     const { data, error } = await supabase
       .from('notifications')
@@ -62,7 +65,7 @@ exports.handler = async (event) => {
       }
     } catch {}
 
-    return json(200, { success: true, data: rows })
+    return json(200, { success: true, data: rows, ...(debug? { debug: { key_source: key ? 'service_role_present' : 'missing', rows: rows.length } } : {}) })
   } catch (e) {
     return json(200, { success: false, error: 'internal_error', message: String(e?.message || e) })
   }
