@@ -1249,10 +1249,17 @@ export default function PageOrderDetail() {
                   closedAt: now
                 })
                 try {
-                  const { applyPointsOnOrderCompletion } = await import('../../services/points')
                   const fresh = await repos.orderRepo.get(order.id)
-                  if (fresh) await applyPointsOnOrderCompletion(fresh, repos)
-                } catch (e) { console.warn('apply points failed', e) }
+                  const items = (fresh?.serviceItems || order.serviceItems || []).map((it:any)=> ({ name: it.name, quantity: Number(it.quantity)||0, unitPrice: Number(it.unitPrice)||0 }))
+                  const payload:any = {
+                    orderId: String(order.id),
+                    items,
+                    pointsDeductAmount: Number(order.pointsDeductAmount||0)
+                  }
+                  if (fresh?.memberId || order.memberId) payload.memberId = String(fresh?.memberId || order.memberId)
+                  else if (fresh?.customerEmail || order.customerEmail) payload.memberEmail = String((fresh?.customerEmail || order.customerEmail)||'').toLowerCase()
+                  await fetch('/_api/points/apply-order', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) }).catch(()=>{})
+                } catch (e) { console.warn('apply points (pending) failed', e) }
                 const o=await repos.orderRepo.get(order.id); setOrder(o)
                 // 已移除：避免通知過於頻繁
               }}
