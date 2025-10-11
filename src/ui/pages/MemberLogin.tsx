@@ -89,10 +89,10 @@ export default function MemberLoginPage() {
           try {
             const { data: m2 } = await supabase
               .from('members')
-              .select('referrerCode, phone')
+              .select('referrer_code, phone')
               .eq('email', emailLower)
               .maybeSingle()
-            const ref = (m2 as any)?.referrerCode || ''
+            const ref = (m2 as any)?.referrer_code || ''
             const digits2 = String((m2 as any)?.phone || '').replace(/\D/g,'')
             if (ref) {
               await supabase.rpc('award_referrer_points', { p_ref_code: String(ref), p_referred_email: emailLower, p_referred_phone: digits2, p_points: 100, p_note: '會員首次登入' })
