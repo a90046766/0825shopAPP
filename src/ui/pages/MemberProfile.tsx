@@ -8,6 +8,12 @@ function getMemberFromStorage(): any | null {
 
 export default function MemberProfilePage() {
   const member = getMemberFromStorage()
+  // 允許以 URL 覆寫查詢對象：?memberEmail=... 或 ?memberId=...
+  const searchParams = ((): URLSearchParams => {
+    try { return new URLSearchParams(window.location.search||'') } catch { return new URLSearchParams('') }
+  })()
+  const overrideEmail = String(searchParams.get('memberEmail')||'').toLowerCase()
+  const overrideId = String(searchParams.get('memberId')||'')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [points, setPoints] = useState<number>(0)
@@ -57,14 +63,19 @@ export default function MemberProfilePage() {
 
         // 讀取積分（單一真相 API）
         try {
-          const q = new URLSearchParams(member.id? { memberId: member.id }: { memberEmail: email })
-          const [rb, rl] = await Promise.all([
+          const q = new URLSearchParams(
+            overrideId ? { memberId: overrideId }
+            : (overrideEmail ? { memberEmail: overrideEmail }
+              : (member.id ? { memberId: member.id } : { memberEmail: email }))
+          )
+          const [rb, rl, rp] = await Promise.all([
             fetch(`/_api/points/balance?${q.toString()}`),
-            fetch(`/_api/points/ledger?${q.toString()}&limit=50`)
+            fetch(`/_api/points/ledger?${q.toString()}&limit=50`),
+            fetch(`/_api/points/pending/list?${q.toString()}`)
           ])
           try { const jb = await rb.json(); if (jb?.success) setPoints(Number(jb.balance||0)) } catch {}
           try { const jl = await rl.json(); if (jl?.success && Array.isArray(jl.data)) setLedger(jl.data) } catch {}
-          setPending([]); setPendingError('')
+          try { const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) { setPending(jp.data); setPendingError('') } else { setPending([]); setPendingError(String(jp?.error||'pending_points_error')) } } catch { setPending([]); setPendingError('pending_points_error') }
         } catch { }
       } catch (e: any) {
         setError(e?.message || '載入失敗')
@@ -79,20 +90,51 @@ export default function MemberProfilePage() {
     if (!member) return
     try {
       const email = String(member.email||'').toLowerCase()
-      const q = new URLSearchParams(member.id? { memberId: member.id }: { memberEmail: email })
-      const [rb, rl] = await Promise.all([
+      const q = new URLSearchParams(
+        overrideId ? { memberId: overrideId }
+        : (overrideEmail ? { memberEmail: overrideEmail }
+          : (member.id ? { memberId: member.id } : { memberEmail: email }))
+      )
+      const [rb, rl, rp] = await Promise.all([
         fetch(`/_api/points/balance?${q.toString()}`),
-        fetch(`/_api/points/ledger?${q.toString()}&limit=50`)
+        fetch(`/_api/points/ledger?${q.toString()}&limit=50`),
+        fetch(`/_api/points/pending/list?${q.toString()}`)
       ])
       try { const jb = await rb.json(); if (jb?.success) setPoints(Number(jb.balance||0)) } catch {}
       try { const jl = await rl.json(); if (jl?.success && Array.isArray(jl.data)) setLedger(jl.data) } catch {}
-      setPending([]); setPendingError('')
+      try { const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) { setPending(jp.data); setPendingError('') } else { setPending([]); setPendingError(String(jp?.error||'pending_points_error')) } } catch { setPending([]); setPendingError('pending_points_error') }
     } catch {}
   }
 
-  const claimPendingOne = async (_id: string) => {}
+  const claimPendingOne = async (id: string) => {
+    if (!member) return
+    try {
+      setClaimingMap(m=>({ ...m, [id]: true }))
+      const email = String(member.email||'').toLowerCase()
+      const payload = member.id ? { id, memberId: member.id } : { id, memberEmail: email }
+      const resp = await fetch('/_api/points/pending/claim', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+      const jr = await resp.json()
+      if (!jr?.success) throw new Error(jr?.error||'領取失敗')
+      await refreshPointsBlocks()
+      try { alert('已領取積分') } catch {}
+    } catch (e:any) {
+      try { alert(e?.message||'領取失敗') } catch {}
+    } finally {
+      setClaimingMap(m=>{ const n={...m}; delete n[id]; return n })
+    }
+  }
 
-  const claimPendingAll = async () => {}
+  const claimPendingAll = async () => {
+    if (!member) return
+    if (!Array.isArray(pending) || pending.length===0) return
+    setClaimingAll(true)
+    try {
+      for (const p of pending) { try { await claimPendingOne(String(p.id||p.pk||p._id||p.uuid||'')) } catch {} }
+      await refreshPointsBlocks()
+    } finally {
+      setClaimingAll(false)
+    }
+  }
 
   const handleSave = async () => {
     if (!member) return
