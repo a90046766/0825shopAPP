@@ -119,14 +119,34 @@ exports.handler = async (event) => {
       if (row.status === 'claimed') return json(200, { success:true, message:'already_claimed' })
       // 入帳
       try {
-        await supabase.from('member_points_ledger').insert({ member_id: row.member_id, delta: row.points, reason: row.reason, order_id: row.order_id, ref_key: `pending_claim_${row.id}`, created_at: new Date().toISOString() })
-        try { await supabase.rpc('add_points_to_member', { p_member_id: row.member_id, p_delta: row.points }) } catch {
-          try { const { data: mp } = await supabase.from('member_points').select('balance').eq('member_id', row.member_id).maybeSingle(); const balance = Number(mp?.balance||0) + Number(row.points||0); await supabase.from('member_points').upsert({ member_id: row.member_id, balance }) } catch {}
+        // 1) 寫入正數明細
+        const { error: le } = await supabase.from('member_points_ledger').insert({ member_id: row.member_id, delta: row.points, reason: row.reason, order_id: row.order_id, ref_key: `pending_claim_${row.id}`, created_at: new Date().toISOString() })
+        if (le) return json(500, { success:false, error: 'claim_failed' })
+        // 2) 累加餘額（RPC→回退）
+        const { error: rpcErr } = await supabase.rpc('add_points_to_member', { p_member_id: row.member_id, p_delta: row.points })
+        if (rpcErr) {
+          try {
+            const { data: mp } = await supabase.from('member_points').select('balance').eq('member_id', row.member_id).maybeSingle()
+            const balance = Number(mp?.balance||0) + Number(row.points||0)
+            await supabase.from('member_points').upsert({ member_id: row.member_id, balance })
+          } catch {}
         }
-        try { const { data: m } = await supabase.from('members').select('points').eq('id', row.member_id).maybeSingle(); const next = Number(m?.points||0) + Number(row.points||0); await supabase.from('members').update({ points: next }).eq('id', row.member_id) } catch {}
-      } catch (e) { return json(500, { success:false, error: 'claim_failed' }) }
-      // 標記已領取
-      await supabase.from('pending_points').update({ status: 'claimed', claimed_at: new Date().toISOString() }).eq('id', rowId)
+        // 3) 同步 members.points（非關鍵）
+        try {
+          const { data: m } = await supabase.from('members').select('points').eq('id', row.member_id).maybeSingle()
+          const next = Number(m?.points||0) + Number(row.points||0)
+          await supabase.from('members').update({ points: next }).eq('id', row.member_id)
+        } catch {}
+      } catch (e) {
+        return json(500, { success:false, error: 'claim_failed' })
+      }
+      // 4) 標記已領取（若缺 claimed_at 欄位，退化為只更新狀態）
+      try {
+        const { error: upErr } = await supabase.from('pending_points').update({ status: 'claimed', claimed_at: new Date().toISOString() }).eq('id', rowId)
+        if (upErr) {
+          await supabase.from('pending_points').update({ status: 'claimed' }).eq('id', rowId)
+        }
+      } catch {}
       return json(200, { success:true })
     }
 
