@@ -1,5 +1,5 @@
 // Netlify Function: orders-member-rating
-// 目的：會員好評/建議提交 → 建立 pending +50（每種類各可提交一次），同時落盤 member_feedback 與通知
+// 目的：會員好評/建議提交 → 建立 pending +50（好評/建議擇一，且各訂單限一次），同時落盤 member_feedback 與通知
 // 用法：POST /.netlify/functions/orders-member-rating?customerId=MEMBER_ID&orderId=ORDER_ID
 // Body: { kind: 'good'|'suggest', comment?: string, asset_path?: string }
 
@@ -23,16 +23,18 @@ exports.handler = async (event) => {
     const assetPath = body.asset_path ? String(body.asset_path) : null
     if (!memberId || !orderId || !['good','suggest'].includes(kind)) return json(400, { success:false, error:'invalid_params' })
 
-    // 伺服器端去重（同會員+同訂單+同類別 kind）
+    // 擇一限制：同一會員+同一訂單，good/suggest 二擇一
     try {
-      const { data: existedKind } = await supabase
+      const { data: anyExisted } = await supabase
         .from('member_feedback')
-        .select('id')
+        .select('id, kind')
         .eq('member_id', memberId)
         .eq('order_id', orderId)
-        .eq('kind', kind)
-        .maybeSingle()
-      if (existedKind) return json(200, { success:false, error:'already_submitted' })
+        .in('kind', ['good','suggest'])
+        .limit(1)
+      if (Array.isArray(anyExisted) && anyExisted.length > 0) {
+        return json(200, { success:false, error:'already_submitted_any' })
+      }
     } catch {}
 
     // 寫入回饋紀錄（若表不存在則忽略錯誤）
@@ -45,13 +47,12 @@ exports.handler = async (event) => {
         asset_path: assetPath,
         created_at: new Date().toISOString()
       })
-      // 若缺表則忽略
       if (fbErr && !String(fbErr.message||'').toLowerCase().includes('does not exist')) {
-        // 其它錯誤僅記錄，不中斷流程
+        // 其他錯誤僅記錄，不中斷流程
       }
     } catch {}
 
-    // 建立 pending（領取後入帳）：允許 good 與 suggest 各一筆
+    // 建立 pending（領取後入帳）：+50
     try {
       const { data: existsPending } = await supabase
         .from('pending_points')
@@ -68,7 +69,7 @@ exports.handler = async (event) => {
     const { error: pe } = await supabase.from('pending_points').insert(prow)
     if (pe) return json(500, { success:false, error: pe.message })
 
-    // 通知客服/後台：有新客戶回饋（內含內容）
+    // 通知客服/後台
     try {
       let memberCode = ''
       try {
@@ -83,6 +84,7 @@ exports.handler = async (event) => {
         created_at: new Date().toISOString()
       })
     } catch {}
+
     return json(200, { success:true })
   } catch (e) {
     return json(500, { success:false, error:'internal_error', message: String(e?.message||e) })

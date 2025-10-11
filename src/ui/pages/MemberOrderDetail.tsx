@@ -260,10 +260,12 @@ export default function MemberOrderDetailPage() {
             </div>
           ) : null}
             <div className="flex flex-wrap gap-2 text-sm">
-              <button onClick={()=>setFbOpen('good')} className="rounded bg-emerald-600 px-3 py-2 text-white">上傳好評截圖（+50）</button>
-              <button onClick={()=>setFbOpen('suggest')} className="rounded bg-brand-600 px-3 py-2 text-white">提交建議（+50）</button>
+              {!feedback && (<>
+                <button onClick={()=>setFbOpen('good')} className="rounded bg-emerald-600 px-3 py-2 text-white">上傳好評截圖（+50）</button>
+                <button onClick={()=>setFbOpen('suggest')} className="rounded bg-brand-600 px-3 py-2 text-white">提交建議（+50）</button>
+              </>)}
             </div>
-            <div className="mt-2 text-xs text-gray-500">為保障權益，同一訂單每項類型限提交一次。</div>
+            <div className="mt-2 text-xs text-gray-500">為保障權益，同一訂單好評/建議擇一提交（僅可提交一次）。</div>
           </div>
         )}
       </div>
