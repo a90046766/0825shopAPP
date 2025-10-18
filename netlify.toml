@@ -151,6 +151,11 @@
   status = 200
 
 [[redirects]]
+  from = "/_api/points/refund-order"
+  to = "/.netlify/functions/points-refund-order"
+  status = 200
+
+[[redirects]]
   from = "/api/member-code-set"
   to = "/.netlify/functions/member-code-set"
   status = 200
