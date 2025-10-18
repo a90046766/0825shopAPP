@@ -18,6 +18,7 @@ exports.handler = async (event) => {
     const memberCode = String(u.searchParams.get('memberCode')||'').toUpperCase()
     const phone = String(u.searchParams.get('phone')||'')
     const debug = u.searchParams.get('debug') === '1'
+    const forceRecalc = u.searchParams.get('recalc') === '1'
 
     // 解析 members.id（支援 id/code/phone/email 多鍵）
     const resolveMemberId = async () => {
@@ -63,7 +64,7 @@ exports.handler = async (event) => {
     }
 
     let balance = await readBalance()
-    if (balance === null) {
+    if (balance === null || forceRecalc) {
       // 重算
       try {
         let sum = 0
