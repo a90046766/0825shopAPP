@@ -42,6 +42,15 @@ export default function OrderSuccessPage() {
           }
         }
         setOrder(normalized)
+        // 補扣保險：用訂單上的 email/phone 再觸發一次冪等扣點
+        try {
+          const params2 = new URLSearchParams()
+          params2.set('orderId', String(o.orderNumber || (o as any).order_number || orderId))
+          params2.set('apply', '1')
+          if (o.customerEmail) params2.set('memberEmail', String(o.customerEmail).toLowerCase())
+          if (o.customerPhone) params2.set('phone', String(o.customerPhone))
+          await fetch(`/.netlify/functions/points-use-on-create?${params2.toString()}`)
+        } catch {}
         // 若小計為 0（可能因 RPC 未帶入 service_items），嘗試自動回填一次
         if (subTotal === 0) {
           try {
