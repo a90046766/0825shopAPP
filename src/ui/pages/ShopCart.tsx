@@ -551,8 +551,22 @@ export default function ShopCartPage() {
         // 立即扣點（支援 memberId 或 email）
         try {
           if (usePoints && pointsToUse > 0) {
-            const payload = memberId ? { memberId, orderId: createdId, points: pointsToUse } : { memberEmail: String(memberUser.email||'').toLowerCase(), orderId: createdId, points: pointsToUse }
+            // 先確保會員存在（若僅有 email，會自動建立/對應 memberId）
+            try {
+              const q = new URLSearchParams(memberId ? { memberId } : { memberEmail: String(memberUser.email||'').toLowerCase() })
+              await fetch(`/_api/member/profile?${q.toString()}`)
+            } catch {}
+            const payload: any = memberId ? { memberId, orderId: createdId, points: pointsToUse } : { memberEmail: String(memberUser.email||'').toLowerCase(), orderId: createdId, points: pointsToUse }
+            // 備援帶上 memberCode/phone（伺服端多鍵解析）
+            try { if (!memberId && (memberUser as any)?.code) payload.memberCode = String((memberUser as any)?.code) } catch {}
+            try { if (!memberId && (memberUser as any)?.phone) payload.phone = String((memberUser as any)?.phone) } catch {}
             await fetch('/_api/points/use-on-create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+            // 非阻斷：嘗試即時刷新餘額（避免畫面殘留舊值）
+            try {
+              const qb = new URLSearchParams(memberId ? { memberId } : { memberEmail: String(memberUser.email||'').toLowerCase() })
+              const rb = await fetch(`/_api/points/balance?${qb.toString()}`)
+              const jb = await rb.json(); if (jb?.success) setCustomerPoints(Number(jb.balance||0))
+            } catch {}
           }
           // 已改為結案即時入點，不再建立待入點
         } catch {}

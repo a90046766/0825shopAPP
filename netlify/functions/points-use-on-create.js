@@ -9,6 +9,8 @@ exports.handler = async (event) => {
     try { body = JSON.parse(event.body||'{}') } catch {}
     let memberId = String(body.memberId||'')
     const memberEmail = String(body.memberEmail||'').toLowerCase()
+    const memberCode = String(body.memberCode||'').toUpperCase()
+    const phone = String(body.phone||'')
     const orderId = String(body.orderId||'')
     const points = Math.max(0, Number(body.points||0))
     if ((!memberId && !memberEmail) || !orderId || !(points>0)) return json(400, { success:false, error:'invalid_params' })
@@ -19,16 +21,11 @@ exports.handler = async (event) => {
     if (!url || !key) return json(500, { success:false, error:'missing_service_role' })
     const supabase = createClient(url, key, { auth: { persistSession: false } })
 
-    // 若未提供 memberId，以 email 反查 members.id
-    if (!memberId && memberEmail) {
-      try {
-        const { data: m } = await supabase
-          .from('members')
-          .select('id')
-          .eq('email', memberEmail)
-          .maybeSingle()
-        if (m?.id) memberId = String(m.id)
-      } catch {}
+    // 解析 members.id（支援 id/code/phone/email）
+    if (!memberId) {
+      try { if (memberCode) { const { data: m } = await supabase.from('members').select('id').eq('code', memberCode).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
+      try { if (!memberId && phone) { const { data: m } = await supabase.from('members').select('id').eq('phone', phone).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
+      try { if (!memberId && memberEmail) { const { data: m } = await supabase.from('members').select('id').eq('email', memberEmail).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
     }
     if (!memberId) return json(400, { success:false, error:'member_not_found' })
 

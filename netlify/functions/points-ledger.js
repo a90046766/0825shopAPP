@@ -15,19 +15,20 @@ exports.handler = async (event) => {
     const u = new URL(event.rawUrl || ('http://local' + (event.path||'')))
     let memberId = String(u.searchParams.get('memberId')||'')
     const memberEmail = String(u.searchParams.get('memberEmail')||'').toLowerCase()
+    const memberCode = String(u.searchParams.get('memberCode')||'').toUpperCase()
+    const phone = String(u.searchParams.get('phone')||'')
     const limit = Math.max(1, Math.min(200, Number(u.searchParams.get('limit')||50)))
 
-    if (!memberId && memberEmail) {
-      try {
-        const { data: m } = await supabase
-          .from('members')
-          .select('id')
-          .eq('email', memberEmail)
-          .maybeSingle()
-        if (m?.id) memberId = String(m.id)
-      } catch {}
+    // 解析 members.id（支援 id/code/phone/email）
+    const resolveMemberId = async () => {
+      if (memberId) return memberId
+      try { if (memberCode) { const { data: m } = await supabase.from('members').select('id').eq('code', memberCode).maybeSingle(); if (m?.id) return String(m.id) } } catch {}
+      try { if (phone) { const { data: m } = await supabase.from('members').select('id').eq('phone', phone).maybeSingle(); if (m?.id) return String(m.id) } } catch {}
+      try { if (memberEmail) { const { data: m } = await supabase.from('members').select('id').eq('email', memberEmail).maybeSingle(); if (m?.id) return String(m.id) } } catch {}
+      return ''
     }
-    if (!memberId && !memberEmail) return json(400, { success:false, error:'missing_params' })
+    if (!memberId) memberId = await resolveMemberId()
+    if (!memberId && !memberEmail && !memberCode && !phone) return json(400, { success:false, error:'missing_params' })
 
     // 盡量使用 member_id；若僅有 email，嘗試以 email 查詢（欄位不存在時忽略）
     const selectCols = 'created_at, delta, reason, order_id, ref_key, member_id'

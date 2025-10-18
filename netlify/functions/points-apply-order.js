@@ -11,6 +11,8 @@ exports.handler = async (event) => {
     const orderId = String(body.orderId||'')
     let memberId = String(body.memberId||'')
     const memberEmail = String(body.memberEmail||'').toLowerCase()
+    const memberCode = String(body.memberCode||'').toUpperCase()
+    const phone = String(body.phone||'')
     const items = Array.isArray(body.items) ? body.items : []
     const pointsDeductAmount = Number(body.pointsDeductAmount||0)
     if (!orderId) return json(400, { success:false, error:'missing_params' })
@@ -21,16 +23,11 @@ exports.handler = async (event) => {
     if (!url || !key) return json(500, { success:false, error:'missing_service_role' })
     const supabase = createClient(url, key, { auth: { persistSession: false } })
 
-    // 若缺 memberId 但有 email，反查 members.id
-    if (!memberId && memberEmail) {
-      try {
-        const { data: m } = await supabase
-          .from('members')
-          .select('id')
-          .eq('email', memberEmail)
-          .maybeSingle()
-        if (m?.id) memberId = String(m.id)
-      } catch {}
+    // 解析 members.id（支援 id/code/phone/email）
+    if (!memberId) {
+      try { if (memberCode) { const { data: m } = await supabase.from('members').select('id').eq('code', memberCode).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
+      try { if (!memberId && phone) { const { data: m } = await supabase.from('members').select('id').eq('phone', phone).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
+      try { if (!memberId && memberEmail) { const { data: m } = await supabase.from('members').select('id').eq('email', memberEmail).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
     }
     if (!memberId) return json(400, { success:false, error:'member_not_found' })
 

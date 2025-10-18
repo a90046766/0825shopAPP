@@ -15,18 +15,34 @@ exports.handler = async (event) => {
     const u = new URL(event.rawUrl || ('http://local' + (event.path||'')))
     let memberId = String(u.searchParams.get('memberId')||'')
     const memberEmail = String(u.searchParams.get('memberEmail')||'').toLowerCase()
+    const memberCode = String(u.searchParams.get('memberCode')||'').toUpperCase()
+    const phone = String(u.searchParams.get('phone')||'')
 
-    if (!memberId && memberEmail) {
+    // 解析 members.id（支援 id/code/phone/email 多鍵）
+    const resolveMemberId = async () => {
+      if (memberId) return memberId
       try {
-        const { data: m } = await supabase
-          .from('members')
-          .select('id')
-          .eq('email', memberEmail)
-          .maybeSingle()
-        if (m?.id) memberId = String(m.id)
+        if (memberCode) {
+          const { data: m } = await supabase.from('members').select('id').eq('code', memberCode).maybeSingle()
+          if (m?.id) return String(m.id)
+        }
       } catch {}
+      try {
+        if (phone) {
+          const { data: m } = await supabase.from('members').select('id').eq('phone', phone).maybeSingle()
+          if (m?.id) return String(m.id)
+        }
+      } catch {}
+      try {
+        if (memberEmail) {
+          const { data: m } = await supabase.from('members').select('id').eq('email', memberEmail).maybeSingle()
+          if (m?.id) return String(m.id)
+        }
+      } catch {}
+      return ''
     }
-    if (!memberId && !memberEmail) return json(400, { success:false, error:'missing_params' })
+    if (!memberId) memberId = await resolveMemberId()
+    if (!memberId && !memberEmail && !memberCode && !phone) return json(400, { success:false, error:'missing_params' })
 
     // 以 member_points.balance 為單一真相；若不存在則用 ledger 重算後回寫
     const readBalance = async () => {

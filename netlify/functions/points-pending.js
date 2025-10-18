@@ -25,13 +25,17 @@ exports.handler = async (event) => {
       try { body = JSON.parse(event.body||'{}') } catch {}
       let memberId = String(body.memberId||'')
       const memberEmail = String(body.memberEmail||'').toLowerCase()
+      const memberCode = String(body.memberCode||'').toUpperCase()
+      const phone = String(body.phone||'')
       const orderId = String(body.orderId||'')
       const points = Math.max(0, Number(body.points||0))
       const reason = String(body.reason||'消費回饋')
       if ((!memberId && !memberEmail) || !orderId || !(points>0)) return json(400, { success:false, error:'invalid_params' })
-      if (!memberId && memberEmail) {
-        const { data: m } = await supabase.from('members').select('id').eq('email', memberEmail).maybeSingle()
-        if (m?.id) memberId = String(m.id)
+      // 解析 members.id
+      if (!memberId) {
+        try { if (memberCode) { const { data: m } = await supabase.from('members').select('id').eq('code', memberCode).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
+        try { if (!memberId && phone) { const { data: m } = await supabase.from('members').select('id').eq('phone', phone).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
+        try { if (!memberId && memberEmail) { const { data: m } = await supabase.from('members').select('id').eq('email', memberEmail).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
       }
       if (!memberId) return json(400, { success:false, error:'member_not_found' })
       const row = { member_id: memberId, order_id: orderId, points, reason, status: 'pending', created_at: new Date().toISOString() }
@@ -52,9 +56,12 @@ exports.handler = async (event) => {
       const u = new URL(event.rawUrl || ('http://local'+path))
       let memberId = String(u.searchParams.get('memberId')||'')
       const memberEmail = String(u.searchParams.get('memberEmail')||'').toLowerCase()
-      if (!memberId && memberEmail) {
-        const { data: m } = await supabase.from('members').select('id').eq('email', memberEmail).maybeSingle()
-        if (m?.id) memberId = String(m.id)
+      const memberCode = String(u.searchParams.get('memberCode')||'').toUpperCase()
+      const phone = String(u.searchParams.get('phone')||'')
+      if (!memberId) {
+        try { if (memberCode) { const { data: m } = await supabase.from('members').select('id').eq('code', memberCode).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
+        try { if (!memberId && phone) { const { data: m } = await supabase.from('members').select('id').eq('phone', phone).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
+        try { if (!memberId && memberEmail) { const { data: m } = await supabase.from('members').select('id').eq('email', memberEmail).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
       }
       if (!memberId) return json(400, { success:false, error:'member_not_found' })
       try {
@@ -98,10 +105,13 @@ exports.handler = async (event) => {
         // 支援以 memberId/memberEmail + orderId 兌換（方便結案流程呼叫）
         let memberId = String(body.memberId||'')
         const memberEmail = String(body.memberEmail||'').toLowerCase()
+        const memberCode = String(body.memberCode||'').toUpperCase()
+        const phone = String(body.phone||'')
         const orderId = String(body.orderId||'')
-        if (!memberId && memberEmail) {
-          const { data: m } = await supabase.from('members').select('id').eq('email', memberEmail).maybeSingle()
-          if (m?.id) memberId = String(m.id)
+        if (!memberId) {
+          try { if (memberCode) { const { data: m } = await supabase.from('members').select('id').eq('code', memberCode).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
+          try { if (!memberId && phone) { const { data: m } = await supabase.from('members').select('id').eq('phone', phone).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
+          try { if (!memberId && memberEmail) { const { data: m } = await supabase.from('members').select('id').eq('email', memberEmail).maybeSingle(); if (m?.id) memberId = String(m.id) } } catch {}
         }
         if (!memberId || !orderId) return json(400, { success:false, error:'invalid_params' })
         const r = await supabase.from('pending_points').select('*').eq('member_id', memberId).eq('order_id', orderId).eq('status','pending').order('created_at', { ascending: false }).limit(1)
