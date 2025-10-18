@@ -813,6 +813,17 @@ export default function PageOrderDetail() {
                     await repos.orderRepo.update(order.id, patch)
                     const o = await repos.orderRepo.get(order.id)
                     setOrder(o)
+                    // 取消訂單時：自動退回已扣積分（冪等）
+                    if (v==='canceled') {
+                      try {
+                        const payload: any = { orderId: String(order.id) }
+                        if (order.memberId) payload.memberId = String(order.memberId)
+                        if (memberCode) payload.memberCode = String(memberCode)
+                        if (order.customerEmail) payload.memberEmail = String(order.customerEmail).toLowerCase()
+                        if (order.customerPhone) payload.phone = String(order.customerPhone)
+                        await fetch('/_api/points/refund-order', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+                      } catch {}
+                    }
                   }}
                 >
                   <option value="draft">待確認</option>
