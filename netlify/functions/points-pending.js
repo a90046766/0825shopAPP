@@ -69,6 +69,7 @@ exports.handler = async (event) => {
           .from('pending_points')
           .select('id,order_id,points,reason,status,created_at')
           .eq('member_id', memberId)
+          .eq('status', 'pending')
           .order('created_at', { ascending: false })
         if (error) {
           const msg = String(error.message || error).toLowerCase()

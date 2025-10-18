@@ -115,14 +115,22 @@ export default function MemberProfilePage() {
       else if (email) q.set('memberEmail', email)
       if (member?.code) q.set('memberCode', String(member.code))
       if (member?.phone) q.set('phone', String(member.phone))
-      const [rb, rl, rp] = await Promise.all([
+      const [rb1, rl1, rp1] = await Promise.all([
         fetch(`/_api/points/balance?${q.toString()}`),
         fetch(`/_api/points/ledger?${q.toString()}&limit=50`),
         fetch(`/_api/points/pending/list?${q.toString()}`)
       ])
-      try { const jb = await rb.json(); if (jb?.success) setPoints(Number(jb.balance||0)) } catch {}
-      try { const jl = await rl.json(); if (jl?.success && Array.isArray(jl.data)) setLedger(jl.data) } catch {}
-      try { const jp = await rp.json(); if (jp?.success && Array.isArray(jp.data)) { setPending(jp.data); setPendingError('') } else { setPending([]); setPendingError(String(jp?.error||'pending_points_error')) } } catch { setPending([]); setPendingError('pending_points_error') }
+      try { const jb = await rb1.json(); if (jb?.success) setPoints(Number(jb.balance||0)) } catch {}
+      try { const jl = await rl1.json(); if (jl?.success && Array.isArray(jl.data)) setLedger(jl.data) } catch {}
+      try { const jp = await rp1.json(); if (jp?.success && Array.isArray(jp.data)) { setPending(jp.data); setPendingError('') } else { setPending([]); setPendingError(String(jp?.error||'pending_points_error')) } } catch { setPending([]); setPendingError('pending_points_error') }
+      const [rb2, rl2, rp2] = await Promise.all([
+        fetch(`/_api/points/balance?${q.toString()}`),
+        fetch(`/_api/points/ledger?${q.toString()}&limit=50`),
+        fetch(`/_api/points/pending/list?${q.toString()}`)
+      ])
+      try { const jb = await rb2.json(); if (jb?.success) setPoints(Number(jb.balance||0)) } catch {}
+      try { const jl = await rl2.json(); if (jl?.success && Array.isArray(jl.data)) setLedger(jl.data) } catch {}
+      try { const jp = await rp2.json(); if (jp?.success && Array.isArray(jp.data)) { setPending(jp.data); setPendingError('') } else { setPending([]); setPendingError(String(jp?.error||'pending_points_error')) } } catch { setPending([]); setPendingError('pending_points_error') }
     } catch {}
   }
 
@@ -263,36 +271,10 @@ export default function MemberProfilePage() {
               <div className="mt-4">
                 <Link to="/store/products" className="inline-block rounded bg-blue-600 px-4 py-2 text-white">前往選購</Link>
               </div>
-              {(pendingError || pending.length>0) && (
-                <div className="mt-4">
-                  <div className="text-sm font-semibold text-gray-800">待入點</div>
-                  <div className="mt-2 divide-y text-xs">
-                    {pendingError && pending.length===0 && (
-                      <div className="py-2 text-rose-600 bg-rose-50 border border-rose-200 rounded px-2">
-                        {pendingError==='pending_points_table_missing' ? '待入點功能尚未啟用（缺少資料表），請稍後再試' : '待入點資料暫時無法讀取'}
-                      </div>
-                    )}
-                    {pending.map((p:any,i:number)=> {
-                      const pid = String(p.id||p.pk||p._id||p.uuid||i)
-                      const claiming = !!claimingMap[pid]
-                      return (
-                        <div key={pid} className="py-2 flex items-center justify-between gap-2">
-                          <div className="min-w-0 pr-2">
-                            <div className="truncate text-gray-700">{p.reason || '消費回饋'}</div>
-                            <div className="text-[11px] text-gray-500">訂單 {p.order_id} · {new Date(p.created_at).toLocaleString('zh-TW')}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="font-semibold text-amber-700">+{p.points}</div>
-                            <button disabled={claiming} onClick={()=>claimPendingOne(pid)} className={`rounded px-2 py-1 text-xs ${claiming?'bg-gray-300 text-gray-600':'bg-emerald-600 text-white hover:bg-emerald-700'}`}>{claiming?'領取中…':'領取'}</button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+              {/* 已移除獨立「待入點」分區，僅於下方「積分明細」內合併顯示待領取並提供領取鍵 */}
               {(() => {
                 // 將待入點與明細合併顯示於「積分明細」，待入點在前且可領取
+                // 僅把「待入點(pending)」合併到明細頂端；領取後不再產生另一條重覆
                 const combined: Array<any> = [
                   ...pending.map((p:any, i:number)=> ({
                     _kind: 'pending',
@@ -308,7 +290,8 @@ export default function MemberProfilePage() {
                     created_at: l.created_at,
                     reason: l.reason || '回饋',
                     order_id: l.order_id,
-                    delta: Number(l.delta||0)
+                    delta: Number(l.delta||0),
+                    ref_key: l.ref_key || ''
                   }))
                 ].sort((a:any,b:any)=> String(b.created_at||'').localeCompare(String(a.created_at||'')))
                 if (combined.length===0) return null
