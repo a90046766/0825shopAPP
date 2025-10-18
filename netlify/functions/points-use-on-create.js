@@ -56,7 +56,7 @@ exports.handler = async (event) => {
     let memberEmail = String(body.memberEmail||'').toLowerCase()
     let memberCode = String(body.memberCode||'').toUpperCase()
     let phone = String(body.phone||'')
-    const orderId = String(body.orderId||'')
+    let orderId = String(body.orderId||'')
     let points = Math.max(0, Number(body.points||0))
     if (!orderId) return json(400, { success:false, error:'invalid_params' })
 
@@ -72,18 +72,12 @@ exports.handler = async (event) => {
       let { data: o } = await supabase
         .from('orders')
         .select('id, order_number, memberId, customerEmail, customerPhone, pointsUsed, pointsDeductAmount, points_used, points_deduct_amount, pointsDiscount, points_discount')
-        .eq('order_number', orderId)
+        .or(`order_number.eq.${orderId},id.eq.${orderId}`)
         .maybeSingle()
-      if (!o) {
-        const r2 = await supabase
-          .from('orders')
-          .select('id, order_number, memberId, customerEmail, customerPhone, pointsUsed, pointsDeductAmount, points_used, points_deduct_amount, pointsDiscount, points_discount')
-          .eq('id', orderId)
-          .maybeSingle()
-        o = r2.data || null
-      }
       orderRow = o
       if (orderRow) {
+        // 規一化 orderId 為人類可讀的 order_number
+        if (orderRow.order_number) orderId = String(orderRow.order_number)
         const candidates = [
           Number(orderRow.pointsUsed||0),
           Number(orderRow.points_used||0),

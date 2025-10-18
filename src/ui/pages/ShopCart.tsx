@@ -550,7 +550,8 @@ export default function ShopCartPage() {
           serviceItems
         }
         const created = await (adapters as any).orderRepo.create(draft)
-        createdId = created?.id || ''
+        // 優先使用後端生成之可讀訂單號（例如 OD...），避免內部ID/訂單號不一致導致 ref_key 不相符
+        createdId = (created?.orderNumber || created?.order_number || created?.id || '')
       } catch (cloudErr) {
         console.warn('直寫雲端失敗，改用本地暫存：', cloudErr)
       }
