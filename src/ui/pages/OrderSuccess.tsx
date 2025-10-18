@@ -19,6 +19,22 @@ export default function OrderSuccessPage() {
       const all = JSON.parse(localStorage.getItem('reservationOrders') || '[]')
       const found = all.find((o: any) => o.id === orderId)
       setOrder(found || null)
+      // 若本地有記錄，嘗試以本地 pointsUsed 立即補扣
+      if (found) {
+        try {
+          const used = Number(found.pointsUsed || found.pointsDeductAmount || found.pointsDiscount || 0)
+          if (used > 0) {
+            const p = new URLSearchParams()
+            p.set('orderId', String(orderId))
+            p.set('apply', '1')
+            p.set('points', String(used))
+            if (memberUser?.email) p.set('memberEmail', String(memberUser.email).toLowerCase())
+            if (memberUser?.code) p.set('memberCode', String(memberUser.code))
+            if (memberUser?.phone) p.set('phone', String(memberUser.phone))
+            await fetch(`/.netlify/functions/points-use-on-create?${p.toString()}`)
+          }
+        } catch {}
+      }
     } catch {}
     ;(async()=>{
       // 若本地找不到，嘗試從雲端載入
@@ -47,6 +63,8 @@ export default function OrderSuccessPage() {
           const params2 = new URLSearchParams()
           params2.set('orderId', String(o.orderNumber || (o as any).order_number || orderId))
           params2.set('apply', '1')
+          const used2 = Number(o.pointsUsed || (o as any).points_used || o.pointsDeductAmount || (o as any).points_deduct_amount || o.pointsDiscount || (o as any).points_discount || 0)
+          if (used2 > 0) params2.set('points', String(used2))
           if (o.customerEmail) params2.set('memberEmail', String(o.customerEmail).toLowerCase())
           if (o.customerPhone) params2.set('phone', String(o.customerPhone))
           await fetch(`/.netlify/functions/points-use-on-create?${params2.toString()}`)
