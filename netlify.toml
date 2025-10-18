@@ -161,6 +161,21 @@
   status = 200
 
 [[redirects]]
+  from = "/api/points/admin/adjust"
+  to = "/.netlify/functions/points-admin-adjust"
+  status = 200
+
+[[redirects]]
+  from = "/_api/member/profile"
+  to = "/.netlify/functions/member-profile"
+  status = 200
+
+[[redirects]]
+  from = "/api/member/profile"
+  to = "/.netlify/functions/member-profile"
+  status = 200
+
+[[redirects]]
   from = "/api/member-code-set"
   to = "/.netlify/functions/member-code-set"
   status = 200
