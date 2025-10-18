@@ -17,7 +17,9 @@ exports.handler = async (event) => {
       const memberEmail = String(u.searchParams.get('memberEmail')||'').toLowerCase()
       const memberCode = String(u.searchParams.get('memberCode')||'').toUpperCase()
       const phone = String(u.searchParams.get('phone')||'')
-      const orderId = String(u.searchParams.get('orderId')||'')
+      let orderId = String(u.searchParams.get('orderId')||'')
+      const apply = u.searchParams.get('apply') === '1'
+      let points = Math.max(0, Number(u.searchParams.get('points')||0))
       const refKey = orderId ? `order_points_used_${orderId}` : ''
       // 解析 members.id
       if (!memberId) {
@@ -47,6 +49,53 @@ exports.handler = async (event) => {
         }
         balance = sum
       } catch {}
+      // 可選：直接套用扣點（冪等）
+      if (apply && orderId && memberId) {
+        // 正規化 orderId 為 order_number
+        try {
+          let { data: o } = await supabase
+            .from('orders')
+            .select('id, order_number, memberId, customerEmail, customerPhone, pointsUsed, pointsDeductAmount, points_used, points_deduct_amount, pointsDiscount, points_discount')
+            .or(`order_number.eq.${orderId},id.eq.${orderId}`)
+            .maybeSingle()
+          if (o) {
+            if (o.order_number) orderId = String(o.order_number)
+            if (!(points>0)) {
+              const candidates = [
+                Number(o.pointsUsed||0),
+                Number(o.points_used||0),
+                Number(o.pointsDeductAmount||0),
+                Number(o.points_deduct_amount||0),
+                Number(o.pointsDiscount||0),
+                Number(o.points_discount||0)
+              ]
+              points = Math.max(...candidates)
+            }
+          }
+        } catch {}
+        const ref = `order_points_used_${orderId}`
+        // 冪等：已存在則直接回傳
+        try {
+          const { data: existed } = await supabase.from('member_points_ledger').select('id,delta').eq('ref_key', ref).maybeSingle()
+          if (existed) return json(200, { success:true, applied:false, message:'already_used', debug: { memberId, orderId, points, balance } })
+        } catch {}
+        if (points>0) {
+          try {
+            await supabase.from('member_points_ledger').insert({ member_id: memberId, delta: -points, reason: '訂單折抵', order_id: orderId, ref_key: ref, created_at: new Date().toISOString() })
+            // 重算餘額
+            try {
+              const { data: logs } = await supabase.from('member_points_ledger').select('delta').eq('member_id', memberId)
+              const sum = (logs||[]).reduce((s,r)=> s + Number(r.delta||0), 0)
+              await supabase.from('member_points').upsert({ member_id: memberId, balance: sum })
+              await supabase.from('members').update({ points: sum }).eq('id', memberId)
+              balance = sum
+            } catch {}
+            return json(200, { success:true, applied:true, debug: { memberId, orderId, points, balance } })
+          } catch (e) {
+            return json(500, { success:false, error:'apply_failed', message: String(e?.message||e) })
+          }
+        }
+      }
       return json(200, { success:true, debug: { memberId, memberEmail, memberCode, phone, orderId, refKey, used, balance } })
     }
     if (method !== 'POST') return json(405, { success:false, error:'method_not_allowed' })
