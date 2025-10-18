@@ -71,23 +71,29 @@ exports.handler = async (event) => {
     try {
       let { data: o } = await supabase
         .from('orders')
-        .select('id, order_number, memberId, customerEmail, customerPhone, pointsUsed, pointsDeductAmount')
+        .select('id, order_number, memberId, customerEmail, customerPhone, pointsUsed, pointsDeductAmount, points_used, points_deduct_amount, pointsDiscount, points_discount')
         .eq('order_number', orderId)
         .maybeSingle()
       if (!o) {
         const r2 = await supabase
           .from('orders')
-          .select('id, order_number, memberId, customerEmail, customerPhone, pointsUsed, pointsDeductAmount')
+          .select('id, order_number, memberId, customerEmail, customerPhone, pointsUsed, pointsDeductAmount, points_used, points_deduct_amount, pointsDiscount, points_discount')
           .eq('id', orderId)
           .maybeSingle()
         o = r2.data || null
       }
       orderRow = o
       if (orderRow) {
-        if (!(points>0)) {
-          const used = Math.max(Number(orderRow.pointsUsed||0), Number(orderRow.pointsDeductAmount||0))
-          if (used>0) points = used
-        }
+        const candidates = [
+          Number(orderRow.pointsUsed||0),
+          Number(orderRow.points_used||0),
+          Number(orderRow.pointsDeductAmount||0),
+          Number(orderRow.points_deduct_amount||0),
+          Number(orderRow.pointsDiscount||0),
+          Number(orderRow.points_discount||0)
+        ]
+        const maxUsed = Math.max(...candidates)
+        if (!(points>0) && (maxUsed>0)) points = maxUsed
         // 優先從訂單補齊身分
         if (!memberId && orderRow.memberId) memberId = String(orderRow.memberId)
         if (!memberEmail && orderRow.customerEmail) memberEmail = String(orderRow.customerEmail||'').toLowerCase()
@@ -112,14 +118,13 @@ exports.handler = async (event) => {
     }
     await ensureMemberId()
     if (!memberId) return json(400, { success:false, error:'member_not_found' })
-    if (!(points>0)) return json(200, { success:false, error:'no_points_to_deduct' })
-
-    // 若訂單尚未綁定 memberId，嘗試回寫（不阻斷）
+    // 若訂單尚未綁定 memberId，嘗試回寫（不論是否扣點）
     try {
       if (orderRow && !orderRow.memberId && orderRow.id) {
         await supabase.from('orders').update({ memberId }).eq('id', orderRow.id)
       }
     } catch {}
+    if (!(points>0)) return json(200, { success:false, error:'no_points_to_deduct' })
 
     const refKey = `order_points_used_${orderId}`
     const { data: existedRow } = await supabase.from('member_points_ledger').select('id,member_id,delta').eq('ref_key', refKey).maybeSingle()
