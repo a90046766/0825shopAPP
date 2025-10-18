@@ -53,18 +53,47 @@ exports.handler = async (event) => {
     let body = {}
     try { body = JSON.parse(event.body||'{}') } catch {}
     let memberId = String(body.memberId||'')
-    const memberEmail = String(body.memberEmail||'').toLowerCase()
-    const memberCode = String(body.memberCode||'').toUpperCase()
-    const phone = String(body.phone||'')
+    let memberEmail = String(body.memberEmail||'').toLowerCase()
+    let memberCode = String(body.memberCode||'').toUpperCase()
+    let phone = String(body.phone||'')
     const orderId = String(body.orderId||'')
-    const points = Math.max(0, Number(body.points||0))
-    if ((!memberId && !memberEmail) || !orderId || !(points>0)) return json(400, { success:false, error:'invalid_params' })
+    let points = Math.max(0, Number(body.points||0))
+    if (!orderId) return json(400, { success:false, error:'invalid_params' })
 
     const { createClient } = require('@supabase/supabase-js')
     const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
     if (!url || !key) return json(500, { success:false, error:'missing_service_role' })
     const supabase = createClient(url, key, { auth: { persistSession: false } })
+
+    // 若缺 points 或身分，先嘗試從訂單讀取（order_number 優先，否則 id）
+    let orderRow = null
+    try {
+      let { data: o } = await supabase
+        .from('orders')
+        .select('id, order_number, memberId, customerEmail, customerPhone, pointsUsed, pointsDeductAmount')
+        .eq('order_number', orderId)
+        .maybeSingle()
+      if (!o) {
+        const r2 = await supabase
+          .from('orders')
+          .select('id, order_number, memberId, customerEmail, customerPhone, pointsUsed, pointsDeductAmount')
+          .eq('id', orderId)
+          .maybeSingle()
+        o = r2.data || null
+      }
+      orderRow = o
+      if (orderRow) {
+        if (!(points>0)) {
+          const used = Math.max(Number(orderRow.pointsUsed||0), Number(orderRow.pointsDeductAmount||0))
+          if (used>0) points = used
+        }
+        // 優先從訂單補齊身分
+        if (!memberId && orderRow.memberId) memberId = String(orderRow.memberId)
+        if (!memberEmail && orderRow.customerEmail) memberEmail = String(orderRow.customerEmail||'').toLowerCase()
+        if (!phone && orderRow.customerPhone) phone = String(orderRow.customerPhone||'')
+      }
+    } catch {}
 
     // 解析/驗證 members.id（支援 id/code/phone/email）
     const ensureMemberId = async () => {
@@ -83,6 +112,14 @@ exports.handler = async (event) => {
     }
     await ensureMemberId()
     if (!memberId) return json(400, { success:false, error:'member_not_found' })
+    if (!(points>0)) return json(200, { success:false, error:'no_points_to_deduct' })
+
+    // 若訂單尚未綁定 memberId，嘗試回寫（不阻斷）
+    try {
+      if (orderRow && !orderRow.memberId && orderRow.id) {
+        await supabase.from('orders').update({ memberId }).eq('id', orderRow.id)
+      }
+    } catch {}
 
     const refKey = `order_points_used_${orderId}`
     const { data: existedRow } = await supabase.from('member_points_ledger').select('id,member_id,delta').eq('ref_key', refKey).maybeSingle()
