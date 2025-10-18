@@ -19,21 +19,23 @@ export default function OrderSuccessPage() {
       const all = JSON.parse(localStorage.getItem('reservationOrders') || '[]')
       const found = all.find((o: any) => o.id === orderId)
       setOrder(found || null)
-      // 若本地有記錄，嘗試以本地 pointsUsed 立即補扣
+      // 若本地有記錄，嘗試以本地 pointsUsed 立即補扣（包成 IIFE 才能使用 await）
       if (found) {
-        try {
-          const used = Number(found.pointsUsed || found.pointsDeductAmount || found.pointsDiscount || 0)
-          if (used > 0) {
-            const p = new URLSearchParams()
-            p.set('orderId', String(orderId))
-            p.set('apply', '1')
-            p.set('points', String(used))
-            if (memberUser?.email) p.set('memberEmail', String(memberUser.email).toLowerCase())
-            if (memberUser?.code) p.set('memberCode', String(memberUser.code))
-            if (memberUser?.phone) p.set('phone', String(memberUser.phone))
-            await fetch(`/.netlify/functions/points-use-on-create?${p.toString()}`)
-          }
-        } catch {}
+        ;(async()=>{
+          try {
+            const used = Number(found.pointsUsed || found.pointsDeductAmount || found.pointsDiscount || 0)
+            if (used > 0) {
+              const p = new URLSearchParams()
+              p.set('orderId', String(orderId))
+              p.set('apply', '1')
+              p.set('points', String(used))
+              if (memberUser?.email) p.set('memberEmail', String(memberUser.email).toLowerCase())
+              if (memberUser?.code) p.set('memberCode', String(memberUser.code))
+              if (memberUser?.phone) p.set('phone', String(memberUser.phone))
+              fetch(`/.netlify/functions/points-use-on-create?${p.toString()}`).catch(()=>{})
+            }
+          } catch {}
+        })()
       }
     } catch {}
     ;(async()=>{
@@ -59,16 +61,18 @@ export default function OrderSuccessPage() {
         }
         setOrder(normalized)
         // 補扣保險：用訂單上的 email/phone 再觸發一次冪等扣點
-        try {
-          const params2 = new URLSearchParams()
-          params2.set('orderId', String(o.orderNumber || (o as any).order_number || orderId))
-          params2.set('apply', '1')
-          const used2 = Number(o.pointsUsed || (o as any).points_used || o.pointsDeductAmount || (o as any).points_deduct_amount || o.pointsDiscount || (o as any).points_discount || 0)
-          if (used2 > 0) params2.set('points', String(used2))
-          if (o.customerEmail) params2.set('memberEmail', String(o.customerEmail).toLowerCase())
-          if (o.customerPhone) params2.set('phone', String(o.customerPhone))
-          await fetch(`/.netlify/functions/points-use-on-create?${params2.toString()}`)
-        } catch {}
+        ;(async()=>{
+          try {
+            const params2 = new URLSearchParams()
+            params2.set('orderId', String(o.orderNumber || (o as any).order_number || orderId))
+            params2.set('apply', '1')
+            const used2 = Number(o.pointsUsed || (o as any).points_used || o.pointsDeductAmount || (o as any).points_deduct_amount || o.pointsDiscount || (o as any).points_discount || 0)
+            if (used2 > 0) params2.set('points', String(used2))
+            if (o.customerEmail) params2.set('memberEmail', String(o.customerEmail).toLowerCase())
+            if (o.customerPhone) params2.set('phone', String(o.customerPhone))
+            fetch(`/.netlify/functions/points-use-on-create?${params2.toString()}`).catch(()=>{})
+          } catch {}
+        })()
         // 若小計為 0（可能因 RPC 未帶入 service_items），嘗試自動回填一次
         if (subTotal === 0) {
           try {
@@ -102,7 +106,7 @@ export default function OrderSuccessPage() {
         if (memberUser?.email) params.set('memberEmail', String(memberUser.email).toLowerCase())
         if (memberUser?.code) params.set('memberCode', String(memberUser.code))
         if (memberUser?.phone) params.set('phone', String(memberUser.phone))
-        await fetch(`/.netlify/functions/points-use-on-create?${params.toString()}`)
+        fetch(`/.netlify/functions/points-use-on-create?${params.toString()}`).catch(()=>{})
       } catch {}
     })()
   }, [orderId])
