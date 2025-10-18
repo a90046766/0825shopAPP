@@ -57,6 +57,40 @@ export default function ShopProductDetailPage() {
     setAddonQuantities({})
   }, [product?.id])
 
+  // 即時將加購同步到購物車（無需另按「加入加購」）
+  useEffect(() => {
+    if (!product) return
+    setCart(prev => {
+      let next = [...prev]
+      const config = (product as any)?.addonConfig
+      const upsert = (id: string, name: string, price: number, qty: number) => {
+        const idx = next.findIndex(x => x.id === id)
+        if (qty > 0) {
+          if (idx >= 0) next[idx] = { ...next[idx], name, price, category: 'addon', quantity: qty }
+          else next.unshift({ id, name, price, category: 'addon', quantity: qty })
+        } else if (idx >= 0) {
+          next.splice(idx, 1)
+        }
+      }
+      // 舊版單一加購
+      const singleId = `addon:${product.id}`
+      if (addonOn && Number((config||{})?.price) > 0) {
+        upsert(singleId, `加購 - ${config?.name || '項目'}`, Number(config?.price||0), Number(addonQty||0))
+      } else {
+        upsert(singleId, '', 0, 0)
+      }
+      // 新版多加購
+      if (config && Array.isArray(config.items)) {
+        config.items.forEach((it: any, i: number) => {
+          const q = Number(addonQuantities[i]||0)
+          const id = `addon:${product.id}:${i}`
+          upsert(id, `加購 - ${it?.name || ('項目#'+(i+1))}`, Number(it?.price||0), q)
+        })
+      }
+      return next
+    })
+  }, [product?.id, addonOn, addonQty, JSON.stringify(addonQuantities)])
+
   useEffect(() => {
     const seed = {
       id, name: '商品', description: '', content: '', price: 0,
@@ -179,31 +213,6 @@ export default function ShopProductDetailPage() {
         }
       } else {
         next = [{ ...product, quantity: 1 }, ...next]
-      }
-      const config = (product as any).addonConfig
-      // 兼容舊版單一加購（name/price）
-      if (addonOn && Number((config||{}).price)>0 && (addonQty||0)>0) {
-        const addonIdSingle = `addon:${product.id}`
-        const k = next.findIndex(x => x.id === addonIdSingle)
-        if (k >= 0) {
-          next[k] = { ...next[k], quantity: (next[k].quantity || 0) + (addonQty||0) }
-        } else {
-          next.unshift({ id: addonIdSingle, name: `加購 - ${config.name||'項目'}`, price: Number(config.price), category: 'addon', quantity: (addonQty||0) })
-        }
-      }
-      if (config && Array.isArray(config.items)) {
-        config.items.forEach((it:any, i:number) => {
-          const q = addonQuantities[i]||0
-          if (q > 0 && Number(it?.price)>0) {
-            const addonId = `addon:${product.id}:${i}`
-            const j = next.findIndex(x => x.id === addonId)
-            if (j >= 0) {
-              next[j] = { ...next[j], quantity: (next[j].quantity || 0) + q }
-            } else {
-              next.unshift({ id: addonId, name: `加購 - ${it.name||('項目#'+(i+1))}`, price: Number(it.price), category: 'addon', quantity: q })
-            }
-          }
-        })
       }
       return next
     })
@@ -426,7 +435,7 @@ export default function ShopProductDetailPage() {
                       </div>
                     </div>
                     <div className="text-right mt-2">
-                      <button onClick={addAddonsOnly} className="inline-block text-xs px-3 py-1 rounded bg-blue-600 text-white mr-2">加入加購</button>
+                      <span className="inline-block text-[11px] text-gray-600 mr-3">加購已自動套用</span>
                       <Link to="/store/cart" className="inline-block text-xs px-3 py-1 rounded bg-gray-900 text-white">前往結帳</Link>
                     </div>
                   </>

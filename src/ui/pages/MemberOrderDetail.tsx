@@ -348,22 +348,10 @@ export default function MemberOrderDetailPage() {
                       const jj = await resp.json().catch(()=>({ success:false }))
                       ok = !!(jj && jj.success)
                       serverErr = (jj && jj.error) ? String(jj.error) : null
-                      if (jj && jj.error==='already_submitted') { alert('已提交過好評，感謝您的支持！'); setFbOpen(''); setGoodFile(null); setGoodNote(''); setSubmitting(false); return }
+                      if (jj && (jj.error==='already_submitted' || jj.error==='already_submitted_any')) { alert('此訂單已提交過回饋，感謝您的支持！'); setFbOpen(''); setGoodFile(null); setGoodNote(''); setSubmitting(false); return }
                     } catch {}
-                    if (!ok) {
-                      // 後備：直接寫入 Supabase（RLS 需允許 member 自己寫入）
-                      try {
-                        await supabase.from('member_feedback').insert({
-                          member_id: member.id,
-                          order_id: String(order.id),
-                          kind: 'good',
-                          comment: goodNote||null,
-                          asset_path: path,
-                          created_at: new Date().toISOString()
-                        })
-                        ok = true
-                      } catch {}
-                    }
+                    // 伺服端為唯一真相：若未成功，僅提示錯誤，不做本地後備插入，以避免繞過擇一限制
+                    if (!ok) { throw new Error(serverErr||'server_failed') }
                     alert(ok ? '已收到您的好評，謝謝！' : ('提交失敗：' + (serverErr || '請稍後再試')))
                     setFbOpen(''); setGoodFile(null); setGoodNote('')
                   } catch(e:any) {
@@ -413,21 +401,10 @@ export default function MemberOrderDetailPage() {
                       const jj = await resp.json().catch(()=>({ success:false }))
                       ok = !!(jj && jj.success)
                       serverErr = (jj && jj.error) ? String(jj.error) : null
-                      if (jj && jj.error==='already_submitted') { alert('此訂單已提交過建議，感謝您的回饋！'); setFbOpen(''); setSuggestText(''); setSubmitting(false); return }
+                      if (jj && (jj.error==='already_submitted' || jj.error==='already_submitted_any')) { alert('此訂單已提交過回饋，感謝您的支持！'); setFbOpen(''); setSuggestText(''); setSubmitting(false); return }
                     } catch {}
-                    if (!ok) {
-                      // 後備：直接寫入 Supabase（RLS 需允許 member 自己寫入）
-                      try {
-                        await supabase.from('member_feedback').insert({
-                          member_id: member.id,
-                          order_id: String(order.id),
-                          kind: 'suggest',
-                          comment: suggestText,
-                          created_at: new Date().toISOString()
-                        })
-                        ok = true
-                      } catch {}
-                    }
+                    // 伺服端為唯一真相：若未成功，僅提示錯誤，不做本地後備插入，以避免繞過擇一限制
+                    if (!ok) { throw new Error(serverErr||'server_failed') }
                     alert(ok ? '已收到您的建議，謝謝！' : ('提交失敗：' + (serverErr || '請稍後再試')))
                     setFbOpen(''); setSuggestText('')
                   } catch(e:any) {

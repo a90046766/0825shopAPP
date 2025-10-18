@@ -68,18 +68,50 @@ export default function PageOrderDetail() {
   useEffect(()=>{ (async()=>{ try{ if(!repos) return; if(repos.technicianRepo?.list){ const rows = await repos.technicianRepo.list(); setTechs(rows||[]) } }catch{} })() },[repos])
   useEffect(() => { if (order) setItemsDraft(order.serviceItems || []) }, [order])
   useEffect(()=>{ (async()=>{ try { if (!repos) return; if (order?.memberId) { const m = await repos.memberRepo.get(order.memberId); setMemberCode(m?.code||''); setMemberName(m?.name||'');
-        // 單一真相：以統一 API 讀取
-        try { const q = new URLSearchParams({ memberId: order.memberId }); const r = await fetch(`/_api/points/balance?${q.toString()}`); const j = await r.json(); setMemberPoints(Number(j?.balance||0)) } catch { setMemberPoints(0) }
-      } else {
-        setMemberCode(''); setMemberName('');
-        // 舊訂單未綁會員：以客戶 Email 讀取
-        const email = String(order?.customerEmail||'').toLowerCase()
-        if (email) {
-          try { const q = new URLSearchParams({ memberEmail: email }); const r = await fetch(`/_api/points/balance?${q.toString()}`); const j = await r.json(); setMemberPoints(Number(j?.balance||0)) } catch { setMemberPoints(0) }
-        } else {
-          setMemberPoints(0)
-        }
-      } } catch {} })() },[order?.memberId, order?.customerEmail, repos])
+       // 先確保會員建檔/對應
+       try {
+         const qp = new URLSearchParams()
+         qp.set('memberId', String(order.memberId))
+         if (m?.email) qp.set('memberEmail', String(m.email).toLowerCase())
+         if (m?.code) qp.set('memberCode', String(m.code))
+         if (m?.phone) qp.set('phone', String(m.phone))
+         else if (order.customerPhone) qp.set('phone', String(order.customerPhone))
+         await fetch(`/_api/member/profile?${qp.toString()}`).catch(()=>{})
+       } catch {}
+       // 單一真相：以多鍵查詢餘額
+       try {
+         const q = new URLSearchParams()
+         q.set('memberId', String(order.memberId))
+         if (m?.email) q.set('memberEmail', String(m.email).toLowerCase())
+         if (m?.code) q.set('memberCode', String(m.code))
+         if (m?.phone) q.set('phone', String(m.phone))
+         else if (order.customerPhone) q.set('phone', String(order.customerPhone))
+         const r = await fetch(`/_api/points/balance?${q.toString()}`)
+         const j = await r.json(); setMemberPoints(Number(j?.balance||0))
+       } catch { setMemberPoints(0) }
+     } else {
+       setMemberCode(''); setMemberName('');
+       // 舊訂單未綁會員：以客戶資訊建檔並多鍵讀取
+       const email = String(order?.customerEmail||'').toLowerCase()
+       const phone = String(order?.customerPhone||'')
+       if (email || phone) {
+         try {
+           const qp = new URLSearchParams()
+           if (email) qp.set('memberEmail', email)
+           if (phone) qp.set('phone', phone)
+           await fetch(`/_api/member/profile?${qp.toString()}`).catch(()=>{})
+         } catch {}
+         try {
+           const q = new URLSearchParams()
+           if (email) q.set('memberEmail', email)
+           if (phone) q.set('phone', phone)
+           const r = await fetch(`/_api/points/balance?${q.toString()}`)
+           const j = await r.json(); setMemberPoints(Number(j?.balance||0))
+         } catch { setMemberPoints(0) }
+       } else {
+         setMemberPoints(0)
+       }
+     } } catch {} })() },[order?.memberId, order?.customerEmail, repos])
   useEffect(()=>{
     if (!order) return
     const formatTaipeiInput = (iso:string) => {
@@ -614,8 +646,33 @@ export default function PageOrderDetail() {
                   <button
                     onClick={async()=>{
                       try {
-                        await fetch('/_api/points/use-on-create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ memberId: order.memberId, orderId: order.id, points: Number(order.pointsUsed||0) }) })
-                        alert('已發出扣點指令，稍後重新整理即可看到餘額變動')
+                        // 先確保會員建檔/對應
+                        try {
+                          const qp = new URLSearchParams()
+                          qp.set('memberId', String(order.memberId))
+                          if (memberCode) qp.set('memberCode', String(memberCode))
+                          if (order.customerEmail) qp.set('memberEmail', String(order.customerEmail).toLowerCase())
+                          if (order.customerPhone) qp.set('phone', String(order.customerPhone))
+                          await fetch(`/_api/member/profile?${qp.toString()}`).catch(()=>{})
+                        } catch {}
+                        // 扣點：多鍵傳遞
+                        const payload:any = { orderId: String(order.id), points: Number(order.pointsUsed||0) }
+                        payload.memberId = String(order.memberId)
+                        if (memberCode) payload.memberCode = String(memberCode)
+                        if (order.customerEmail) payload.memberEmail = String(order.customerEmail).toLowerCase()
+                        if (order.customerPhone) payload.phone = String(order.customerPhone)
+                        await fetch('/_api/points/use-on-create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                        // 立即刷新可用積分顯示（多鍵）
+                        try {
+                          const q = new URLSearchParams()
+                          q.set('memberId', String(order.memberId))
+                          if (memberCode) q.set('memberCode', String(memberCode))
+                          if (order.customerEmail) q.set('memberEmail', String(order.customerEmail).toLowerCase())
+                          if (order.customerPhone) q.set('phone', String(order.customerPhone))
+                          const r = await fetch(`/_api/points/balance?${q.toString()}`)
+                          const j = await r.json(); setMemberPoints(Number(j?.balance||0))
+                        } catch {}
+                        alert('已扣點，餘額已更新')
                       } catch {}
                     }}
                     className="ml-2 rounded bg-gray-900 px-2 py-1 text-xs text-white hover:bg-gray-800"
@@ -1249,6 +1306,28 @@ export default function PageOrderDetail() {
                   closedAt: now
                 })
                 try {
+                  // 確保會員存在（自動建立 MO+4）
+                  try {
+                    const qp = new URLSearchParams()
+                    if (order.memberId) qp.set('memberId', String(order.memberId))
+                    if (memberCode) qp.set('memberCode', String(memberCode))
+                    if (order.customerEmail) qp.set('memberEmail', String(order.customerEmail).toLowerCase())
+                    if (order.customerPhone) qp.set('phone', String(order.customerPhone))
+                    await fetch(`/_api/member/profile?${qp.toString()}`)
+                  } catch {}
+                  // 先扣除本單使用的積分（若有）
+                  try {
+                    const used = Number(order.pointsUsed||0)
+                    if (used > 0) {
+                      const payload:any = { orderId: String(order.id), points: used }
+                      if (order.memberId) payload.memberId = String(order.memberId)
+                      if (memberCode) payload.memberCode = String(memberCode)
+                      if (order.customerEmail) payload.memberEmail = String(order.customerEmail).toLowerCase()
+                      if (order.customerPhone) payload.phone = String(order.customerPhone)
+                      await fetch('/_api/points/use-on-create', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+                    }
+                  } catch {}
+                  // 再建立結案回饋（待入點）
                   const fresh = await repos.orderRepo.get(order.id)
                   const items = (fresh?.serviceItems || order.serviceItems || []).map((it:any)=> ({ name: it.name, quantity: Number(it.quantity)||0, unitPrice: Number(it.unitPrice)||0 }))
                   const payload:any = {
@@ -1257,7 +1336,9 @@ export default function PageOrderDetail() {
                     pointsDeductAmount: Number(order.pointsDeductAmount||0)
                   }
                   if (fresh?.memberId || order.memberId) payload.memberId = String(fresh?.memberId || order.memberId)
-                  else if (fresh?.customerEmail || order.customerEmail) payload.memberEmail = String((fresh?.customerEmail || order.customerEmail)||'').toLowerCase()
+                  if (memberCode) payload.memberCode = String(memberCode)
+                  if (fresh?.customerEmail || order.customerEmail) payload.memberEmail = String((fresh?.customerEmail || order.customerEmail)||'').toLowerCase()
+                  if (fresh?.customerPhone || order.customerPhone) payload.phone = String((fresh?.customerPhone || order.customerPhone)||'')
                   await fetch('/_api/points/apply-order', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) }).catch(()=>{})
                 } catch (e) { console.warn('apply points (pending) failed', e) }
                 const o=await repos.orderRepo.get(order.id); setOrder(o)

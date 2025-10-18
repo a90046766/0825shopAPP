@@ -281,7 +281,17 @@ export default function ShopCartPage() {
     (async () => {
       try {
         if (!memberUser) return
-        const q = new URLSearchParams(memberUser.id ? { memberId: memberUser.id } : { memberEmail: String(memberUser.email||'').toLowerCase() })
+        // 先確保會員建檔（以便以 id 查詢），不阻斷
+        try {
+          const qp = new URLSearchParams(memberUser.id ? { memberId: memberUser.id } : { memberEmail: String(memberUser.email||'').toLowerCase() })
+          await fetch(`/_api/member/profile?${qp.toString()}`)
+        } catch {}
+        // 多鍵查詢餘額（id + code/phone/email）
+        const q = new URLSearchParams()
+        if (memberUser.id) q.set('memberId', memberUser.id)
+        if ((memberUser as any)?.code) q.set('memberCode', String((memberUser as any).code))
+        if ((memberUser as any)?.phone) q.set('phone', String((memberUser as any).phone))
+        if (memberUser.email) q.set('memberEmail', String(memberUser.email).toLowerCase())
         const res = await fetch(`/_api/points/balance?${q.toString()}`)
         const j = await res.json()
         setCustomerPoints(Number(j?.balance||0))
@@ -556,14 +566,19 @@ export default function ShopCartPage() {
               const q = new URLSearchParams(memberId ? { memberId } : { memberEmail: String(memberUser.email||'').toLowerCase() })
               await fetch(`/_api/member/profile?${q.toString()}`)
             } catch {}
-            const payload: any = memberId ? { memberId, orderId: createdId, points: pointsToUse } : { memberEmail: String(memberUser.email||'').toLowerCase(), orderId: createdId, points: pointsToUse }
-            // 備援帶上 memberCode/phone（伺服端多鍵解析）
-            try { if (!memberId && (memberUser as any)?.code) payload.memberCode = String((memberUser as any)?.code) } catch {}
-            try { if (!memberId && (memberUser as any)?.phone) payload.phone = String((memberUser as any)?.phone) } catch {}
+            const payload: any = { orderId: createdId, points: pointsToUse }
+            if (memberId) payload.memberId = memberId
+            if ((memberUser as any)?.code) payload.memberCode = String((memberUser as any)?.code)
+            if ((memberUser as any)?.phone) payload.phone = String((memberUser as any)?.phone)
+            if (memberUser?.email) payload.memberEmail = String(memberUser.email).toLowerCase()
             await fetch('/_api/points/use-on-create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
             // 非阻斷：嘗試即時刷新餘額（避免畫面殘留舊值）
             try {
-              const qb = new URLSearchParams(memberId ? { memberId } : { memberEmail: String(memberUser.email||'').toLowerCase() })
+              const qb = new URLSearchParams()
+              if (memberId) qb.set('memberId', memberId)
+              if ((memberUser as any)?.code) qb.set('memberCode', String((memberUser as any)?.code))
+              if ((memberUser as any)?.phone) qb.set('phone', String((memberUser as any)?.phone))
+              if (memberUser?.email) qb.set('memberEmail', String(memberUser.email).toLowerCase())
               const rb = await fetch(`/_api/points/balance?${qb.toString()}`)
               const jb = await rb.json(); if (jb?.success) setCustomerPoints(Number(jb.balance||0))
             } catch {}

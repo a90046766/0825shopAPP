@@ -17,6 +17,7 @@ exports.handler = async (event) => {
     const memberEmail = String(u.searchParams.get('memberEmail')||'').toLowerCase()
     const memberCode = String(u.searchParams.get('memberCode')||'').toUpperCase()
     const phone = String(u.searchParams.get('phone')||'')
+    const debug = u.searchParams.get('debug') === '1'
 
     // 解析 members.id（支援 id/code/phone/email 多鍵）
     const resolveMemberId = async () => {
@@ -79,6 +80,15 @@ exports.handler = async (event) => {
       } catch {
         balance = 0
       }
+    }
+
+    if (debug) {
+      // 附帶調試資訊：解析來源、ledger 合計、是否有 email-based 紀錄
+      let ledgerById = 0
+      let ledgerByEmail = 0
+      try { if (memberId) { const { data } = await supabase.from('member_points_ledger').select('delta').eq('member_id', memberId); ledgerById = (data||[]).reduce((s,r)=>s+Number(r.delta||0),0) } } catch {}
+      try { if (memberEmail) { const { data } = await supabase.from('member_points_ledger').select('delta').eq('member_email', memberEmail); ledgerByEmail = (data||[]).reduce((s,r)=>s+Number(r.delta||0),0) } } catch {}
+      return json(200, { success:true, balance: Number(balance||0), debug: { memberId, memberEmail, memberCode, phone, ledgerSumById: ledgerById, ledgerSumByEmail: ledgerByEmail } })
     }
 
     return json(200, { success:true, balance: Number(balance||0) })

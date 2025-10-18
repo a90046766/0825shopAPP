@@ -51,7 +51,11 @@ export default function MemberProfilePage() {
 
         // 讀取/補齊會員資料（統一 API）
         try {
-          const q = new URLSearchParams({ memberEmail: email })
+          const q = new URLSearchParams()
+          if (overrideId) q.set('memberId', overrideId)
+          if (email) q.set('memberEmail', email)
+          if (member?.code) q.set('memberCode', String(member.code))
+          if (member?.phone) q.set('phone', String(member.phone))
           const res = await fetch(`/_api/member/profile?${q.toString()}`)
           const j = await res.json()
           if (j?.success && j.data) {
@@ -61,13 +65,15 @@ export default function MemberProfilePage() {
           }
         } catch {}
 
-        // 讀取積分（單一真相 API）
+        // 讀取積分（單一真相 API，多鍵）
         try {
-          const q = new URLSearchParams(
-            overrideId ? { memberId: overrideId }
-            : (overrideEmail ? { memberEmail: overrideEmail }
-              : (member.id ? { memberId: member.id } : { memberEmail: email }))
-          )
+          const q = new URLSearchParams()
+          if (overrideId) q.set('memberId', overrideId)
+          else if (member.id) q.set('memberId', member.id)
+          if (overrideEmail) q.set('memberEmail', overrideEmail)
+          else if (email) q.set('memberEmail', email)
+          if (member?.code) q.set('memberCode', String(member.code))
+          if (member?.phone) q.set('phone', String(member.phone))
           const [rb, rl, rp] = await Promise.all([
             fetch(`/_api/points/balance?${q.toString()}`),
             fetch(`/_api/points/ledger?${q.toString()}&limit=50`),
@@ -90,11 +96,25 @@ export default function MemberProfilePage() {
     if (!member) return
     try {
       const email = String(member.email||'').toLowerCase()
-      const q = new URLSearchParams(
-        overrideId ? { memberId: overrideId }
-        : (overrideEmail ? { memberEmail: overrideEmail }
-          : (member.id ? { memberId: member.id } : { memberEmail: email }))
-      )
+      // 先確保會員建檔/對應
+      try {
+        const qp = new URLSearchParams()
+        if (overrideId) qp.set('memberId', overrideId)
+        else if (member.id) qp.set('memberId', member.id)
+        if (overrideEmail) qp.set('memberEmail', overrideEmail)
+        else if (email) qp.set('memberEmail', email)
+        if (member?.code) qp.set('memberCode', String(member.code))
+        if (member?.phone) qp.set('phone', String(member.phone))
+        await fetch(`/_api/member/profile?${qp.toString()}`)
+      } catch {}
+      // 多鍵查詢
+      const q = new URLSearchParams()
+      if (overrideId) q.set('memberId', overrideId)
+      else if (member.id) q.set('memberId', member.id)
+      if (overrideEmail) q.set('memberEmail', overrideEmail)
+      else if (email) q.set('memberEmail', email)
+      if (member?.code) q.set('memberCode', String(member.code))
+      if (member?.phone) q.set('phone', String(member.phone))
       const [rb, rl, rp] = await Promise.all([
         fetch(`/_api/points/balance?${q.toString()}`),
         fetch(`/_api/points/ledger?${q.toString()}&limit=50`),
@@ -111,7 +131,20 @@ export default function MemberProfilePage() {
     try {
       setClaimingMap(m=>({ ...m, [id]: true }))
       const email = String(member.email||'').toLowerCase()
-      const payload = member.id ? { id, memberId: member.id } : { id, memberEmail: email }
+      // 先確保會員建檔/對應
+      try {
+        const qp = new URLSearchParams()
+        if (member.id) qp.set('memberId', member.id)
+        if (member?.code) qp.set('memberCode', String(member.code))
+        if (email) qp.set('memberEmail', email)
+        if (member?.phone) qp.set('phone', String(member.phone))
+        await fetch(`/_api/member/profile?${qp.toString()}`)
+      } catch {}
+      const payload: any = { id }
+      if (member.id) payload.memberId = member.id
+      if (member?.code) payload.memberCode = String(member.code)
+      if (email) payload.memberEmail = email
+      if (member?.phone) payload.phone = String(member.phone)
       const resp = await fetch('/_api/points/pending/claim', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
       const jr = await resp.json()
       if (!jr?.success) throw new Error(jr?.error||'領取失敗')

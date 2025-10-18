@@ -85,6 +85,34 @@ exports.handler = async (event) => {
       })
     } catch {}
 
+    // 將回饋同步寫入 orders.signatures.customer_feedback（供會員訂單詳情顯示）
+    try {
+      const fetchOrder = async () => {
+        let { data } = await supabase
+          .from('orders')
+          .select('id, order_number, signatures')
+          .eq('order_number', orderId)
+          .maybeSingle()
+        if (!data) {
+          const r2 = await supabase
+            .from('orders')
+            .select('id, order_number, signatures')
+            .eq('id', orderId)
+            .maybeSingle()
+          data = r2.data || null
+        }
+        return data
+      }
+      const ord = await fetchOrder()
+      if (ord) {
+        const nowIso = new Date().toISOString()
+        const sig = (ord.signatures && typeof ord.signatures==='object') ? ord.signatures : {}
+        const fb = { kind, comment: comment||null, asset_path: assetPath||null, at: nowIso, member_id: memberId }
+        const nextSig = { ...sig, customer_feedback: fb }
+        await supabase.from('orders').update({ signatures: nextSig, updated_at: nowIso }).eq('id', ord.id)
+      }
+    } catch {}
+
     return json(200, { success:true })
   } catch (e) {
     return json(500, { success:false, error:'internal_error', message: String(e?.message||e) })
