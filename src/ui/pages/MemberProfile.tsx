@@ -27,6 +27,7 @@ export default function MemberProfilePage() {
   const [claimingAll, setClaimingAll] = useState<boolean>(false)
   const [claimingMap, setClaimingMap] = useState<Record<string, boolean>>({})
   const [pendingError, setPendingError] = useState<string>('')
+  const [resolvedMemberId, setResolvedMemberId] = useState<string>('')
 
   useEffect(() => {
     const syncLocalMemberCode = (code: string) => {
@@ -62,13 +63,15 @@ export default function MemberProfilePage() {
             setForm({ name: j.data.name || member.name || '', email: j.data.email || email, phone: j.data.phone || '', city: j.data.city||'', district: j.data.district||'', address: j.data.address||'' })
             const currentCode = String(j.data.code || '')
             if (currentCode) { setMemberCode(currentCode); syncLocalMemberCode(currentCode) }
+            try { setResolvedMemberId(String(j.data.id||'')) } catch {}
           }
         } catch {}
 
         // 讀取積分（單一真相 API，多鍵）
         try {
           const q = new URLSearchParams()
-          if (overrideId) q.set('memberId', overrideId)
+          if (resolvedMemberId) q.set('memberId', resolvedMemberId)
+          else if (overrideId) q.set('memberId', overrideId)
           else if (member.id) q.set('memberId', member.id)
           if (overrideEmail) q.set('memberEmail', overrideEmail)
           else if (email) q.set('memberEmail', email)
@@ -96,7 +99,8 @@ export default function MemberProfilePage() {
     if (!member) return
     try {
       const email = String(member.email||'').toLowerCase()
-      // 先確保會員建檔/對應
+      // 先確保會員建檔/對應並取得 id
+      let mid = resolvedMemberId
       try {
         const qp = new URLSearchParams()
         if (overrideId) qp.set('memberId', overrideId)
@@ -105,11 +109,14 @@ export default function MemberProfilePage() {
         else if (email) qp.set('memberEmail', email)
         if (member?.code) qp.set('memberCode', String(member.code))
         if (member?.phone) qp.set('phone', String(member.phone))
-        await fetch(`/_api/member/profile?${qp.toString()}`)
+        const rp = await fetch(`/_api/member/profile?${qp.toString()}`)
+        const jp = await rp.json().catch(()=>({}))
+        if (jp?.success && jp.data?.id) { mid = String(jp.data.id); setResolvedMemberId(mid) }
       } catch {}
-      // 多鍵查詢
+      // 多鍵查詢（優先使用解析出的 memberId）
       const q = new URLSearchParams()
-      if (overrideId) q.set('memberId', overrideId)
+      if (mid) q.set('memberId', mid)
+      else if (overrideId) q.set('memberId', overrideId)
       else if (member.id) q.set('memberId', member.id)
       if (overrideEmail) q.set('memberEmail', overrideEmail)
       else if (email) q.set('memberEmail', email)
@@ -142,14 +149,16 @@ export default function MemberProfilePage() {
       // 先確保會員建檔/對應
       try {
         const qp = new URLSearchParams()
-        if (member.id) qp.set('memberId', member.id)
+        if (resolvedMemberId) qp.set('memberId', resolvedMemberId)
+        else if (member.id) qp.set('memberId', member.id)
         if (member?.code) qp.set('memberCode', String(member.code))
         if (email) qp.set('memberEmail', email)
         if (member?.phone) qp.set('phone', String(member.phone))
         await fetch(`/_api/member/profile?${qp.toString()}`)
       } catch {}
       const payload: any = { id }
-      if (member.id) payload.memberId = member.id
+      if (resolvedMemberId) payload.memberId = resolvedMemberId
+      else if (member.id) payload.memberId = member.id
       if (member?.code) payload.memberCode = String(member.code)
       if (email) payload.memberEmail = email
       if (member?.phone) payload.phone = String(member.phone)
