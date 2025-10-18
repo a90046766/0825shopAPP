@@ -8,6 +8,7 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [adjustingMap, setAdjustingMap] = useState<Record<string, boolean>>({})
 
   useEffect(() => { 
     (async()=>{ 
@@ -157,6 +158,8 @@ export default function CustomersPage() {
       <div className="space-y-3">
         {filteredRows.map(c => {
           const serviceHistory = getCustomerServiceHistory(c.phone, c.email)
+          const memberCode = c.memberCode || c.code || ''
+          const memberPoints = Number(c.points || c.memberPoints || c.balance || 0)
           
           return (
             <div key={c.id} className="rounded-xl border bg-white p-4 shadow-card hover:shadow-lg transition-shadow">
@@ -174,7 +177,7 @@ export default function CustomersPage() {
                   </div>
                   
                   <div className="text-sm text-gray-600 mb-2">
-                    📱 {c.phone} {c.email && `· 📧 ${c.email}`}
+                    📱 {c.phone} {c.email && `· 📧 ${c.email}`} {memberCode && <span className="ml-2">· 會員編號：<span className="font-mono">{memberCode}</span></span>}
                   </div>
                   
                   {c.addresses?.length > 0 && (
@@ -222,7 +225,64 @@ export default function CustomersPage() {
                   )}
                 </div>
                 
-                <div className="flex flex-col gap-2 ml-4">
+                <div className="flex flex-col gap-2 ml-4 min-w-[200px]">
+                  {/* 積分顯示/調整（管理員/客服） */}
+                  <div className="rounded border p-2 text-xs bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">積分</span>
+                      <span className="font-semibold text-blue-700">{memberPoints}</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-1">
+                      <button
+                        onClick={async()=>{
+                          const val = prompt('調整為指定數值（setTo）\n輸入新積分總額：', String(memberPoints))
+                          if (val===null) return
+                          const num = Number(val)
+                          if (!Number.isFinite(num)) { alert('請輸入數字'); return }
+                          setAdjustingMap(m=>({ ...m, [c.id]: true }))
+                          try {
+                            const payload:any = {}
+                            if (c.memberId||c.id) payload.memberId = String(c.memberId||c.id)
+                            if (memberCode) payload.memberCode = String(memberCode)
+                            if (c.email) payload.memberEmail = String(c.email).toLowerCase()
+                            if (c.phone) payload.phone = String(c.phone)
+                            payload.setTo = num
+                            payload.reason = '後台手動調整（setTo）'
+                            payload.ref = `customers_setto_${(c.memberId||c.id||'').toString()}`
+                            const r = await fetch('/_api/points/admin/adjust', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                            const j = await r.json(); if (!j?.success) alert('調整失敗：' + (j?.error||'unknown'))
+                            setRows(await (repos as any).customerRepo.list())
+                          } finally { setAdjustingMap(m=>{ const n={...m}; delete n[c.id]; return n }) }
+                        }}
+                        className={`rounded bg-white border px-2 py-1 ${adjustingMap[c.id]? 'opacity-60 cursor-not-allowed':'hover:bg-gray-100'}`}
+                        disabled={!!adjustingMap[c.id]}
+                      >設為…</button>
+                      <button
+                        onClick={async()=>{
+                          const val = prompt('增減（delta）\n輸入欲加/減的點數（可為負數）：', '50')
+                          if (val===null) return
+                          const num = Number(val)
+                          if (!Number.isFinite(num) || num===0) { alert('請輸入非零數字'); return }
+                          setAdjustingMap(m=>({ ...m, [c.id]: true }))
+                          try {
+                            const payload:any = {}
+                            if (c.memberId||c.id) payload.memberId = String(c.memberId||c.id)
+                            if (memberCode) payload.memberCode = String(memberCode)
+                            if (c.email) payload.memberEmail = String(c.email).toLowerCase()
+                            if (c.phone) payload.phone = String(c.phone)
+                            payload.delta = num
+                            payload.reason = '後台手動調整（delta）'
+                            payload.ref = `customers_delta_${(c.memberId||c.id||'').toString()}_${Date.now()}`
+                            const r = await fetch('/_api/points/admin/adjust', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                            const j = await r.json(); if (!j?.success) alert('調整失敗：' + (j?.error||'unknown'))
+                            setRows(await (repos as any).customerRepo.list())
+                          } finally { setAdjustingMap(m=>{ const n={...m}; delete n[c.id]; return n }) }
+                        }}
+                        className={`rounded bg-white border px-2 py-1 ${adjustingMap[c.id]? 'opacity-60 cursor-not-allowed':'hover:bg-gray-100'}`}
+                        disabled={!!adjustingMap[c.id]}
+                      >增減…</button>
+                    </div>
+                  </div>
                   <button 
                     onClick={()=>setEdit(c)} 
                     className="rounded-lg bg-gray-900 px-3 py-1 text-white text-sm hover:bg-gray-800"
