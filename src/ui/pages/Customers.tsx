@@ -9,6 +9,7 @@ export default function CustomersPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [adjustingMap, setAdjustingMap] = useState<Record<string, boolean>>({})
+  const [enrichedMap, setEnrichedMap] = useState<Record<string, { memberId?: string; memberCode?: string; points?: number; email?: string; phone?: string }>>({})
 
   useEffect(() => { 
     (async()=>{ 
@@ -31,6 +32,41 @@ export default function CustomersPage() {
       }, 100)
     })() 
   }, [])
+
+  // 背景同步：為每個客戶嘗試解析會員代碼與積分（多鍵，包含自動建檔）
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!Array.isArray(rows) || rows.length === 0) return
+        const tasks = rows.map(async (c:any) => {
+          try {
+            const email = String(c.email||'').toLowerCase()
+            const phone = String(c.phone||'')
+            if (!email && !phone) return
+            // 先確保/取得會員資料
+            const qp = new URLSearchParams()
+            if (email) qp.set('memberEmail', email)
+            if (phone) qp.set('phone', phone)
+            const rp = await fetch(`/_api/member/profile?${qp.toString()}`)
+            const jp = await rp.json().catch(()=>({}))
+            const memberId = String(jp?.data?.id||'')
+            const memberCode = String(jp?.data?.code||'')
+            // 再讀取積分（多鍵）
+            const qb = new URLSearchParams()
+            if (memberId) qb.set('memberId', memberId)
+            if (memberCode) qb.set('memberCode', memberCode)
+            if (email) qb.set('memberEmail', email)
+            if (phone) qb.set('phone', phone)
+            const rb = await fetch(`/_api/points/balance?${qb.toString()}`)
+            const jb = await rb.json().catch(()=>({}))
+            const points = Number(jb?.balance||0)
+            setEnrichedMap(prev => ({ ...prev, [c.id]: { memberId, memberCode, points, email, phone } }))
+          } catch {}
+        })
+        await Promise.allSettled(tasks)
+      } catch {}
+    })()
+  }, [JSON.stringify(rows)])
 
   // 過濾客戶
   const filteredRows = rows.filter(customer => {
@@ -158,8 +194,9 @@ export default function CustomersPage() {
       <div className="space-y-3">
         {filteredRows.map(c => {
           const serviceHistory = getCustomerServiceHistory(c.phone, c.email)
-          const memberCode = c.memberCode || c.code || ''
-          const memberPoints = Number(c.points || c.memberPoints || c.balance || 0)
+          const enriched = enrichedMap[c.id] || {}
+          const memberCode = enriched.memberCode || c.memberCode || c.code || ''
+          const memberPoints = (enriched.points!==undefined ? enriched.points : Number(c.points || c.memberPoints || c.balance || 0))
           
           return (
             <div key={c.id} className="rounded-xl border bg-white p-4 shadow-card hover:shadow-lg transition-shadow">
@@ -242,15 +279,18 @@ export default function CustomersPage() {
                           setAdjustingMap(m=>({ ...m, [c.id]: true }))
                           try {
                             const payload:any = {}
-                            if (c.memberId||c.id) payload.memberId = String(c.memberId||c.id)
-                            if (memberCode) payload.memberCode = String(memberCode)
-                            if (c.email) payload.memberEmail = String(c.email).toLowerCase()
-                            if (c.phone) payload.phone = String(c.phone)
+                            const e = enrichedMap[c.id] || {}
+                            if (e.memberId || c.memberId || c.id) payload.memberId = String(e.memberId || c.memberId || c.id)
+                            if ((e.memberCode || memberCode)) payload.memberCode = String(e.memberCode || memberCode)
+                            if ((e.email || c.email)) payload.memberEmail = String(e.email || c.email).toLowerCase()
+                            if ((e.phone || c.phone)) payload.phone = String(e.phone || c.phone)
                             payload.setTo = num
                             payload.reason = '後台手動調整（setTo）'
                             payload.ref = `customers_setto_${(c.memberId||c.id||'').toString()}`
                             const r = await fetch('/_api/points/admin/adjust', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
                             const j = await r.json(); if (!j?.success) alert('調整失敗：' + (j?.error||'unknown'))
+                            // 重新同步單筆
+                            try { setEnrichedMap(prev=>{ const n={...prev}; delete n[c.id]; return n }) } catch {}
                             setRows(await (repos as any).customerRepo.list())
                           } finally { setAdjustingMap(m=>{ const n={...m}; delete n[c.id]; return n }) }
                         }}
@@ -266,15 +306,17 @@ export default function CustomersPage() {
                           setAdjustingMap(m=>({ ...m, [c.id]: true }))
                           try {
                             const payload:any = {}
-                            if (c.memberId||c.id) payload.memberId = String(c.memberId||c.id)
-                            if (memberCode) payload.memberCode = String(memberCode)
-                            if (c.email) payload.memberEmail = String(c.email).toLowerCase()
-                            if (c.phone) payload.phone = String(c.phone)
+                            const e = enrichedMap[c.id] || {}
+                            if (e.memberId || c.memberId || c.id) payload.memberId = String(e.memberId || c.memberId || c.id)
+                            if ((e.memberCode || memberCode)) payload.memberCode = String(e.memberCode || memberCode)
+                            if ((e.email || c.email)) payload.memberEmail = String(e.email || c.email).toLowerCase()
+                            if ((e.phone || c.phone)) payload.phone = String(e.phone || c.phone)
                             payload.delta = num
                             payload.reason = '後台手動調整（delta）'
                             payload.ref = `customers_delta_${(c.memberId||c.id||'').toString()}_${Date.now()}`
                             const r = await fetch('/_api/points/admin/adjust', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
                             const j = await r.json(); if (!j?.success) alert('調整失敗：' + (j?.error||'unknown'))
+                            try { setEnrichedMap(prev=>{ const n={...prev}; delete n[c.id]; return n }) } catch {}
                             setRows(await (repos as any).customerRepo.list())
                           } finally { setAdjustingMap(m=>{ const n={...m}; delete n[c.id]; return n }) }
                         }}
