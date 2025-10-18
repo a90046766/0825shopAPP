@@ -8,6 +8,7 @@ export default function OrderSuccessPage() {
   const location = useLocation()
   const qs = useMemo(() => new URLSearchParams(location.search), [location.search])
   const orderId = qs.get('order') || localStorage.getItem('lastOrderId') || ''
+  const memberUser = useMemo(()=>{ try { return JSON.parse(localStorage.getItem('member-auth-user')||'null') } catch { return null } }, [])
 
   const [order, setOrder] = useState<any>(null)
   const [last5, setLast5] = useState('')
@@ -62,6 +63,19 @@ export default function OrderSuccessPage() {
             }
           } catch {}
         }
+      } catch {}
+    })()
+    // 自動補扣（冪等）：成功頁載入時再保險扣一次
+    ;(async()=>{
+      try {
+        if (!orderId) return
+        const params = new URLSearchParams()
+        params.set('orderId', orderId)
+        params.set('apply', '1')
+        if (memberUser?.email) params.set('memberEmail', String(memberUser.email).toLowerCase())
+        if (memberUser?.code) params.set('memberCode', String(memberUser.code))
+        if (memberUser?.phone) params.set('phone', String(memberUser.phone))
+        await fetch(`/.netlify/functions/points-use-on-create?${params.toString()}`)
       } catch {}
     })()
   }, [orderId])
