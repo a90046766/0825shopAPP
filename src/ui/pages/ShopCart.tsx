@@ -572,7 +572,17 @@ export default function ShopCartPage() {
             if ((memberUser as any)?.phone) payload.phone = String((memberUser as any)?.phone)
             if (memberUser?.email) payload.memberEmail = String(memberUser.email).toLowerCase()
             const resp = await fetch('/_api/points/use-on-create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-            try { const jr = await resp.json(); if (!jr?.success && jr?.error!=='already_used' && jr?.error!=='no_points_to_deduct') { console.warn('扣點回應：', jr) } } catch {}
+            let jr: any = null
+            try { jr = await resp.json() } catch {}
+            // 若第一段失敗，嘗試以僅 orderId + 身分鍵讓伺服端從訂單推導 pointsUsed
+            if (!jr?.success && jr?.error!=='already_used') {
+              const fallback: any = { orderId: createdId }
+              if (memberId) fallback.memberId = memberId
+              if ((memberUser as any)?.code) fallback.memberCode = String((memberUser as any)?.code)
+              if ((memberUser as any)?.phone) fallback.phone = String((memberUser as any)?.phone)
+              if (memberUser?.email) fallback.memberEmail = String(memberUser.email).toLowerCase()
+              try { const r2 = await fetch('/_api/points/use-on-create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(fallback) }); try { jr = await r2.json() } catch {} } catch {}
+            }
             // 非阻斷：嘗試即時刷新餘額（避免畫面殘留舊值）
             try {
               const qb = new URLSearchParams()

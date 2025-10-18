@@ -151,7 +151,20 @@ exports.handler = async (event) => {
       return json(200, { success:true, message:'already_used' })
     }
 
-    // 新增負數明細
+    // 新增負數明細（若 points=0，再次嘗試從訂單推導）
+    if (!(points>0) && orderRow) {
+      const candidates2 = [
+        Number(orderRow.pointsUsed||0),
+        Number(orderRow.points_used||0),
+        Number(orderRow.pointsDeductAmount||0),
+        Number(orderRow.points_deduct_amount||0),
+        Number(orderRow.pointsDiscount||0),
+        Number(orderRow.points_discount||0)
+      ]
+      const max2 = Math.max(...candidates2)
+      if (max2>0) points = max2
+    }
+    if (!(points>0)) return json(200, { success:false, error:'no_points_to_deduct' })
     const row = { member_id: memberId, delta: -points, reason: '訂單折抵', order_id: orderId, ref_key: refKey, created_at: new Date().toISOString() }
     const { error: ie } = await supabase.from('member_points_ledger').insert(row)
     if (ie) return json(500, { success:false, error: ie.message })

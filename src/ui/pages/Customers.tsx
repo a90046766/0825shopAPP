@@ -37,18 +37,24 @@ export default function CustomersPage() {
   useEffect(() => {
     (async () => {
       try {
-        if (!Array.isArray(rows) || rows.length === 0) return
-        const tasks = rows.map(async (c:any) => {
+        if (!Array.isArray(filteredRows) || filteredRows.length === 0) return
+        const fetchFnJson = async (fnPath: string) => {
+          try { const r = await fetch(`/.netlify/functions/${fnPath}`); if (r.ok) return await r.json() } catch {}
+          return null
+        }
+        // 僅針對目前過濾後列表以避免大量請求
+        const tasks = filteredRows.map(async (c:any) => {
           try {
             const email = String(c.email||'').toLowerCase()
-            const phone = String(c.phone||'')
+            const rawPhone = String(c.phone||'')
+            const phoneDigits = rawPhone.replace(/\D/g,'')
+            const phone = (/^09\d{8}$/.test(phoneDigits) ? phoneDigits : '')
             if (!email && !phone) return
             // 先確保/取得會員資料
             const qp = new URLSearchParams()
             if (email) qp.set('memberEmail', email)
             if (phone) qp.set('phone', phone)
-            const rp = await fetch(`/_api/member/profile?${qp.toString()}`)
-            const jp = await rp.json().catch(()=>({}))
+            const jp = await fetchFnJson(`member-profile?${qp.toString()}`)
             const memberId = String(jp?.data?.id||'')
             const memberCode = String(jp?.data?.code||'')
             // 再讀取積分（多鍵）
@@ -57,8 +63,7 @@ export default function CustomersPage() {
             if (memberCode) qb.set('memberCode', memberCode)
             if (email) qb.set('memberEmail', email)
             if (phone) qb.set('phone', phone)
-            const rb = await fetch(`/_api/points/balance?${qb.toString()}`)
-            const jb = await rb.json().catch(()=>({}))
+            const jb = await fetchFnJson(`points-balance?${qb.toString()}`)
             const points = Number(jb?.balance||0)
             setEnrichedMap(prev => ({ ...prev, [c.id]: { memberId, memberCode, points, email, phone } }))
           } catch {}
@@ -66,7 +71,7 @@ export default function CustomersPage() {
         await Promise.allSettled(tasks)
       } catch {}
     })()
-  }, [JSON.stringify(rows)])
+  }, [JSON.stringify(filteredRows)])
 
   // 過濾客戶
   const filteredRows = rows.filter(customer => {
@@ -287,8 +292,8 @@ export default function CustomersPage() {
                             payload.setTo = num
                             payload.reason = '後台手動調整（setTo）'
                             payload.ref = `customers_setto_${(c.memberId||c.id||'').toString()}`
-                            const r = await fetch('/_api/points/admin/adjust', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-                            const j = await r.json(); if (!j?.success) alert('調整失敗：' + (j?.error||'unknown'))
+                            const r2 = await fetch('/.netlify/functions/points-admin-adjust', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                            const j = await r2.json(); if (!j?.success) alert('調整失敗：' + (j?.error||'unknown'))
                             // 重新同步單筆
                             try { setEnrichedMap(prev=>{ const n={...prev}; delete n[c.id]; return n }) } catch {}
                             setRows(await (repos as any).customerRepo.list())
@@ -314,8 +319,8 @@ export default function CustomersPage() {
                             payload.delta = num
                             payload.reason = '後台手動調整（delta）'
                             payload.ref = `customers_delta_${(c.memberId||c.id||'').toString()}_${Date.now()}`
-                            const r = await fetch('/_api/points/admin/adjust', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-                            const j = await r.json(); if (!j?.success) alert('調整失敗：' + (j?.error||'unknown'))
+                            const r2 = await fetch('/.netlify/functions/points-admin-adjust', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                            const j = await r2.json(); if (!j?.success) alert('調整失敗：' + (j?.error||'unknown'))
                             try { setEnrichedMap(prev=>{ const n={...prev}; delete n[c.id]; return n }) } catch {}
                             setRows(await (repos as any).customerRepo.list())
                           } finally { setAdjustingMap(m=>{ const n={...m}; delete n[c.id]; return n }) }
