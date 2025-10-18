@@ -13,7 +13,8 @@ exports.handler = async (event) => {
     if (!url || !key) return json(500, { success:false, error:'missing_service_role' })
     const supabase = createClient(url, key, { auth: { persistSession: false } })
 
-    const u = new URL(event.rawUrl || ('http://local' + (event.path||'')))
+    const rawUrl = event.rawUrl || (`http://local${event.path||''}${event.rawQuery?`?${event.rawQuery}`:''}`)
+    const u = new URL(rawUrl)
     const memberId = String(u.searchParams.get('customerId')||'')
     const orderId = String(u.searchParams.get('orderId')||'')
     let body = {}
@@ -21,7 +22,8 @@ exports.handler = async (event) => {
     const kind = String(body.kind||'').toLowerCase()
     const comment = body.comment ? String(body.comment) : null
     const assetPath = body.asset_path ? String(body.asset_path) : null
-    if (!memberId || !orderId || !['good','suggest'].includes(kind)) return json(400, { success:false, error:'invalid_params' })
+    if (!['good','suggest'].includes(kind)) return json(400, { success:false, error:'invalid_kind' })
+    if (!memberId || !orderId) return json(400, { success:false, error:'invalid_params' })
 
     // 擇一限制：同一會員+同一訂單，good/suggest 二擇一
     try {
@@ -52,22 +54,26 @@ exports.handler = async (event) => {
       }
     } catch {}
 
-    // 建立 pending（領取後入帳）：+50
+    // 建立 pending（領取後入帳）：+50（若已存在 pending/claimed 則不重複建立）
     try {
-      const { data: existsPending } = await supabase
+      const reasons = ['好評+50','建議+50']
+      const { data: pendRows } = await supabase
         .from('pending_points')
-        .select('id')
+        .select('id,status')
         .eq('member_id', memberId)
         .eq('order_id', orderId)
-        .eq('status','pending')
-        .maybeSingle()
-      if (existsPending) return json(200, { success:true, message:'already_pending' })
+        .in('reason', reasons)
+        .in('status', ['pending','claimed'])
+        .limit(1)
+      if (Array.isArray(pendRows) && pendRows.length > 0) {
+        return json(200, { success:true, message:'already_pending_or_claimed' })
+      }
     } catch {}
     const delta = 50
     const reason = kind==='good' ? '好評+50' : '建議+50'
     const prow = { member_id: memberId, order_id: orderId, points: delta, reason, status: 'pending', created_at: new Date().toISOString() }
     const { error: pe } = await supabase.from('pending_points').insert(prow)
-    if (pe) return json(500, { success:false, error: pe.message })
+    if (pe) return json(200, { success:false, error:'insert_pending_failed', message: String(pe.message||pe) })
 
     // 通知客服/後台
     try {
@@ -113,7 +119,8 @@ exports.handler = async (event) => {
       }
     } catch {}
 
-    return json(200, { success:true })
+    const debug = u.searchParams.get('debug') === '1'
+    return json(200, { success:true, ...(debug?{ debug: { memberId, orderId, kind, created_pending: true } }: {}) })
   } catch (e) {
     return json(500, { success:false, error:'internal_error', message: String(e?.message||e) })
   }
