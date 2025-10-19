@@ -341,11 +341,18 @@ export default function MemberOrderDetailPage() {
                     let ok = false
                     let serverErr: string | null = null
                     try {
-                      const resp = await fetch(`/_api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(String(order.id))}/rating`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ kind: 'good', comment: goodNote||null, asset_path: path })
-                      })
-                      const jj = await resp.json().catch(()=>({ success:false }))
+                      const url1 = `/_api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(String(order.id))}/rating`
+                      const body1 = { kind: 'good', comment: goodNote||null, asset_path: path }
+                      let jj:any = null
+                      try {
+                        const r1 = await fetch(url1, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body1) })
+                        jj = await r1.json().catch(()=>null)
+                      } catch {}
+                      if (!jj || !jj.success) {
+                        const url2 = `/.netlify/functions/orders-member-rating?customerId=${encodeURIComponent(member.id)}&orderId=${encodeURIComponent(String(order.id))}`
+                        const r2 = await fetch(url2, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body1) })
+                        jj = await r2.json().catch(()=>null)
+                      }
                       ok = !!(jj && jj.success)
                       serverErr = (jj && jj.error) ? String(jj.error) : null
                       if (jj && (jj.error==='already_submitted' || jj.error==='already_submitted_any')) { alert('此訂單已提交過回饋，感謝您的支持！'); setFbOpen(''); setGoodFile(null); setGoodNote(''); setSubmitting(false); return }
@@ -394,11 +401,18 @@ export default function MemberOrderDetailPage() {
                     let ok = false
                     let serverErr: string | null = null
                     try {
-                      const resp = await fetch(`/_api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(String(order.id))}/rating`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ kind: 'suggest', comment: suggestText })
-                      })
-                      const jj = await resp.json().catch(()=>({ success:false }))
+                      const url1 = `/_api/orders/member/${encodeURIComponent(member.id)}/orders/${encodeURIComponent(String(order.id))}/rating`
+                      const body1 = { kind: 'suggest', comment: suggestText }
+                      let jj:any = null
+                      try {
+                        const r1 = await fetch(url1, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body1) })
+                        jj = await r1.json().catch(()=>null)
+                      } catch {}
+                      if (!jj || !jj.success) {
+                        const url2 = `/.netlify/functions/orders-member-rating?customerId=${encodeURIComponent(member.id)}&orderId=${encodeURIComponent(String(order.id))}`
+                        const r2 = await fetch(url2, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body1) })
+                        jj = await r2.json().catch(()=>null)
+                      }
                       ok = !!(jj && jj.success)
                       serverErr = (jj && jj.error) ? String(jj.error) : null
                       if (jj && (jj.error==='already_submitted' || jj.error==='already_submitted_any')) { alert('此訂單已提交過回饋，感謝您的支持！'); setFbOpen(''); setSuggestText(''); setSubmitting(false); return }
