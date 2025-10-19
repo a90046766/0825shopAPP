@@ -139,6 +139,36 @@ export default function PageOrderDetail() {
   },[order])
   const [products, setProducts] = useState<any[]>([])
   useEffect(()=>{ (async()=>{ if(!repos) return; setProducts(await repos.productRepo.list()) })() },[repos])
+  // 產品清單排序（供下拉選單使用）：清洗→家電→二手→居家；類內非加購依單價由低到高，加購固定置底
+  const sortProductsForSelect = (list: any[]) => {
+    const categoryOrder: Record<string, number> = { cleaning: 0, new: 1, used: 2, home: 3, other: 4 }
+    const labelMap: Record<string, string> = { cleaning: '清洗類', new: '家電類', used: '二手類', home: '居家清潔/消毒類', other: '其他' }
+    const isAddon = (name: string) => /加購|加價購|addon/i.test(String(name||''))
+    const items = (Array.isArray(list)? list: []).map((p:any, idx:number)=> ({
+      p,
+      idx,
+      cat: (p?.category || 'other') as string,
+      add: isAddon(p?.name),
+      price: Number(p?.unitPrice||0)
+    }))
+    items.sort((a,b)=>{
+      const ca = categoryOrder[a.cat] ?? categoryOrder.other
+      const cb = categoryOrder[b.cat] ?? categoryOrder.other
+      if (ca !== cb) return ca - cb
+      if (a.add !== b.add) return a.add ? 1 : -1
+      if (!a.add && !b.add && a.price !== b.price) return a.price - b.price
+      return a.idx - b.idx
+    })
+    // 分組輸出（optgroup）
+    const groups: Record<string, any[]> = {}
+    for (const it of items) {
+      const k = it.cat in categoryOrder ? it.cat : 'other'
+      if (!groups[k]) groups[k] = []
+      groups[k].push(it.p)
+    }
+    const orderedCats = Object.keys(categoryOrder).sort((a,b)=> (categoryOrder[a]-categoryOrder[b]))
+    return orderedCats.filter(k=> Array.isArray(groups[k]) && groups[k].length>0).map(k=> ({ key: k, label: labelMap[k]||k, items: groups[k] }))
+  }
   // 服務內容顯示排序：清洗→家電→二手→居家；類內非加購按單價由低到高，加購（名稱含「加購/加價購」）固定置底且不做價序
   const sortServiceItemsForDisplay = (items: Array<{ name?: string; quantity?: number; unitPrice?: number; productId?: string; category?: string }>) => {
     const categoryOrder: Record<string, number> = { cleaning: 0, new: 1, used: 2, home: 3, other: 4 }
@@ -503,9 +533,13 @@ export default function PageOrderDetail() {
                 const sub = (Number(it.unitPrice)||0) * (Number(it.quantity)||0)
                 return (
                   <div key={i} className="grid grid-cols-6 items-center gap-2">
-                    <select className="col-span-2 rounded border px-2 py-1" value={it.productId||''} onChange={async (e)=>{ const val=e.target.value; const arr=[...itemsDraft]; if(val){ const p = products.find((x:any)=>x.id===val); arr[i]={...arr[i], productId:val, name:p?.name||it.name, unitPrice:p?.unitPrice||it.unitPrice}; } else { arr[i]={...arr[i], productId:undefined}; } setItemsDraft(arr) }}>
+                    <select className="col-span-2 rounded border px-2 py-1" value={it.productId||''} onChange={async (e)=>{ const val=e.target.value; const arr=[...itemsDraft]; if(val){ const p = products.find((x:any)=>x.id===val); arr[i]={...arr[i], productId:val, name:p?.name||it.name, unitPrice:p?.unitPrice||it.unitPrice, category:p?.category||it.category}; } else { arr[i]={...arr[i], productId:undefined}; } setItemsDraft(arr) }}>
                       <option value="">自訂</option>
-                      {products.map((p:any)=>(<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
+                      {sortProductsForSelect(products).map(g => (
+                        <optgroup key={g.key} label={g.label}>
+                          {g.items.map((p:any)=> (<option key={p.id} value={p.id}>{p.name}（{p.unitPrice}）</option>))}
+                        </optgroup>
+                      ))}
                     </select>
                     <input className="col-span-2 rounded border px-2 py-1" value={it.name} onChange={e=>{ const arr=[...itemsDraft]; arr[i]={...arr[i], name:e.target.value}; setItemsDraft(arr) }} />
                     <div className="flex items-center gap-2">
