@@ -33,6 +33,21 @@ export default function CustomersPage() {
     })() 
   }, [])
 
+  // 過濾客戶（需在下方 effect 使用前定義，避免 TDZ）
+  const filteredRows = rows.filter(customer => {
+    if (!searchTerm) return true
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      customer.name?.toLowerCase().includes(searchLower) ||
+      customer.phone?.toLowerCase().includes(searchLower) ||
+      customer.email?.toLowerCase().includes(searchLower) ||
+      customer.addresses?.some((addr: any) => 
+        addr.address?.toLowerCase().includes(searchLower)
+      ) ||
+      customer.notes?.toLowerCase().includes(searchLower)
+    )
+  })
+
   // 背景同步：為每個客戶嘗試解析會員代碼與積分（多鍵，包含自動建檔）
   useEffect(() => {
     (async () => {
@@ -73,21 +88,7 @@ export default function CustomersPage() {
     })()
   }, [JSON.stringify(filteredRows)])
 
-  // 過濾客戶
-  const filteredRows = rows.filter(customer => {
-    if (!searchTerm) return true
-    
-    const searchLower = searchTerm.toLowerCase()
-    return (
-      customer.name?.toLowerCase().includes(searchLower) ||
-      customer.phone?.toLowerCase().includes(searchLower) ||
-      customer.email?.toLowerCase().includes(searchLower) ||
-      customer.addresses?.some((addr: any) => 
-        addr.address?.toLowerCase().includes(searchLower)
-      ) ||
-      customer.notes?.toLowerCase().includes(searchLower)
-    )
-  })
+  
 
   // 獲取客戶的服務紀錄
   const getCustomerServiceHistory = (customerPhone: string, customerEmail?: string) => {
