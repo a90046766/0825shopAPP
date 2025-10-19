@@ -53,7 +53,8 @@ exports.handler = async (event) => {
           if (!reload.error && reload.data) data = reload.data
         }
       }
-      if (!data) return json(404, { success:false, error:'not_found' })
+      // 降低 404 噪音：改以 200 回傳 not_found 錯誤碼，前端自行判斷
+      if (!data) return json(200, { success:false, error:'not_found' })
       const addr = Array.isArray(data.addresses) && data.addresses[0] ? String(data.addresses[0]) : ''
       const city = addr ? addr.slice(0,3) : ''
       const district = addr ? addr.slice(3,6) : ''
