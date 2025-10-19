@@ -559,11 +559,26 @@ export default function PageOrderDetail() {
               <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={()=>{
+                  onClick={() =>{
                     try {
-                      const applied = applyGroupPricingToServiceItems(itemsDraft)
+                      const list = Array.isArray(itemsDraft) ? itemsDraft : []
+                      const findProd = (it:any) => {
+                        let p:any = null
+                        try { if (it?.productId) p = products.find((x:any)=> x.id === it.productId) } catch {}
+                        if (!p) {
+                          const nIt = String(it?.name||'').trim()
+                          p = products.find((x:any)=> String(x?.name||'').trim() === nIt)
+                        }
+                        return p
+                      }
+                      const matched = list.map(it=> ({ it, p: findProd(it) })).filter(x=> x.p && x.p.category === 'cleaning' && Number(x.p.groupPrice)>0)
+                      const totalQty = matched.reduce((s, x)=> s + Math.max(0, Number(x.it?.quantity||0)), 0)
+                      const thresholds = matched.map(x=> Number(x.p?.groupMinQty||3)).filter(n=> Number.isFinite(n) && n>0)
+                      const minThreshold = thresholds.length ? Math.min(...thresholds) : 3
+                      const active = totalQty >= minThreshold
+                      const applied = active ? list.map((it:any)=>{ const p = findProd(it); if (p && p.category==='cleaning' && Number(p.groupPrice)>0) { return { ...it, unitPrice: Number(p.groupPrice) } } return it }) : list
                       setItemsDraft(applied as any)
-                      alert('已套用團購價於清洗類品項')
+                      alert(active ? '已套用團購價於清洗類品項' : `未達團購門檻（需滿 ${minThreshold} 件清洗類），維持原價`)
                     } catch {}
                   }}
                   className="rounded bg-orange-100 px-3 py-1 text-orange-700"
