@@ -139,6 +139,40 @@ export default function PageOrderDetail() {
   },[order])
   const [products, setProducts] = useState<any[]>([])
   useEffect(()=>{ (async()=>{ if(!repos) return; setProducts(await repos.productRepo.list()) })() },[repos])
+  // 服務內容顯示排序：清洗→家電→二手→居家；類內非加購按單價由低到高，加購（名稱含「加購/加價購」）固定置底且不做價序
+  const sortServiceItemsForDisplay = (items: Array<{ name?: string; quantity?: number; unitPrice?: number; productId?: string; category?: string }>) => {
+    const categoryOrder: Record<string, number> = { cleaning: 0, new: 1, used: 2, home: 3, other: 4 }
+    const findProd = (it: any) => {
+      try { if (it?.productId) { const p = products.find((x: any) => x.id === it.productId); if (p) return p } } catch {}
+      try { const n = String(it?.name || '').trim(); return products.find((x: any) => String(x?.name || '').trim() === n) } catch {}
+      return null
+    }
+    const getCat = (it: any) => {
+      const c = it?.category || (findProd(it)?.category) || 'other'
+      return c
+    }
+    const isAddon = (it: any) => {
+      const n = String(it?.name || '')
+      return /加購|加價購|addon/i.test(n)
+    }
+    return (items || [])
+      .map((it, idx) => ({
+        it,
+        idx,
+        cat: getCat(it),
+        add: isAddon(it),
+        price: Number(it?.unitPrice || 0)
+      }))
+      .sort((a, b) => {
+        const ca = categoryOrder[a.cat] ?? categoryOrder.other
+        const cb = categoryOrder[b.cat] ?? categoryOrder.other
+        if (ca !== cb) return ca - cb
+        if (a.add !== b.add) return a.add ? 1 : -1
+        if (!a.add && !b.add && a.price !== b.price) return a.price - b.price
+        return a.idx - b.idx // 穩定排序
+      })
+      .map(x => x.it)
+  }
   // 新增：客戶欄位本地編輯狀態
   const [customerNameEdit, setCustomerNameEdit] = useState('')
   const [customerPhoneEdit, setCustomerPhoneEdit] = useState('')
@@ -457,7 +491,7 @@ export default function PageOrderDetail() {
           {!editItems ? (
             <div className="rounded border">
               <div className="grid grid-cols-4 bg-gray-50 px-2 py-1 text-xs text-gray-600"><div>項目</div><div>數量</div><div>單價</div><div className="text-right">小計</div></div>
-              {(order.serviceItems||[]).map((it:any,i:number)=>{
+              {sortServiceItemsForDisplay(order.serviceItems||[]).map((it:any,i:number)=>{
                 const sub = it.quantity*it.unitPrice
                 return <div key={i} className="grid grid-cols-4 items-center px-2 py-1 text-sm"><div>{it.name}</div><div>{it.quantity}</div><div>{it.unitPrice}</div><div className="text-right">{sub}</div></div>
               })}
