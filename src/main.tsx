@@ -45,6 +45,10 @@ const ShareReferralPage = React.lazy(() => import('./ui/pages/ShareReferralPage'
 const UsedItemsPage = React.lazy(() => import('./ui/pages/UsedItems'))
 const QuotesPage = React.lazy(() => import('./ui/pages/Quotes'))
 import NewShopPage from './ui/pages/NewShop'
+import PolicyRightsPage from './ui/pages/PolicyRights'
+import PolicyTermsPage from './ui/pages/PolicyTerms'
+import PolicyPrivacyPage from './ui/pages/PolicyPrivacy'
+import PolicyRefundPage from './ui/pages/PolicyRefund'
 import EntryPage from './ui/pages/Entry'
 const ShopProductsPage = React.lazy(() => import('./ui/pages/ShopProducts'))
 const ShopProductDetailPage = React.lazy(() => import('./ui/pages/ShopProductDetail'))
@@ -145,6 +149,10 @@ createRoot(document.getElementById('root')!).render(
         })()}
       />
       <Route path="/store" element={<NewShopPage />} />
+      <Route path="/store/policies/rights" element={<PolicyRightsPage />} />
+      <Route path="/store/policies/terms" element={<PolicyTermsPage />} />
+      <Route path="/store/policies/privacy" element={<PolicyPrivacyPage />} />
+      <Route path="/store/policies/refund" element={<PolicyRefundPage />} />
       <Route path="/store/products" element={<ShopProductsPage />} />
       <Route path="/store/products/:id" element={<ShopProductDetailPage />} />
       <Route path="/store/ac-advisor" element={<ACAdvisorPage />} />

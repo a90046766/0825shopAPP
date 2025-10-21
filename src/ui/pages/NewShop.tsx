@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../utils/supabase';
+import { loadAdapters } from '../../adapters';
+import { Link } from 'react-router-dom';
 
 type CmsHero = {
 	title: string;
@@ -74,6 +76,7 @@ export default function NewShop() {
 	const [displayName, setDisplayName] = React.useState<string>('');
 	const [memberId, setMemberId] = React.useState<string>('');
 	const [carouselIndex, setCarouselIndex] = React.useState<number>(0);
+  const [serviceImgs, setServiceImgs] = React.useState<string[] | null>(null);
 
 	React.useEffect(() => {
 		const safetyTimer = setTimeout(() => setLoading(false), 2000);
@@ -154,6 +157,48 @@ export default function NewShop() {
 			}
 		})();
 	}, []);
+
+  // 依賣場產品動態抓圖：優先使用 CMS 的 imageUrl，其次取對應分類/指定產品的首圖
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const a = await loadAdapters().catch(()=>null as any)
+        if (!a || !a.productRepo?.list) { setServiceImgs(null); return }
+        const products = await a.productRepo.list().catch(()=>[]) as any[]
+        const pickImage = (pred: (p:any)=>boolean): string | null => {
+          const p = products.find(pred)
+          if (!p) return null
+          const arr = (p as any).imageUrls || (p as any).images || []
+          const first = Array.isArray(arr) && arr.length>0 ? arr[0] : (p as any).image || null
+          return first || null
+        }
+        const svc = (cmsEnabled && published ? published.services : defaultContent.services)
+        const urls: string[] = []
+        for (const s of svc) {
+          // 若 CMS 已指定 imageUrl，直接使用
+          if (s?.imageUrl) { urls.push(String(s.imageUrl)); continue }
+          const title = String(s?.title||'')
+          let url: string | null = null
+          if (title.includes('專業清洗')) {
+            // 滾筒洗衣機優先，其次清洗類任一
+            url = pickImage((p)=> /滾筒|washer|drum/i.test(String(p?.name||'')) ) || pickImage((p)=> String(p?.category)==='cleaning')
+          } else if (title.includes('二手家電')) {
+            // 二手冷氣優先，其次二手任一
+            url = pickImage((p)=> String(p?.category)==='used' && /(冷氣|AC|split)/i.test(String(p?.name||''))) || pickImage((p)=> String(p?.category)==='used')
+          } else if (title.includes('家電購買')) {
+            // 直立式洗衣機優先，其次新家電任一
+            url = pickImage((p)=> String(p?.category)==='new' && /(洗衣機|washer)/i.test(String(p?.name||''))) || pickImage((p)=> String(p?.category)==='new')
+          } else if (title.includes('居家')) {
+            url = pickImage((p)=> String(p?.category)==='home')
+          }
+          urls.push(url || '')
+        }
+        setServiceImgs(urls)
+      } catch {
+        setServiceImgs(null)
+      }
+    })()
+  }, [cmsEnabled, published])
 
 	// 輪播圖自動播放
 	React.useEffect(() => {
@@ -408,14 +453,19 @@ export default function NewShop() {
 
 	function renderServices() {
 		const list = cmsEnabled && published ? published.services : defaultContent.services;
-		const serviceImages = [
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80', // 冷氣清洗
-			'https://images.unsplash.com/photo-1581578731548-c6a0c3f2fcc0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80', // 居家清潔
-			'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80', // 家電購買
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'  // 二手家電
-		];
+    const serviceImages = [
+      // 專業清洗：改為滾筒洗衣機
+      'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=1200&q=80',
+      // 居家清潔：維持原有清潔意象
+      'https://images.unsplash.com/photo-1581578731548-c6a0c3f2fcc0?auto=format&fit=crop&w=1200&q=80',
+      // 家電購買：改為直立式洗衣機（通用洗衣機意象）
+      'https://images.unsplash.com/photo-1586201375761-83865001e31b?auto=format&fit=crop&w=1200&q=80',
+      // 二手家電：改為冷氣
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1200&q=80'
+    ];
 		
-		return (
+    const imgs = serviceImgs && serviceImgs.length===list.length ? serviceImgs : serviceImages
+    return (
 			<div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
 				<div className="max-w-6xl mx-auto px-4 py-16">
                                 <div className="text-center mb-12">
@@ -430,9 +480,9 @@ export default function NewShop() {
 								className="group block rounded-2xl bg-white shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 overflow-hidden border border-gray-100"
 							>
 								<div className="relative w-full aspect-[4/3] overflow-hidden">
-									<div 
+                  <div 
 										className="w-full h-full bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
-										style={{ backgroundImage: `url(${serviceImages[idx] || serviceImages[0]})` }}
+                    style={{ backgroundImage: `url(${imgs[idx] || imgs[0]})` }}
 									/>
 									<div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 									<div className="absolute top-4 right-4">
@@ -616,6 +666,14 @@ export default function NewShop() {
 								</a>
               </div>
               </div>
+            <div className="mt-8 text-center text-sm text-white/80">
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                <Link to="/store/policies/rights" className="hover:underline">消費者權益</Link>
+                <Link to="/store/policies/terms" className="hover:underline">服務條款</Link>
+                <Link to="/store/policies/privacy" className="hover:underline">隱私權政策</Link>
+                <Link to="/store/policies/refund" className="hover:underline">退款政策</Link>
+              </div>
+            </div>
             </div>
           </div>
         </div>
