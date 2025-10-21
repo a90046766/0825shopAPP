@@ -365,7 +365,8 @@ export default function NewShop() {
 						<div className="flex-1">
 							<div className="text-sm text-amber-700 font-semibold mb-1">職訓課程</div>
 							<h3 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-2">日式洗濯｜教學保證班（台中）</h3>
-							<p className="text-gray-700">不會就退費・小班 4 人・兩天一夜含住宿。結業可獨立上手，現場演練＋工具實操。</p>
+						<p className="text-gray-700">不會就退費・小班 4 人・兩天一夜含住宿。結業可獨立上手，現場演練＋工具實操。</p>
+						<p className="text-gray-700 mt-1">職訓中心含宿舍可住宿</p>
 							<div className="mt-3 flex flex-wrap gap-2 text-sm">
 								<span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-amber-800">職人實作｜一對一指導</span>
 								<span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-amber-800">完訓輔導接案</span>
