@@ -105,7 +105,7 @@ export default function MemberOrderDetailPage() {
     before: Array.isArray(order.photosBefore) ? order.photosBefore : [],
     after: Array.isArray(order.photosAfter) ? order.photosAfter : []
   }
-  const transferQrUrl: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/QRCODEPAY/QRCODEPAY.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJRUkNPREVQQVkvUVJDT0RFUEFZLnBuZyIsImlhdCI6MTc2MTExMzgzMiwiZXhwIjoyMDc2NDczODMyfQ.fKkbrfTt28GED7WDdVoggve7Yr7UTcoPcXYbNXKHWSI'
+  const transferQrUrl: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/public/QRCODEPAY/QRCODEPAY.png'
   const [remitAmount, setRemitAmount] = useState('')
   const [remitLast5, setRemitLast5] = useState('')
   const [remitSubmitting, setRemitSubmitting] = useState(false)
