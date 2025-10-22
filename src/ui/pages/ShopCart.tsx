@@ -1040,6 +1040,9 @@ export default function ShopCartPage() {
                             <a href={transferQrUrlPrimary} target="_blank" rel="noopener noreferrer" className="inline-block">
                               <img src={transferQrUrlPrimary} onError={(e)=>{ const t=e.currentTarget as HTMLImageElement; t.onerror=null as any; t.src=transferQrUrlBackup }} alt="銀行轉帳 QR" className="w-40 h-40 rounded-lg border border-emerald-200 shadow-sm bg-white object-contain" />
                             </a>
+                            <div className="mt-2 text-[11px] text-emerald-900">
+                              銀行代碼：<span className="font-mono font-semibold">{bankCode}</span> ｜ 帳號：<span className="font-mono font-semibold">{bankAccount}</span>
+                            </div>
                           </div>
                         ) : null}
                       </div>

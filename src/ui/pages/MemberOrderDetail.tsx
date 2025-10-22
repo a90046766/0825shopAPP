@@ -107,6 +107,10 @@ export default function MemberOrderDetailPage() {
   }
   const transferQrUrlPrimary: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/QRCODEPAY/QRCODEPAY.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJRUkNPREVQQVkvUVJDT0RFUEFZLnBuZyIsImlhdCI6MTc2MTExNTY4MiwiZXhwIjoyMDc2NDc1NjgyfQ.Y2ZGPDNeCtX3z2KjHdTK6XbPKMWcanTZJXor1zGZ9xo'
   const transferQrUrlBackup: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/public/QRCODEPAY/QRCODEPAY.png'
+  const bankCode = '822'
+  const bankAccount = '369540475328'
+  const bankAccountName = '日式洗濯有限公司'
+  const copyText = async (text: string) => { try { await navigator.clipboard.writeText(text) } catch {} }
   // 收斂各種可能的付款方式來源欄位
   const paymentTexts: string[] = (() => {
     try {
@@ -287,6 +291,11 @@ export default function MemberOrderDetailPage() {
                       <img src={transferQrUrlPrimary} onError={(e)=>{ const t=e.currentTarget as HTMLImageElement; t.onerror=null as any; t.src=transferQrUrlBackup }} alt="Bank Transfer QR" className="w-40 h-40 rounded border border-emerald-200 bg-white object-contain shadow-sm" />
                     </a>
                     <div className="mt-1 text-[11px] text-emerald-700">若無法顯示，<a href={transferQrUrlPrimary} target="_blank" rel="noopener noreferrer" className="underline">按此開新視窗查看</a></div>
+                    <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-emerald-900">
+                      <div>銀行代碼：<span className="font-mono font-semibold">{bankCode}</span> <button type="button" className="ml-2 rounded border px-1 text-[11px]" onClick={()=>copyText(bankCode)}>複製</button></div>
+                      <div>帳號：<span className="font-mono font-semibold">{bankAccount}</span> <button type="button" className="ml-2 rounded border px-1 text-[11px]" onClick={()=>copyText(bankAccount)}>複製</button></div>
+                      <div>戶名：<span className="font-mono">{bankAccountName}</span></div>
+                    </div>
                   </div>
                 ) : null}
               </div>
