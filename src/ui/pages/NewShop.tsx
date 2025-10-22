@@ -611,6 +611,32 @@ export default function NewShop() {
 		);
 	}
 
+	function renderTransferQR() {
+		const bankCode = '822';
+		const accountNo = '369540475328';
+		const qrText = `BANK:${bankCode};ACCOUNT:${accountNo}`;
+		const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrText)}`;
+		return (
+			<div className="bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+				<div className="max-w-6xl mx-auto px-4 py-12">
+					<div className="rounded-2xl bg-white shadow-lg border border-emerald-100 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center gap-6">
+						<div className="flex-1">
+							<div className="text-sm text-emerald-700 font-semibold mb-1">公司轉帳資訊</div>
+							<h3 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-2">轉帳 QR Code</h3>
+							<p className="text-gray-700">銀行代碼：<span className="font-mono text-lg">{bankCode}</span>　帳號：<span className="font-mono text-lg">{accountNo}</span></p>
+							<p className="text-xs text-gray-500 mt-2">提示：部分銀行 App 僅支援自家/台灣 Pay 格式。如無法自動帶入，請直接手動輸入上方銀行代碼與帳號。</p>
+						</div>
+						<div className="flex items-center gap-3">
+							<a href={qrUrl} target="_blank" rel="noopener noreferrer" className="block">
+								<img src={qrUrl} alt="Bank Transfer QR" className="w-40 h-40 rounded-xl border border-gray-200 shadow" />
+							</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		)
+	}
+
 	function renderContact() {
 		return (
 			<div className="bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 text-white">
@@ -740,6 +766,7 @@ export default function NewShop() {
 				{renderServices()}
 				{renderAdvantages()}
 				{renderFAQ()}
+				{renderTransferQR()}
 				{renderContact()}
             </div>
           </div>
