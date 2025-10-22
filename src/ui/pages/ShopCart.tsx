@@ -44,6 +44,10 @@ export default function ShopCartPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [discountCode, setDiscountCode] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash')
+  const bankCode = '822'
+  const bankAccount = '369540475328'
+  const transferQrText = `BANK:${bankCode};ACCOUNT:${bankAccount}`
+  const transferQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(transferQrText)}`
   const [customerPoints, setCustomerPoints] = useState(0)
   const [usePoints, setUsePoints] = useState(false)
   const [pointsToUse, setPointsToUse] = useState(0)
@@ -119,13 +123,13 @@ export default function ShopCartPage() {
       // 預設版本
       setCommitmentText([
         '我們的承諾',
-        '一、10年(不含第10年)內機器。保固三個月，保固後三個月內有問題免費前往查看檢測。',
-        '二、13年(不含第13年)內機器。保固三個月，保固期內若已無法維修提供換機購物金。',
-        '三、13年以上機器，無法提供保固及購物金，請見諒。',
+        '一、9年(含第9年)內機器。保固三個月，保固後三個月內有問題免費前往查看檢測。',
+        '二、12年(含第12年)內機器。保固三個月，保固期內若已無法維修提供換機購物金。',
+        '三、12年以上機器，無法提供保固及購物金，請見諒。',
         '免責聲明：',
         '1. 現場技師判斷機況較差，可能會婉拒施作，避免後續爭議。',
         '2. 10年以上機器，其機殼或部分塑料配件，可能硬化或脆化導致斷裂，在可正常運作的情況下不在保固範圍內。',
-        '3. 家電機齡以規格表上之製造年月起算，無法查看的話基本上依機況判斷可能會以最高13年以上之機齡計算。',
+        '3. 家電機齡以規格表上之製造年月起算，無法查看的話基本上依機況判斷可能會以最高12年以上之機齡計算。',
         '4. 冷氣排水管一般僅以高壓水槍清洗及疏通，若是因為排水管堵塞之滴水，不在保固範圍內。'
       ].join('\n'))
     })()
@@ -1009,6 +1013,21 @@ export default function ShopCartPage() {
                       </label>
                     </div>
                   </div>
+                  {paymentMethod==='transfer' && (
+                    <div className="mb-5 md:mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-3 md:p-4">
+                      <div className="flex items-start gap-4">
+                        <div className="flex-1">
+                          <div className="text-sm text-emerald-800 font-semibold mb-1">公司轉帳資訊</div>
+                          <div className="text-gray-800 text-sm">銀行代碼：<span className="font-mono text-base">{bankCode}</span></div>
+                          <div className="text-gray-800 text-sm">帳號：<span className="font-mono text-base">{bankAccount}</span></div>
+                          <div className="text-xs text-emerald-700 mt-2">小提醒：若您的銀行 App 無法辨識 QR，請直接手動輸入銀行代碼與帳號。</div>
+                        </div>
+                        <a href={transferQrUrl} target="_blank" rel="noopener noreferrer" className="block">
+                          <img src={transferQrUrl} alt="Bank Transfer QR" className="w-28 h-28 rounded-lg border border-emerald-200 shadow-sm" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
                   {/* 積分系統 */}
                   <div className="mb-5 md:mb-6">
