@@ -47,51 +47,17 @@ export default function ShopCartPage() {
   const bankCode = '822'
   const bankAccount = '369540475328'
   const bankAccountName = '日式洗濯有限公司'
-  // 產生台灣Pay（EMVCo）轉帳 QR 內容（無固定金額）
-  function tlv(id: string, value: string) {
-    const len = String(value.length).padStart(2, '0')
-    return `${id}${len}${value}`
-  }
-  function crc16ccitt(input: string) {
-    let crc = 0xffff
-    for (let i = 0; i < input.length; i++) {
-      crc ^= input.charCodeAt(i) << 8
-      for (let j = 0; j < 8; j++) {
-        if ((crc & 0x8000) !== 0) {
-          crc = (crc << 1) ^ 0x1021
-        } else {
-          crc = crc << 1
-        }
-        crc &= 0xffff
-      }
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success('已複製到剪貼簿')
+    } catch {
+      try {
+        const ok = window.prompt('無法自動複製，請手動複製以下內容：', text)
+        if (ok !== null) toast.success('請自行貼上使用')
+      } catch {}
     }
-    const hex = crc.toString(16).toUpperCase().padStart(4, '0')
-    return hex
   }
-  function buildTaiwanPayEmv(bank: string, account: string, name?: string) {
-    // 必要欄位
-    const payloadFormat = tlv('00', '01')
-    const initiation = tlv('01', '11') // 靜態
-    // 台灣Pay Merchant Account Info（使用 ID 26 + AID = A000000727）
-    const mai = (function(){
-      const aid = tlv('00', 'A000000727')
-      const fBank = tlv('01', bank)
-      const fAcct = tlv('02', account)
-      const value = `${aid}${fBank}${fAcct}`
-      return tlv('26', value)
-    })()
-    const mcc = tlv('52', '0000')
-    const currency = tlv('53', '901') // TWD
-    // 不固定金額則不帶 54
-    const country = tlv('58', 'TW')
-    const mName = name && name.trim() ? tlv('59', name.trim()) : ''
-    // 組裝不含 CRC 的 payload
-    const partial = `${payloadFormat}${initiation}${mai}${mcc}${currency}${country}${mName}63` + '04'
-    const crc = crc16ccitt(partial)
-    return `${payloadFormat}${initiation}${mai}${mcc}${currency}${country}${mName}` + tlv('63', crc)
-  }
-  const twqrPayload = buildTaiwanPayEmv(bankCode, bankAccount, bankAccountName)
-  const transferQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(twqrPayload)}`
   const [customerPoints, setCustomerPoints] = useState(0)
   const [usePoints, setUsePoints] = useState(false)
   const [pointsToUse, setPointsToUse] = useState(0)
@@ -1062,14 +1028,11 @@ export default function ShopCartPage() {
                       <div className="flex items-start gap-4">
                         <div className="flex-1">
                           <div className="text-sm text-emerald-800 font-semibold mb-1">公司轉帳資訊</div>
-                          <div className="text-gray-800 text-sm">銀行代碼：<span className="font-mono text-base">{bankCode}</span></div>
-                          <div className="text-gray-800 text-sm">帳號：<span className="font-mono text-base">{bankAccount}</span></div>
-                          <div className="text-gray-800 text-sm">戶名：<span className="font-mono text-base">{bankAccountName}</span></div>
-                          <div className="text-xs text-emerald-700 mt-2">小提醒：若您的銀行 App 無法辨識 QR，請直接手動輸入銀行代碼與帳號。</div>
+                          <div className="text-gray-800 text-sm">銀行代碼：<span className="font-mono text-base">{bankCode}</span> <button type="button" className="ml-2 text-xs px-2 py-0.5 rounded border text-emerald-700 border-emerald-300 bg-white hover:bg-emerald-50" onClick={()=>copyText(bankCode)}>複製</button></div>
+                          <div className="text-gray-800 text-sm">帳號：<span className="font-mono text-base">{bankAccount}</span> <button type="button" className="ml-2 text-xs px-2 py-0.5 rounded border text-emerald-700 border-emerald-300 bg-white hover:bg-emerald-50" onClick={()=>copyText(bankAccount)}>複製</button></div>
+                          <div className="text-gray-800 text-sm">戶名：<span className="font-mono text-base">{bankAccountName}</span> <button type="button" className="ml-2 text-xs px-2 py-0.5 rounded border text-emerald-700 border-emerald-300 bg-white hover:bg-emerald-50" onClick={()=>copyText(bankAccountName)}>複製</button></div>
+                          <div className="text-xs text-emerald-700 mt-2">小提醒：若您的銀行 App 不支援掃碼，請直接複製以上資訊至您的網銀/行動銀行進行轉帳。</div>
                         </div>
-                        <a href={transferQrUrl} target="_blank" rel="noopener noreferrer" className="block">
-                          <img src={transferQrUrl} alt="Bank Transfer QR" className="w-28 h-28 rounded-lg border border-emerald-200 shadow-sm" />
-                        </a>
                       </div>
                     </div>
                   )}
