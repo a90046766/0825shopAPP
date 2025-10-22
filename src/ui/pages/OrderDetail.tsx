@@ -42,6 +42,9 @@ export default function PageOrderDetail() {
   const [transferLast5, setTransferLast5] = useState<string>('')
   const transferQrUrlPrimary: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/QRCODEPAY/QRCODEPAY.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJRUkNPREVQQVkvUVJDT0RFUEFZLnBuZyIsImlhdCI6MTc2MTExNTY4MiwiZXhwIjoyMDc2NDc1NjgyfQ.Y2ZGPDNeCtX3z2KjHdTK6XbPKMWcanTZJXor1zGZ9xo'
   const transferQrUrlBackup: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/public/QRCODEPAY/QRCODEPAY.png'
+  const bankCode = '822'
+  const bankAccount = '369540475328'
+  const bankAccountName = '日式洗濯有限公司'
   const [note, setNote] = useState<string>(order?.note || '')
   const [supportNote, setSupportNote] = useState<string>((order as any)?.supportNote || '')
   const [unserviceOpen, setUnserviceOpen] = useState(false)
@@ -820,6 +823,9 @@ export default function PageOrderDetail() {
                   <a href={transferQrUrlPrimary} target="_blank" rel="noopener noreferrer" className="inline-block">
                     <img src={transferQrUrlPrimary} onError={(e)=>{ const t=e.currentTarget as HTMLImageElement; t.onerror=null as any; t.src=transferQrUrlBackup }} alt="銀行轉帳 QR" className="w-32 h-32 rounded border border-gray-200 bg-white object-contain" />
                   </a>
+                </div>
+                <div className="text-[12px] text-gray-700 mt-1">
+                  銀行代碼：<span className="font-mono font-semibold">{bankCode}</span> ｜ 帳號：<span className="font-mono font-semibold">{bankAccount}</span> ｜ 戶名：<span className="font-mono">{bankAccountName}</span>
                 </div>
                 <div className="text-[12px] text-gray-600">請客戶完成轉帳後，輸入轉帳金額與後五碼。</div>
                 {!transferInputOpen ? (
