@@ -105,6 +105,10 @@ export default function MemberOrderDetailPage() {
     before: Array.isArray(order.photosBefore) ? order.photosBefore : [],
     after: Array.isArray(order.photosAfter) ? order.photosAfter : []
   }
+  const transferQrUrl: string = (import.meta as any)?.env?.VITE_TRANSFER_QR_URL || ''
+  const [remitAmount, setRemitAmount] = useState('')
+  const [remitLast5, setRemitLast5] = useState('')
+  const [remitSubmitting, setRemitSubmitting] = useState(false)
 
   // 從 signatures.customer_feedback 呈現回饋（若有）
   const feedback = (()=>{
@@ -235,6 +239,53 @@ export default function MemberOrderDetailPage() {
             <div className="border-t px-2 py-1 text-right text-gray-900">應付金額：<span className="text-base font-semibold">{final}</span></div>
           </div>
         </div>
+        {/* 銀行轉帳資訊（若本訂單為匯款） */}
+        {String(order.paymentMethod||'')==='transfer' && (
+          <div className="mt-4 rounded border p-3 md:p-4 bg-emerald-50 border-emerald-200">
+            <div className="mb-2 text-sm font-medium text-emerald-900">匯款說明</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+              <div className="text-xs md:text-sm text-emerald-900">
+                請於完成轉帳後回報金額與末五碼，以便我們儘速對帳。
+                <div className="mt-2 text-[11px] text-emerald-700">銀行轉帳：822 QR（示意）</div>
+                {transferQrUrl ? <img src={transferQrUrl} alt="Bank Transfer QR" className="mt-1 w-28 h-28 rounded border border-emerald-200 bg-white object-contain" /> : null}
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">轉帳金額</label>
+                  <input type="number" min="0" step="1" value={remitAmount} onChange={e=>setRemitAmount(e.target.value)} className="w-full rounded border px-2 py-1 text-sm" placeholder="請輸入金額（元）" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">帳號後五碼</label>
+                  <input type="text" maxLength={5} value={remitLast5} onChange={e=>setRemitLast5(e.target.value.replace(/\D/g,''))} className="w-full rounded border px-2 py-1 text-sm" placeholder="例如：12345" />
+                </div>
+                <div className="text-right">
+                  <button type="button" disabled={remitSubmitting || !remitAmount || remitLast5.length!==5} onClick={async()=>{
+                    if (!member) { alert('請先登入會員'); return }
+                    if (!order?.id) { alert('訂單編號遺失'); return }
+                    setRemitSubmitting(true)
+                    try {
+                      const payload = { amount: Number(remitAmount||0), last5: remitLast5 }
+                      // 優先走 API 映射（若有）
+                      let ok = false
+                      try {
+                        const r1 = await fetch(`/_api/orders/${encodeURIComponent(String(order.id))}/remit`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                        const j1 = await r1.json().catch(()=>null)
+                        ok = !!(j1 && j1.success)
+                      } catch {}
+                      if (!ok) {
+                        const r2 = await fetch(`/.netlify/functions/order-remit`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ orderId: String(order.id), memberId: member.id, ...payload }) })
+                        const j2 = await r2.json().catch(()=>null)
+                        ok = !!(j2 && j2.success)
+                      }
+                      if (ok) { alert('已送出轉帳資訊，將於人工對帳後通知您'); setRemitAmount(''); setRemitLast5('') }
+                      else { alert('送出失敗，請稍後重試') }
+                    } finally { setRemitSubmitting(false) }
+                  }} className={`rounded px-3 py-1 text-white ${remitSubmitting? 'bg-gray-400' : 'bg-emerald-600 hover:bg-emerald-700'}`}>{remitSubmitting?'送出中…':'完成轉帳'}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
           <button disabled={adding} onClick={addToCartAgain} className="rounded bg-gray-900 px-3 py-2 text-white disabled:opacity-60">再次下單</button>
           <a href={buildGoogleCalLink()} target="_blank" rel="noreferrer" className="rounded bg-blue-600 px-3 py-2 text-white text-center">加入 Google 行事曆</a>

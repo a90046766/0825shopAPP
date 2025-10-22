@@ -47,6 +47,7 @@ export default function ShopCartPage() {
   const bankCode = '822'
   const bankAccount = '369540475328'
   const bankAccountName = '日式洗濯有限公司'
+  const transferQrUrl: string = (import.meta as any)?.env?.VITE_TRANSFER_QR_URL || ''
   const copyText = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -1033,6 +1034,12 @@ export default function ShopCartPage() {
                           <div className="text-gray-800 text-sm">戶名：<span className="font-mono text-base">{bankAccountName}</span> <button type="button" className="ml-2 text-xs px-2 py-0.5 rounded border text-emerald-700 border-emerald-300 bg-white hover:bg-emerald-50" onClick={()=>copyText(bankAccountName)}>複製</button></div>
                           <div className="text-xs text-emerald-700 mt-2">小提醒：若您的銀行 App 不支援掃碼，請直接複製以上資訊至您的網銀/行動銀行進行轉帳。</div>
                         </div>
+                        {transferQrUrl ? (
+                          <div className="shrink-0 text-center">
+                            <div className="text-[11px] text-emerald-700 mb-1">銀行轉帳：822 QR（示意）</div>
+                            <img src={transferQrUrl} alt="Bank Transfer QR" className="w-28 h-28 rounded-lg border border-emerald-200 shadow-sm bg-white object-contain" />
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   )}
