@@ -47,7 +47,8 @@ export default function ShopCartPage() {
   const bankCode = '822'
   const bankAccount = '369540475328'
   const bankAccountName = '日式洗濯有限公司'
-  const transferQrUrl: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/public/QRCODEPAY/QRCODEPAY.png'
+  const transferQrUrlPrimary: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/QRCODEPAY/QRCODEPAY.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJRUkNPREVQQVkvUVJDT0RFUEFZLnBuZyIsImlhdCI6MTc2MTExNTY4MiwiZXhwIjoyMDc2NDc1NjgyfQ.Y2ZGPDNeCtX3z2KjHdTK6XbPKMWcanTZJXor1zGZ9xo'
+  const transferQrUrlBackup: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/public/QRCODEPAY/QRCODEPAY.png'
   const copyText = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -1034,10 +1035,10 @@ export default function ShopCartPage() {
                           <div className="text-gray-800 text-sm">戶名：<span className="font-mono text-base">{bankAccountName}</span> <button type="button" className="ml-2 text-xs px-2 py-0.5 rounded border text-emerald-700 border-emerald-300 bg-white hover:bg-emerald-50" onClick={()=>copyText(bankAccountName)}>複製</button></div>
                           <div className="text-xs text-emerald-700 mt-2">小提醒：若您的銀行 App 不支援掃碼，請直接複製以上資訊至您的網銀/行動銀行進行轉帳。</div>
                         </div>
-                        {transferQrUrl ? (
+                        {transferQrUrlPrimary ? (
                           <div className="shrink-0 text-center">
-                            <a href={transferQrUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
-                              <img src={transferQrUrl} alt="銀行轉帳 QR" className="w-40 h-40 rounded-lg border border-emerald-200 shadow-sm bg-white object-contain" />
+                            <a href={transferQrUrlPrimary} target="_blank" rel="noopener noreferrer" className="inline-block">
+                              <img src={transferQrUrlPrimary} onError={(e)=>{ const t=e.currentTarget as HTMLImageElement; t.onerror=null as any; t.src=transferQrUrlBackup }} alt="銀行轉帳 QR" className="w-40 h-40 rounded-lg border border-emerald-200 shadow-sm bg-white object-contain" />
                             </a>
                           </div>
                         ) : null}

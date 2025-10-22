@@ -105,7 +105,8 @@ export default function MemberOrderDetailPage() {
     before: Array.isArray(order.photosBefore) ? order.photosBefore : [],
     after: Array.isArray(order.photosAfter) ? order.photosAfter : []
   }
-  const transferQrUrl: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/public/QRCODEPAY/QRCODEPAY.png'
+  const transferQrUrlPrimary: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/QRCODEPAY/QRCODEPAY.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJRUkNPREVQQVkvUVJDT0RFUEFZLnBuZyIsImlhdCI6MTc2MTExNTY4MiwiZXhwIjoyMDc2NDc1NjgyfQ.Y2ZGPDNeCtX3z2KjHdTK6XbPKMWcanTZJXor1zGZ9xo'
+  const transferQrUrlBackup: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/public/QRCODEPAY/QRCODEPAY.png'
   const paymentMethodDisplay = (()=>{
     try {
       const raw = String(order?.paymentMethod||'').trim()
@@ -268,13 +269,13 @@ export default function MemberOrderDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
               <div className="text-xs md:text-sm text-emerald-900">
                 請於完成轉帳後回報金額與末五碼，以便我們儘速對帳。
-                {transferQrUrl ? (
+                {transferQrUrlPrimary ? (
                   <div className="mt-2">
                     <div className="text-[11px] text-emerald-700 mb-1">銀行轉帳 QR</div>
-                    <a href={transferQrUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
-                      <img src={transferQrUrl} alt="Bank Transfer QR" className="w-40 h-40 rounded border border-emerald-200 bg-white object-contain shadow-sm" />
+                    <a href={transferQrUrlPrimary} target="_blank" rel="noopener noreferrer" className="inline-block">
+                      <img src={transferQrUrlPrimary} onError={(e)=>{ const t=e.currentTarget as HTMLImageElement; t.onerror=null as any; t.src=transferQrUrlBackup }} alt="Bank Transfer QR" className="w-40 h-40 rounded border border-emerald-200 bg-white object-contain shadow-sm" />
                     </a>
-                    <div className="mt-1 text-[11px] text-emerald-700">若無法顯示，<a href={transferQrUrl} target="_blank" rel="noopener noreferrer" className="underline">按此開新視窗查看</a></div>
+                    <div className="mt-1 text-[11px] text-emerald-700">若無法顯示，<a href={transferQrUrlPrimary} target="_blank" rel="noopener noreferrer" className="underline">按此開新視窗查看</a></div>
                   </div>
                 ) : null}
               </div>
