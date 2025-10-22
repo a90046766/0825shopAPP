@@ -40,6 +40,8 @@ export default function PageOrderDetail() {
   const [transferInputOpen, setTransferInputOpen] = useState(false)
   const [transferAmount, setTransferAmount] = useState<string>('')
   const [transferLast5, setTransferLast5] = useState<string>('')
+  const transferQrUrlPrimary: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/QRCODEPAY/QRCODEPAY.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJRUkNPREVQQVkvUVJDT0RFUEFZLnBuZyIsImlhdCI6MTc2MTExNTY4MiwiZXhwIjoyMDc2NDc1NjgyfQ.Y2ZGPDNeCtX3z2KjHdTK6XbPKMWcanTZJXor1zGZ9xo'
+  const transferQrUrlBackup: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/public/QRCODEPAY/QRCODEPAY.png'
   const [note, setNote] = useState<string>(order?.note || '')
   const [supportNote, setSupportNote] = useState<string>((order as any)?.supportNote || '')
   const [unserviceOpen, setUnserviceOpen] = useState(false)
@@ -813,7 +815,12 @@ export default function PageOrderDetail() {
             {/* 銀行轉帳：QR Code + 輸入金額/後五碼 */}
             {payMethod==='transfer' && (
               <div className="mt-3 rounded-lg bg-gray-50 p-2">
-                <div className="mb-1">銀行轉帳：822 QR (示意)</div>
+                <div className="mb-2 flex items-center gap-3">
+                  <span className="text-sm">銀行轉帳 QR</span>
+                  <a href={transferQrUrlPrimary} target="_blank" rel="noopener noreferrer" className="inline-block">
+                    <img src={transferQrUrlPrimary} onError={(e)=>{ const t=e.currentTarget as HTMLImageElement; t.onerror=null as any; t.src=transferQrUrlBackup }} alt="銀行轉帳 QR" className="w-32 h-32 rounded border border-gray-200 bg-white object-contain" />
+                  </a>
+                </div>
                 <div className="text-[12px] text-gray-600">請客戶完成轉帳後，輸入轉帳金額與後五碼。</div>
                 {!transferInputOpen ? (
                   <div className="mt-2">

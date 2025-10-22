@@ -107,28 +107,39 @@ export default function MemberOrderDetailPage() {
   }
   const transferQrUrlPrimary: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/QRCODEPAY/QRCODEPAY.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJRUkNPREVQQVkvUVJDT0RFUEFZLnBuZyIsImlhdCI6MTc2MTExNTY4MiwiZXhwIjoyMDc2NDc1NjgyfQ.Y2ZGPDNeCtX3z2KjHdTK6XbPKMWcanTZJXor1zGZ9xo'
   const transferQrUrlBackup: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/public/QRCODEPAY/QRCODEPAY.png'
-  const paymentMethodDisplay = (()=>{
+  // 收斂各種可能的付款方式來源欄位
+  const paymentTexts: string[] = (() => {
     try {
-      const raw = String(order?.paymentMethod||'').trim()
-      if (!raw) return '-'
-      // 清除「(示意)」「（示意）」並壓縮多餘空白
-      return raw.replace(/[（(]\s*示意\s*[）)]/g,'').replace(/\s{2,}/g,' ').trim()
-    } catch { return '-' }
+      const o:any = order || {}
+      const sig:any = o.signatures || {}
+      const cand:any[] = [
+        o.paymentMethod, o.payment_method, o.payment, o.payMethod, o.pay_method,
+        o.payType, o.pay_type, o.paymentType, o.payment_type, o.payment_option, o.paymentOption,
+        sig.paymentMethod, sig.payment, sig?.payment?.method, sig?.payment?.name, sig?.checkout?.paymentMethod
+      ]
+      return cand
+        .map((x:any)=> (x==null? '' : String(x)))
+        .map(s=> s.trim())
+        .filter(Boolean)
+    } catch { return [] }
+  })()
+  const paymentMethodDisplay = (()=>{
+    const first = paymentTexts[0] || ''
+    if (!first) return '-'
+    return first.replace(/[（(]\s*示意\s*[）)]/g,'').replace(/\s{2,}/g,' ').trim()
   })()
   const [remitAmount, setRemitAmount] = useState('')
   const [remitLast5, setRemitLast5] = useState('')
   const [remitSubmitting, setRemitSubmitting] = useState(false)
   const isTransferPayment = (() => {
     try {
-      const pm = String(order?.paymentMethod||'').trim()
-      if (!pm) return false
-      const pmLc = pm.toLowerCase()
-      // 放寬：英文 transfer、中文 匯款/銀行轉帳/轉帳 皆算
+      const joined = paymentTexts.join(' ').toLowerCase()
+      if (!joined) return false
       return (
-        pmLc === 'transfer' ||
-        pm.includes('匯款') ||
-        pm.includes('銀行轉帳') ||
-        pm.includes('轉帳')
+        joined.includes('transfer') ||
+        joined.includes('匯款') ||
+        joined.includes('銀行轉帳') ||
+        joined.includes('轉帳')
       )
     } catch { return false }
   })()
