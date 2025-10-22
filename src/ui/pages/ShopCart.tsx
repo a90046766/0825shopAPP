@@ -47,7 +47,7 @@ export default function ShopCartPage() {
   const bankCode = '822'
   const bankAccount = '369540475328'
   const bankAccountName = '日式洗濯有限公司'
-  const transferQrUrl: string = (import.meta as any)?.env?.VITE_TRANSFER_QR_URL || ''
+  const transferQrUrl: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/sign/QRCODEPAY/QRCODEPAY.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iMjVhZWJmZi1kMGFjLTRkN2YtODM1YS1lYThmNzE4YTNlZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJRUkNPREVQQVkvUVJDT0RFUEFZLnBuZyIsImlhdCI6MTc2MTExMzgzMiwiZXhwIjoyMDc2NDczODMyfQ.fKkbrfTt28GED7WDdVoggve7Yr7UTcoPcXYbNXKHWSI'
   const copyText = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
