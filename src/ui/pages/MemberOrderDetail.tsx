@@ -106,14 +106,30 @@ export default function MemberOrderDetailPage() {
     after: Array.isArray(order.photosAfter) ? order.photosAfter : []
   }
   const transferQrUrl: string = 'https://dekopbnpsvqlztabblxg.supabase.co/storage/v1/object/public/QRCODEPAY/QRCODEPAY.png'
+  const paymentMethodDisplay = (()=>{
+    try {
+      const raw = String(order?.paymentMethod||'').trim()
+      if (!raw) return '-'
+      // 清除「(示意)」「（示意）」並壓縮多餘空白
+      return raw.replace(/[（(]\s*示意\s*[）)]/g,'').replace(/\s{2,}/g,' ').trim()
+    } catch { return '-' }
+  })()
   const [remitAmount, setRemitAmount] = useState('')
   const [remitLast5, setRemitLast5] = useState('')
   const [remitSubmitting, setRemitSubmitting] = useState(false)
   const isTransferPayment = (() => {
-    const pm = String(order?.paymentMethod||'').trim()
-    if (!pm) return false
-    const pmLc = pm.toLowerCase()
-    return pmLc === 'transfer' || pm.includes('匯款') || pm.includes('銀行轉帳')
+    try {
+      const pm = String(order?.paymentMethod||'').trim()
+      if (!pm) return false
+      const pmLc = pm.toLowerCase()
+      // 放寬：英文 transfer、中文 匯款/銀行轉帳/轉帳 皆算
+      return (
+        pmLc === 'transfer' ||
+        pm.includes('匯款') ||
+        pm.includes('銀行轉帳') ||
+        pm.includes('轉帳')
+      )
+    } catch { return false }
   })()
 
   // 從 signatures.customer_feedback 呈現回饋（若有）
@@ -218,7 +234,7 @@ export default function MemberOrderDetailPage() {
           <div>服務地址：<span className="font-medium break-words">{order.customerAddress||'-'}</span></div>
           <div>服務日期：<span className="font-medium">{order.preferredDate||'-'}</span></div>
           <div>服務時段：<span className="font-medium">{timeBand||'-'}</span></div>
-          <div>付款方式：<span className="font-medium">{order.paymentMethod||'-'}</span></div>
+          <div>付款方式：<span className="font-medium">{paymentMethodDisplay}</span></div>
         </div>
         {Array.isArray(order.assignedTechnicians) && order.assignedTechnicians.length>0 && (
           <div className="mt-1 text-xs md:text-sm text-gray-700">

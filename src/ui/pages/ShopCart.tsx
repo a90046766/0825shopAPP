@@ -1036,8 +1036,9 @@ export default function ShopCartPage() {
                         </div>
                         {transferQrUrl ? (
                           <div className="shrink-0 text-center">
-                            <div className="text-[11px] text-emerald-700 mb-1">銀行轉帳：822 QR（示意）</div>
-                            <img src={transferQrUrl} alt="Bank Transfer QR" className="w-28 h-28 rounded-lg border border-emerald-200 shadow-sm bg-white object-contain" />
+                            <a href={transferQrUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
+                              <img src={transferQrUrl} alt="銀行轉帳 QR" className="w-40 h-40 rounded-lg border border-emerald-200 shadow-sm bg-white object-contain" />
+                            </a>
                           </div>
                         ) : null}
                       </div>
