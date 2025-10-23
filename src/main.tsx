@@ -227,6 +227,22 @@ createRoot(document.getElementById('root')!).render(
   // 背景初始化 adapters（供各頁按需使用），避免阻塞首屏
   loadAdapters().catch(()=>{})
 
+  // 空閒時預載購物站常用頁面 chunks，降低首次跳轉延遲
+  try {
+    const prefetch = () => {
+      try { import('./ui/pages/ShopProducts') } catch {}
+      try { import('./ui/pages/ShopProductDetail') } catch {}
+      try { import('./ui/pages/ShopCart') } catch {}
+      try { import('./ui/pages/MemberOrders') } catch {}
+      try { import('./ui/pages/MemberOrderDetail') } catch {}
+    }
+    if ('requestIdleCallback' in window) {
+      ;(window as any).requestIdleCallback(prefetch, { timeout: 3000 })
+    } else {
+      setTimeout(prefetch, 1500)
+    }
+  } catch {}
+
   // 註冊不快取版 Service Worker（內部與購物站皆可在安全環境註冊）
   try {
     if ('serviceWorker' in navigator) {

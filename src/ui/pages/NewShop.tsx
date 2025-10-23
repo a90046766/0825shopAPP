@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../utils/supabase';
 import { loadAdapters } from '../../adapters';
-import { Link } from 'react-router-dom';
 
 type CmsHero = {
 	title: string;

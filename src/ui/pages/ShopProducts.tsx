@@ -36,6 +36,10 @@ export default function ShopProductsPage() {
   const initialCategory = (params.get('category') as any) || 'cleaning'
   const [cart, setCart] = useState<any[]>([])
   const [selectedCategory, setSelectedCategory] = useState(initialCategory)
+  const goCategory = (cat: string) => {
+    setSelectedCategory(cat)
+    navigate(`/store/products?category=${cat}`)
+  }
   const [searchQuery, setSearchQuery] = useState('')
   const [groupOnly, setGroupOnly] = useState(false)
   const [minPrice, setMinPrice] = useState('')
@@ -733,7 +737,7 @@ export default function ShopProductsPage() {
                 首頁
               </Link>
               <button
-                onClick={() => navigate('/store/products?category=cleaning')}
+                onClick={() => goCategory('cleaning')}
                 className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'cleaning'
                     ? 'bg-blue-600 text-white'
@@ -743,7 +747,7 @@ export default function ShopProductsPage() {
                 專業清洗服務
               </button>
               <button
-                onClick={() => navigate('/store/products?category=new')}
+                onClick={() => goCategory('new')}
                 className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'new'
                     ? 'bg-blue-600 text-white'
@@ -753,7 +757,7 @@ export default function ShopProductsPage() {
                 新家電銷售
               </button>
               <button
-                onClick={() => navigate('/store/products?category=used')}
+                onClick={() => goCategory('used')}
                 className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'used'
                     ? 'bg-blue-600 text-white'
@@ -763,7 +767,7 @@ export default function ShopProductsPage() {
                 二手家電
               </button>
               <button
-                onClick={() => navigate('/store/products?category=home')}
+                onClick={() => goCategory('home')}
                 className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === 'home'
                     ? 'bg-blue-600 text-white'
