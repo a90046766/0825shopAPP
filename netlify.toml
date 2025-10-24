@@ -63,6 +63,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/schedule/clean-orphan-work"
+  to = "/.netlify/functions/schedule-clean-orphan-work"
+  status = 200
+
+[[redirects]]
   from = "/api/member-feedback-list"
   to = "/.netlify/functions/member-feedback-list"
   status = 200

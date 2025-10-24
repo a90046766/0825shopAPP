@@ -257,14 +257,51 @@ export default function TechnicianSchedulePage() {
       return works.filter((w:any)=>{
         if (w.date !== date) return true
         const o = dateOrdersMap[w.orderId]
-        if (!o) return true
+        // 訂單不存在 → 視為無效占用（忽略）
+        if (!o) return false
+        // 訂單日期已調整 → 視為無效占用
+        if (o.preferredDate && o.preferredDate !== date) return false
         const emailLc = String(w.technicianEmail||'').toLowerCase()
         const t = techs.find((x:any)=> String(x.email||'').toLowerCase()===emailLc)
         const name = t?.name || ''
-        return Array.isArray(o.assignedTechnicians) ? o.assignedTechnicians.includes(name) : true
+        const included = Array.isArray(o.assignedTechnicians) ? o.assignedTechnicians.includes(name) : false
+        if (!included) return false
+        // 僅在時間有重疊時才視為有效占用
+        return overlaps(w.startTime, w.endTime, start, end)
       })
     }catch{return works}
   })()
+
+  // 背景清理：自動刪除當日無效占用（僅限管理員/客服）
+  useEffect(() => {
+    (async()=>{
+      try{
+        if(!repos) return
+        if (!user || (user.role!=='admin' && user.role!=='support')) return
+        const todays = works.filter((w:any)=> w.date===date)
+        if (todays.length===0) return
+        const invalid = todays.filter((w:any)=>{
+          const o = dateOrdersMap[w.orderId]
+          if (!o) return true
+          if (o.preferredDate && o.preferredDate !== date) return true
+          const emailLc = String(w.technicianEmail||'').toLowerCase()
+          const t = techs.find((x:any)=> String(x.email||'').toLowerCase()===emailLc)
+          const name = t?.name || ''
+          const included = Array.isArray(o.assignedTechnicians) ? o.assignedTechnicians.includes(name) : false
+          if (!included) return true
+          return !overlaps(w.startTime, w.endTime, start, end)
+        })
+        for (const w of invalid) {
+          try { await repos.scheduleRepo.removeWork(w.id) } catch {}
+        }
+        if (invalid.length>0) {
+          // 重新整理當月資料
+          await refreshMonth(date.slice(0,7))
+        }
+      } catch {}
+    })()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repos, user?.role, works, date, start, end, JSON.stringify(dateOrdersMap), techs.length])
 
   useEffect(() => {
     // 只有管理員和客服可以看到客服排班，技師完全看不到
