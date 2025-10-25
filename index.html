@@ -3,14 +3,25 @@
   <head>
     <link rel="preconnect" href="https://dekopbnpsvqlztabblxg.supabase.co" crossorigin>
     <link rel="preconnect" href="https://kvnrqvtrzkkuztnsuayh.supabase.co" crossorigin>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17672608665"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'AW-17672608665');
+      // 僅前台購物站載入 gtag（避免後台頁面注入）
+      (function(){
+        try {
+          var host = location.hostname||'';
+          var path = location.pathname||'';
+          var isStoreHost = (host === 'store.942clean.com.tw') || (host.indexOf('store.') === 0);
+          var isStorePath = /^\/store(\/|$)/.test(path);
+          if (isStoreHost || isStorePath) {
+            var s = document.createElement('script');
+            s.async = true;
+            s.src = 'https://www.googletagmanager.com/gtag/js?id=AW-17672608665';
+            document.head.appendChild(s);
+            var ss = document.createElement('script');
+            ss.text = "window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'AW-17672608665');";
+            document.head.appendChild(ss);
+          }
+        } catch {}
+      })();
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
