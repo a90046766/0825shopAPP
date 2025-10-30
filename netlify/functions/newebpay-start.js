@@ -20,7 +20,7 @@ exports.handler = async (event) => {
     const orderId = ensure(q.orderId, 'orderId')
     const amount = Math.round(Number(ensure(q.amount,'amount'))||0)
     if (!(amount>0)) return { statusCode: 400, body: 'amount must be > 0' }
-    const email = ensure(q.email, 'email')
+    const email = q.email ? String(q.email) : ''
     const itemDesc = (q.desc ? String(q.desc) : `訂單#${orderId}`).slice(0,50)
 
     const nowTs = Math.floor(Date.now()/1000)
@@ -36,10 +36,10 @@ exports.handler = async (event) => {
       MerchantOrderNo: merchantOrderNo,
       Amt: String(amount),
       ItemDesc: itemDesc,
-      Email: String(email),
       LoginType: '0',
       TradeLimit: '900'
     }
+    if (email) baseParams.Email = email
     // 預設同時開信用卡與 Apple Pay
     baseParams.CREDIT = 1
     baseParams.APPLEPAY = 1
