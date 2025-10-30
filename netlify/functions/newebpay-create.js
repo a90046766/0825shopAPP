@@ -36,9 +36,9 @@ function sha256HexUpper(s) {
 }
 
 function buildKvString(params) {
-  // 依 key 排序並對值做 URL 編碼（藍新要求 x-www-form-urlencoded）
+  // 依 key 排序產出原始 KV 字串（NewebPay 建議以原始值加密，不先 URL 編碼）
   const keys = Object.keys(params).sort()
-  return keys.map(k => `${k}=${encodeURIComponent(String(params[k] ?? ''))}`).join('&')
+  return keys.map(k => `${k}=${String(params[k] ?? '')}`).join('&')
 }
 
 function gatewayBase(env) {
@@ -81,8 +81,10 @@ exports.handler = async (event) => {
     const notifyUrl = `${baseUrl}/.netlify/functions/newebpay-notify`
 
     const nonce = Math.random().toString(36).slice(2, 8)
-    const merchantOrderNo = (body.merchantOrderNo || `${orderId}-${nonce}`)
-      .replace(/[^A-Za-z0-9\-_]/g, '')
+    // 藍新規範：英數＋底線，移除其他符號並將連字號轉底線
+    const merchantOrderNo = (body.merchantOrderNo || `${orderId}_${nonce}`)
+      .replace(/-/g, '_')
+      .replace(/[^A-Za-z0-9_]/g, '')
       .slice(0, 29)
 
     const baseParams = {
