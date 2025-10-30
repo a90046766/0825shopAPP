@@ -785,6 +785,7 @@ export default function PageOrderDetail() {
                   <option value="">—</option>
                   <option value="cash">現金付款</option>
                   <option value="transfer">銀行轉帳</option>
+                  <option value="online">信用卡/APPLY PAY</option>
                   <option value="card">信用卡</option>
                   <option value="applepay">Apple Pay</option>
                 </select>
@@ -853,14 +854,30 @@ export default function PageOrderDetail() {
               </div>
             )}
 
-            {/* 信用卡/Apple Pay：QR Code */}
-            {(payMethod==='card' || payMethod==='applepay') && (
+            {/* 線上刷卡 QR（信用卡 / APPLY PAY） */}
+            {(payMethod==='online' || payMethod==='card' || payMethod==='applepay') && (
               <div className="mt-3 rounded-lg bg-gray-50 p-2">
-                <div className="mb-1">支付 QR (示意)</div>
-                <div className="text-[12px] text-gray-600">請客戶掃描 QR Code 完成付款。</div>
-                <div className="mt-2">
-                  <button className="rounded bg-gray-900 px-3 py-1 text-white">顯示 QR</button>
-                </div>
+                {(() => {
+                  try {
+                    const email = String(order.customerEmail||'').toLowerCase()
+                    const base = `${location.origin}/.netlify/functions/newebpay-start`
+                    const q = new URLSearchParams({ orderId: String(order.id), amount: String(Math.round(amountDue)), email, desc: `訂單#${order.id}` })
+                    const link = `${base}?${q.toString()}`
+                    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(link)}`
+                    return (
+                      <div className="flex items-start gap-3">
+                        <div>
+                          <div className="mb-1 text-sm">線上刷卡 QR（信用卡 / APPLY PAY）</div>
+                          <img src={qr} alt="線上刷卡 QR" className="w-32 h-32 rounded border bg-white object-contain" />
+                        </div>
+                        <div className="text-[12px] text-gray-700">
+                          <div className="mb-1">請客戶掃描 QR 前往藍新付款頁</div>
+                          <div className="break-all"><a href={link} target="_blank" rel="noreferrer" className="text-blue-600 underline">{link}</a></div>
+                        </div>
+                      </div>
+                    )
+                  } catch { return <div className="text-[12px] text-rose-600">產生 QR 失敗</div> }
+                })()}
               </div>
             )}
           </div>
