@@ -1,5 +1,6 @@
 import type { OrderRepo, Order } from '../../core/repository'
 import { supabase } from '../../utils/supabase'
+import { customerRepo } from './customers'
 
 // 輕量重試工具：處理偶發網路/瞬時錯誤
 async function withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
@@ -147,6 +148,42 @@ const ORDER_COLUMNS_DETAIL =
   ORDERS_COLUMNS + ',photos,photos_before,photos_after'
 
 class SupabaseOrderRepo implements OrderRepo {
+  private async ensureCustomerFromOrder(payload: any, created: Order | null): Promise<void> {
+    try {
+      const name = (payload?.customerName || created?.customerName || '').trim()
+      const phone = String(payload?.customerPhone || created?.customerPhone || '').trim()
+      const email = String(payload?.customerEmail || created?.customerEmail || '').toLowerCase().trim()
+      const address = String(payload?.customerAddress || created?.customerAddress || '').trim()
+      if (!name && !phone && !email) return
+      let existing: any = null
+      if (phone) {
+        try { existing = await customerRepo.findByPhone(phone) } catch {}
+      }
+      if (!existing && email) {
+        try {
+          const { data } = await supabase.from('customers').select('*').eq('email', email).maybeSingle()
+          if (data) existing = data
+        } catch {}
+      }
+      const addrList = address ? [address] : []
+      if (existing) {
+        const merged = {
+          id: existing.id,
+          name: name || existing.name || '',
+          phone: phone || existing.phone || '',
+          email: (email || existing.email || undefined) as any,
+          addresses: Array.isArray(existing.addresses)
+            ? Array.from(new Set([...(existing.addresses as any[]), ...addrList]))
+            : addrList,
+          notes: existing.notes,
+          blacklisted: !!existing.blacklisted
+        }
+        await customerRepo.upsert(merged as any)
+      } else if (name && (phone || email)) {
+        await customerRepo.upsert({ name, phone: phone || '', email: (email || undefined) as any, addresses: addrList } as any)
+      }
+    } catch {}
+  }
   private buildYearMonthRange(year?: string, month?: string): { start?: string; end?: string } {
     try {
       const now = new Date()
@@ -413,7 +450,11 @@ class SupabaseOrderRepo implements OrderRepo {
               (patch as any).platform = '商'
             }
             try { if (Object.keys(patch).length>0) await this.update(created.id, patch) } catch {}
-            try { const reread = await this.get(created.id); if (reread) return reread } catch {}
+            try {
+              const reread = await this.get(created.id)
+              await this.ensureCustomerFromOrder(payload, reread || created)
+              if (reread) return reread
+            } catch {}
             // 新訂單通知（僅購物站 channel）
             try {
               const title = '購物站新訂單'
@@ -428,6 +469,7 @@ class SupabaseOrderRepo implements OrderRepo {
                 sent_at: new Date().toISOString()
               } as any)
             } catch {}
+            try { await this.ensureCustomerFromOrder(payload, created) } catch {}
             return created
           }
         } catch (rpcError: any) {
@@ -510,7 +552,9 @@ class SupabaseOrderRepo implements OrderRepo {
         const payload = { kind: 'new_order', order_id: String(row.order_number||row.id), customer_name: row.customer_name||'', customer_phone: row.customer_phone||'' }
         await supabase.from('notifications').insert({ title, body: JSON.stringify(payload), level: 'info', target: 'support', channel: 'store', created_at: new Date().toISOString(), sent_at: new Date().toISOString() } as any)
       } catch {}
-      return fromDbRow(data)
+      const created = fromDbRow(data)
+      try { await this.ensureCustomerFromOrder(row, created) } catch {}
+      return created
     } catch (error) {
       console.error('Supabase order create exception:', error)
       throw new Error('訂單建立失敗')

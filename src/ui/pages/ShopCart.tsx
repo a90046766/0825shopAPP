@@ -24,6 +24,7 @@ import toast from 'react-hot-toast'
 import { checkMemberAuth } from '../../utils/memberAuth'
 import { supabase } from '../../utils/supabase'
 import { loadAdapters } from '../../adapters'
+import PayNowButton from '../components/PayNowButton'
 
 export default function ShopCartPage() {
   const navigate = useNavigate()
@@ -43,7 +44,7 @@ export default function ShopCartPage() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [discountCode, setDiscountCode] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash')
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer' | 'online'>('cash')
   const bankCode = '822'
   const bankAccount = '369540475328'
   const bankAccountName = '日式洗濯有限公司'
@@ -73,6 +74,7 @@ export default function ShopCartPage() {
   const cityRef = useRef<HTMLSelectElement>(null)
   const districtRef = useRef<HTMLSelectElement>(null)
   const streetRef = useRef<HTMLInputElement>(null)
+  const cartOrderNoRef = useRef<string>(`CART-${Date.now()}`)
 
   // 台灣縣市/行政區（精簡版）
   const taiwanCities = [
@@ -1023,8 +1025,23 @@ export default function ShopCartPage() {
                         <input type="radio" name="pay" checked={paymentMethod==='card'} onChange={()=>setPaymentMethod('card')} />
                         刷卡（到府行動刷卡）
                       </label>
+                      <label className="inline-flex items-center gap-2 text-sm">
+                        <input type="radio" name="pay" checked={paymentMethod==='online'} onChange={()=>setPaymentMethod('online')} />
+                        信用卡 / Apple Pay（線上付款）
+                      </label>
                     </div>
                   </div>
+                  {paymentMethod==='online' && (
+                    <div className="mb-5 md:mb-6">
+                      <PayNowButton
+                        orderId={cartOrderNoRef.current}
+                        amount={Math.round(getFinalPrice())}
+                        email={(customerInfo.email||'').toLowerCase()}
+                        label="信用卡 / Apple Pay 線上付款"
+                      />
+                      <div className="mt-1 text-[11px] text-gray-500">點擊後將導向藍新金流頁面完成付款。</div>
+                    </div>
+                  )}
                   {paymentMethod==='transfer' && (
                     <div className="mb-5 md:mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-3 md:p-4">
                       <div className="flex items-start gap-4">

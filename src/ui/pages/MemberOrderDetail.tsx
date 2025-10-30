@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { loadAdapters } from '../../adapters'
 import { supabase } from '../../utils/supabase'
 import { getMemberUser } from '../../utils/memberAuth'
+import PayNowButton from '../components/PayNowButton'
 
 export default function MemberOrderDetailPage() {
   const { id } = useParams()
@@ -277,6 +278,19 @@ export default function MemberOrderDetailPage() {
             <div className="border-t px-2 py-1 text-right text-gray-900">應付金額：<span className="text-base font-semibold">{final}</span></div>
           </div>
         </div>
+        {/* 線上付款（信用卡 / Apple Pay） */}
+        {final > 0 && (
+          <div className="mt-3">
+            <div className="text-sm font-medium text-gray-800 mb-1">線上付款</div>
+            <PayNowButton
+              orderId={String(order.id)}
+              amount={Math.round(final)}
+              email={(member?.email || order.customerEmail || '').toLowerCase()}
+              label="信用卡 / Apple Pay 付款"
+            />
+            <div className="mt-1 text-[11px] text-gray-500">點擊後將導向藍新金流頁面完成付款。</div>
+          </div>
+        )}
         {/* 銀行轉帳資訊（若本訂單為匯款） */}
         {isTransferPayment && (
           <div className="mt-4 rounded border p-3 md:p-4 bg-emerald-50 border-emerald-200">
