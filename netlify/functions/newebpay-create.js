@@ -77,6 +77,7 @@ exports.handler = async (event) => {
     const tradeLimit = Math.max(60, Math.min(900, Number(body.tradeLimit || 900)))
     const loginType = 0
     const payMethod = (body.payMethod || 'BOTH').toUpperCase() // CREDIT | APPLEPAY | BOTH
+    const instFlagRaw = body.instFlag
     const returnUrl = body.returnUrl || `${baseUrl}/.netlify/functions/newebpay-return`
     const notifyUrl = `${baseUrl}/.netlify/functions/newebpay-notify`
 
@@ -105,6 +106,15 @@ exports.handler = async (event) => {
 
     if (payMethod === 'CREDIT' || payMethod === 'BOTH') baseParams.CREDIT = 1
     if (payMethod === 'APPLEPAY' || payMethod === 'BOTH') baseParams.APPLEPAY = 1
+
+    // 可選分期（3 或 6）
+    if (instFlagRaw === 3 || instFlagRaw === '3') {
+      baseParams.InstFlag = '3'
+      baseParams.CREDIT = 1
+    } else if (instFlagRaw === 6 || instFlagRaw === '6') {
+      baseParams.InstFlag = '6'
+      baseParams.CREDIT = 1
+    }
 
     const kv = buildKvString(baseParams)
     const tradeInfo = aesEncrypt(kv, HASH_KEY, HASH_IV)

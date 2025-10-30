@@ -45,6 +45,7 @@ export default function ShopCartPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [discountCode, setDiscountCode] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer' | 'online'>('cash')
+  const [instFlag, setInstFlag] = useState<'none'|'3'|'6'>('none')
   const bankCode = '822'
   const bankAccount = '369540475328'
   const bankAccountName = '日式洗濯有限公司'
@@ -399,6 +400,29 @@ export default function ShopCartPage() {
   }, [groupBuyPriceMemo, totalPriceMemo])
 
   const getGroupBuySavings = () => groupBuySavingsMemo
+
+  // 分期適用判斷（僅家電 new/used 才可分期；含清洗/居家或混合則不開放）
+  const cartCategories = useMemo(()=>{
+    const cats = new Set<string>()
+    for (const it of cart) {
+      const fallback = allProducts.find(p => p.id === it.id) as any
+      const category = it.category ?? fallback?.category
+      if (category) cats.add(String(category))
+    }
+    return cats
+  }, [JSON.stringify(cart)])
+  const onlyAppliance = useMemo(()=>{
+    if (cart.length===0) return false
+    const cats = Array.from(cartCategories)
+    return cats.every(c => c==='new' || c==='used')
+  }, [cart.length, cartCategories])
+  const hasServiceOrMixed = useMemo(()=>{
+    const cats = Array.from(cartCategories)
+    if (cats.length===0) return false
+    const serviceCats = cats.some(c => c==='cleaning' || c==='home')
+    const applianceCats = cats.some(c => c==='new' || c==='used')
+    return serviceCats || (serviceCats && applianceCats)
+  }, [cartCategories])
 
   // 檢查是否適用團購價（跨品項：清洗類別、開啟時所有清洗品項皆適用）
   const isGroupBuyEligible = (productId: string) => {
@@ -1033,13 +1057,28 @@ export default function ShopCartPage() {
                   </div>
                   {paymentMethod==='online' && (
                     <div className="mb-5 md:mb-6">
+                      {/* 分期選擇：僅家電商品時顯示；清洗/混合不顯示（維持一次/Apple Pay） */}
+                      {onlyAppliance && (
+                        <div className="mb-2 text-sm">
+                          <label className="mr-2">分期：</label>
+                          <select value={instFlag} onChange={e=> setInstFlag((e.target.value as any)||'none')} className="rounded border px-2 py-1 text-sm">
+                            <option value="none">一次付款</option>
+                            <option value="3">3 期</option>
+                            <option value="6">6 期</option>
+                          </select>
+                        </div>
+                      )}
                       <PayNowButton
                         orderId={cartOrderNoRef.current}
                         amount={Math.round(getFinalPrice())}
                         email={(customerInfo.email||'').toLowerCase()}
                         label="信用卡 / APPLY PAY 線上付款"
+                        instFlag={onlyAppliance && instFlag!=='none' ? (instFlag as '3'|'6') : undefined}
                       />
                       <div className="mt-1 text-[11px] text-gray-500">點擊後將導向藍新金流頁面完成付款。</div>
+                      {!onlyAppliance && hasServiceOrMixed && (
+                        <div className="mt-1 text-[11px] text-amber-700">提示：分期付款僅適用家電商品。如需分期，請將清洗/居家與家電分開下單。</div>
+                      )}
                     </div>
                   )}
                   {paymentMethod==='transfer' && (

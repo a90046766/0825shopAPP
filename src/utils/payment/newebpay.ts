@@ -11,6 +11,7 @@ export type StartPaymentParams = {
   itemDesc?: string
   payMethod?: 'CREDIT' | 'APPLEPAY' | 'BOTH'
   returnUrl?: string
+  instFlag?: '3' | '6'
 }
 
 function buildAndSubmitForm(action: string, fields: Record<string, string>): void {
@@ -43,7 +44,8 @@ export async function startNewebPayPayment(params: StartPaymentParams): Promise<
       email,
       itemDesc: params.itemDesc || `訂單#${orderId}`,
       payMethod: params.payMethod || 'BOTH',
-      returnUrl: params.returnUrl || `${location.origin}/.netlify/functions/newebpay-return`
+      returnUrl: params.returnUrl || `${location.origin}/.netlify/functions/newebpay-return`,
+      instFlag: params.instFlag
     })
   })
   if (!res.ok) throw new Error(await res.text())

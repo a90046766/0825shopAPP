@@ -9,6 +9,7 @@ type Props = {
   disabled?: boolean
   payMethod?: 'CREDIT' | 'APPLEPAY' | 'BOTH'
   itemDesc?: string
+  instFlag?: '3' | '6'
 }
 
 export function PayNowButton(props: Props) {
@@ -24,7 +25,8 @@ export function PayNowButton(props: Props) {
         amount,
         email,
         itemDesc: props.itemDesc,
-        payMethod: props.payMethod || 'BOTH'
+        payMethod: props.payMethod || 'BOTH',
+        instFlag: props.instFlag
       })
     } catch (err) {
       const message = (err && (err as Error).message) || '付款建立失敗'
