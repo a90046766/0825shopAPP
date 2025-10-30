@@ -1027,7 +1027,7 @@ export default function ShopCartPage() {
                       </label>
                       <label className="inline-flex items-center gap-2 text-sm">
                         <input type="radio" name="pay" checked={paymentMethod==='online'} onChange={()=>setPaymentMethod('online')} />
-                        信用卡 / Apple Pay（線上付款）
+                        信用卡 / APPLY PAY（線上付款）
                       </label>
                     </div>
                   </div>
@@ -1037,7 +1037,7 @@ export default function ShopCartPage() {
                         orderId={cartOrderNoRef.current}
                         amount={Math.round(getFinalPrice())}
                         email={(customerInfo.email||'').toLowerCase()}
-                        label="信用卡 / Apple Pay 線上付款"
+                        label="信用卡 / APPLY PAY 線上付款"
                       />
                       <div className="mt-1 text-[11px] text-gray-500">點擊後將導向藍新金流頁面完成付款。</div>
                     </div>

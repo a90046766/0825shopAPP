@@ -129,6 +129,8 @@ export default function MemberOrderDetailPage() {
     } catch { return [] }
   })()
   const paymentMethodDisplay = (()=>{
+    const joined = (paymentTexts||[]).join(' ').toLowerCase()
+    if (/(apple\s*pay|apply\s*pay|信用卡|刷卡|線上)/.test(joined)) return '信用卡/APPLY PAY'
     const first = paymentTexts[0] || ''
     if (!first) return '-'
     return first.replace(/[（(]\s*示意\s*[）)]/g,'').replace(/\s{2,}/g,' ').trim()
@@ -278,15 +280,15 @@ export default function MemberOrderDetailPage() {
             <div className="border-t px-2 py-1 text-right text-gray-900">應付金額：<span className="text-base font-semibold">{final}</span></div>
           </div>
         </div>
-        {/* 線上付款（信用卡 / Apple Pay） */}
+        {/* 線上付款（信用卡 / APPLY PAY） */}
         {final > 0 && (
           <div className="mt-3">
-            <div className="text-sm font-medium text-gray-800 mb-1">線上付款</div>
+            <div className="text-sm font-medium text-gray-800 mb-1">線上付款（信用卡 / APPLY PAY）</div>
             <PayNowButton
               orderId={String(order.id)}
               amount={Math.round(final)}
               email={(member?.email || order.customerEmail || '').toLowerCase()}
-              label="信用卡 / Apple Pay 付款"
+              label="信用卡 / APPLY PAY 付款"
             />
             <div className="mt-1 text-[11px] text-gray-500">點擊後將導向藍新金流頁面完成付款。</div>
           </div>
