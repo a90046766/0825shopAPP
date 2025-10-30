@@ -1017,21 +1017,13 @@ export default function PageOrderDetail() {
                 <button 
                   onClick={() => {
                     try {
-                      const host = typeof window !== 'undefined' ? window.location.hostname : ''
-                      const isStore = host === 'store.942clean.com.tw' || (host||'').startsWith('store.')
                       const params = new URLSearchParams({
                         orderId: String(order.id||''),
                         date: String(order.preferredDate||''),
                         start: String(order.preferredTimeStart||''),
                         end: String(order.preferredTimeEnd||'')
                       }).toString()
-                      const path = `/schedule?${params}`
-                      if (isStore) {
-                        const loginUrl = `https://0825shopapp.netlify.app/login?returnTo=${encodeURIComponent(path)}`
-                        window.location.assign(loginUrl)
-                      } else {
-                        navigate(path)
-                      }
+                      navigate(`/schedule?${params}`)
                     } catch {
                       navigate(`/schedule?orderId=${order.id}`)
                     }
