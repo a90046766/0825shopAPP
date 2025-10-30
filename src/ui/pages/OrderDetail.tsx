@@ -786,7 +786,6 @@ export default function PageOrderDetail() {
                   <option value="cash">現金付款</option>
                   <option value="transfer">銀行轉帳</option>
                   <option value="online">信用卡/APPLY PAY</option>
-                  <option value="online">信用卡/APPLY PAY</option>
                   <option value="card" hidden>信用卡（舊）</option>
                   <option value="applepay" hidden>Apple Pay（舊）</option>
                 </select>
