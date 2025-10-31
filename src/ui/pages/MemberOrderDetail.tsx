@@ -20,6 +20,10 @@ export default function MemberOrderDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [techPhones, setTechPhones] = useState<Record<string,string>>({})
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  // 轉帳回報欄位（必須置於所有條件 return 之前，避免 Hook 序不一致）
+  const [remitAmount, setRemitAmount] = useState('')
+  const [remitLast5, setRemitLast5] = useState('')
+  const [remitSubmitting, setRemitSubmitting] = useState(false)
 
   useEffect(()=>{
     (async()=>{
@@ -134,9 +138,6 @@ export default function MemberOrderDetailPage() {
     if (!first) return '-'
     return first.replace(/[（(]\s*示意\s*[）)]/g,'').replace(/\s{2,}/g,' ').trim()
   })()
-  const [remitAmount, setRemitAmount] = useState('')
-  const [remitLast5, setRemitLast5] = useState('')
-  const [remitSubmitting, setRemitSubmitting] = useState(false)
   const isTransferPayment = (() => {
     try {
       const joined = paymentTexts.join(' ').toLowerCase()
