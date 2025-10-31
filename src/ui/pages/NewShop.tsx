@@ -290,7 +290,7 @@ export default function NewShop() {
 										loading="lazy"
 										allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
 										allowFullScreen
-										className="absolute inset-0 w-full h-full object-cover"
+									className="absolute inset-0 w-full h-full object-contain"
 									/>
 									<div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-transparent" />
 									{(i === 0 || i === 1 || i === 2) ? (
@@ -319,7 +319,7 @@ export default function NewShop() {
 									<img
 										src={s.bg}
 										alt=""
-										className="absolute inset-0 w-full h-full object-cover object-center"
+										className="absolute inset-0 w-full h-full object-contain object-center"
 										onError={(e)=>{ (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop' }}
 									/>
 										{(i === 0 || i === 1 || i === 2) ? (
