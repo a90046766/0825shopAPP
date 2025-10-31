@@ -3,7 +3,6 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { loadAdapters } from '../../adapters'
 import { supabase } from '../../utils/supabase'
 import { getMemberUser } from '../../utils/memberAuth'
-import PayNowButton from '../components/PayNowButton'
 
 export default function MemberOrderDetailPage() {
   const { id } = useParams()
