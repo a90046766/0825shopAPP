@@ -507,6 +507,11 @@ export default function TechnicianSchedulePage() {
     }
 
     try {
+      // 雙向更新：以目前再指派頁的日期/時段為準，回寫到訂單
+      try {
+        await repos.orderRepo.update(orderId, { preferredDate: date, preferredTimeStart: start, preferredTimeEnd: end })
+      } catch {}
+
       // 將技師 ID 轉換為技師名稱與 Email
       const selectedTechInfos = selectedTechs.map(techId => {
         const tech = techs.find(t => t.id === techId)
@@ -556,7 +561,18 @@ export default function TechnicianSchedulePage() {
             <div className="mt-4">
               <Calendar
                 value={date}
-                onChange={(newDate) => navigate(`/schedule?date=${newDate}`)}
+                onChange={(newDate) => {
+                  try {
+                    const qp = new URLSearchParams()
+                    qp.set('date', newDate)
+                    if (orderId) qp.set('orderId', orderId)
+                    if (start) qp.set('start', start)
+                    if (end) qp.set('end', end)
+                    navigate(`/schedule?${qp.toString()}`)
+                  } catch {
+                    navigate(`/schedule?date=${newDate}`)
+                  }
+                }}
                 onMonthChange={async (year, month) => {
                   const yymm = `${year}-${String(month + 1).padStart(2, '0')}`
                   const startMonth = `${yymm}-01`
@@ -632,7 +648,19 @@ export default function TechnicianSchedulePage() {
             <div className="mt-4">
               <Calendar
                 value={date}
-                onChange={(newDate) => { setHoverDate(newDate); navigate(`/schedule?date=${newDate}`) }}
+                onChange={(newDate) => { 
+                  setHoverDate(newDate);
+                  try {
+                    const qp = new URLSearchParams()
+                    qp.set('date', newDate)
+                    if (orderId) qp.set('orderId', orderId)
+                    if (start) qp.set('start', start)
+                    if (end) qp.set('end', end)
+                    navigate(`/schedule?${qp.toString()}`)
+                  } catch {
+                    navigate(`/schedule?date=${newDate}`)
+                  }
+                }}
                 onMonthChange={async (year, month) => {
                   const yymm = `${year}-${String(month + 1).padStart(2, '0')}`
                   const startMonth = `${yymm}-01`
