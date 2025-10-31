@@ -275,13 +275,13 @@ export default function NewShop() {
 			? cmsSlides.slice(0, 3).map((s:any) => ({ bg: s.imageUrl || '', title: s.title || '', subtitle: s.subtitle || '', ctaText: s.ctaText, ctaLink: s.ctaLink }))
 			: fallbackSlides
 		return (
-			<div className="relative overflow-hidden rounded-2xl mx-auto mb-8 max-w-6xl px-4" style={{ height: 'clamp(240px, calc(100vw / 1.91), 628px)' }}>
+			<div className="relative overflow-hidden rounded-2xl mx-auto mb-8 max-w-5xl" style={{ height: 'clamp(200px, 28vw, 520px)' }}>
 				<div
 					className="flex transition-transform duration-500 ease-in-out h-full will-change-transform"
 					style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
 				>
 					{slides.map((s: any, i: number) => (
-						<div key={i} className="min-w-full h-full flex-shrink-0 relative text-white overflow-hidden">
+						<div key={i} className="w-full h-full flex-none relative text-white overflow-hidden">
 							{s.video ? (
 								<>
 									<iframe
