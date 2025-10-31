@@ -143,7 +143,16 @@ export default function PageOrderDetail() {
     setPayStatus((order.paymentStatus as any) || '')
   },[order])
   const [products, setProducts] = useState<any[]>([])
-  useEffect(()=>{ (async()=>{ if(!repos) return; setProducts(await repos.productRepo.list()) })() },[repos])
+  // 僅在需要時載入產品清單：
+  // - 管理/客服：可編輯服務項目時載入
+  // - 技師：展開「品項增減」時再載入
+  useEffect(()=>{ (async()=>{ 
+    if(!repos) return; 
+    const isTech = user?.role==='technician'
+    if ((!isTech && editItems) || (isTech && adjOpen)) {
+      try { setProducts(await repos.productRepo.list()) } catch {}
+    }
+  })() },[repos, user?.role, editItems, adjOpen])
   // 產品清單排序（供下拉選單使用）：清洗→家電→二手→居家；類內非加購依單價由低到高，加購固定置底
   const sortProductsForSelect = (list: any[]) => {
     const categoryOrder: Record<string, number> = { cleaning: 0, new: 1, used: 2, home: 3, other: 4 }

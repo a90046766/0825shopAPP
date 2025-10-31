@@ -227,14 +227,24 @@ createRoot(document.getElementById('root')!).render(
   // 背景初始化 adapters（供各頁按需使用），避免阻塞首屏
   loadAdapters().catch(()=>{})
 
-  // 空閒時預載購物站常用頁面 chunks，降低首次跳轉延遲
+  // 空閒時預載常用頁面 chunks，降低首次跳轉延遲（前台/後台分流）
   try {
     const prefetch = () => {
-      try { import('./ui/pages/ShopProducts') } catch {}
-      try { import('./ui/pages/ShopProductDetail') } catch {}
-      try { import('./ui/pages/ShopCart') } catch {}
-      try { import('./ui/pages/MemberOrders') } catch {}
-      try { import('./ui/pages/MemberOrderDetail') } catch {}
+      try {
+        const host = typeof window !== 'undefined' ? window.location.hostname : ''
+        const isStoreHost = !!host && (host === 'store.942clean.com.tw' || host.startsWith('store.'))
+        if (isStoreHost) {
+          try { import('./ui/pages/ShopProducts') } catch {}
+          try { import('./ui/pages/ShopProductDetail') } catch {}
+          try { import('./ui/pages/ShopCart') } catch {}
+          try { import('./ui/pages/MemberOrders') } catch {}
+          try { import('./ui/pages/MemberOrderDetail') } catch {}
+        } else {
+          try { import('./ui/pages/DispatchHome') } catch {}
+          try { import('./ui/pages/OrderDetail') } catch {}
+          try { import('./ui/pages/TechnicianSchedule') } catch {}
+        }
+      } catch {}
     }
     if ('requestIdleCallback' in window) {
       ;(window as any).requestIdleCallback(prefetch, { timeout: 3000 })

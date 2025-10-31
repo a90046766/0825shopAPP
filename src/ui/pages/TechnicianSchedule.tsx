@@ -98,44 +98,47 @@ export default function TechnicianSchedulePage() {
       } catch (e) { console.warn('init leaves load failed', e) }
       try {
         const rows = await repos.technicianRepo.list()
-        // 以訂單評分計算各技師平均分數（0~100）與樣本數，合併到技師清單
-        let enriched = rows
-        try {
-          const orders = await repos.orderRepo.list()
-          const byName: Record<string, { sum: number; count: number }> = {}
-          for (const o of orders || []) {
-            const sig: any = (o as any).signatures || {}
-            const r: any = sig.rating
-            if (!r || typeof r.score !== 'number') continue
-            const score = Math.max(0, Math.min(100, Number(r.score)))
-            const names: string[] = []
-            if ((o as any).signatureTechnician) names.push((o as any).signatureTechnician)
-            if (Array.isArray((o as any).assignedTechnicians)) {
-              for (const n of (o as any).assignedTechnicians) {
-                if (n && !names.includes(n)) names.push(n)
+        // 技師角色：避免載入全部訂單做評分統計，直接使用清單即可（大幅減少查詢量）
+        if (user?.role === 'technician') {
+          setTechs(rows.filter((t:any) => (t.email||'').toLowerCase()===(user.email||'').toLowerCase()))
+        } else {
+          // 管理／客服：計算平均評分與樣本數（可能較重，僅在需要時執行）
+          let enriched = rows
+          try {
+            const orders = await repos.orderRepo.list()
+            const byName: Record<string, { sum: number; count: number }> = {}
+            for (const o of orders || []) {
+              const sig: any = (o as any).signatures || {}
+              const r: any = sig.rating
+              if (!r || typeof r.score !== 'number') continue
+              const score = Math.max(0, Math.min(100, Number(r.score)))
+              const names: string[] = []
+              if ((o as any).signatureTechnician) names.push((o as any).signatureTechnician)
+              if (Array.isArray((o as any).assignedTechnicians)) {
+                for (const n of (o as any).assignedTechnicians) {
+                  if (n && !names.includes(n)) names.push(n)
+                }
+              }
+              for (const name of names) {
+                const key = String(name || '').trim()
+                if (!key) continue
+                if (!byName[key]) byName[key] = { sum: 0, count: 0 }
+                byName[key].sum += score
+                byName[key].count += 1
               }
             }
-            for (const name of names) {
-              const key = String(name || '').trim()
-              if (!key) continue
-              if (!byName[key]) byName[key] = { sum: 0, count: 0 }
-              byName[key].sum += score
-              byName[key].count += 1
-            }
-          }
-          enriched = rows.map((t: any) => {
-            const key = String(t.shortName || t.name || '').trim()
-            const agg = byName[key]
-            if (agg && agg.count > 0) {
-              const avg = Math.round(agg.sum / agg.count)
-              return { ...t, ratingAvg: avg, ratingCount: agg.count }
-            }
-            return t
-          })
-        } catch {}
-
-        if (user?.role==='technician') setTechs(enriched.filter((t:any) => (t.email||'').toLowerCase()===(user.email||'').toLowerCase()))
-        else setTechs(enriched)
+            enriched = rows.map((t: any) => {
+              const key = String(t.shortName || t.name || '').trim()
+              const agg = byName[key]
+              if (agg && agg.count > 0) {
+                const avg = Math.round(agg.sum / agg.count)
+                return { ...t, ratingAvg: avg, ratingCount: agg.count }
+              }
+              return t
+            })
+          } catch {}
+          setTechs(enriched)
+        }
       } catch (e) { console.warn('tech list load failed', e) }
       try {
         const staffRows = await repos.staffRepo.list()
