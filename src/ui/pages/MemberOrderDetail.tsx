@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { loadAdapters } from '../../adapters'
 import { supabase } from '../../utils/supabase'
@@ -280,28 +280,17 @@ export default function MemberOrderDetailPage() {
             <div className="border-t px-2 py-1 text-right text-gray-900">應付金額：<span className="text-base font-semibold">{final}</span></div>
           </div>
         </div>
-        {/* 線上付款（信用卡 / APPLY PAY） - 以 QR 方式提供讓客戶自行掃碼前往藍新頁 */}
+        {/* 線上付款（信用卡 / APPLY PAY） - 簡化為連結按鈕，避免潛在相依造成錯誤 */}
         {final > 0 && (
           <div className="mt-3">
-            <div className="text-sm font-medium text-gray-800 mb-1">線上刷卡 QR（信用卡 / APPLY PAY）</div>
-            {(() => {
-              try {
-                const email = (member?.email || order.customerEmail || '').toLowerCase()
-                const base = `${location.origin}/.netlify/functions/newebpay-start`
-                const q = new URLSearchParams({ orderId: String(order.id), amount: String(Math.round(final)), email, desc: `訂單#${order.id}` })
-                const link = `${base}?${q.toString()}`
-                const qr = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(link)}`
-                return (
-                  <div className="flex items-start gap-3">
-                    <img src={qr} alt="線上刷卡 QR" className="w-40 h-40 rounded border bg-white object-contain" />
-                    <div className="text-xs text-gray-700">
-                      <div className="mb-1">請請客戶掃描 QR 前往藍新付款頁</div>
-                      <div className="break-all"><a href={link} className="text-blue-600 underline" target="_blank" rel="noreferrer">{link}</a></div>
-                    </div>
-                  </div>
-                )
-              } catch { return null }
-            })()}
+            <div className="text-sm font-medium text-gray-800 mb-1">線上付款（信用卡 / APPLY PAY）</div>
+            <a
+              href={`/.netlify/functions/newebpay-start?${new URLSearchParams({ orderId: String(order.id), amount: String(Math.round(final)), email: String((member?.email || order.customerEmail || '')).toLowerCase(), desc: `訂單#${order.id}` }).toString()}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block rounded bg-indigo-600 px-3 py-2 text-white text-sm"
+            >前往付款頁</a>
+            <div className="mt-1 text-[11px] text-gray-500">點擊後將在新視窗開啟藍新金流頁面完成付款。</div>
           </div>
         )}
         {/* 銀行轉帳資訊（若本訂單為匯款） */}
