@@ -274,14 +274,14 @@ export default function NewShop() {
 		const slides = (cmsSlides && cmsSlides.length > 0)
 			? cmsSlides.slice(0, 3).map((s:any) => ({ bg: s.imageUrl || '', title: s.title || '', subtitle: s.subtitle || '', ctaText: s.ctaText, ctaLink: s.ctaLink }))
 			: fallbackSlides
-  return (
+		return (
 			<div className="relative overflow-hidden rounded-2xl mx-auto mb-8 max-w-6xl px-4" style={{ height: 'clamp(240px, calc(100vw / 1.91), 628px)' }}>
 				<div
-					className="flex transition-transform duration-500 ease-in-out h-full"
+					className="flex transition-transform duration-500 ease-in-out h-full will-change-transform"
 					style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
 				>
 					{slides.map((s: any, i: number) => (
-						<div key={i} className="w-full h-full flex-shrink-0 relative text-white">
+						<div key={i} className="min-w-full h-full flex-shrink-0 relative text-white overflow-hidden">
 							{s.video ? (
 								<>
 									<iframe
@@ -319,7 +319,7 @@ export default function NewShop() {
 									<img
 										src={s.bg}
 										alt=""
-										className="absolute inset-0 w-full h-full object-contain object-center"
+										className="absolute inset-0 w-full h-full object-cover object-center"
 										onError={(e)=>{ (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581578017425-b3a4e3bfa6fd?q=80&w=1600&auto=format&fit=crop' }}
 									/>
 										{(i === 0 || i === 1 || i === 2) ? (
