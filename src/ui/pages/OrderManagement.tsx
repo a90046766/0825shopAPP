@@ -205,7 +205,9 @@ export default function OrderManagementPage() {
     const dateKey = (o.workCompletedAt || o.createdAt || '').slice(0,7)
     const y = dateKey.slice(0,4)
     const m = dateKey.slice(5,7)
-    const byDate = (!yy || y===yy) && (!mm || m===mm)
+    // 待服務（confirmed/in_progress）不受月份影響
+    const isPendingService = ['confirmed','in_progress'].includes(o.status)
+    const byDate = isPendingService ? true : ((!yy || y===yy) && (!mm || m===mm))
     return hit && byPf && byDate && isOwner(o)
   })
   // 基礎集合（計數用）：不受搜尋 q 影響，僅依平台/年月/權限
@@ -215,7 +217,9 @@ export default function OrderManagementPage() {
     const dateKey = (o.workCompletedAt || o.createdAt || '').slice(0,7)
     const y = dateKey.slice(0,4)
     const m = dateKey.slice(5,7)
-    const byDate = (!yy || y===yy) && (!mm || m===mm)
+    // 待服務（confirmed/in_progress）不受月份影響
+    const isPendingService = ['confirmed','in_progress'].includes(o.status)
+    const byDate = isPendingService ? true : ((!yy || y===yy) && (!mm || m===mm))
     return byPf && byDate && isOwner(o)
   })
   // 依頁籤狀態再過濾（待確認需涵蓋 draft/pending，待服務含 confirmed/in_progress）

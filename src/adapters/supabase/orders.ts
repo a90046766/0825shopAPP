@@ -215,7 +215,8 @@ class SupabaseOrderRepo implements OrderRepo {
     let query = supabase.from('orders').select(LIST_COLS, { count: 'exact' })
     if (RANGE.start && RANGE.end) {
       // 月/年範圍：以 created_at 或 work_completed_at 任一落在範圍內
-      query = query.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end})`)
+      // 例外：待服務（confirmed/in_progress）不受月份影響 → 額外 OR 全量納入
+      query = query.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end}),status.in.(confirmed,in_progress)`)
     }
     if (Array.isArray(platforms) && platforms.length>0) {
       query = query.in('platform', platforms as any)
@@ -258,7 +259,7 @@ class SupabaseOrderRepo implements OrderRepo {
     const RANGE = this.buildYearMonthRange(year, month)
     const base = () => {
       let qy = supabase.from('orders').select('id', { count: 'exact', head: true })
-      if (RANGE.start && RANGE.end) qy = qy.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end})`)
+      if (RANGE.start && RANGE.end) qy = qy.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end}),status.in.(confirmed,in_progress)`)
       if (Array.isArray(platforms) && platforms.length>0) qy = qy.in('platform', platforms as any)
       if (q && q.trim()) qy = qy.or(`order_number.ilike.%${q.trim()}%,customer_name.ilike.%${q.trim()}%`)
       return qy
