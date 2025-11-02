@@ -214,9 +214,11 @@ class SupabaseOrderRepo implements OrderRepo {
     const LIST_COLS = 'id,order_number,customer_name,customer_phone,customer_email,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,status,created_by,created_at,updated_at,work_started_at,work_completed_at,service_finished_at'
     let query = supabase.from('orders').select(LIST_COLS, { count: 'exact' })
     if (RANGE.start && RANGE.end) {
-      // 月/年範圍：以 created_at 或 work_completed_at 任一落在範圍內
-      // 例外：待服務（confirmed/in_progress）不受月份影響 → 額外 OR 全量納入
-      query = query.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end}),status.in.(confirmed,in_progress)`)
+      // 月/年範圍：
+      // - 已完工：以 work_completed_at
+      // - 其它：以 created_at
+      // - 待服務（confirmed/in_progress）：以 preferred_date（服務日期）
+      query = query.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end}),and(status.in.(confirmed,in_progress),preferred_date.gte.${RANGE.start},preferred_date.lt.${RANGE.end})`)
     }
     if (Array.isArray(platforms) && platforms.length>0) {
       query = query.in('platform', platforms as any)
@@ -259,7 +261,7 @@ class SupabaseOrderRepo implements OrderRepo {
     const RANGE = this.buildYearMonthRange(year, month)
     const base = () => {
       let qy = supabase.from('orders').select('id', { count: 'exact', head: true })
-      if (RANGE.start && RANGE.end) qy = qy.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end}),status.in.(confirmed,in_progress)`)
+      if (RANGE.start && RANGE.end) qy = qy.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end}),and(status.in.(confirmed,in_progress),preferred_date.gte.${RANGE.start},preferred_date.lt.${RANGE.end})`)
       if (Array.isArray(platforms) && platforms.length>0) qy = qy.in('platform', platforms as any)
       if (q && q.trim()) qy = qy.or(`order_number.ilike.%${q.trim()}%,customer_name.ilike.%${q.trim()}%`)
       return qy
