@@ -1503,19 +1503,24 @@ export default function PageOrderDetail() {
         <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <div className="mb-1 font-semibold">清洗前 <span className="text-xs text-gray-500">({(order.photosBefore||[]).length}/24)</span></div>
-            <PhotoGrid
+              <PhotoGrid
               urls={order.photosBefore || []}
               deletable={!isClosed && (user?.role==='admin' || user?.role==='support' || user?.role==='technician')}
               onDelete={async (idx:number)=>{
-                try{
-                  if (isClosed) return
-                  if (!confirm('確認刪除這張照片？')) return
-                  if (!confirm('再確認一次，是否確定刪除？')) return
-                  const arr = Array.isArray(order.photosBefore) ? [...order.photosBefore] : []
-                  arr.splice(idx,1)
+                if (isClosed) return
+                if (!confirm('確認刪除這張照片？')) return
+                const prev = Array.isArray(order.photosBefore) ? [...order.photosBefore] : []
+                const arr = [...prev]
+                arr.splice(idx,1)
+                // 樂觀更新，避免卡住
+                setOrder((o:any)=> o ? { ...o, photosBefore: arr } : o)
+                try {
                   await repos.orderRepo.update(order.id, { photosBefore: arr })
-                  const o = await repos.orderRepo.get(order.id); setOrder(o)
-                }catch{ alert('刪除失敗，請重試') }
+                } catch (e:any) {
+                  // 回滾
+                  setOrder((o:any)=> o ? { ...o, photosBefore: prev } : o)
+                  alert('刪除失敗，請重試')
+                }
               }}
             />
             <div className="mt-2 text-sm">
@@ -1546,19 +1551,24 @@ export default function PageOrderDetail() {
           </div>
           <div>
             <div className="mb-1 font-semibold">清洗後 <span className="text-xs text-gray-500">({(order.photosAfter||[]).length}/24)</span></div>
-            <PhotoGrid
+              <PhotoGrid
               urls={order.photosAfter || []}
               deletable={!isClosed && (user?.role==='admin' || user?.role==='support' || user?.role==='technician')}
               onDelete={async (idx:number)=>{
-                try{
-                  if (isClosed) return
-                  if (!confirm('確認刪除這張照片？')) return
-                  if (!confirm('再確認一次，是否確定刪除？')) return
-                  const arr = Array.isArray(order.photosAfter) ? [...order.photosAfter] : []
-                  arr.splice(idx,1)
+                if (isClosed) return
+                if (!confirm('確認刪除這張照片？')) return
+                const prev = Array.isArray(order.photosAfter) ? [...order.photosAfter] : []
+                const arr = [...prev]
+                arr.splice(idx,1)
+                // 樂觀更新，避免卡住
+                setOrder((o:any)=> o ? { ...o, photosAfter: arr } : o)
+                try {
                   await repos.orderRepo.update(order.id, { photosAfter: arr })
-                  const o = await repos.orderRepo.get(order.id); setOrder(o)
-                }catch{ alert('刪除失敗，請重試') }
+                } catch (e:any) {
+                  // 回滾
+                  setOrder((o:any)=> o ? { ...o, photosAfter: prev } : o)
+                  alert('刪除失敗，請重試')
+                }
               }}
             />
             <div className="mt-2 text-sm">
