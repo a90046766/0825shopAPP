@@ -321,6 +321,7 @@ export default function PageOrderDetail() {
   const hasTechSignature = Boolean(order?.signatures && (order as any).signatures?.technician)
   const hasCustomerSignature = Boolean(order?.signatures && (order as any).signatures?.customer)
   const hasSignature = hasTechSignature && hasCustomerSignature
+  const hasCashSignature = Boolean(order?.signatures && (order as any).signatures?.cashReceipt)
   const hasBefore = (order.photosBefore?.length||0) > 0
   const hasAfter = (order.photosAfter?.length||0) > 0
   const requirePhotosOk = hasBefore && hasAfter
@@ -810,17 +811,31 @@ export default function PageOrderDetail() {
               </div>
             </div>
 
-            {/* 現金付款：收款簽名全螢幕 */}
+            {/* 現金付款：收款簽名（獨立於技師簽名）全螢幕 */}
             {payMethod==='cash' && (
               <div className="mt-3 rounded-lg bg-gray-50 p-2">
                 <div className="mb-1">現金收款：{fmt(amountDue)} 元</div>
-                <div className="text-[12px] text-gray-600">點擊下方「簽名確認收款」，開啟全螢幕畫板。確認後不可更改。</div>
+                <div className="text-[12px] text-gray-600">點擊下方「簽名確認收款」開啟全螢幕畫板，簽名後影像會顯示於此區塊（避免誤觸已加確認）。</div>
                 <div className="mt-2">
-                  {payStatus === 'paid' ? (
-                    <span className="rounded bg-emerald-100 px-3 py-1 text-emerald-700">已確認收款</span>
-                  ) : (
-                    <button type="button" onClick={()=>{ setSignAs('technician'); setPaySignOpen(true) }} className="rounded bg-gray-900 px-3 py-1 text-white">簽名確認收款</button>
+                  {/* 影像預覽（新：收款簽名獨立存於 signatures.cashReceipt） */}
+                  {hasCashSignature && (
+                    <div className="mb-2 inline-block rounded border bg-white p-1">
+                      <img src={(order as any).signatures?.cashReceipt} alt="收款簽名" className="h-24 w-40 object-contain" />
+                    </div>
                   )}
+                  {/* 狀態提示與動作 */}
+                  <div className="flex items-center gap-2">
+                    {payStatus === 'paid' && (
+                      <span className="rounded bg-emerald-100 px-3 py-1 text-emerald-700">已確認收款</span>
+                    )}
+                    {payStatus !== 'paid' && !hasCashSignature && (
+                      <button
+                        type="button"
+                        onClick={()=>{ if (!confirm('確認已收到現金並進行收款簽名？\n簽名完成後將標記此單為「已收款」。')) return; setSignAs('technician'); setPaySignOpen(true) }}
+                        className="rounded bg-gray-900 px-3 py-1 text-white"
+                      >簽名確認收款</button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1336,7 +1351,8 @@ export default function PageOrderDetail() {
         onClose={()=>setPaySignOpen(false)}
         onSave={async (dataUrl)=>{
           try {
-            const signatures = { ...(order.signatures||{}), technician: dataUrl }
+            // 新：收款簽名獨立存於 signatures.cashReceipt（不覆蓋技師簽名）
+            const signatures = { ...(order.signatures||{}), cashReceipt: dataUrl }
             await repos.orderRepo.update(order.id, { signatures, paymentStatus: 'paid' as any })
             const o = await repos.orderRepo.get(order.id)
             setOrder(o)
