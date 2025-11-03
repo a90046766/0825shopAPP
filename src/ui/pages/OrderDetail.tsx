@@ -67,6 +67,8 @@ export default function PageOrderDetail() {
   const [techs, setTechs] = useState<any[]>([])
   const [uploadingBefore, setUploadingBefore] = useState(false)
   const [uploadingAfter, setUploadingAfter] = useState(false)
+  const [deletingBefore, setDeletingBefore] = useState(false)
+  const [deletingAfter, setDeletingAfter] = useState(false)
   const navigate = useNavigate()
   useEffect(()=>{ (async()=>{ const a = await loadAdapters(); setRepos(a) })() },[])
   useEffect(() => { if (!repos || !id) return; repos.orderRepo.get(id).then(setOrder) }, [id, repos])
@@ -1507,19 +1509,34 @@ export default function PageOrderDetail() {
               urls={order.photosBefore || []}
               deletable={!isClosed && (user?.role==='admin' || user?.role==='support' || user?.role==='technician')}
               onDelete={async (idx:number)=>{
-                if (isClosed) return
+                if (isClosed || deletingBefore) return
                 if (!confirm('確認刪除這張照片？')) return
+                setDeletingBefore(true)
                 const prev = Array.isArray(order.photosBefore) ? [...order.photosBefore] : []
-                const arr = [...prev]
-                arr.splice(idx,1)
-                // 樂觀更新，避免卡住
-                setOrder((o:any)=> o ? { ...o, photosBefore: arr } : o)
+                const toRemove = prev[idx]
+                const optimistic = prev.filter((_, i)=> i!==idx)
+                // 樂觀更新
+                setOrder((o:any)=> o ? { ...o, photosBefore: optimistic } : o)
                 try {
-                  await repos.orderRepo.update(order.id, { photosBefore: arr })
+                  await repos.orderRepo.update(order.id, { photosBefore: optimistic })
                 } catch (e:any) {
-                  // 回滾
-                  setOrder((o:any)=> o ? { ...o, photosBefore: prev } : o)
-                  alert('刪除失敗，請重試')
+                  // 再試一次：先讀最新，再依內容移除一次
+                  try {
+                    const fresh = await repos.orderRepo.get(order.id)
+                    const freshArr: string[] = Array.isArray(fresh?.photosBefore) ? [...fresh.photosBefore] : []
+                    if (toRemove) {
+                      const j = freshArr.indexOf(toRemove)
+                      if (j >= 0) freshArr.splice(j, 1)
+                    }
+                    await repos.orderRepo.update(order.id, { photosBefore: freshArr })
+                    setOrder((o:any)=> o ? { ...o, photosBefore: freshArr } : o)
+                  } catch (e2:any) {
+                    // 回到伺服端狀態，避免閃爍不一致
+                    try { const srv = await repos.orderRepo.get(order.id); if (srv) setOrder(srv) } catch {}
+                    alert('刪除失敗，請稍後再試')
+                  }
+                } finally {
+                  setDeletingBefore(false)
                 }
               }}
             />
@@ -1555,19 +1572,33 @@ export default function PageOrderDetail() {
               urls={order.photosAfter || []}
               deletable={!isClosed && (user?.role==='admin' || user?.role==='support' || user?.role==='technician')}
               onDelete={async (idx:number)=>{
-                if (isClosed) return
+                if (isClosed || deletingAfter) return
                 if (!confirm('確認刪除這張照片？')) return
+                setDeletingAfter(true)
                 const prev = Array.isArray(order.photosAfter) ? [...order.photosAfter] : []
-                const arr = [...prev]
-                arr.splice(idx,1)
-                // 樂觀更新，避免卡住
-                setOrder((o:any)=> o ? { ...o, photosAfter: arr } : o)
+                const toRemove = prev[idx]
+                const optimistic = prev.filter((_, i)=> i!==idx)
+                // 樂觀更新
+                setOrder((o:any)=> o ? { ...o, photosAfter: optimistic } : o)
                 try {
-                  await repos.orderRepo.update(order.id, { photosAfter: arr })
+                  await repos.orderRepo.update(order.id, { photosAfter: optimistic })
                 } catch (e:any) {
-                  // 回滾
-                  setOrder((o:any)=> o ? { ...o, photosAfter: prev } : o)
-                  alert('刪除失敗，請重試')
+                  // 再試一次：讀最新後移除並更新
+                  try {
+                    const fresh = await repos.orderRepo.get(order.id)
+                    const freshArr: string[] = Array.isArray(fresh?.photosAfter) ? [...fresh.photosAfter] : []
+                    if (toRemove) {
+                      const j = freshArr.indexOf(toRemove)
+                      if (j >= 0) freshArr.splice(j, 1)
+                    }
+                    await repos.orderRepo.update(order.id, { photosAfter: freshArr })
+                    setOrder((o:any)=> o ? { ...o, photosAfter: freshArr } : o)
+                  } catch (e2:any) {
+                    try { const srv = await repos.orderRepo.get(order.id); if (srv) setOrder(srv) } catch {}
+                    alert('刪除失敗，請稍後再試')
+                  }
+                } finally {
+                  setDeletingAfter(false)
                 }
               }}
             />
