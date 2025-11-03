@@ -1524,16 +1524,21 @@ export default function PageOrderDetail() {
                 const exist = order.photosBefore?.length || 0
                 const room = Math.max(0, 24 - exist)
                 if (room <= 0) { alert('清洗前照片已達上限 24 張'); e.currentTarget.value=''; return }
-                if (filesAll.length > 6) { alert('一次最多上傳 6 張照片，請分批上傳'); e.currentTarget.value=''; return }
-                const files = filesAll.slice(0, Math.min(6, room))
-                if (files.length === 0) { e.currentTarget.value=''; return }
+                if (filesAll.length === 0) { e.currentTarget.value=''; return }
+                const files = filesAll.slice(0, room) // 一次可上傳至多剩餘名額（最多 24）
                 try{
                   setUploadingBefore(true)
-                  const imgs = await Promise.all(files.map(f=> compressImageToDataUrl(f, 160)))
+                  const batchSize = 4
+                  const imgs: string[] = []
+                  for (let i = 0; i < files.length; i += batchSize) {
+                    const batch = files.slice(i, i + batchSize)
+                    const chunk = await Promise.all(batch.map(f=> compressImageToDataUrl(f, 160)))
+                    imgs.push(...chunk)
+                  }
                   await repos.orderRepo.update(order.id, { photosBefore: [ ...(order.photosBefore||[]), ...imgs ] })
                   const o = await repos.orderRepo.get(order.id); setOrder(o)
                 } catch (err:any) {
-                  alert('清洗前照片上傳失敗，請分批再試或壓小檔案')
+                  alert('清洗前照片上傳失敗，請稍後再試或分批上傳')
                 } finally { setUploadingBefore(false); try{ e.currentTarget.value='' }catch{} }
               }} />
               <div className="mt-1 text-xs text-gray-500">{uploadingBefore?'上傳中… ':''}最多 24 張，單張壓縮後 ≦ 200KB</div>
@@ -1562,16 +1567,21 @@ export default function PageOrderDetail() {
                 const exist = order.photosAfter?.length || 0
                 const room = Math.max(0, 24 - exist)
                 if (room <= 0) { alert('清洗後照片已達上限 24 張'); e.currentTarget.value=''; return }
-                if (filesAll.length > 6) { alert('一次最多上傳 6 張照片，請分批上傳'); e.currentTarget.value=''; return }
-                const files = filesAll.slice(0, Math.min(6, room))
-                if (files.length === 0) { e.currentTarget.value=''; return }
+                if (filesAll.length === 0) { e.currentTarget.value=''; return }
+                const files = filesAll.slice(0, room) // 一次可上傳至多剩餘名額（最多 24）
                 try{
                   setUploadingAfter(true)
-                  const imgs = await Promise.all(files.map(f=> compressImageToDataUrl(f, 160)))
+                  const batchSize = 4
+                  const imgs: string[] = []
+                  for (let i = 0; i < files.length; i += batchSize) {
+                    const batch = files.slice(i, i + batchSize)
+                    const chunk = await Promise.all(batch.map(f=> compressImageToDataUrl(f, 160)))
+                    imgs.push(...chunk)
+                  }
                   await repos.orderRepo.update(order.id, { photosAfter: [ ...(order.photosAfter||[]), ...imgs ] })
                   const o = await repos.orderRepo.get(order.id); setOrder(o)
                 } catch (err:any) {
-                  alert('清洗後照片上傳失敗，請分批再試或壓小檔案')
+                  alert('清洗後照片上傳失敗，請稍後再試或分批上傳')
                 } finally { setUploadingAfter(false); try{ e.currentTarget.value='' }catch{} }
               }} />
               <div className="mt-1 text-xs text-gray-500">{uploadingAfter?'上傳中… ':''}最多 24 張，單張壓縮後 ≦ 200KB</div>
