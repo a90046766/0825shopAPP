@@ -154,6 +154,18 @@ class SupabaseOrderRepo implements OrderRepo {
       const phone = String(payload?.customerPhone || created?.customerPhone || '').trim()
       const email = String(payload?.customerEmail || created?.customerEmail || '').toLowerCase().trim()
       const address = String(payload?.customerAddress || created?.customerAddress || '').trim()
+      const normalizeAddresses = (arr: any[]): any[] => {
+        try {
+          const list: string[] = []
+          for (const it of (arr||[])) {
+            if (!it) continue
+            if (typeof it === 'string') list.push(it)
+            else if (typeof it === 'object' && typeof it.address === 'string') list.push(it.address)
+          }
+          const uniq = Array.from(new Set(list.filter(Boolean)))
+          return uniq.map(a => ({ id: `ADDR-${Math.random().toString(36).slice(2,8)}`, address: a }))
+        } catch { return [] }
+      }
       if (!name && !phone && !email) return
       let existing: any = null
       if (phone) {
@@ -165,22 +177,47 @@ class SupabaseOrderRepo implements OrderRepo {
           if (data) existing = data
         } catch {}
       }
-      const addrList = address ? [address] : []
+      const addrList = address ? [{ id: `ADDR-${Math.random().toString(36).slice(2,8)}`, address }] : []
       if (existing) {
         const merged = {
           id: existing.id,
           name: name || existing.name || '',
           phone: phone || existing.phone || '',
           email: (email || existing.email || undefined) as any,
-          addresses: Array.isArray(existing.addresses)
-            ? Array.from(new Set([...(existing.addresses as any[]), ...addrList]))
-            : addrList,
+          addresses: (()=>{
+            const prev = Array.isArray(existing.addresses) ? normalizeAddresses(existing.addresses as any[]) : []
+            const next = normalizeAddresses(addrList as any[])
+            const all = [...prev, ...next]
+            const seen = new Set<string>()
+            const uniq = [] as any[]
+            for (const it of all) { if (!seen.has(it.address)) { seen.add(it.address); uniq.push(it) } }
+            return uniq
+          })(),
           notes: existing.notes,
           blacklisted: !!existing.blacklisted
         }
-        await customerRepo.upsert(merged as any)
+        try {
+          await customerRepo.upsert(merged as any)
+        } catch {
+          // 失敗改走伺服端 Function（具 service role）
+          try {
+            await fetch('/.netlify/functions/customers-ensure', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: merged.name, phone: merged.phone, email: merged.email||'', addresses: (merged.addresses||[]).map((a:any)=>a.address), notes: merged.notes })
+            })
+          } catch {}
+        }
       } else if (name && (phone || email)) {
-        await customerRepo.upsert({ name, phone: phone || '', email: (email || undefined) as any, addresses: addrList } as any)
+        try {
+          await customerRepo.upsert({ name, phone: phone || '', email: (email || undefined) as any, addresses: addrList } as any)
+        } catch {
+          try {
+            await fetch('/.netlify/functions/customers-ensure', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name, phone, email, addresses: (addrList||[]).map((a:any)=>a.address) })
+            })
+          } catch {}
+        }
       }
     } catch {}
   }
