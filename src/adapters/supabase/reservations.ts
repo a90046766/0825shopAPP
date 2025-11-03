@@ -1,6 +1,14 @@
 import type { ReservationsRepo, ReservationOrder } from '../../core/repository'
 import { supabase } from '../../utils/supabase'
 
+async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+  let last: any
+  for (let i = 0; i <= retries; i++) {
+    try { return await fn() } catch (e: any) { last = e; await new Promise(r=>setTimeout(r, 300 + i*400)) }
+  }
+  throw last
+}
+
 function fromOrderRow(r: any): ReservationOrder {
   return {
     id: r.id,
@@ -16,18 +24,23 @@ function fromOrderRow(r: any): ReservationOrder {
 
 class SupabaseReservationsRepo implements ReservationsRepo {
   async list(): Promise<ReservationOrder[]> {
-    const { data: orders, error } = await supabase
-      .from('reservation_orders')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const { data: orders, error } = await withRetry(() => (
+      supabase
+        .from('reservation_orders')
+        .select('id,order_number,customer_name,customer_phone,status,created_at,updated_at')
+        .order('created_at', { ascending: false })
+        .limit(200)
+    ))
     if (error) throw error
     if (!orders || orders.length === 0) return []
     const ids = orders.map((o: any) => o.id)
-    const { data: items, error: e2 } = await supabase
-      .from('reservation_items')
-      .select('*')
-      .in('reservation_id', ids)
-      .order('updated_at', { ascending: true })
+    const { data: items, error: e2 } = await withRetry(() => (
+      supabase
+        .from('reservation_items')
+        .select('id,reservation_id,product_id,name,unit_price,quantity,updated_at')
+        .in('reservation_id', ids)
+        .order('updated_at', { ascending: true })
+    ))
     if (e2) throw e2
     const map: Record<string, any[]> = {}
     for (const it of items || []) {
@@ -46,7 +59,7 @@ class SupabaseReservationsRepo implements ReservationsRepo {
       throw error
     }
     const base = fromOrderRow(o)
-    const { data: items, error: e2 } = await supabase.from('reservation_items').select('*').eq('reservation_id', id)
+    const { data: items, error: e2 } = await supabase.from('reservation_items').select('id,reservation_id,product_id,name,unit_price,quantity,updated_at').eq('reservation_id', id)
     if (e2) throw e2
     base.items = (items || []).map(it => ({ id: it.id, productId: it.product_id, name: it.name, unitPrice: it.unit_price, quantity: it.quantity })) as any
     return base
