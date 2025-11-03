@@ -791,7 +791,7 @@ export default function PageOrderDetail() {
             <div className="mb-2 text-sm font-semibold">付款</div>
             <div className="grid grid-cols-2 gap-2">
               <div>付款方式：
-                <select className="rounded border px-2 py-1" value={payMethod} disabled={isClosed || (payMethod==='cash' && payStatus==='paid')} onChange={async e=>{ const v = e.target.value as any; setPayMethod(v); setTransferInputOpen(false); await repos.orderRepo.update(order.id, { paymentMethod: v }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
+                <select className="rounded border px-2 py-1" value={payMethod} disabled={isClosed || (payStatus==='paid')} onChange={async e=>{ const v = e.target.value as any; setPayMethod(v); setTransferInputOpen(false); await repos.orderRepo.update(order.id, { paymentMethod: v }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
                   <option value="">—</option>
                   <option value="cash">現金付款</option>
                   <option value="transfer">銀行轉帳</option>
@@ -801,7 +801,7 @@ export default function PageOrderDetail() {
                 </select>
               </div>
               <div>付款狀態：
-                <select className="rounded border px-2 py-1" value={payStatus} disabled={isClosed || (payMethod==='cash' && payStatus==='paid')} onChange={async e=>{ const v=e.target.value as any; setPayStatus(v); await repos.orderRepo.update(order.id, { paymentStatus: v }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
+                <select className="rounded border px-2 py-1" value={payStatus} disabled={isClosed || (payStatus==='paid')} onChange={async e=>{ const v=e.target.value as any; if (v==='paid' && payStatus!=='paid') { const ok = confirm('一旦設定為「已收款」，付款方式/狀態將被鎖定不可再異動。是否繼續？'); if (!ok) { (e.target as HTMLSelectElement).value = payStatus as any; return } } setPayStatus(v); await repos.orderRepo.update(order.id, { paymentStatus: v }); const o=await repos.orderRepo.get(order.id); setOrder(o) }}>
                   <option value="">—</option>
                   <option value="unpaid">未收款</option>
                   <option value="pending">待確認</option>
@@ -867,10 +867,11 @@ export default function PageOrderDetail() {
                       <button onClick={()=>setTransferInputOpen(false)} className="rounded bg-gray-100 px-3 py-1">取消</button>
                       <button onClick={async()=>{
                         if(!transferAmount || !transferLast5) { alert('請輸入轉帳金額與後五碼'); return }
-                        await repos.orderRepo.update(order.id, { paymentStatus: 'pending' })
+                        if (!confirm('確認將此訂單標記為「已收款」？此動作完成後付款方式與狀態將被鎖定，不可再異動。')) return
+                        await repos.orderRepo.update(order.id, { paymentStatus: 'paid' as any, paymentMethod: 'transfer' as any })
                         const o=await repos.orderRepo.get(order.id); setOrder(o)
                         setTransferInputOpen(false)
-                        alert('已標記為待確認')
+                        alert('已標記為已收款')
                       }} className="rounded bg-gray-900 px-3 py-1 text-white">確認</button>
                     </div>
                   </div>

@@ -29,6 +29,8 @@ exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
     const HASH_KEY = ensure(process.env.NEWEBPAY_HASH_KEY, 'NEWEBPAY_HASH_KEY')
     const HASH_IV = ensure(process.env.NEWEBPAY_HASH_IV, 'NEWEBPAY_HASH_IV')
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
 
     const isForm = (event.headers['content-type'] || '').includes('application/x-www-form-urlencoded')
     const body = isForm ? querystring.parse(event.body || '') : (JSON.parse(event.body || '{}'))
@@ -42,6 +44,22 @@ exports.handler = async (event) => {
     const kvText = aesDecrypt(tradeInfo, HASH_KEY, HASH_IV)
     const pairs = querystring.parse(kvText)
     console.log('[newebpay-notify]', { status: body.Status, result: pairs })
+
+    // 僅在交易成功時更新訂單狀態
+    try {
+      if (String(body.Status).toUpperCase() === 'SUCCESS' && SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+        const { createClient } = require('@supabase/supabase-js')
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } })
+        // 解析 orderId：我們的 MerchantOrderNo 為 `${orderId}_${nonce}`
+        const mo = String(pairs.MerchantOrderNo || '')
+        const orderId = mo.split('_')[0] || ''
+        if (orderId) {
+          await supabase.from('orders').update({ payment_status: 'paid', payment_method: 'online' }).or(`order_number.eq.${orderId},id.eq.${orderId}`)
+        }
+      }
+    } catch (e) {
+      console.warn('[newebpay-notify] update paid failed:', e?.message || e)
+    }
 
     return { statusCode: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' }, body: 'SUCCESS' }
   } catch (e) {
