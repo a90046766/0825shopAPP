@@ -117,6 +117,7 @@ function fromDbRow(row: any): Order {
     pointsUsed: pick('pointsUsed', 'points_used') ?? 0,
     pointsDeductAmount: pick('pointsDeductAmount', 'points_deduct_amount') ?? 0,
     invoiceSent: (r.invoiceSent ?? r.invoice_sent) ?? false,
+    invoiceCode: pick('invoiceCode', 'invoice_code') || '',
     note: pick('note', 'note') || '',
     serviceItems: pick('serviceItems', 'service_items') || [],
     assignedTechnicians: pick('assignedTechnicians', 'assigned_technicians') || [],
@@ -141,7 +142,10 @@ function fromDbRow(row: any): Order {
 
 // 輕量欄位（避免巨大 JSON，例如 photos_* 造成解析失敗或資源不足）
 const ORDERS_COLUMNS =
-  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,support_note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_by,created_at,updated_at'
+  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,invoice_code,note,support_note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_by,created_at,updated_at'
+
+const SUMMARY_COLUMNS =
+  'id,order_number,status,platform,invoice_code,assigned_technicians,signature_technician,preferred_date,work_completed_at,created_at,updated_at'
 
 // 詳細頁欄位（單筆讀取可接受較大欄位，需包含照片供結案檢核）
 const ORDER_COLUMNS_DETAIL =
@@ -286,6 +290,47 @@ class SupabaseOrderRepo implements OrderRepo {
     const { data, error, count } = await query
     if (error) throw new Error(`訂單清單讀取失敗: ${error.message}`)
     return { rows: (data||[]).map(fromDbRow), total: count||undefined }
+  }
+
+  async listSummaryByFilter(opts?: {
+    year?: string,
+    month?: string,
+    status?: 'all'|'pending'|'confirmed'|'completed'|'closed'|'canceled',
+    platforms?: string[],
+    limit?: number,
+    offset?: number,
+  }): Promise<Order[]> {
+    const { year, month, status = 'all', platforms, limit, offset } = opts || {}
+    const RANGE = this.buildYearMonthRange(year, month)
+    let query = supabase.from('orders').select(SUMMARY_COLUMNS)
+    if (RANGE.start && RANGE.end) {
+      query = query.or(`and(created_at.gte.${RANGE.start},created_at.lt.${RANGE.end}),and(work_completed_at.gte.${RANGE.start},work_completed_at.lt.${RANGE.end}),and(status.in.(confirmed,in_progress),preferred_date.gte.${RANGE.start},preferred_date.lt.${RANGE.end})`)
+    }
+    if (Array.isArray(platforms) && platforms.length>0) {
+      query = query.in('platform', platforms as any)
+    }
+    if (status && status!=='all') {
+      if (status==='pending') {
+        query = query.in('status', ['pending','draft'] as any)
+      } else if (status==='confirmed') {
+        query = query.in('status', ['confirmed','in_progress'] as any)
+      } else if (status==='completed') {
+        query = query.eq('status','completed')
+      } else if (status==='closed') {
+        query = query.eq('status','closed')
+      } else if (status==='canceled') {
+        query = query.or('status.eq.canceled,status.eq.unservice')
+      }
+    }
+    query = query.order('created_at', { ascending: false })
+    if (typeof limit === 'number') {
+      const from = Math.max(0, Number(offset||0))
+      const to = from + Math.max(0, limit) - 1
+      if (to >= from) query = query.range(from, to)
+    }
+    const { data, error } = await query
+    if (error) throw new Error(`訂單摘要讀取失敗: ${error.message}`)
+    return (data || []).map(fromDbRow)
   }
 
   async countByStatus(opts?: {

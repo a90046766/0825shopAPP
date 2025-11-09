@@ -65,14 +65,20 @@ export default function OrderManagementPage() {
     try {
       if (repos.orderRepo.listByFilter) {
         const platforms = Object.keys(pf).filter(k=>pf[k])
-        const [resList, resAll] = await Promise.all([
+        const summaryPromise = repos.orderRepo.listSummaryByFilter
+          ? repos.orderRepo.listSummaryByFilter({ year: yy, month: mm, platforms, limit: 2000, offset: 0 } as any)
+          : repos.orderRepo.listByFilter({ year: yy, month: mm, platforms, limit: 2000, offset: 0 } as any)
+        const [resList, summaryResult] = await Promise.all([
           repos.orderRepo.listByFilter({ year: yy, month: mm, status: statusTab as any, q, platforms, limit: PAGE_SIZE, offset: page*PAGE_SIZE }),
-          // 取全部資料以計算各卡牌數量（不帶 q，避免搜尋造成數量隱藏）
-          repos.orderRepo.listByFilter({ year: yy, month: mm, platforms, limit: 2000, offset: 0 } as any)
+          summaryPromise
         ])
         setRows(resList.rows||[])
         setTotal(resList.total|| (resList.rows||[]).length)
-        setAllRows(resAll.rows||[])
+        if (Array.isArray(summaryResult)) {
+          setAllRows(summaryResult)
+        } else {
+          setAllRows(summaryResult?.rows||[])
+        }
       } else {
         const res = { rows: await repos.orderRepo.list(), total: 0 }
         setRows(res.rows||[])
