@@ -142,10 +142,10 @@ function fromDbRow(row: any): Order {
 
 // 輕量欄位（避免巨大 JSON，例如 photos_* 造成解析失敗或資源不足）
 const ORDERS_COLUMNS =
-  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,invoice_code,note,support_note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_by,created_at,updated_at'
+  'id,order_number,customer_name,customer_phone,customer_email,customer_title,customer_tax_id,customer_address,preferred_date,preferred_time_start,preferred_time_end,platform,referrer_code,member_id,service_items,assigned_technicians,signature_technician,signatures,payment_method,payment_status,points_used,points_deduct_amount,invoice_sent,note,support_note,category,channel,used_item_id,work_started_at,work_completed_at,service_finished_at,canceled_reason,status,created_by,created_at,updated_at'
 
 const SUMMARY_COLUMNS =
-  'id,order_number,status,platform,invoice_code,assigned_technicians,signature_technician,preferred_date,work_completed_at,created_at,updated_at'
+  'id,order_number,status,platform,invoice_sent,assigned_technicians,signature_technician,preferred_date,work_completed_at,created_at,updated_at'
 
 // 詳細頁欄位（單筆讀取可接受較大欄位，需包含照片供結案檢核）
 const ORDER_COLUMNS_DETAIL =

@@ -203,6 +203,10 @@ export default function OrderManagementPage() {
   }
 
   const hasEssential = (o:any) => Boolean((o.customerName||'').trim() && (o.customerPhone||'').trim())
+  const isInvoiced = (o:any) => {
+    const code = String(o.invoiceCode || '').trim()
+    return (code.length > 0) || !!o.invoiceSent
+  }
   // 基礎集合（列表用）：依搜尋/平台/年月/權限
   const baseRows = rows.filter(o => {
     const hit = !q || o.id.includes(q) || (o.customerName||'').includes(q)
@@ -240,7 +244,7 @@ export default function OrderManagementPage() {
     if (statusTab==='unservice') return (o as any).status==='unservice'
     if (statusTab==='closed') return o.status==='closed'
     if (statusTab==='canceled') return o.status==='canceled'
-    if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !o.invoiceCode
+    if (statusTab==='invoice') return (o.status==='completed' || o.status==='closed') && !isInvoiced(o)
     return true
   })
 
@@ -253,7 +257,7 @@ export default function OrderManagementPage() {
     unservice: baseAll.filter(o=> (o as any).status==='unservice').length,
     closed: baseAll.filter(o=> o.status==='closed').length,
     canceled: baseAll.filter(o=> o.status==='canceled').length,
-    invoice: baseAll.filter(o=> (o.status==='completed' || o.status==='closed') && !o.invoiceCode).length,
+    invoice: baseAll.filter(o=> (o.status==='completed' || o.status==='closed') && !isInvoiced(o)).length,
   } as any
   // 技師「新派」徽章：以目前待服務（confirmed/in_progress）中屬於自己的訂單，與本機已讀集合比較
   const myEmailLc = (user?.email||'').toLowerCase()
